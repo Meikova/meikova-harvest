@@ -919,6 +919,38 @@ body.modal-open {
     color: #e53e3e;
 }
 
+.cookies-status-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-top: -6px;
+    margin-bottom: 6px;
+    gap: 12px;
+}
+.btn-toggle-cookies {
+    background: none;
+    border: none;
+    font-size: 0.8rem;
+    color: var(--cyan);
+    font-family: var(--font);
+    font-weight: 500;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 0;
+    margin-left: auto;
+    transition: color 0.15s ease, opacity 0.15s ease;
+}
+.btn-toggle-cookies:hover {
+    color: var(--purple);
+    opacity: 0.9;
+}
+.cookie-btn-icon {
+    width: 14px;
+    height: 14px;
+}
+
 .cookies-panel {
     background: rgba(14, 17, 30, 0.35);
     border: 1px solid rgba(255, 255, 255, 0.05);
@@ -1810,7 +1842,10 @@ body.theme-threads {
 }
 
 /* TikTok Theme */
-body.theme-tiktok {
+body.theme-tiktok,
+body.theme-tiktok-video,
+body.theme-tiktok-slideshow,
+body.theme-tiktok-story {
     --cyan: #00f2fe;
     --purple: #fe0979;
     --cyan-rgb: 0, 242, 254;

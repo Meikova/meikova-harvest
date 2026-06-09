@@ -306,7 +306,7 @@ def get_cookie_status(client_id):
                 domains.add("YouTube")
             elif "tiktok.com" in domain:
                 domains.add("TikTok")
-            elif "threads.net" in domain:
+            elif "threads.net" in domain or "threads.com" in domain:
                 domains.add("Threads")
     except Exception as e:
         logger.warning(f"Error parsing cookies for status check: {e}")
@@ -369,20 +369,31 @@ def get_url_content_length(url, cookies_file=None):
         "Accept": "*/*",
     }
     
-    session = requests.Session()
+    req_headers = headers.copy()
+    if "tiktok" in url.lower() or "tiktokcdn" in url.lower():
+        req_headers["Referer"] = "https://www.tiktok.com/"
+
+    use_session = False
     if cookies_file and os.path.exists(cookies_file):
         try:
             import http.cookiejar
             cookie_jar = http.cookiejar.MozillaCookieJar()
             cookie_jar.load(cookies_file, ignore_discard=True, ignore_expires=True)
+            session = requests.Session()
             session.cookies.update(cookie_jar)
+            use_session = True
         except Exception:
             pass
 
     try:
-        response = session.head(url, headers=headers, timeout=3, allow_redirects=True)
-        if response.status_code not in [200, 206]:
-            response = session.get(url, headers=headers, stream=True, timeout=3, allow_redirects=True)
+        if use_session:
+            response = session.head(url, headers=req_headers, timeout=3, allow_redirects=True)
+            if response.status_code not in [200, 206]:
+                response = session.get(url, headers=req_headers, stream=True, timeout=3, allow_redirects=True)
+        else:
+            response = requests.head(url, headers=req_headers, timeout=3, allow_redirects=True)
+            if response.status_code not in [200, 206]:
+                response = requests.get(url, headers=req_headers, stream=True, timeout=3, allow_redirects=True)
             
         if response.status_code in [200, 206]:
             length = response.headers.get('content-length')
@@ -706,6 +717,258 @@ def extract_instagram_via_gallery_dl(url, client_id):
     except Exception as e:
         logger.error(f"gallery-dl extraction error: {e}")
         if "login" in str(e).lower():
+            raise e
+        return None
+
+
+def extract_tiktok_slideshow_via_gallery_dl(url, client_id):
+    """
+    Invokes gallery-dl via subprocess to extract TikTok slideshows.
+    Reuses the client's uploaded cookies if available.
+    """
+    import subprocess
+    import json
+    import os
+    
+    gallery_dl_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "venv", "Scripts", "gallery-dl.exe")
+    if not os.path.exists(gallery_dl_path):
+        gallery_dl_path = "gallery-dl"
+        
+    # Strip query parameters to avoid 403 Forbidden and parser bugs in gallery-dl
+    if "?" in url:
+        url = url.split("?")[0]
+
+    command = [gallery_dl_path, "--dump-json"]
+    
+    has_cookies = False
+    if client_id:
+        client_cookies = os.path.join(TEMP_DOWNLOAD_DIR, "cookies", f"cookies_{client_id}.txt")
+        if os.path.exists(client_cookies):
+            command.extend(["--cookies", client_cookies])
+            has_cookies = True
+            logger.info(f"gallery-dl (TikTok): Using client cookies file: {client_cookies}")
+            
+    command.append(url)
+    
+    try:
+        logger.info(f"Invoking gallery-dl for TikTok: {' '.join(command)}")
+        result = subprocess.run(command, capture_output=True, text=True, encoding="utf-8", errors="ignore")
+        
+        stdout = result.stdout.strip()
+        stderr = result.stderr.strip()
+        
+        # If extraction failed (empty stdout, empty list, or 403 error), retry without cookies
+        should_retry = False
+        if not stdout or stdout == "[]":
+            should_retry = True
+        elif "403" in stderr or "forbidden" in stderr.lower() or "error" in stderr.lower():
+            should_retry = True
+            
+        if should_retry and has_cookies:
+            logger.info("gallery-dl TikTok extraction failed with cookies. Retrying WITHOUT cookies...")
+            fallback_command = [gallery_dl_path, "--dump-json", url]
+            result = subprocess.run(fallback_command, capture_output=True, text=True, encoding="utf-8", errors="ignore")
+            stdout = result.stdout.strip()
+            stderr = result.stderr.strip()
+            
+        if not stdout or stdout == "[]":
+            logger.warning(f"gallery-dl (TikTok) returned empty output. Stderr: {stderr}")
+            return None
+            
+        entries = []
+        try:
+            data = json.loads(stdout)
+            if isinstance(data, list):
+                if data and isinstance(data[0], list):
+                    for item in data:
+                        if isinstance(item, list):
+                            entries.append(item)
+                else:
+                    entries = [data]
+        except Exception as json_e:
+            logger.info(f"Failed to parse entire gallery-dl (TikTok) stdout as JSON: {json_e}")
+            lines = stdout.splitlines()
+            for line in lines:
+                if line.strip().startswith("["):
+                    try:
+                        entry = json.loads(line)
+                        if isinstance(entry, list):
+                            entries.append(entry)
+                    except Exception:
+                        pass
+
+        # Find the metadata entry (type 2)
+        metadata = {}
+        for entry in entries:
+            if len(entry) >= 2 and isinstance(entry[1], dict) and entry[0] == 2:
+                metadata = entry[1]
+                break
+
+        if not metadata:
+            logger.warning(f"No metadata block found in gallery-dl (TikTok) output. stdout: {stdout[:1000]}, stderr: {result.stderr[:1000]}")
+            return None
+
+        # Check for errors
+        if "error" in metadata:
+            err_msg = metadata.get("message", "")
+            logger.warning(f"gallery-dl TikTok error: {err_msg}")
+            if any(k in err_msg.lower() for k in ["login", "redirect", "cookie", "captcha"]):
+                raise Exception("TikTok verification / login required")
+            return None
+
+        # Author / Uploader info
+        author = metadata.get("author") or {}
+        uploader = author.get("nickname") or author.get("uniqueId") or metadata.get("user") or "TikTok User"
+        
+        # Title and description
+        description = metadata.get("desc") or metadata.get("description") or ""
+        title = description.split("\n")[0] if description else f"TikTok Slideshow by {uploader}"
+        if len(title) > 80:
+            title = title[:80] + "..."
+            
+        # Parse images from imagePost
+        image_post = metadata.get("imagePost") or {}
+        image_list = image_post.get("images") or []
+        
+        images = []
+        video_options = []
+        
+        for idx, img in enumerate(image_list):
+            img_url = None
+            url_list = img.get("imageURL", {}).get("urlList") or []
+            if url_list:
+                img_url = url_list[0]
+            if not img_url:
+                continue
+                
+            width = img.get("imageWidth") or "Original"
+            height = img.get("imageHeight") or ""
+            resolution = f"{width}x{height}" if height else str(width)
+            
+            images.append({
+                "label": f"Slide Photo {idx+1}",
+                "url": img_url,
+                "ext": "jpg"
+            })
+            
+            video_options.append({
+                "format_id": f"direct_photo_slide_{idx+1}",
+                "resolution": resolution,
+                "ext": "jpg",
+                "type": "image",
+                "size": "Unknown Size",
+                "label": f"Photo - Slide {idx+1}",
+                "url": img_url
+            })
+            
+        # Audio track
+        audio_options = []
+        music = metadata.get("music") or {}
+        music_url = music.get("playUrl")
+        music_duration = music.get("duration") or 0
+        
+        if music_url:
+            audio_options.append({
+                "format_id": "direct_audio_tiktok_slideshow",
+                "resolution": "Audio",
+                "ext": "mp3",
+                "type": "audio",
+                "size": format_size(int(music_duration * 128 * 1000 / 8)) if music_duration else "Unknown Size",
+                "label": f"Music: {music.get('title', 'Unknown')} - {music.get('authorName', 'Unknown')}",
+                "url": music_url
+            })
+            
+            audio_options.append({
+                "format_id": "direct_audio_tiktok_slideshow_m4a",
+                "resolution": "Audio",
+                "ext": "m4a",
+                "type": "audio",
+                "size": format_size(int(music_duration * 128 * 1000 / 8)) if music_duration else "Unknown Size",
+                "label": "M4A AAC (Original Quality - Fast)",
+                "url": music_url
+            })
+
+        # Thumbnail
+        cover_url_list = image_post.get("cover", {}).get("urlList") or []
+        thumbnail = cover_url_list[0] if cover_url_list else (images[0]["url"] if images else "https://images.unsplash.com/photo-1611162617213-7d7a39e9b1d7?q=80&w=600")
+
+        # Stats
+        stats = metadata.get("stats") or {}
+        likes_val = stats.get("diggCount")
+        likes = "Unknown"
+        if likes_val is not None:
+            try:
+                likes_count = int(likes_val)
+                if likes_count >= 1_000_000:
+                    likes = f"{likes_count / 1_000_000:.1f}M"
+                elif likes_count >= 1_000:
+                    likes = f"{likes_count / 1_000:.1f}K"
+                else:
+                    likes = str(likes_count)
+            except Exception:
+                likes = str(likes_val)
+                
+        views_val = stats.get("playCount")
+        views = "Unknown"
+        if views_val is not None:
+            try:
+                views_count = int(views_val)
+                if views_count >= 1_000_000:
+                    views = f"{views_count / 1_000_000:.1f}M"
+                elif views_count >= 1_000:
+                    views = f"{views_count / 1_000:.1f}K"
+                else:
+                    views = str(views_count)
+            except Exception:
+                views = str(views_val)
+
+        # Upload date
+        upload_date = "Unknown"
+        create_time = metadata.get("createTime")
+        if create_time:
+            try:
+                from datetime import datetime
+                dt = datetime.fromtimestamp(int(create_time))
+                upload_date = dt.strftime("%d %b %Y")
+            except Exception:
+                pass
+        # Resolve sizes of photo options in parallel without cookies (to avoid 30s delays on CDN links)
+        from concurrent.futures import ThreadPoolExecutor
+        
+        def resolve_size(opt):
+            url_to_check = opt.get("url")
+            if url_to_check:
+                s_bytes = get_url_content_length(url_to_check, cookies_file=None)
+                if s_bytes:
+                    opt["size"] = format_size(s_bytes)
+
+        if video_options:
+            with ThreadPoolExecutor(max_workers=min(12, len(video_options))) as executor:
+                list(executor.map(resolve_size, video_options))
+
+        return {
+            "status": "success",
+            "title": title,
+            "uploader": uploader,
+            "duration": format_duration(music_duration) if music_duration else "0:00",
+            "thumbnail": thumbnail,
+            "is_shorts": False,
+            "platform_label": "TikTok Slideshow",
+            "platform_class": "tiktok-slideshow",
+            "views": views,
+            "likes": likes,
+            "upload_date": upload_date,
+            "description": description,
+            "category": "TikTok Media",
+            "tags": ["TikTok"],
+            "video_options": video_options,
+            "audio_options": audio_options,
+            "subtitles": [],
+            "images": images,
+        }
+    except Exception as e:
+        logger.error(f"gallery-dl TikTok slideshow extraction error: {e}")
+        if "login" in str(e).lower() or "verification" in str(e).lower() or "cookie" in str(e).lower():
             raise e
         return None
 
@@ -1257,6 +1520,9 @@ def parse_threads_page(url, client_id=None):
 def get_info():
     data = request.get_json() or {}
     url = data.get("url", "").strip()
+    if "tiktok.com" in url.lower() and "/photo/" in url.lower():
+        import re
+        url = re.sub(r'/photo/', '/video/', url, flags=re.IGNORECASE)
     client_id = data.get("client_id")
 
     if not url:
@@ -1652,6 +1918,23 @@ def get_info():
         except Exception as fb_scrape_err:
             logger.warning(f"Custom Facebook post scraping failed: {fb_scrape_err}. Falling back to yt-dlp...")
 
+    original_url = data.get("url", "").strip()
+    is_tiktok_photo = "tiktok.com" in original_url.lower() and "/photo/" in original_url.lower()
+    if is_tiktok_photo:
+        try:
+            logger.info("TikTok Photo post detected. Attempting extraction via gallery-dl first...")
+            gallery_info = extract_tiktok_slideshow_via_gallery_dl(url, client_id)
+            if gallery_info:
+                logger.info("Successfully extracted TikTok Slideshow using gallery-dl.")
+                return jsonify(gallery_info)
+        except Exception as gallery_e:
+            logger.warning(f"Primary gallery-dl TikTok extraction failed: {gallery_e}. Falling back to yt-dlp...")
+            if any(keyword in str(gallery_e).lower() for keyword in ["login", "redirect", "cookie", "captcha"]):
+                return jsonify({
+                    "status": "error",
+                    "message": "Video hoặc Slideshow TikTok này yêu cầu cookie tài khoản để truy cập hoặc IP hệ thống đang bị chặn (gặp captcha). Vui lòng đăng nhập vào TikTok trên trình duyệt, xuất và tải lên file cookie J2TEAM (chọn định dạng Netscape hoặc JSON) của TikTok để tiếp tục."
+                }), 400
+
     is_instagram = "instagram.com" in url.lower() or "instagr.am" in url.lower()
 
     if is_instagram:
@@ -1739,6 +2022,31 @@ def get_info():
                             "message": "YouTube yêu cầu xác minh danh tính (Sign in / Confirm you are not a bot) hoặc video này là riêng tư/giới hạn độ tuổi. Vui lòng xuất và tải lên file cookie J2TEAM (chọn định dạng Netscape hoặc JSON) của YouTube để tiếp tục."
                         }), 400
 
+                is_tiktok = "tiktok" in url.lower()
+                if is_tiktok:
+                    tiktok_auth_keywords = [
+                        "confirm you're not a bot",
+                        "confirm you are not a bot",
+                        "captcha",
+                        "block",
+                        "log in",
+                        "login",
+                        "sign in",
+                        "private",
+                        "permission",
+                        "cookies",
+                        "cookies-from-browser",
+                        "not available",
+                        "unexpected response",
+                        "unable to extract",
+                        "rehydration"
+                    ]
+                    if any(keyword in err_str for keyword in tiktok_auth_keywords):
+                        return jsonify({
+                            "status": "error",
+                            "message": "Video hoặc Slideshow TikTok này yêu cầu cookie tài khoản để truy cập hoặc IP hệ thống đang bị chặn (gặp captcha). Vui lòng đăng nhập vào TikTok trên trình duyệt, xuất và tải lên file cookie J2TEAM (chọn định dạng Netscape hoặc JSON) của TikTok để tiếp tục."
+                        }), 400
+
                 # --- Instagram photo post fallback ---
                 if is_instagram:
 
@@ -1813,6 +2121,28 @@ def get_info():
                                 "status": "error",
                                 "message": "Instagram yêu cầu cookie tài khoản để truy cập. Vui lòng xuất và tải lên file cookie J2TEAM (chọn định dạng Netscape hoặc JSON) để tiếp tục."
                             }), 400
+
+            if info:
+                extractor = info.get("extractor", "").lower() or info.get("extractor_key", "").lower() or ""
+                is_tiktok = "tiktok" in extractor or "tiktok" in url.lower()
+                if is_tiktok:
+                    formats_list = info.get("formats", [])
+                    has_video = False
+                    if formats_list:
+                        has_video = any(f.get("vcodec") != "none" for f in formats_list)
+                    if not has_video:
+                        logger.info("TikTok post has no video formats (detected slideshow). Falling back to gallery-dl.")
+                        try:
+                            slideshow_info = extract_tiktok_slideshow_via_gallery_dl(url, client_id)
+                            if slideshow_info:
+                                return jsonify(slideshow_info)
+                        except Exception as gallery_e:
+                            logger.warning(f"TikTok gallery-dl fallback failed for slideshow post: {gallery_e}")
+                            if any(keyword in str(gallery_e).lower() for keyword in ["login", "redirect", "cookie", "captcha"]):
+                                return jsonify({
+                                    "status": "error",
+                                    "message": "Video hoặc Slideshow TikTok này yêu cầu cookie tài khoản để truy cập hoặc IP hệ thống đang bị chặn (gặp captcha). Vui lòng đăng nhập vào TikTok trên trình duyệt, xuất và tải lên file cookie J2TEAM (chọn định dạng Netscape hoặc JSON) của TikTok để tiếp tục."
+                                }), 400
 
             extractor = info.get("extractor_key", "").lower() if info.get("extractor_key") else ""
 
@@ -2109,25 +2439,57 @@ def get_info():
                 # --- Build video options ---
                 added_resolutions = set()
 
-                for f in formats_list:
+                is_tiktok = "tiktok" in extractor or "tiktok" in url.lower()
+                has_non_wm = False
+                if is_tiktok:
+                    for f in formats_list:
+                        if f.get("vcodec") != "none":
+                            f_id = str(f.get("format_id") or "").lower()
+                            f_note = str(f.get("format_note") or "").lower()
+                            is_wm = False
+                            if "watermark" in f_id or "watermark" in f_note:
+                                if "unwatermark" not in f_note:
+                                    is_wm = True
+                            if "wm_play" in f_id or f_id.startswith("wm-") or f_id.startswith("wm_"):
+                                is_wm = True
+                            if not is_wm:
+                                has_non_wm = True
+                                break
+
+                target_formats = reversed(formats_list) if is_tiktok else formats_list
+
+                for f in target_formats:
                     height = f.get("height")
                     vcodec = f.get("vcodec")
                     if height and vcodec and vcodec != "none":
+                        if is_tiktok and has_non_wm:
+                            f_id = str(f.get("format_id") or "").lower()
+                            f_note = str(f.get("format_note") or "").lower()
+                            is_wm = False
+                            if "watermark" in f_id or "watermark" in f_note:
+                                if "unwatermark" not in f_note:
+                                    is_wm = True
+                            if "wm_play" in f_id or f_id.startswith("wm-") or f_id.startswith("wm_"):
+                                is_wm = True
+                            if is_wm:
+                                continue
+
                         res_label = f"{height}p"
                         if res_label not in added_resolutions:
                             v_size = f.get("filesize") or f.get("filesize_approx") or 0
                             if not v_size and duration_sec and f.get("tbr"):
                                 v_size = int(duration_sec * f.get("tbr") * 1000 / 8)
-                            total_size = (v_size + best_audio_size) if v_size else 0
+                            total_size = v_size if is_tiktok else ((v_size + best_audio_size) if v_size else 0)
 
-                            video_options.append({
-                                "format_id": f"bestvideo[height={height}]+bestaudio[ext=m4a]/bestvideo[height={height}]+bestaudio/best[height={height}]",
+                            opt_dict = {
+                                "format_id": f.get("format_id") if is_tiktok else f"bestvideo[height={height}]+bestaudio[ext=m4a]/bestvideo[height={height}]+bestaudio/best[height={height}]",
                                 "resolution": res_label,
                                 "ext": "mp4",
                                 "type": "video",
-                                "size": format_size(total_size),
+                                "size": format_size(total_size) if total_size else "Unknown Size",
                                 "label": f"Video {res_label}"
-                            })
+                            }
+                            video_options.append(opt_dict)
                             added_resolutions.add(res_label)
 
                 video_options.sort(key=lambda x: int(x["resolution"].replace("p", "")), reverse=True)
@@ -2199,9 +2561,22 @@ def get_info():
                 else:
                     platform_label = "YouTube"
                     platform_class = "youtube"
-            elif "tiktok" in extractor:
-                platform_label = "TikTok"
-                platform_class = "tiktok"
+            elif "tiktok" in extractor or "tiktok" in url.lower():
+                is_tiktok_slideshow = False
+                thumbnails_list = info.get("thumbnails") or []
+                slide_urls = [t.get("url") for t in thumbnails_list if t.get("url") and t.get("url").startswith("http") and "avatar" not in t.get("url").lower()]
+                if len(slide_urls) > 1:
+                    is_tiktok_slideshow = True
+
+                if "/story/" in url.lower() or "/stories/" in url.lower():
+                    platform_label = "TikTok Story"
+                    platform_class = "tiktok-story"
+                elif is_tiktok_slideshow:
+                    platform_label = "TikTok Slideshow"
+                    platform_class = "tiktok-slideshow"
+                else:
+                    platform_label = "TikTok Video"
+                    platform_class = "tiktok"
             elif "facebook" in extractor or "facebook" in url or "fb.watch" in url or "fb.gg" in url or "fb.com" in url:
                 if "/reel/" in url or "/reels/" in url:
                     platform_label = "Facebook Reel"
@@ -2260,12 +2635,22 @@ def get_info():
                 ]
             else:
                 thumbnails_list = info.get("thumbnails") or []
+                is_tiktok = "tiktok" in extractor or "tiktok" in url.lower()
+                is_tiktok_slideshow = False
+                if is_tiktok:
+                    slide_urls = [t.get("url") for t in thumbnails_list if t.get("url") and t.get("url").startswith("http") and "avatar" not in t.get("url").lower()]
+                    if len(slide_urls) > 1:
+                        is_tiktok_slideshow = True
+
                 for idx, t in enumerate(thumbnails_list):
                     url_val = t.get("url")
                     if url_val and url_val.startswith("http"):
+                        if is_tiktok_slideshow and "avatar" in url_val.lower():
+                            continue
                         if not any(img["url"] == url_val for img in images):
+                            label = f"Slide Photo {len(images)+1}" if is_tiktok_slideshow else f"Thumbnail {idx+1}"
                             images.append({
-                                "label": f"Thumbnail {idx+1}",
+                                "label": label,
                                 "url": url_val,
                                 "ext": "jpg"
                             })
@@ -2275,6 +2660,21 @@ def get_info():
                         "url": thumbnail,
                         "ext": "jpg"
                     })
+            # Resolve sizes of TikTok video_options in parallel if they are Unknown Size or missing
+            if is_tiktok and video_options:
+                from concurrent.futures import ThreadPoolExecutor
+                client_cookies = os.path.join(TEMP_DOWNLOAD_DIR, "cookies", f"cookies_{client_id}.txt") if client_id else None
+                
+                def resolve_tiktok_size(opt):
+                    if opt.get("size") == "Unknown Size" or not opt.get("size"):
+                        url_to_check = opt.get("url")
+                        if url_to_check:
+                            s_bytes = get_url_content_length(url_to_check, cookies_file=client_cookies)
+                            if s_bytes:
+                                opt["size"] = format_size(s_bytes)
+                                
+                with ThreadPoolExecutor(max_workers=min(10, len(video_options))) as executor:
+                    list(executor.map(resolve_tiktok_size, video_options))
 
             return jsonify({
                 "status": "success",
@@ -2309,7 +2709,7 @@ def bg_download_task(download_id, url, format_id, ext, quality="192", title="med
     logger.info(f"Task {download_id}: Start download {url} (format={format_id}, ext={ext}, quality={quality})")
 
     # Direct CDN stream download bypass
-    if format_id.startswith("direct_video") or format_id.startswith("direct_photo"):
+    if format_id.startswith("direct_video") or format_id.startswith("direct_photo") or format_id.startswith("direct_audio"):
         try:
             import requests
             import subprocess
@@ -2322,11 +2722,21 @@ def bg_download_task(download_id, url, format_id, ext, quality="192", title="med
                         "message": "Connecting to direct stream source..."
                     })
                     
+            referer = "https://www.facebook.com/"
+            url_lower = url.lower()
+            format_id_lower = str(format_id).lower()
+            if "tiktok" in url_lower or "tiktok" in format_id_lower:
+                referer = "https://www.tiktok.com/"
+            elif "instagram" in url_lower:
+                referer = "https://www.instagram.com/"
+            elif "threads" in url_lower:
+                referer = "https://www.threads.net/"
+
             headers = {
                 "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
                 "Accept": "*/*",
                 "Accept-Language": "vi-VN,vi;q=0.9,en-US;q=0.8,en;q=0.7",
-                "Referer": "https://www.facebook.com/"
+                "Referer": referer
             }
             
             cookies_dict = {}
@@ -2662,6 +3072,9 @@ def bg_download_task(download_id, url, format_id, ext, quality="192", title="med
 def start_download():
     data = request.get_json() or {}
     url = (data.get("url") or "").strip()
+    if "tiktok.com" in url.lower() and "/photo/" in url.lower():
+        import re
+        url = re.sub(r'/photo/', '/video/', url, flags=re.IGNORECASE)
     format_id = (data.get("format_id") or "").strip()
     ext = (data.get("ext") or "mp4").strip()
     quality = (data.get("quality") or "192").strip()
@@ -2872,7 +3285,10 @@ def download_images_zip():
                 if not url:
                     continue
                 try:
-                    resp = requests.get(url, headers=headers, cookies=cookies_dict, timeout=10)
+                    req_headers = headers.copy()
+                    if "tiktok" in url.lower() or "tiktokcdn" in url.lower():
+                        req_headers["Referer"] = "https://www.tiktok.com/"
+                    resp = requests.get(url, headers=req_headers, cookies=cookies_dict, timeout=10)
                     if resp.status_code == 200:
                         import re
                         safe_label = re.sub(r'[\\/*?:"<>|]', "", label).strip()

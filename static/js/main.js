@@ -72,6 +72,18 @@ document.addEventListener("DOMContentLoaded", () => {
         });
     }
 
+    // Toggle Cookies Section
+    const toggleCookiesBtn = document.getElementById("toggle-cookies-btn");
+    if (toggleCookiesBtn && cookiesSection) {
+        toggleCookiesBtn.addEventListener("click", () => {
+            const isHidden = cookiesSection.classList.toggle("hidden");
+            const btnSpan = toggleCookiesBtn.querySelector("span");
+            if (btnSpan) {
+                btnSpan.textContent = isHidden ? "Manage Cookies" : "Close Cookie Panel";
+            }
+        });
+    }
+
     // Cookie Dropzone Drag and Drop Handlers
     if (cookieDropzone && cookieFileInput) {
         cookieDropzone.addEventListener("click", () => {
@@ -329,7 +341,8 @@ document.addEventListener("DOMContentLoaded", () => {
         const facebookRegex = /^(https?:\/\/)?([a-z0-9-]+\.)?(facebook\.com|fb\.com|fb\.watch|fb\.gg|messenger\.com)/i;
         const instagramRegex = /^(https?:\/\/)?([a-z0-9-]+\.)?(instagram\.com|instagr\.am)/i;
         const threadsRegex = /^(https?:\/\/)?([a-z0-9-]+\.)?(threads\.net|threads\.com)/i;
-        return youtubeRegex.test(url) || facebookRegex.test(url) || instagramRegex.test(url) || threadsRegex.test(url);
+        const tiktokRegex = /^(https?:\/\/)?([a-z0-9-]+\.)?(tiktok\.com)/i;
+        return youtubeRegex.test(url) || facebookRegex.test(url) || instagramRegex.test(url) || threadsRegex.test(url) || tiktokRegex.test(url);
     }
 
     const themeColors = {
@@ -412,6 +425,18 @@ document.addEventListener("DOMContentLoaded", () => {
         "tiktok": {
             cyan: "#00f2fe", purple: "#fe0979",
             cyanRgb: "0, 242, 254", purpleRgb: "254, 9, 121"
+        },
+        "tiktok-video": {
+            cyan: "#00f2fe", purple: "#fe0979",
+            cyanRgb: "0, 242, 254", purpleRgb: "254, 9, 121"
+        },
+        "tiktok-slideshow": {
+            cyan: "#00f2fe", purple: "#fe0979",
+            cyanRgb: "0, 242, 254", purpleRgb: "254, 9, 121"
+        },
+        "tiktok-story": {
+            cyan: "#00f2fe", purple: "#fe0979",
+            cyanRgb: "0, 242, 254", purpleRgb: "254, 9, 121"
         }
     };
 
@@ -453,7 +478,7 @@ document.addEventListener("DOMContentLoaded", () => {
         }
 
         if (!isValidUrl(url)) {
-            showError("Invalid URL. Please make sure it is a valid YouTube, Facebook, Instagram, or Threads link.");
+            showError("Invalid URL. Please make sure it is a valid YouTube, Facebook, Instagram, Threads, or TikTok link.");
             return;
         }
 
