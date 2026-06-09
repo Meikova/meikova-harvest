@@ -166,6 +166,123 @@ document.addEventListener("DOMContentLoaded", () => {
     let pollingInterval = null;
     let extractedImages = [];
 
+    // Preview Modal DOM Elements
+    const previewModal = document.getElementById("preview-modal");
+    const previewModalCloseBtn = document.getElementById("preview-modal-close-btn");
+    const previewTitle = document.getElementById("preview-title");
+    const previewLoader = document.getElementById("preview-loader");
+    const previewLoaderText = document.getElementById("preview-loader-text");
+    const previewVideoContainer = document.getElementById("preview-video-container");
+    const previewVideoPlayer = document.getElementById("preview-video-player");
+    const previewAudioContainer = document.getElementById("preview-audio-container");
+    const previewAudioPlayer = document.getElementById("preview-audio-player");
+    const previewImageContainer = document.getElementById("preview-image-container");
+    const previewImageElement = document.getElementById("preview-image-element");
+    const previewSubtitleContainer = document.getElementById("preview-subtitle-container");
+    const previewSubLang = document.getElementById("preview-sub-lang");
+    const previewSubText = document.getElementById("preview-sub-text");
+    const btnCopySub = document.getElementById("btn-copy-sub");
+    const previewMetaInfo = document.getElementById("preview-meta-info");
+    const previewDownloadBtn = document.getElementById("preview-download-btn");
+    const btnZoomIn = document.getElementById("btn-zoom-in");
+    const btnZoomOut = document.getElementById("btn-zoom-out");
+    const btnRotate = document.getElementById("btn-rotate");
+
+    // Preview state variables
+    let previewZoomLevel = 1;
+    let previewRotation = 0;
+    let previewActiveDownloadId = null;
+    let previewActiveUrl = "";
+    let previewActiveExt = "";
+    let previewActiveFilename = "";
+
+    // Close preview modal behavior
+    if (previewModal && previewModalCloseBtn) {
+        const closePreviewModal = () => {
+            previewModal.classList.add("hidden");
+            document.body.classList.remove("modal-open");
+            
+            // Stop player playback on close
+            if (previewVideoPlayer) {
+                previewVideoPlayer.pause();
+                previewVideoPlayer.src = "";
+            }
+            if (previewAudioPlayer) {
+                previewAudioPlayer.pause();
+                previewAudioPlayer.src = "";
+            }
+        };
+
+        previewModalCloseBtn.onclick = closePreviewModal;
+
+        previewModal.onclick = (e) => {
+            if (e.target === previewModal) {
+                closePreviewModal();
+            }
+        };
+
+        document.addEventListener("keydown", (e) => {
+            if (e.key === "Escape" && !previewModal.classList.contains("hidden")) {
+                closePreviewModal();
+            }
+        });
+    }
+
+    // Image preview transform controls
+    function updateImageTransform() {
+        if (previewImageElement) {
+            previewImageElement.style.transform = `scale(${previewZoomLevel}) rotate(${previewRotation}deg)`;
+        }
+    }
+
+    if (btnZoomIn && previewImageElement) {
+        btnZoomIn.onclick = () => {
+            previewZoomLevel = Math.min(3, previewZoomLevel + 0.2);
+            updateImageTransform();
+        };
+    }
+    if (btnZoomOut && previewImageElement) {
+        btnZoomOut.onclick = () => {
+            previewZoomLevel = Math.max(0.5, previewZoomLevel - 0.2);
+            updateImageTransform();
+        };
+    }
+    if (btnRotate && previewImageElement) {
+        btnRotate.onclick = () => {
+            previewRotation = (previewRotation + 90) % 360;
+            updateImageTransform();
+        };
+    }
+
+    // Copy subtitles clipboard helper
+    if (btnCopySub && previewSubText) {
+        btnCopySub.onclick = () => {
+            navigator.clipboard.writeText(previewSubText.textContent).then(() => {
+                const originalText = btnCopySub.textContent;
+                btnCopySub.textContent = "Copied!";
+                setTimeout(() => {
+                    btnCopySub.textContent = originalText;
+                }, 1500);
+            });
+        };
+    }
+
+    // Preview modal footer download trigger
+    if (previewDownloadBtn) {
+        previewDownloadBtn.onclick = () => {
+            if (previewActiveDownloadId) {
+                window.location.href = `/api/download/file/${previewActiveDownloadId}`;
+            } else if (previewActiveUrl) {
+                const a = document.createElement("a");
+                a.href = previewActiveUrl;
+                a.download = previewActiveFilename || "download";
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+            }
+        };
+    }
+
     // 1. Paste Button Clipboard Interaction
     pasteBtn.addEventListener("click", async () => {
         try {
@@ -412,7 +529,7 @@ document.addEventListener("DOMContentLoaded", () => {
                 const safeTitle = data.title || "image";
                 const cleanTitle = safeTitle.replace(/[\\/*?:"<>|]/g, "").substring(0, 50).trim();
                 const filename = `${cleanTitle}_${cleanLabel.replace(/\s+/g, "_")}.${img.ext}`;
-                const proxyDownloadUrl = `/api/download/image?url=${encodeURIComponent(img.url)}&filename=${encodeURIComponent(filename)}`;
+                const proxyDownloadUrl = `/api/download/image?url=${encodeURIComponent(img.url)}&filename=${encodeURIComponent(filename)}&client_id=${encodeURIComponent(clientId)}`;
 
                 card.innerHTML = `
                     <div class="image-checkbox-container">
@@ -425,13 +542,26 @@ document.addEventListener("DOMContentLoaded", () => {
                         <div class="image-label" title="${img.label}">${cleanLabel}</div>
                         <div class="image-actions">
                             <span class="image-res">${resLabel}</span>
-                            <a href="${proxyDownloadUrl}" class="image-card-download-btn" title="Download Image" target="_blank">
-                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
-                                <span>Get</span>
-                            </a>
+                            <div class="image-card-buttons-group">
+                                <button class="image-card-preview-btn" title="Preview Image" type="button">
+                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+                                    <span>Preview</span>
+                                </button>
+                                <a href="${proxyDownloadUrl}" class="image-card-download-btn" title="Download Image" target="_blank">
+                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+                                    <span>Get</span>
+                                </a>
+                            </div>
                         </div>
                     </div>
                 `;
+                
+                // Bind preview button click
+                const prevBtn = card.querySelector(".image-card-preview-btn");
+                prevBtn.onclick = (e) => {
+                    e.stopPropagation(); // Prevent toggling checkbox
+                    triggerPreview(prevBtn, "image_preview", "jpg", cleanLabel, "", img.url);
+                };
                 
                 // Add click listener on preview to toggle checkbox
                 const preview = card.querySelector(".image-preview-wrap");
@@ -505,7 +635,7 @@ document.addEventListener("DOMContentLoaded", () => {
                         const item = selectedItems[i];
                         downloadSelectedBtn.innerHTML = `<span>Downloading ${i+1}/${selectedItems.length}...</span>`;
                         
-                        const proxyUrl = `/api/download/image?url=${encodeURIComponent(item.url)}&filename=${encodeURIComponent(item.filename)}`;
+                        const proxyUrl = `/api/download/image?url=${encodeURIComponent(item.url)}&filename=${encodeURIComponent(item.filename)}&client_id=${encodeURIComponent(clientId)}`;
                         const link = document.createElement("a");
                         link.href = proxyUrl;
                         link.target = "_blank";
@@ -533,7 +663,8 @@ document.addEventListener("DOMContentLoaded", () => {
                             },
                             body: JSON.stringify({
                                 urls: selectedItems.map(item => ({ url: item.url, label: item.label, ext: item.ext })),
-                                title: data.title ? data.title.replace(/[\\/*?:"<>|]/g, "").substring(0, 50).trim() : "images"
+                                title: data.title ? data.title.replace(/[\\/*?:"<>|]/g, "").substring(0, 50).trim() : "images",
+                                client_id: clientId
                             })
                         });
                         
@@ -594,10 +725,16 @@ document.addEventListener("DOMContentLoaded", () => {
                             <span class="format-name">${option.label}</span>
                             ${sizeBadge}
                         </div>
-                        <button class="btn-get" data-id="${option.format_id}" data-ext="${option.ext}" data-label="${option.label}" data-quality="${option.quality || ''}" data-url="${option.url || ''}">
-                            ${downloadSvg}
-                            <span>Get</span>
-                        </button>
+                        <div class="format-actions">
+                            <button class="btn-preview" data-id="${option.format_id}" data-ext="${option.ext}" data-label="${option.label}" data-quality="${option.quality || ''}" data-url="${option.url || ''}">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+                                <span>Preview</span>
+                            </button>
+                            <button class="btn-get" data-id="${option.format_id}" data-ext="${option.ext}" data-label="${option.label}" data-quality="${option.quality || ''}" data-url="${option.url || ''}">
+                                ${downloadSvg}
+                                <span>Get</span>
+                            </button>
+                        </div>
                     `;
                     optionsContainer.appendChild(row);
                 });
@@ -623,10 +760,16 @@ document.addEventListener("DOMContentLoaded", () => {
                             <span class="format-name">${option.label}</span>
                             ${sizeBadge}
                         </div>
-                        <button class="btn-get" data-id="${option.format_id}" data-ext="${option.ext}" data-label="${option.label}" data-quality="${option.quality || ''}" data-url="${option.url || ''}">
-                            ${downloadSvg}
-                            <span>Get</span>
-                        </button>
+                        <div class="format-actions">
+                            <button class="btn-preview" data-id="${option.format_id}" data-ext="${option.ext}" data-label="${option.label}" data-quality="${option.quality || ''}" data-url="${option.url || ''}">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+                                <span>Preview</span>
+                            </button>
+                            <button class="btn-get" data-id="${option.format_id}" data-ext="${option.ext}" data-label="${option.label}" data-quality="${option.quality || ''}" data-url="${option.url || ''}">
+                                ${downloadSvg}
+                                <span>Get</span>
+                            </button>
+                        </div>
                     `;
                     optionsContainer.appendChild(row);
                 });
@@ -654,10 +797,16 @@ document.addEventListener("DOMContentLoaded", () => {
                         <span class="format-name">${option.label}</span>
                         ${sizeBadge}
                     </div>
-                    <button class="btn-get" data-id="${option.format_id}" data-ext="${option.ext}" data-label="${option.label}" data-quality="${option.quality || ''}" data-url="${option.url || ''}">
-                        ${downloadSvg}
-                        <span>Get</span>
-                    </button>
+                    <div class="format-actions">
+                        <button class="btn-preview" data-id="${option.format_id}" data-ext="${option.ext}" data-label="${option.label}" data-quality="${option.quality || ''}" data-url="${option.url || ''}">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+                            <span>Preview</span>
+                        </button>
+                        <button class="btn-get" data-id="${option.format_id}" data-ext="${option.ext}" data-label="${option.label}" data-quality="${option.quality || ''}" data-url="${option.url || ''}">
+                            ${downloadSvg}
+                            <span>Get</span>
+                        </button>
+                    </div>
                 `;
                 optionsContainer.appendChild(row);
             });
@@ -682,10 +831,16 @@ document.addEventListener("DOMContentLoaded", () => {
                         <svg class="format-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="color: var(--cyan);"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
                         <span class="format-name">${option.name}</span>
                     </div>
-                    <button class="btn-get" data-id="${option.lang_code}" data-ext="vtt" data-label="Subtitles - ${option.name}">
-                        ${downloadSvg}
-                        <span>Get VTT</span>
-                    </button>
+                    <div class="format-actions">
+                        <button class="btn-preview" data-id="${option.lang_code}" data-ext="vtt" data-label="Subtitles - ${option.name}">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+                            <span>Preview</span>
+                        </button>
+                        <button class="btn-get" data-id="${option.lang_code}" data-ext="vtt" data-label="Subtitles - ${option.name}">
+                            ${downloadSvg}
+                            <span>Get VTT</span>
+                        </button>
+                    </div>
                 `;
                 optionsContainer.appendChild(row);
             });
@@ -701,6 +856,19 @@ document.addEventListener("DOMContentLoaded", () => {
                 const quality = btn.getAttribute("data-quality");
                 const customUrl = btn.getAttribute("data-url");
                 triggerDownload(btn, formatId, ext, label, quality, customUrl);
+            });
+        });
+
+        // Bind preview actions
+        const previewButtons = optionsContainer.querySelectorAll(".btn-preview");
+        previewButtons.forEach(btn => {
+            btn.addEventListener("click", () => {
+                const formatId = btn.getAttribute("data-id");
+                const ext = btn.getAttribute("data-ext");
+                const label = btn.getAttribute("data-label");
+                const quality = btn.getAttribute("data-quality");
+                const customUrl = btn.getAttribute("data-url");
+                triggerPreview(btn, formatId, ext, label, quality, customUrl);
             });
         });
 
@@ -868,5 +1036,154 @@ document.addEventListener("DOMContentLoaded", () => {
         errorMessage.textContent = message;
         errorCard.classList.remove("hidden");
         errorCard.scrollIntoView({ behavior: "smooth", block: "nearest" });
+    }
+
+    // Dynamic Media Preview Orchestrator
+    async function triggerPreview(btn, formatId, ext, label, quality, customUrl) {
+        if (!previewModal) return;
+
+        // Reset zoom & rotations
+        previewZoomLevel = 1;
+        previewRotation = 0;
+        updateImageTransform();
+        previewActiveDownloadId = null;
+        previewActiveUrl = "";
+        previewActiveExt = ext;
+        previewActiveFilename = label;
+
+        // Open modal & lock background scrolling
+        previewModal.classList.remove("hidden");
+        document.body.classList.add("modal-open");
+
+        // Reset views
+        previewVideoContainer.classList.add("hidden");
+        previewAudioContainer.classList.add("hidden");
+        previewImageContainer.classList.add("hidden");
+        previewSubtitleContainer.classList.add("hidden");
+        previewLoader.classList.remove("hidden");
+        previewLoaderText.textContent = "Connecting to source & preparing stream...";
+        
+        previewTitle.textContent = label;
+        previewMetaInfo.textContent = `Type: ${ext.toUpperCase()} ${quality ? `| Quality: ${quality}` : ""}`;
+
+        // Stop current playbacks
+        if (previewVideoPlayer) {
+            previewVideoPlayer.pause();
+            previewVideoPlayer.src = "";
+        }
+        if (previewAudioPlayer) {
+            previewAudioPlayer.pause();
+            previewAudioPlayer.src = "";
+        }
+
+        // Image Preview Flow
+        if (ext === "jpg" || ext === "png" || ext === "jpeg" || formatId === "image_preview") {
+            const finalUrl = formatId === "image_preview" 
+                ? `/api/download/image?url=${encodeURIComponent(customUrl)}&client_id=${encodeURIComponent(clientId)}` 
+                : customUrl;
+            
+            previewActiveUrl = finalUrl;
+            previewActiveFilename = label;
+            
+            if (previewImageElement) {
+                previewImageElement.src = finalUrl;
+                previewImageElement.onload = () => {
+                    previewLoader.classList.add("hidden");
+                    previewImageContainer.classList.remove("hidden");
+                };
+                previewImageElement.onerror = () => {
+                    previewLoaderText.textContent = "Failed to load image preview.";
+                };
+            }
+            return;
+        }
+
+        // Audio, Video, Subtitle Preview Flow (Downloads to server & streams)
+        try {
+            const payload = {
+                url: customUrl || activeUrl,
+                format_id: formatId,
+                ext: ext,
+                quality: quality || "192",
+                title: label,
+                client_id: clientId
+            };
+
+            const response = await fetch("/api/download", {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json"
+                },
+                body: JSON.stringify(payload)
+            });
+
+            const data = await response.json();
+            if (!response.ok || data.status === "error") {
+                previewLoaderText.textContent = `Error: ${data.message || "Failed to start preview task."}`;
+                return;
+            }
+
+            const downloadId = data.download_id;
+            previewActiveDownloadId = downloadId;
+
+            // Poll the status progress
+            const pollInterval = setInterval(async () => {
+                if (previewModal.classList.contains("hidden")) {
+                    clearInterval(pollInterval);
+                    return;
+                }
+
+                try {
+                    const statusRes = await fetch(`/api/download/status/${downloadId}`);
+                    const statusData = await statusRes.json();
+
+                    if (statusData.status === "complete") {
+                        clearInterval(pollInterval);
+                        previewLoader.classList.add("hidden");
+
+                        const previewStreamUrl = `/api/download/file/${downloadId}?preview=true`;
+
+                        if (ext === "mp3" || ext === "m4a") {
+                            if (previewAudioPlayer) {
+                                previewAudioPlayer.src = previewStreamUrl;
+                                previewAudioPlayer.load();
+                                previewAudioContainer.classList.remove("hidden");
+                                previewAudioPlayer.play().catch(e => console.log("Playback blocked"));
+                            }
+                        } else if (ext === "vtt") {
+                            if (previewSubText) {
+                                previewSubLang.textContent = label;
+                                previewSubtitleContainer.classList.remove("hidden");
+                                previewSubText.textContent = "Loading subtitle text...";
+                                
+                                const textRes = await fetch(previewStreamUrl);
+                                const text = await textRes.text();
+                                previewSubText.textContent = text || "No content found in subtitle file.";
+                            }
+                        } else {
+                            if (previewVideoPlayer) {
+                                previewVideoPlayer.src = previewStreamUrl;
+                                previewVideoPlayer.load();
+                                previewVideoContainer.classList.remove("hidden");
+                                previewVideoPlayer.play().catch(e => console.log("Playback blocked"));
+                            }
+                        }
+                    } else if (statusData.status === "error") {
+                        clearInterval(pollInterval);
+                        previewLoaderText.textContent = `Preview failed: ${statusData.error || "Unknown server error."}`;
+                    } else {
+                        const progress = statusData.progress || 0;
+                        const msg = statusData.message || "Downloading stream components...";
+                        previewLoaderText.textContent = `[${progress}%] ${msg}`;
+                    }
+                } catch (err) {
+                    console.error("Error polling preview status:", err);
+                }
+            }, 1000);
+
+        } catch (err) {
+            console.error(err);
+            previewLoaderText.textContent = "Connection failed. Unable to start preview.";
+        }
     }
 });

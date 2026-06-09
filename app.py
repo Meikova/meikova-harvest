@@ -749,7 +749,9 @@ def get_info():
             # Manual subtitles
             raw_subs = info.get("subtitles") or {}
             for lang, formats in raw_subs.items():
-                lang_name = formats[0].get("name") if formats else lang.upper()
+                if lang == "live_chat":
+                    continue
+                lang_name = formats[0].get("name") if (formats and formats[0].get("name")) else lang.upper()
                 subtitles.append({
                     "lang_code": lang,
                     "name": lang_name,
@@ -993,7 +995,33 @@ def bg_download_task(download_id, url, format_id, ext, quality="192", title="med
                         "message": "Connecting to direct stream source..."
                     })
                     
-            response = requests.get(url, stream=True, timeout=30)
+            headers = {
+                "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+                "Accept": "*/*",
+                "Accept-Language": "vi-VN,vi;q=0.9,en-US;q=0.8,en;q=0.7",
+                "Referer": "https://www.facebook.com/"
+            }
+            
+            cookies_dict = {}
+            if client_id:
+                client_cookies = os.path.join(TEMP_DOWNLOAD_DIR, "cookies", f"cookies_{client_id}.txt")
+                if os.path.exists(client_cookies):
+                    try:
+                        with open(client_cookies, 'r', encoding='utf-8', errors='ignore') as f:
+                            for line in f:
+                                line = line.strip()
+                                if not line or line.startswith('#'):
+                                    continue
+                                parts = line.split('\t')
+                                if len(parts) >= 7:
+                                    name = parts[5]
+                                    value = parts[6]
+                                    cookies_dict[name] = value
+                        logger.info(f"Loaded {len(cookies_dict)} cookies for direct CDN download task.")
+                    except Exception as cookie_err:
+                        logger.warning(f"Failed to parse cookies file {client_cookies}: {cookie_err}")
+
+            response = requests.get(url, headers=headers, cookies=cookies_dict, stream=True, timeout=30)
             response.raise_for_status()
             
             total_size = int(response.headers.get('content-length', 0))
@@ -1371,23 +1399,28 @@ def get_download_file(download_id):
         content_type = "audio/mpeg"
     elif ext == "m4a":
         content_type = "audio/mp4"
+    elif ext == "vtt":
+        content_type = "text/vtt"
     else:
         content_type = "video/mp4"
 
-    headers = {
-        "Content-Disposition": f'attachment; filename="{fallback_filename}"; filename*=UTF-8\'\'{encoded_filename}',
-        "Content-Length": str(file_size),
-        "Content-Type": content_type,
-        "Cache-Control": "no-cache",
-    }
+    preview_mode = request.args.get("preview", "false").lower() == "true"
 
-    return Response(generate_chunks(), headers=headers)
+    from flask import send_file
+    return send_file(
+        filepath,
+        mimetype=content_type,
+        as_attachment=not preview_mode,
+        download_name=filename,
+        conditional=True
+    )
 
 
 @app.route("/api/download/image", methods=["GET"])
 def download_image():
     url = request.args.get("url")
     filename = request.args.get("filename") or "image.jpg"
+    client_id = request.args.get("client_id")
     if not url:
         return "Missing url parameter", 400
     try:
@@ -1395,7 +1428,26 @@ def download_image():
         headers = {
             "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
         }
-        resp = requests.get(url, headers=headers, stream=True, timeout=10)
+        
+        cookies_dict = {}
+        if client_id:
+            client_cookies = os.path.join(TEMP_DOWNLOAD_DIR, "cookies", f"cookies_{client_id}.txt")
+            if os.path.exists(client_cookies):
+                try:
+                    with open(client_cookies, 'r', encoding='utf-8', errors='ignore') as f:
+                        for line in f:
+                            line = line.strip()
+                            if not line or line.startswith('#'):
+                                continue
+                            parts = line.split('\t')
+                            if len(parts) >= 7:
+                                name = parts[5]
+                                value = parts[6]
+                                cookies_dict[name] = value
+                except Exception as cookie_err:
+                    logger.warning(f"Failed to parse cookies file {client_cookies}: {cookie_err}")
+
+        resp = requests.get(url, headers=headers, cookies=cookies_dict, stream=True, timeout=15)
         if resp.status_code == 200:
             from flask import Response
             fallback_filename = "image.jpg"
@@ -1416,12 +1468,31 @@ def download_images_zip():
     data = request.get_json() or {}
     urls = data.get("urls", [])
     title = data.get("title", "images")
+    client_id = data.get("client_id")
     if not urls:
         return jsonify({"status": "error", "message": "No urls provided"}), 400
     try:
         import io
         import zipfile
         import requests
+        
+        cookies_dict = {}
+        if client_id:
+            client_cookies = os.path.join(TEMP_DOWNLOAD_DIR, "cookies", f"cookies_{client_id}.txt")
+            if os.path.exists(client_cookies):
+                try:
+                    with open(client_cookies, 'r', encoding='utf-8', errors='ignore') as f:
+                        for line in f:
+                            line = line.strip()
+                            if not line or line.startswith('#'):
+                                continue
+                            parts = line.split('\t')
+                            if len(parts) >= 7:
+                                name = parts[5]
+                                value = parts[6]
+                                cookies_dict[name] = value
+                except Exception as cookie_err:
+                    logger.warning(f"Failed to parse cookies file {client_cookies}: {cookie_err}")
         
         memory_file = io.BytesIO()
         with zipfile.ZipFile(memory_file, 'w') as zf:
@@ -1435,7 +1506,7 @@ def download_images_zip():
                 if not url:
                     continue
                 try:
-                    resp = requests.get(url, headers=headers, timeout=10)
+                    resp = requests.get(url, headers=headers, cookies=cookies_dict, timeout=10)
                     if resp.status_code == 200:
                         import re
                         safe_label = re.sub(r'[\\/*?:"<>|]', "", label).strip()
