@@ -1,0 +1,197 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>EveryThingDownloader | Future-Tech Media Downloader</title>
+    <meta name="description" content="Self-hosted, high-performance YouTube video and audio downloader. No ads, no limits, no API keys.">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&family=Space+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}?v=2.1">
+    <script>
+        (function() {
+            const savedTheme = localStorage.getItem('theme');
+            if (savedTheme === 'light') {
+                document.documentElement.classList.add('light-theme');
+            }
+        })();
+    </script>
+</head>
+<body>
+    <div class="bg-glow bg-glow-1"></div>
+    <div class="bg-glow bg-glow-2"></div>
+    <div class="bg-glow bg-glow-3"></div>
+
+    <div class="app-shell">
+        <!-- Header -->
+        <header class="header">
+            <div class="logo">
+                <svg class="logo-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+                    <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/>
+                </svg>
+                <h1>Everything<span class="brand-accent">Downloader</span></h1>
+            </div>
+            <button id="theme-toggle" class="theme-toggle-btn" title="Toggle theme">
+                <svg class="sun-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+                    <circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/>
+                </svg>
+                <svg class="moon-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>
+                </svg>
+            </button>
+            <p class="subtitle">High-performance media extraction — No ads, no limits, no API keys</p>
+        </header>
+
+        <!-- Main Card -->
+        <main class="card">
+            <!-- Search Bar -->
+            <div class="search-bar">
+                <div class="search-input-wrap">
+                    <svg class="search-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/>
+                        <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/>
+                    </svg>
+                    <input type="text" id="url-input" placeholder="Paste a YouTube URL here..." autocomplete="off" spellcheck="false">
+                    <button id="paste-btn" class="icon-btn" title="Paste from clipboard">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+                            <rect x="8" y="2" width="8" height="4" rx="1" ry="1"/>
+                            <path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/>
+                        </svg>
+                    </button>
+                </div>
+                <button id="analyze-btn" class="btn-primary">
+                    <span>Analyze</span>
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <polyline points="9 18 15 12 9 6"/>
+                    </svg>
+                </button>
+            </div>
+
+            <!-- Loader -->
+            <div id="loader" class="loader hidden">
+                <div class="spinner"><div class="spinner-ring"></div></div>
+                <span id="loader-text">Analyzing link...</span>
+            </div>
+
+            <!-- Error -->
+            <div id="error-card" class="error-banner hidden">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+                    <circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/>
+                </svg>
+                <p id="error-message">An error occurred.</p>
+            </div>
+
+            <!-- Results -->
+            <section id="result-section" class="result hidden">
+                <div class="result-grid">
+                    <!-- Left: Media Info -->
+                    <div class="media-info">
+                        <div class="thumb-wrap">
+                            <img id="video-thumbnail" src="" alt="Thumbnail">
+                            <span id="media-badge" class="tag tag-default">Video</span>
+                            <span id="video-duration-badge" class="tag tag-duration">0:00</span>
+                        </div>
+                        <h2 id="video-title" class="media-title">Title</h2>
+                        
+                        <div class="media-meta-row">
+                            <div class="meta-author">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+                                    <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/>
+                                </svg>
+                                <span id="video-uploader">Channel</span>
+                            </div>
+                            <span id="video-category" class="category-badge hidden">Music</span>
+                        </div>
+
+                        <!-- Rich Stats Grid -->
+                        <div class="rich-stats-grid">
+                            <div class="stat-item" title="Views">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+                                    <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/>
+                                </svg>
+                                <span id="video-views">0</span>
+                            </div>
+                            <div class="stat-item" title="Likes">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+                                    <path d="M14 9V5a3 3 0 0 0-3-3l-4 9v11h11.28a2 2 0 0 0 2-1.7l1.38-9a2 2 0 0 0-2-2.3zM7 22H4a2 2 0 0 1-2-2v-7a2 2 0 0 1 2-2h3"/>
+                                </svg>
+                                <span id="video-likes">0</span>
+                            </div>
+                            <div class="stat-item" title="Upload Date">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+                                    <rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/>
+                                </svg>
+                                <span id="video-date">01 Jan 2000</span>
+                            </div>
+                        </div>
+
+                        <!-- Tags Container -->
+                        <div id="video-tags-container" class="tags-container">
+                            <!-- JS injects tags here -->
+                        </div>
+
+                        <!-- Description Trigger Button -->
+                        <button id="desc-toggle-btn" class="desc-toggle-btn-modal" title="View Description">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+                                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+                                <polyline points="14 2 14 8 20 8"/>
+                                <line x1="16" y1="13" x2="8" y2="13"/>
+                                <line x1="16" y1="17" x2="8" y2="17"/>
+                                <polyline points="10 9 9 9 8 9"/>
+                            </svg>
+                            <span>View Description</span>
+                        </button>
+                    </div>
+
+                    <!-- Right: Format Options -->
+                    <div class="format-panel">
+                        <div id="options-container" class="format-list">
+                            <!-- JS injects here -->
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Progress -->
+            <section id="download-progress" class="progress-panel hidden">
+                <div class="progress-header">
+                    <div class="progress-title-row">
+                        <div class="progress-spinner-mini"></div>
+                        <span id="download-status-title">Preparing...</span>
+                    </div>
+                    <span id="progress-percent" class="progress-pct">0%</span>
+                </div>
+                <div class="progress-track">
+                    <div class="progress-fill" id="progress-fill"></div>
+                </div>
+                <p id="download-status-message" class="progress-msg">Starting download...</p>
+                <p id="download-format-label" class="progress-format-label"></p>
+            </section>
+        </main>
+
+        <footer class="footer">
+            <p>Powered by Flask & yt-dlp &bull; Self-hosted & Private</p>
+        </footer>
+    </div>
+
+    <!-- Description Modal -->
+    <div id="desc-modal" class="modal-overlay hidden">
+        <div class="modal-card">
+            <div class="modal-header">
+                <h3>Video Description</h3>
+                <button id="modal-close-btn" class="modal-close-btn" title="Close">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
+                    </svg>
+                </button>
+            </div>
+            <div id="modal-desc-content" class="modal-body">
+                <!-- Description content will be injected here -->
+            </div>
+        </div>
+    </div>
+
+    <script src="{{ url_for('static', filename='js/main.js') }}?v=2.1"></script>
+</body>
+</html>
