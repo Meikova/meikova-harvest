@@ -41,6 +41,14 @@ document.addEventListener("DOMContentLoaded", () => {
             const data = await res.json();
             if (data.has_cookies) {
                 activeCookiesBadge.classList.remove("hidden");
+                const textSpan = activeCookiesBadge.querySelector("span:not(.pulse-dot)");
+                if (textSpan) {
+                    if (data.domains && data.domains.length > 0) {
+                        textSpan.textContent = `Active session cookies loaded (${data.domains.join(", ")})`;
+                    } else {
+                        textSpan.textContent = "Active session cookies loaded";
+                    }
+                }
             } else {
                 activeCookiesBadge.classList.add("hidden");
             }
@@ -320,8 +328,92 @@ document.addEventListener("DOMContentLoaded", () => {
         const youtubeRegex = /^(https?:\/\/)?([a-z0-9-]+\.)?(youtube\.com|youtu\.be|youtubekids\.com|youtube-nocookie\.com)/i;
         const facebookRegex = /^(https?:\/\/)?([a-z0-9-]+\.)?(facebook\.com|fb\.com|fb\.watch|fb\.gg|messenger\.com)/i;
         const instagramRegex = /^(https?:\/\/)?([a-z0-9-]+\.)?(instagram\.com|instagr\.am)/i;
-        return youtubeRegex.test(url) || facebookRegex.test(url) || instagramRegex.test(url);
+        const threadsRegex = /^(https?:\/\/)?([a-z0-9-]+\.)?(threads\.net|threads\.com)/i;
+        return youtubeRegex.test(url) || facebookRegex.test(url) || instagramRegex.test(url) || threadsRegex.test(url);
     }
+
+    const themeColors = {
+        "youtube": {
+            cyan: "#ff0000", purple: "#ff4d4d",
+            cyanRgb: "255, 0, 0", purpleRgb: "255, 77, 77"
+        },
+        "youtube-kids": {
+            cyan: "#ffbb00", purple: "#00ff66",
+            cyanRgb: "255, 187, 0", purpleRgb: "0, 255, 102"
+        },
+        "youtube-music": {
+            cyan: "#00ffd0", purple: "#0088ff",
+            cyanRgb: "0, 255, 208", purpleRgb: "0, 136, 255"
+        },
+        "youtube-shorts": {
+            cyan: "#ff3e3e", purple: "#ff8a00",
+            cyanRgb: "255, 62, 62", purpleRgb: "255, 138, 0"
+        },
+        "youtube-live": {
+            cyan: "#ff003c", purple: "#ff00a0",
+            cyanRgb: "255, 0, 60", purpleRgb: "255, 0, 160"
+        },
+        "youtube-clip": {
+            cyan: "#e62117", purple: "#ff6e6e",
+            cyanRgb: "230, 33, 23", purpleRgb: "255, 110, 110"
+        },
+        "facebook": {
+            cyan: "#1877f2", purple: "#00c6ff",
+            cyanRgb: "24, 119, 242", purpleRgb: "0, 198, 255"
+        },
+        "facebook-reel": {
+            cyan: "#2ecc71", purple: "#00e5ff",
+            cyanRgb: "46, 204, 113", purpleRgb: "0, 229, 255"
+        },
+        "facebook-group": {
+            cyan: "#20b2aa", purple: "#48d1cc",
+            cyanRgb: "32, 178, 170", purpleRgb: "72, 209, 204"
+        },
+        "facebook-live": {
+            cyan: "#ff4500", purple: "#ff8c00",
+            cyanRgb: "255, 69, 0", purpleRgb: "255, 140, 0"
+        },
+        "facebook-watch": {
+            cyan: "#4267b2", purple: "#898f9c",
+            cyanRgb: "66, 103, 178", purpleRgb: "137, 143, 156"
+        },
+        "facebook-story": {
+            cyan: "#7b1fa2", purple: "#e91e63",
+            cyanRgb: "123, 31, 162", purpleRgb: "233, 30, 99"
+        },
+        "facebook-gaming": {
+            cyan: "#00bcd4", purple: "#3f51b5",
+            cyanRgb: "0, 188, 212", purpleRgb: "63, 81, 181"
+        },
+        "instagram": {
+            cyan: "#e1306c", purple: "#f77737",
+            cyanRgb: "225, 48, 108", purpleRgb: "247, 119, 55"
+        },
+        "instagram-reel": {
+            cyan: "#ff8a00", purple: "#da00ff",
+            cyanRgb: "255, 138, 0", purpleRgb: "218, 0, 255"
+        },
+        "instagram-story": {
+            cyan: "#8a3ab9", purple: "#e95950",
+            cyanRgb: "138, 58, 185", purpleRgb: "233, 89, 80"
+        },
+        "instagram-tv": {
+            cyan: "#5851db", purple: "#c13584",
+            cyanRgb: "88, 81, 219", purpleRgb: "193, 53, 132"
+        },
+        "instagram-post": {
+            cyan: "#fd1d1d", purple: "#fccc63",
+            cyanRgb: "253, 29, 29", purpleRgb: "252, 204, 99"
+        },
+        "threads": {
+            cyan: "#a855f7", purple: "#ec4899",
+            cyanRgb: "168, 85, 247", purpleRgb: "236, 72, 153"
+        },
+        "tiktok": {
+            cyan: "#00f2fe", purple: "#fe0979",
+            cyanRgb: "0, 242, 254", purpleRgb: "254, 9, 121"
+        }
+    };
 
     function setPlatformTheme(platformClass) {
         // Remove existing theme classes
@@ -332,9 +424,23 @@ document.addEventListener("DOMContentLoaded", () => {
             }
         });
         
-        // Add new theme class if present
+        // Add new theme class and dynamic styles if present
         if (platformClass) {
             document.body.classList.add(`theme-${platformClass}`);
+            
+            const colors = themeColors[platformClass];
+            if (colors) {
+                document.documentElement.style.setProperty('--cyan', colors.cyan);
+                document.documentElement.style.setProperty('--purple', colors.purple);
+                document.documentElement.style.setProperty('--cyan-rgb', colors.cyanRgb);
+                document.documentElement.style.setProperty('--purple-rgb', colors.purpleRgb);
+            }
+        } else {
+            // Reset to defaults
+            document.documentElement.style.removeProperty('--cyan');
+            document.documentElement.style.removeProperty('--purple');
+            document.documentElement.style.removeProperty('--cyan-rgb');
+            document.documentElement.style.removeProperty('--purple-rgb');
         }
     }
 
@@ -347,7 +453,7 @@ document.addEventListener("DOMContentLoaded", () => {
         }
 
         if (!isValidUrl(url)) {
-            showError("Invalid URL. Please make sure it is a valid YouTube, Facebook, or Instagram link.");
+            showError("Invalid URL. Please make sure it is a valid YouTube, Facebook, Instagram, or Threads link.");
             return;
         }
 
@@ -541,25 +647,38 @@ document.addEventListener("DOMContentLoaded", () => {
                 const card = document.createElement("div");
                 card.className = "image-card";
                 
+                let imgLabel, imgUrl, imgExt;
+                if (typeof img === "string") {
+                    imgUrl = img;
+                    imgLabel = `Photo ${idx + 1}`;
+                    imgExt = "jpg";
+                } else if (img && typeof img === "object") {
+                    imgUrl = img.url || "";
+                    imgLabel = img.label || `Photo ${idx + 1}`;
+                    imgExt = img.ext || "jpg";
+                } else {
+                    return; // Skip invalid entries
+                }
+                
                 // Extract resolution label from name if present
-                const resMatch = img.label.match(/\((\d+x\d+)\)/);
-                const resLabel = resMatch ? resMatch[1] : (img.ext ? img.ext.toUpperCase() : "Image");
-                const cleanLabel = img.label.replace(/\s*\(\d+x\d+\)/, "");
+                const resMatch = imgLabel.match(/\((\d+x\d+)\)/);
+                const resLabel = resMatch ? resMatch[1] : (imgExt ? imgExt.toUpperCase() : "Image");
+                const cleanLabel = imgLabel.replace(/\s*\(\d+x\d+\)/, "");
                 
                 const safeTitle = data.title || "image";
                 const cleanTitle = safeTitle.replace(/[\\/*?:"<>|]/g, "").substring(0, 50).trim();
-                const filename = `${cleanTitle}_${cleanLabel.replace(/\s+/g, "_")}.${img.ext}`;
-                const proxyDownloadUrl = `/api/download/image?url=${encodeURIComponent(img.url)}&filename=${encodeURIComponent(filename)}&client_id=${encodeURIComponent(clientId)}`;
+                const filename = `${cleanTitle}_${cleanLabel.replace(/\s+/g, "_")}.${imgExt}`;
+                const proxyDownloadUrl = `/api/download/image?url=${encodeURIComponent(imgUrl)}&filename=${encodeURIComponent(filename)}&client_id=${encodeURIComponent(clientId)}`;
 
                 card.innerHTML = `
                     <div class="image-checkbox-container">
-                        <input type="checkbox" class="image-select-check custom-checkbox" data-url="${img.url}" data-label="${cleanLabel}" data-ext="${img.ext}" data-filename="${filename}">
+                        <input type="checkbox" class="image-select-check custom-checkbox" data-url="${imgUrl}" data-label="${cleanLabel}" data-ext="${imgExt}" data-filename="${filename}">
                     </div>
                     <div class="image-preview-wrap">
-                        <img src="${img.url}" alt="${img.label}" loading="lazy" onerror="this.src='https://images.unsplash.com/photo-1611162617213-7d7a39e9b1d7?q=80&w=600'">
+                        <img src="${imgUrl}" alt="${imgLabel}" loading="lazy" onerror="this.src='https://images.unsplash.com/photo-1611162617213-7d7a39e9b1d7?q=80&w=600'">
                     </div>
                     <div class="image-info-bar">
-                        <div class="image-label" title="${img.label}">${cleanLabel}</div>
+                        <div class="image-label" title="${imgLabel}">${cleanLabel}</div>
                         <div class="image-actions">
                             <span class="image-res">${resLabel}</span>
                             <div class="image-card-buttons-group">
@@ -846,10 +965,12 @@ document.addEventListener("DOMContentLoaded", () => {
                 const row = document.createElement("div");
                 row.className = "format-row subtitle-row";
                 
+                const sizeBadge = option.size ? `<span class="format-size">${option.size}</span>` : '';
                 row.innerHTML = `
                     <div class="format-left">
                         <svg class="format-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="color: var(--cyan);"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
                         <span class="format-name">${option.name}</span>
+                        ${sizeBadge}
                     </div>
                     <div class="format-actions">
                         <button class="btn-preview" data-id="${option.lang_code}" data-ext="vtt" data-label="Subtitles - ${option.name}">
@@ -866,6 +987,62 @@ document.addEventListener("DOMContentLoaded", () => {
             });
         }
 
+        // Render photo options from data.images if no video or audio options are available at all
+        const hasVideoOptions = data.video_options && data.video_options.length > 0;
+        const hasAudioOptions = data.audio_options && data.audio_options.length > 0;
+        
+        if (!hasVideoOptions && !hasAudioOptions && data.images && data.images.length > 0) {
+            const photoGroupLabel = document.createElement("div");
+            photoGroupLabel.className = "format-group-label";
+            photoGroupLabel.innerHTML = `
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
+                <span>Photo Options</span>
+            `;
+            optionsContainer.appendChild(photoGroupLabel);
+
+            data.images.forEach((img, idx) => {
+                const row = document.createElement("div");
+                row.className = "format-row photo-row";
+                
+                let imgLabel, imgUrl, imgExt;
+                if (typeof img === "string") {
+                    imgUrl = img;
+                    imgLabel = `Photo ${idx + 1}`;
+                    imgExt = "jpg";
+                } else if (img && typeof img === "object") {
+                    imgUrl = img.url || "";
+                    imgLabel = img.label || `Photo ${idx + 1}`;
+                    imgExt = img.ext || "jpg";
+                } else {
+                    return; // Skip invalid entries
+                }
+                
+                const cleanLabel = imgLabel.replace(/\s*\(\d+x\d+\)/, "");
+                const safeTitle = data.title || "image";
+                const cleanTitle = safeTitle.replace(/[\\/*?:"<>|]/g, "").substring(0, 50).trim();
+                const filename = `${cleanTitle}_${cleanLabel.replace(/\s+/g, "_")}.${imgExt}`;
+                const proxyDownloadUrl = `/api/download/image?url=${encodeURIComponent(imgUrl)}&filename=${encodeURIComponent(filename)}&client_id=${encodeURIComponent(clientId)}`;
+
+                row.innerHTML = `
+                    <div class="format-left">
+                        <svg class="format-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
+                        <span class="format-name">${imgLabel}</span>
+                    </div>
+                    <div class="format-actions">
+                        <button class="btn-preview" data-id="image_preview" data-ext="${imgExt}" data-label="${cleanLabel}" data-quality="" data-url="${imgUrl}">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+                            <span>Preview</span>
+                        </button>
+                        <button class="btn-get" data-id="image_download" data-ext="${imgExt}" data-label="${cleanLabel}" data-quality="" data-url="${proxyDownloadUrl}">
+                            ${downloadSvg}
+                            <span>Get</span>
+                        </button>
+                    </div>
+                `;
+                optionsContainer.appendChild(row);
+            });
+        }
+
         // Bind download actions
         const downloadButtons = optionsContainer.querySelectorAll(".btn-get");
         downloadButtons.forEach(btn => {
@@ -875,6 +1052,10 @@ document.addEventListener("DOMContentLoaded", () => {
                 const label = btn.getAttribute("data-label");
                 const quality = btn.getAttribute("data-quality");
                 const customUrl = btn.getAttribute("data-url");
+                if (formatId === "image_download") {
+                    window.open(customUrl, "_blank");
+                    return;
+                }
                 triggerDownload(btn, formatId, ext, label, quality, customUrl);
             });
         });

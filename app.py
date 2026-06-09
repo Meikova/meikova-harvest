@@ -151,6 +151,85 @@ def index():
     return render_template("index.html")
 
 
+def parse_cookies_to_dict(content):
+    cookies = {}
+    stripped = content.strip()
+    
+    # Check if it's JSON
+    if stripped.startswith("[") or stripped.startswith("{"):
+        import json
+        try:
+            data = json.loads(stripped)
+            cookies_list = None
+            if isinstance(data, list):
+                cookies_list = data
+            elif isinstance(data, dict):
+                cookies_list = data.get("cookies") or data.get("list") or []
+                
+            if isinstance(cookies_list, list):
+                for cookie in cookies_list:
+                    domain = cookie.get("domain", "")
+                    if not domain:
+                        continue
+                    path = cookie.get("path", "/")
+                    secure = "TRUE" if cookie.get("secure", False) else "FALSE"
+                    expiration = str(int(cookie.get("expirationDate") or 0))
+                    flag = "TRUE" if domain.startswith(".") else "FALSE"
+                    name = cookie.get("name", "")
+                    value = cookie.get("value", "")
+                    key = (domain.lower(), path, name)
+                    cookies[key] = {
+                        "domain": domain,
+                        "flag": flag,
+                        "path": path,
+                        "secure": secure,
+                        "expiration": expiration,
+                        "name": name,
+                        "value": value
+                    }
+                return cookies
+        except Exception as e:
+            logger.warning(f"Failed to parse as JSON in parse_cookies_to_dict: {e}")
+            
+    # Fallback to Netscape format parser
+    for line in content.splitlines():
+        line = line.strip()
+        if not line or line.startswith("#"):
+            continue
+        parts = line.split("\t")
+        if len(parts) >= 7:
+            domain = parts[0]
+            flag = parts[1]
+            path = parts[2]
+            secure = parts[3]
+            expiration = parts[4]
+            name = parts[5]
+            value = parts[6]
+            key = (domain.lower(), path, name)
+            cookies[key] = {
+                "domain": domain,
+                "flag": flag,
+                "path": path,
+                "secure": secure,
+                "expiration": expiration,
+                "name": name,
+                "value": value
+            }
+    return cookies
+
+
+def serialize_netscape_cookies(cookies_dict):
+    lines = [
+        "# Netscape HTTP Cookie File",
+        "# http://curl.haxx.se/rfc/cookie_spec.html",
+        "# This is a generated file!  Do not edit.",
+        ""
+    ]
+    for c in cookies_dict.values():
+        lines.append(f"{c['domain']}\t{c['flag']}\t{c['path']}\t{c['secure']}\t{c['expiration']}\t{c['name']}\t{c['value']}")
+    return "\n".join(lines)
+
+
 @app.route("/api/cookies/upload", methods=["POST"])
 def upload_cookies():
     client_id = request.form.get("client_id")
@@ -169,65 +248,73 @@ def upload_cookies():
     except Exception as e:
         return jsonify({"status": "error", "message": f"Failed to read file content: {e}"}), 400
 
-    # Automatically detect and convert JSON format (from J2TEAM Cookies, etc.) to Netscape format
-    stripped = content.strip()
-    if stripped.startswith("[") or stripped.startswith("{"):
-        import json
-        try:
-            data = json.loads(stripped)
-            cookies_list = None
-            if isinstance(data, list):
-                cookies_list = data
-            elif isinstance(data, dict):
-                cookies_list = data.get("cookies") or data.get("list") or []
-                
-            if isinstance(cookies_list, list):
-                netscape_lines = [
-                    "# Netscape HTTP Cookie File",
-                    "# http://curl.haxx.se/rfc/cookie_spec.html",
-                    "# This is a generated file!  Do not edit.",
-                    ""
-                ]
-                for cookie in cookies_list:
-                    domain = cookie.get("domain", "")
-                    if not domain:
-                        continue
-                    path = cookie.get("path", "/")
-                    secure = "TRUE" if cookie.get("secure", False) else "FALSE"
-                    expiration = int(cookie.get("expirationDate") or 0)
-                    flag = "TRUE" if domain.startswith(".") else "FALSE"
-                    name = cookie.get("name", "")
-                    value = cookie.get("value", "")
-                    
-                    netscape_lines.append(f"{domain}\t{flag}\t{path}\t{secure}\t{expiration}\t{name}\t{value}")
-                
-                content = "\n".join(netscape_lines)
-                logger.info(f"Successfully converted uploaded JSON cookies for client {client_id}")
-            else:
-                return jsonify({"status": "error", "message": "Uploaded JSON does not contain a valid cookies list."}), 400
-        except Exception as e:
-            logger.warning(f"Failed to parse uploaded cookies as JSON (falling back to raw): {e}")
+    new_cookies = parse_cookies_to_dict(content)
+    if not new_cookies:
+        return jsonify({"status": "error", "message": "File cookie tải lên không hợp lệ hoặc không chứa cookie hợp lệ."}), 400
 
     cookies_dir = os.path.join(TEMP_DOWNLOAD_DIR, "cookies")
     os.makedirs(cookies_dir, exist_ok=True)
     
     filepath = os.path.join(cookies_dir, f"cookies_{client_id}.txt")
+    
+    # Read existing cookies if file exists, then merge
+    merged_cookies = {}
+    if os.path.exists(filepath):
+        try:
+            with open(filepath, "r", encoding="utf-8", errors="ignore") as f:
+                existing_content = f.read()
+            merged_cookies = parse_cookies_to_dict(existing_content)
+        except Exception as e:
+            logger.warning(f"Could not read existing cookies file for merging: {e}")
+            
+    # Merge new cookies (new overrides existing on conflict)
+    merged_cookies.update(new_cookies)
+    
+    merged_content = serialize_netscape_cookies(merged_cookies)
+    
     try:
         with open(filepath, "w", encoding="utf-8") as f:
-            f.write(content)
+            f.write(merged_content)
     except Exception as e:
          return jsonify({"status": "error", "message": f"Failed to save cookies to server: {e}"}), 500
          
-    logger.info(f"Saved cookies for client {client_id}")
-    return jsonify({"status": "success", "message": "Cookies uploaded successfully!"})
+    logger.info(f"Saved merged cookies for client {client_id}")
+    return jsonify({"status": "success", "message": "Cookies uploaded and merged successfully!"})
 
 
 @app.route("/api/cookies/status/<client_id>", methods=["GET"])
 def get_cookie_status(client_id):
     if not client_id:
         return jsonify({"has_cookies": False})
+        
     client_cookies = os.path.join(TEMP_DOWNLOAD_DIR, "cookies", f"cookies_{client_id}.txt")
-    return jsonify({"has_cookies": os.path.exists(client_cookies)})
+    if not os.path.exists(client_cookies):
+        return jsonify({"has_cookies": False})
+        
+    domains = set()
+    try:
+        with open(client_cookies, "r", encoding="utf-8", errors="ignore") as f:
+            content = f.read()
+        parsed = parse_cookies_to_dict(content)
+        for key in parsed.keys():
+            domain = key[0]
+            if "facebook.com" in domain or "fb.com" in domain:
+                domains.add("Facebook")
+            elif "instagram.com" in domain:
+                domains.add("Instagram")
+            elif "youtube.com" in domain or "youtu.be" in domain:
+                domains.add("YouTube")
+            elif "tiktok.com" in domain:
+                domains.add("TikTok")
+            elif "threads.net" in domain:
+                domains.add("Threads")
+    except Exception as e:
+        logger.warning(f"Error parsing cookies for status check: {e}")
+        
+    return jsonify({
+        "has_cookies": True,
+        "domains": sorted(list(domains))
+    })
 
 
 @app.route("/api/cookies/clear/<client_id>", methods=["POST"])
@@ -271,6 +358,48 @@ def format_size(size_bytes):
             return f"{size_bytes:.1f} {unit}"
         size_bytes /= 1024.0
     return f"{size_bytes:.1f} TB"
+
+
+def get_url_content_length(url, cookies_file=None):
+    """Fetches the Content-Length of a URL via HTTP HEAD request."""
+    import requests
+    import os
+    headers = {
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+        "Accept": "*/*",
+    }
+    
+    session = requests.Session()
+    if cookies_file and os.path.exists(cookies_file):
+        try:
+            import http.cookiejar
+            cookie_jar = http.cookiejar.MozillaCookieJar()
+            cookie_jar.load(cookies_file, ignore_discard=True, ignore_expires=True)
+            session.cookies.update(cookie_jar)
+        except Exception:
+            pass
+
+    try:
+        response = session.head(url, headers=headers, timeout=3, allow_redirects=True)
+        if response.status_code not in [200, 206]:
+            response = session.get(url, headers=headers, stream=True, timeout=3, allow_redirects=True)
+            
+        if response.status_code in [200, 206]:
+            length = response.headers.get('content-length')
+            if length:
+                return int(length)
+                
+            # If chunked transfer-encoding or content-length is missing
+            total_bytes = 0
+            for chunk in response.iter_content(chunk_size=8192):
+                total_bytes += len(chunk)
+                if total_bytes > 5 * 1024 * 1024:  # limit to 5MB
+                    break
+            if total_bytes > 0:
+                return total_bytes
+    except Exception:
+        pass
+    return None
 
 
 def extract_instagram_via_gallery_dl(url, client_id):
@@ -378,6 +507,7 @@ def extract_instagram_via_gallery_dl(url, client_id):
         is_story = "/stories/" in url.lower()
         unit_label = "Story" if is_story else "Slide"
         
+        duration_sec = 0.0
         slide_num = 0
         for entry in entries:
             if len(entry) < 3 or not isinstance(entry[1], str):
@@ -385,6 +515,15 @@ def extract_instagram_via_gallery_dl(url, client_id):
             media_url = entry[1]
             meta = entry[2] if len(entry) >= 3 and isinstance(entry[2], dict) else {}
             
+            # Get duration
+            try:
+                for k in ["audio_duration", "duration", "video_duration"]:
+                    d_val = meta.get(k)
+                    if d_val is not None:
+                        duration_sec = max(duration_sec, float(d_val))
+            except Exception:
+                pass
+
             # Determine extension
             ext = "jpg"
             if ".mp4" in media_url.lower() or meta.get("media_type") == 2:
@@ -393,20 +532,32 @@ def extract_instagram_via_gallery_dl(url, client_id):
             slide_num += 1
             
             if ext == "mp4":
+                # Use direct video URL from metadata if available to avoid ytdl: placeholder
+                v_url = meta.get("video_url") or media_url
+                if isinstance(v_url, str) and v_url.startswith("ytdl:") and meta.get("video_url"):
+                    v_url = meta.get("video_url")
+                
+                # Try to get clean resolution height
+                height = meta.get("height") or meta.get("height_original")
+                res_label = f"{height}p" if isinstance(height, int) else "HD"
+                
                 video_options.append({
                     "format_id": f"direct_video_slide_{slide_num}",
-                    "resolution": "HD",
+                    "resolution": res_label,
                     "ext": "mp4",
                     "type": "video",
                     "size": "Unknown Size",
-                    "label": f"Video {unit_label} {slide_num}",
-                    "url": media_url
+                    "label": f"Video {unit_label} {slide_num} ({res_label})",
+                    "url": v_url
                 })
                 # Add default video thumbnail placeholder
+                t_url = meta.get("display_url") or media_url
+                if isinstance(t_url, str) and t_url.startswith("ytdl:") and meta.get("display_url"):
+                    t_url = meta.get("display_url")
                 images.append({
                     "label": f"{unit_label} {slide_num} Video Thumbnail",
-                    "url": media_url,
-                    "ext": "mp4"
+                    "url": t_url,
+                    "ext": "jpg"
                 })
             else:
                 images.append({
@@ -483,12 +634,60 @@ def extract_instagram_via_gallery_dl(url, client_id):
                     views = str(views_count)
             except Exception:
                 views = str(views_val)
+        # Generate audio extraction options if video exists
+        if video_options:
+            only_videos = [opt for opt in video_options if opt.get("ext") == "mp4"]
+            if only_videos:
+                audio_options.append({
+                    "format_id": "direct_video_audio_m4a",
+                    "resolution": "Audio",
+                    "ext": "m4a",
+                    "type": "audio",
+                    "size": "Unknown Size",
+                    "label": "M4A AAC (Original Quality - Fast)",
+                    "url": only_videos[0]["url"]
+                })
+                for q_val, q_name, q_label in [("320", "Ultra", "320kbps"), ("192", "High", "192kbps"), ("128", "Standard", "128kbps")]:
+                    audio_options.append({
+                        "format_id": "direct_video_audio_mp3",
+                        "resolution": "Audio",
+                        "ext": "mp3",
+                        "type": "audio",
+                        "quality": q_val,
+                        "size": "Unknown Size",
+                        "label": f"MP3 {q_name} ({q_label})",
+                        "url": only_videos[0]["url"]
+                    })
+
+        # Resolve sizes of video_options in parallel using ThreadPoolExecutor
+        from concurrent.futures import ThreadPoolExecutor
+        client_cookies = os.path.join(TEMP_DOWNLOAD_DIR, "cookies", f"cookies_{client_id}.txt") if client_id else None
+        
+        def resolve_size(opt):
+            url_to_check = opt.get("url")
+            if url_to_check:
+                s_bytes = get_url_content_length(url_to_check, cookies_file=client_cookies)
+                if s_bytes:
+                    opt["size"] = format_size(s_bytes)
+
+        if video_options:
+            with ThreadPoolExecutor(max_workers=min(10, len(video_options))) as executor:
+                list(executor.map(resolve_size, video_options))
+
+        # Estimate audio sizes using duration_sec
+        if duration_sec:
+            for opt in audio_options:
+                if opt["ext"] == "m4a":
+                    opt["size"] = format_size(int(duration_sec * 128 * 1000 / 8))
+                elif opt["ext"] == "mp3":
+                    q_val = opt.get("quality", "128")
+                    opt["size"] = format_size(int(duration_sec * int(q_val) * 1000 / 8))
 
         return {
             "status": "success",
             "title": title,
             "uploader": uploader,
-            "duration": "0:00",
+            "duration": format_duration(duration_sec) if duration_sec else "0:00",
             "thumbnail": thumbnail,
             "is_shorts": False,
             "platform_label": platform_label,
@@ -511,6 +710,549 @@ def extract_instagram_via_gallery_dl(url, client_id):
         return None
 
 
+
+def scrape_fb_post(url, client_id=None):
+    import requests
+    import json
+    import re
+    import urllib.parse
+    import html as html_lib
+
+    session = requests.Session()
+    headers = {
+        "User-Agent": "facebookexternalhit/1.1 (+http://www.facebook.com/externalhit_patched.html)",
+        "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8",
+        "Accept-Language": "vi-VN,vi;q=0.9,en-US;q=0.8,en;q=0.7",
+    }
+    
+    # Try using client cookies if available
+    cookies_dir = os.path.join(TEMP_DOWNLOAD_DIR, "cookies")
+    cookie_file = os.path.join(cookies_dir, f"cookies_{client_id}.txt") if client_id else None
+    if cookie_file and os.path.exists(cookie_file):
+        import http.cookiejar
+        cookie_jar = http.cookiejar.MozillaCookieJar()
+        try:
+            cookie_jar.load(cookie_file, ignore_discard=True, ignore_expires=True)
+            session.cookies.update(cookie_jar)
+            logger.info(f"Loaded client cookies for custom Facebook scraping.")
+        except Exception as e:
+            logger.warning(f"Error loading cookies for custom Facebook scraping: {e}")
+            
+    try:
+        res = session.get(url, headers=headers, timeout=15)
+        html = res.text
+        status_code = res.status_code
+        final_url = res.url
+    except Exception as e:
+        return {"status": "error", "message": f"Failed to fetch Facebook page: {e}"}
+        
+    if status_code != 200:
+        return {"status": "error", "message": f"Facebook returned status code {status_code}"}
+        
+    # Extract Title and Description from Meta tags
+    title = ""
+    desc_match = re.search(r'<meta\s+property="og:description"\s+content="([^"]+)"', html) or re.search(r'<meta\s+name="description"\s+content="([^"]+)"', html)
+    if desc_match:
+        title = desc_match.group(1)
+        title = html_lib.unescape(title)
+        
+    title_match = re.search(r'<meta\s+property="og:title"\s+content="([^"]+)"', html)
+    uploader = "Facebook User"
+    if title_match:
+        full_title = html_lib.unescape(title_match.group(1))
+        if " - " in full_title:
+            uploader = full_title.split(" - ")[0]
+        else:
+            uploader = full_title
+            
+    if not title:
+        title = f"Facebook Post by {uploader}"
+        
+    # Extract Thumbnail
+    thumbnail = ""
+    thumb_match = re.search(r'<meta\s+property="og:image"\s+content="([^"]+)"', html)
+    if thumb_match:
+        thumbnail = html_lib.unescape(thumb_match.group(1))
+        
+    # Find all application/json script blocks
+    scripts = re.findall(r'<script[^>]*type=["\']application/json["\'][^>]*>(.*?)</script>', html, re.DOTALL)
+    
+    video_options = []
+    images = []
+    added_image_urls = set()
+    
+    # Recursive search function for GraphQL data
+    def search_graphql(d):
+        if isinstance(d, dict):
+            # Check for photos in subattachments
+            if "all_subattachments" in d:
+                sub = d["all_subattachments"]
+                if isinstance(sub, dict) and "nodes" in sub:
+                    nodes = sub["nodes"]
+                    if isinstance(nodes, list):
+                        for node in nodes:
+                            media = node.get("media")
+                            if isinstance(media, dict):
+                                viewer_img = media.get("viewer_image") or media.get("image")
+                                if isinstance(viewer_img, dict) and viewer_img.get("uri"):
+                                    uri = viewer_img["uri"].replace("\\/", "/").replace("\\u0025", "%")
+                                    uri = urllib.parse.unquote(uri)
+                                    if uri not in added_image_urls:
+                                        added_image_urls.add(uri)
+                                        images.append({
+                                            "label": f"Photo {len(images)+1}",
+                                            "url": uri,
+                                            "ext": "jpg"
+                                        })
+            
+            # Check for direct Photo types
+            if d.get("__typename") == "Photo" or "viewer_image" in d:
+                v_img = d.get("viewer_image")
+                if isinstance(v_img, dict) and v_img.get("uri"):
+                    uri = v_img["uri"].replace("\\/", "/").replace("\\u0025", "%")
+                    uri = urllib.parse.unquote(uri)
+                    if uri not in added_image_urls:
+                        added_image_urls.add(uri)
+                        images.append({
+                            "label": f"Photo {len(images)+1}",
+                            "url": uri,
+                            "ext": "jpg"
+                        })
+                else:
+                    img = d.get("image")
+                    if isinstance(img, dict) and img.get("uri"):
+                        uri = img["uri"].replace("\\/", "/").replace("\\u0025", "%")
+                        uri = urllib.parse.unquote(uri)
+                        if uri not in added_image_urls:
+                            added_image_urls.add(uri)
+                            images.append({
+                                "label": f"Photo {len(images)+1}",
+                                "url": uri,
+                                "ext": "jpg"
+                            })
+                            
+            # Check for Video options (playable_url or progressive_url)
+            if "playable_url" in d or "progressive_url" in d:
+                playable = d.get("playable_url") or d.get("progressive_url")
+                if playable and isinstance(playable, str) and "fbcdn.net" in playable:
+                    playable = playable.replace("\\/", "/").replace("\\u0025", "%")
+                    playable = urllib.parse.unquote(playable)
+                    
+                    # Avoid dash/low quality chunks
+                    if not any(x in playable.lower() for x in ["dash_baseline", "_nc_vs", "dash_prefetch"]):
+                        res = "HD" if "quality_hd" in playable.lower() else "SD"
+                        label = f"Facebook Video ({res})"
+                        opt = {
+                            "format_id": f"direct_video_{len(video_options)+1}",
+                            "ext": "mp4",
+                            "resolution": res,
+                            "size": "Unknown Size",
+                            "label": label,
+                            "url": playable
+                        }
+                        if playable not in [o["url"] for o in video_options]:
+                            video_options.append(opt)
+                            
+            for v in d.values():
+                if isinstance(v, (dict, list)):
+                    search_graphql(v)
+        elif isinstance(d, list):
+            for item in d:
+                if isinstance(item, (dict, list)):
+                    search_graphql(item)
+
+    for script_text in scripts:
+        try:
+            data = json.loads(script_text)
+            search_graphql(data)
+        except:
+            pass
+
+    # If we found no photos but found og:image, add it
+    if not images and thumbnail:
+        images.append({
+            "label": "Thumbnail",
+            "url": thumbnail,
+            "ext": "jpg"
+        })
+        
+    # Map photos to video_options if no video exists
+    if not video_options and images:
+        for idx, img_obj in enumerate(images):
+            video_options.append({
+                "format_id": f"direct_photo_{idx+1}",
+                "ext": "jpg",
+                "resolution": "Original",
+                "size": "Unknown Size",
+                "label": f"Photo Option {idx+1}",
+                "url": img_obj["url"]
+            })
+
+    return {
+        "status": "success",
+        "title": title,
+        "duration": "0:05" if not video_options or any("photo" in o["format_id"] for o in video_options) else "0:30",
+        "uploader": uploader,
+        "thumbnail": thumbnail or (images[0]["url"] if images else ""),
+        "views": "N/A",
+        "likes": "N/A",
+        "upload_date": "Recent",
+        "category": "Facebook Post",
+        "tags": ["Post"],
+        "subtitles": [],
+        "video_options": video_options,
+        "audio_options": [],
+        "images": images,
+        "platform": "Facebook",
+        "platform_class": "facebook"
+    }
+
+
+def extract_shortcode(url):
+    import re
+    # Match shortcode from threads URL
+    # https://www.threads.net/@username/post/SHORTCODE
+    # or https://threads.com/@username/post/SHORTCODE
+    # or https://www.threads.net/t/SHORTCODE
+    # or https://threads.com/t/SHORTCODE
+    match = re.search(r'/post/([^/?#\s]+)', url)
+    if not match:
+        match = re.search(r'/t/([^/?#\s]+)', url)
+    return match.group(1) if match else None
+
+def parse_threads_page(url, client_id=None):
+    import requests
+    import json
+    import re
+    import http.cookiejar
+    
+    shortcode = extract_shortcode(url)
+    if not shortcode:
+        return {"status": "error", "message": "Không thể trích xuất shortcode từ URL Threads."}
+        
+    session = requests.Session()
+    
+    # Try fetching anonymously first
+    headers = {
+        "User-Agent": "facebookexternalhit/1.1 (+http://www.facebook.com/externalhit_patched.html)",
+        "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8",
+        "Accept-Language": "vi-VN,vi;q=0.9,en-US;q=0.8,en;q=0.7",
+    }
+    
+    try:
+        res = session.get(url, headers=headers, timeout=15)
+        html = res.text
+        status_code = res.status_code
+        final_url = res.url
+    except Exception as e:
+        html = ""
+        status_code = 500
+        final_url = url
+        logger.warning(f"Anonymous Threads fetch failed: {e}")
+    
+    # If anonymous fetch fails, redirects to login, or status is not 200, attempt with cookies
+    if status_code != 200 or "login" in final_url.lower() or "Confirm you're not a bot".lower() in html.lower():
+        session = requests.Session() # reset session
+        cookies_dir = os.path.join(TEMP_DOWNLOAD_DIR, "cookies")
+        cookie_file = os.path.join(cookies_dir, f"cookies_{client_id}.txt") if client_id else None
+        
+        if cookie_file and os.path.exists(cookie_file):
+            cookie_jar = http.cookiejar.MozillaCookieJar()
+            try:
+                cookie_jar.load(cookie_file, ignore_discard=True, ignore_expires=True)
+                session.cookies.update(cookie_jar)
+                
+                # Replicate to Threads domains
+                for cookie in list(session.cookies):
+                    domain = getattr(cookie, 'domain', '')
+                    if any(x in domain for x in ['instagram.com', 'instagr.am', 'facebook.com']):
+                        for target_domain in ['.threads.net', '.threads.com', 'www.threads.net', 'threads.net', 'threads.com', 'www.threads.com']:
+                            new_cookie = requests.cookies.create_cookie(
+                                name=cookie.name,
+                                value=cookie.value,
+                                domain=target_domain,
+                                path=cookie.path,
+                                secure=cookie.secure,
+                                expires=cookie.expires
+                            )
+                            session.cookies.set_cookie(new_cookie)
+            except Exception as e:
+                logger.warning(f"Error loading cookies for Threads: {e}")
+                
+            try:
+                res = session.get(url, headers={
+                    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+                    "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8",
+                    "Accept-Language": "vi-VN,vi;q=0.9,en-US;q=0.8,en;q=0.7",
+                }, timeout=15)
+                html = res.text
+            except Exception as e:
+                html = ""
+                logger.warning(f"Threads cookie fetch failed: {e}")
+            
+    # Extract scripts
+    scripts = re.findall(r'<script[^>]*type=["\']application/json["\'][^>]*>(.*?)</script>', html, re.DOTALL)
+    
+    def search_key(d, target_key, found_list):
+        if isinstance(d, dict):
+            for k, v in d.items():
+                if k == target_key:
+                    found_list.append(v)
+                if isinstance(v, (dict, list)):
+                    search_key(v, target_key, found_list)
+        elif isinstance(d, list):
+            for item in d:
+                search_key(item, target_key, found_list)
+
+    # Search for thread_items in scripts
+    all_thread_items = []
+    for script_text in scripts:
+        try:
+            data = json.loads(script_text)
+            temp = []
+            search_key(data, "thread_items", temp)
+            for items_list in temp:
+                if isinstance(items_list, list):
+                    all_thread_items.extend(items_list)
+        except:
+            pass
+            
+    # Look for the target post matching the shortcode
+    target_post = None
+    for item in all_thread_items:
+        post = item.get("post")
+        if post and post.get("code") == shortcode:
+            target_post = post
+            break
+            
+    if not target_post:
+        # Fallback search
+        for script_text in scripts:
+            try:
+                data = json.loads(script_text)
+                temp = []
+                search_key(data, "post", temp)
+                for post in temp:
+                    if isinstance(post, dict) and post.get("code") == shortcode:
+                        target_post = post
+                        break
+                if target_post:
+                    break
+            except:
+                pass
+                
+    if not target_post:
+        # Check if auth/login is required
+        if "login" in final_url.lower() or "Confirm you're not a bot".lower() in html.lower():
+            return {
+                "status": "error",
+                "message": "Threads yêu cầu xác minh danh tính hoặc đây là bài viết riêng tư. Vui lòng xuất và tải lên file cookie J2TEAM (chọn định dạng Netscape hoặc JSON) của Instagram/Threads để tiếp tục."
+            }
+        return {"status": "error", "message": "Không thể trích xuất thông tin bài viết từ trang Threads này. Có thể bài viết đã bị xóa hoặc giới hạn truy cập."}
+        
+    # Extract info from target_post
+    uploader = target_post.get("user", {}).get("username", "Threads User")
+    uploader_pic = target_post.get("user", {}).get("profile_pic_url", "")
+    caption_text = target_post.get("caption", {}).get("text", "")
+    likes = target_post.get("like_count", 0)
+    
+    media_type = target_post.get("media_type") # 1: Image, 2: Video, 8: Carousel
+    
+    video_options = []
+    images = []
+    
+    # Process images helper
+    def extract_image_url(image_versions2):
+        if not image_versions2:
+            return None
+        candidates = image_versions2.get("candidates", [])
+        if candidates:
+            candidates = sorted(candidates, key=lambda x: x.get("width", 0), reverse=True)
+            return candidates[0].get("url")
+        return None
+
+    # Extract duration_sec
+    duration_sec = target_post.get("video_duration")
+    if duration_sec is None:
+        if media_type == 8:
+            carousel_media = target_post.get("carousel_media", []) or []
+            for item in carousel_media:
+                if item.get("video_duration"):
+                    duration_sec = item.get("video_duration")
+                    break
+    if duration_sec is not None:
+        try:
+            duration_sec = float(duration_sec)
+        except Exception:
+            duration_sec = 15.0
+    else:
+        duration_sec = 0.0
+
+    if media_type == 8: # Carousel
+        carousel_media = target_post.get("carousel_media", []) or []
+        for idx, item in enumerate(carousel_media):
+            img_url = extract_image_url(item.get("image_versions2"))
+            if img_url:
+                images.append({
+                    "label": f"Slide Photo {idx+1}",
+                    "url": img_url,
+                    "ext": "jpg"
+                })
+                video_options.append({
+                    "format_id": f"direct_photo_slide_{idx+1}",
+                    "resolution": "Original",
+                    "ext": "jpg",
+                    "type": "image",
+                    "size": "Unknown Size",
+                    "label": f"Photo - Slide {idx+1}",
+                    "url": img_url
+                })
+            
+            # If video slide
+            video_versions = item.get("video_versions", [])
+            if video_versions:
+                video_versions = sorted(video_versions, key=lambda x: x.get("width", 0), reverse=True)
+                v_url = video_versions[0].get("url")
+                video_options.append({
+                    "format_id": f"direct_video_slide_{idx+1}",
+                    "ext": "mp4",
+                    "resolution": f"Slide {idx+1}",
+                    "type": "video",
+                    "size": "Unknown Size",
+                    "label": f"Video Slide {idx+1}",
+                    "url": v_url
+                })
+                if not duration_sec and item.get("video_duration"):
+                    try:
+                        duration_sec = float(item.get("video_duration"))
+                    except Exception:
+                        pass
+    elif media_type == 2 or target_post.get("video_versions"): # Video
+        video_versions = target_post.get("video_versions", [])
+        if video_versions:
+            video_versions = sorted(video_versions, key=lambda x: x.get("width", 0), reverse=True)
+            v_url = video_versions[0].get("url")
+            video_options.append({
+                "format_id": "direct_video_original",
+                "ext": "mp4",
+                "resolution": "Original",
+                "type": "video",
+                "size": "Unknown Size",
+                "label": "Video (Original)",
+                "url": v_url
+            })
+            if not duration_sec:
+                duration_sec = 15.0
+        
+        img_url = extract_image_url(target_post.get("image_versions2"))
+        if img_url:
+            images.append({
+                "label": "Video Thumbnail",
+                "url": img_url,
+                "ext": "jpg"
+            })
+    else: # Image / fallback
+        img_url = extract_image_url(target_post.get("image_versions2"))
+        if img_url:
+            images.append({
+                "label": "Photo",
+                "url": img_url,
+                "ext": "jpg"
+            })
+            video_options.append({
+                "format_id": "direct_photo_original",
+                "resolution": "Original",
+                "ext": "jpg",
+                "type": "image",
+                "size": "Unknown Size",
+                "label": "Photo (Original)",
+                "url": img_url
+            })
+            
+    # If it is text only
+    if not images and not video_options:
+        return {
+            "status": "error",
+            "message": "Bài viết Threads này chỉ chứa văn bản và không có hình ảnh hoặc video để tải xuống."
+        }
+        
+    thumbnail = images[0]["url"] if images else ""
+    
+    # Generate audio extraction options if video exists
+    audio_options = []
+    only_videos = [opt for opt in video_options if opt.get("type") == "video"]
+    if only_videos and not duration_sec:
+        duration_sec = 15.0
+        
+    if only_videos:
+        audio_options.append({
+            "format_id": "direct_video_audio_m4a",
+            "resolution": "Audio",
+            "ext": "m4a",
+            "type": "audio",
+            "size": "Unknown Size",
+            "label": "M4A AAC (Original Quality - Fast)",
+            "url": only_videos[0]["url"]
+        })
+        for q_val, q_name, q_label in [("320", "Ultra", "320kbps"), ("192", "High", "192kbps"), ("128", "Standard", "128kbps")]:
+            audio_options.append({
+                "format_id": "direct_video_audio_mp3",
+                "resolution": "Audio",
+                "ext": "mp3",
+                "type": "audio",
+                "quality": q_val,
+                "size": "Unknown Size",
+                "label": f"MP3 {q_name} ({q_label})",
+                "url": only_videos[0]["url"]
+            })
+            
+    # Resolve sizes of video_options in parallel using ThreadPoolExecutor
+    from concurrent.futures import ThreadPoolExecutor
+    client_cookies = os.path.join(TEMP_DOWNLOAD_DIR, "cookies", f"cookies_{client_id}.txt") if client_id else None
+    
+    def resolve_threads_size(opt):
+        url_to_check = opt.get("url")
+        if url_to_check:
+            s_bytes = get_url_content_length(url_to_check, cookies_file=client_cookies)
+            if s_bytes:
+                opt["size"] = format_size(s_bytes)
+
+    if video_options:
+        with ThreadPoolExecutor(max_workers=min(10, len(video_options))) as executor:
+            list(executor.map(resolve_threads_size, video_options))
+
+    # Estimate audio sizes using duration_sec
+    if duration_sec:
+        for opt in audio_options:
+            if opt["ext"] == "m4a":
+                opt["size"] = format_size(int(duration_sec * 128 * 1000 / 8))
+            elif opt["ext"] == "mp3":
+                q_val = opt.get("quality", "128")
+                opt["size"] = format_size(int(duration_sec * int(q_val) * 1000 / 8))
+
+    result = {
+        "status": "success",
+        "title": caption_text[:80] + "..." if len(caption_text) > 80 else (caption_text or "Threads Post"),
+        "duration": format_duration(duration_sec) if duration_sec else "0:00",
+        "uploader": uploader,
+        "uploader_pic": uploader_pic,
+        "thumbnail": thumbnail,
+        "views": "N/A",
+        "likes": f"{likes:,}" if likes else "0",
+        "upload_date": "Hôm nay",
+        "category": "Threads Post",
+        "tags": ["Threads"],
+        "subtitles": [],
+        "video_options": video_options,
+        "audio_options": audio_options,
+        "images": images,
+        "platform": "Threads",
+        "platform_class": "threads",
+        "platform_label": "Threads"
+    }
+    return result
+
+
 @app.route("/api/info", methods=["POST"])
 def get_info():
     data = request.get_json() or {}
@@ -519,6 +1261,22 @@ def get_info():
 
     if not url:
         return jsonify({"status": "error", "message": "Link URL is required."}), 400
+
+    is_threads = "threads.net" in url.lower() or "threads.com" in url.lower()
+    if is_threads:
+        try:
+            threads_info = parse_threads_page(url, client_id)
+            if threads_info.get("status") == "success":
+                return jsonify(threads_info)
+            else:
+                return jsonify(threads_info), 400
+        except Exception as e:
+            logger.error(f"Failed to scrape Threads: {e}")
+            return jsonify({
+                "status": "error",
+                "message": f"Failed to extract Threads contents: {e}"
+            }), 500
+
 
     is_instagram = "instagram.com" in url.lower() or "instagr.am" in url.lower()
     if is_instagram:
@@ -818,6 +1576,21 @@ def get_info():
                     "ext": "jpg"
                 })
 
+            # Resolve sizes of video_options in parallel using ThreadPoolExecutor
+            from concurrent.futures import ThreadPoolExecutor
+            client_cookies = os.path.join(TEMP_DOWNLOAD_DIR, "cookies", f"cookies_{client_id}.txt") if client_id else None
+            
+            def resolve_fb_story_size(opt):
+                url_to_check = opt.get("url")
+                if url_to_check:
+                    s_bytes = get_url_content_length(url_to_check, cookies_file=client_cookies)
+                    if s_bytes:
+                        opt["size"] = format_size(s_bytes)
+
+            if video_options:
+                with ThreadPoolExecutor(max_workers=min(10, len(video_options))) as executor:
+                    list(executor.map(resolve_fb_story_size, video_options))
+
             result = {
                 "status": "success",
                 "title": title,
@@ -848,7 +1621,53 @@ def get_info():
 
     logger.info(f"Fetching metadata for URL: {url} (client_id: {client_id})")
 
+    is_facebook = any(domain in url.lower() for domain in ["facebook.com", "fb.com", "fb.watch", "fb.gg"])
+    is_fb_story = "/stories/" in url.lower()
+    
+    if is_facebook and not is_fb_story:
+        try:
+            logger.info(f"Facebook Post URL detected. Attempting custom scraping via facebookexternalhit: {url}")
+            fb_info = scrape_fb_post(url, client_id)
+            if fb_info and fb_info.get("status") == "success" and (fb_info.get("images") or fb_info.get("video_options")):
+                # Resolve sizes of video_options in parallel using ThreadPoolExecutor
+                video_options = fb_info.get("video_options", [])
+                if video_options:
+                    from concurrent.futures import ThreadPoolExecutor
+                    client_cookies = os.path.join(TEMP_DOWNLOAD_DIR, "cookies", f"cookies_{client_id}.txt") if client_id else None
+                    
+                    def resolve_fb_post_size(opt):
+                        url_to_check = opt.get("url")
+                        if url_to_check:
+                            s_bytes = get_url_content_length(url_to_check, cookies_file=client_cookies)
+                            if s_bytes:
+                                opt["size"] = format_size(s_bytes)
+                                
+                    with ThreadPoolExecutor(max_workers=min(10, len(video_options))) as executor:
+                        list(executor.map(resolve_fb_post_size, video_options))
+                        
+                logger.info(f"Successfully scraped Facebook post using custom scraper. Options: {len(video_options)}")
+                return jsonify(fb_info)
+            else:
+                logger.warning("Custom Facebook post scraping returned no content. Falling back to yt-dlp...")
+        except Exception as fb_scrape_err:
+            logger.warning(f"Custom Facebook post scraping failed: {fb_scrape_err}. Falling back to yt-dlp...")
+
     is_instagram = "instagram.com" in url.lower() or "instagr.am" in url.lower()
+
+    if is_instagram:
+        try:
+            logger.info("Instagram URL detected. Attempting extraction via gallery-dl first...")
+            gallery_info = extract_instagram_via_gallery_dl(url, client_id)
+            if gallery_info:
+                logger.info("Successfully extracted Instagram metadata using gallery-dl.")
+                return jsonify(gallery_info)
+        except Exception as gallery_e:
+            logger.warning(f"Primary gallery-dl extraction failed: {gallery_e}. Falling back to yt-dlp...")
+            if any(keyword in str(gallery_e).lower() for keyword in ["login", "redirect", "cookie"]):
+                return jsonify({
+                    "status": "error",
+                    "message": "Instagram yêu cầu cookie tài khoản để truy cập. Vui lòng xuất và tải lên file cookie J2TEAM (chọn định dạng Netscape hoặc JSON) để tiếp tục."
+                }), 400
 
     ydl_opts = {
         "quiet": True,
@@ -882,6 +1701,24 @@ def get_info():
                 logger.error(f"Metadata extraction without cookies also failed: {nocookie_e}")
                 err_str = f"{str(first_err)} | {str(nocookie_e)}".lower()
                 
+                is_facebook = any(domain in url.lower() for domain in ["facebook.com", "fb.com", "fb.watch", "fb.gg"])
+                if is_facebook:
+                    fb_auth_keywords = [
+                        "registered users",
+                        "log in",
+                        "login",
+                        "sign in",
+                        "private",
+                        "permission",
+                        "cookies",
+                        "cookies-from-browser"
+                    ]
+                    if any(keyword in err_str for keyword in fb_auth_keywords):
+                        return jsonify({
+                            "status": "error",
+                            "message": "Facebook yêu cầu cookie tài khoản để truy cập bài viết/video này (có thể là video riêng tư, giới hạn đối tượng hoặc trong nhóm kín). Vui lòng đăng nhập vào Facebook trên trình duyệt, xuất và tải lên file cookie J2TEAM (chọn định dạng Netscape hoặc JSON) của Facebook để tiếp tục."
+                        }), 400
+
                 is_youtube = any(domain in url.lower() for domain in ["youtube.com", "youtu.be", "youtubekids.com", "youtube-nocookie.com"])
                 if is_youtube:
                     youtube_auth_keywords = [
@@ -1081,6 +1918,21 @@ def get_info():
 
             # --- Subtitles extraction ---
             subtitles = []
+            
+            # Estimate subtitle sizes if duration is available
+            duration_sec = info.get("duration") or 0
+            est_sub_size = None
+            if duration_sec:
+                try:
+                    # Average VTT size is roughly 50 bytes per second of video duration
+                    # plus a base header size of about 100 bytes.
+                    est_bytes = int(float(duration_sec) * 50) + 100
+                    # Clamp between 1KB and 250KB
+                    est_bytes = max(1024, min(est_bytes, 250 * 1024))
+                    est_sub_size = format_size(est_bytes)
+                except Exception:
+                    pass
+
             # Manual subtitles
             raw_subs = info.get("subtitles") or {}
             for lang, formats in raw_subs.items():
@@ -1090,7 +1942,9 @@ def get_info():
                 subtitles.append({
                     "lang_code": lang,
                     "name": lang_name,
-                    "is_auto": False
+                    "is_auto": False,
+                    "url": formats[0].get("url") if formats else None,
+                    "size": est_sub_size or "Unknown Size"
                 })
             # Auto captions (limit to common ones)
             raw_auto = info.get("automatic_captions") or {}
@@ -1102,8 +1956,26 @@ def get_info():
                     subtitles.append({
                         "lang_code": lang,
                         "name": lang_name,
-                        "is_auto": True
+                        "is_auto": True,
+                        "url": formats[0].get("url") if formats else None,
+                        "size": est_sub_size or "Unknown Size"
                     })
+
+            # Resolve sizes of subtitles in parallel using ThreadPoolExecutor only if they couldn't be estimated
+            subs_to_resolve = [sub for sub in subtitles if sub.get("size") == "Unknown Size" or not sub.get("size")]
+            if subs_to_resolve:
+                from concurrent.futures import ThreadPoolExecutor
+                client_cookies = os.path.join(TEMP_DOWNLOAD_DIR, "cookies", f"cookies_{client_id}.txt") if client_id else None
+                
+                def resolve_sub_size(opt):
+                    url_to_check = opt.get("url")
+                    if url_to_check:
+                        s_bytes = get_url_content_length(url_to_check, cookies_file=client_cookies)
+                        if s_bytes:
+                            opt["size"] = format_size(s_bytes)
+
+                with ThreadPoolExecutor(max_workers=min(10, len(subs_to_resolve))) as executor:
+                    list(executor.map(resolve_sub_size, subs_to_resolve))
 
             images = []
             formats_list = info.get("formats", [])
@@ -1193,6 +2065,21 @@ def get_info():
                             "label": f"Photo - {unit_label} {slide_num}",
                             "url": direct_url
                         })
+
+                if video_options:
+                    from concurrent.futures import ThreadPoolExecutor
+                    client_cookies = os.path.join(TEMP_DOWNLOAD_DIR, "cookies", f"cookies_{client_id}.txt") if client_id else None
+                    
+                    def resolve_ytdl_slide_size(opt):
+                        if opt.get("size") == "Unknown Size" or not opt.get("size"):
+                            url_to_check = opt.get("url")
+                            if url_to_check:
+                                s_bytes = get_url_content_length(url_to_check, cookies_file=client_cookies)
+                                if s_bytes:
+                                    opt["size"] = format_size(s_bytes)
+
+                    with ThreadPoolExecutor(max_workers=min(10, len(video_options))) as executor:
+                        list(executor.map(resolve_ytdl_slide_size, video_options))
 
                 if not video_options:
                     video_options.append({
@@ -1425,6 +2312,7 @@ def bg_download_task(download_id, url, format_id, ext, quality="192", title="med
     if format_id.startswith("direct_video") or format_id.startswith("direct_photo"):
         try:
             import requests
+            import subprocess
             
             with downloads_status_lock:
                 if download_id in downloads_status:
@@ -1464,7 +2352,15 @@ def bg_download_task(download_id, url, format_id, ext, quality="192", title="med
             response.raise_for_status()
             
             total_size = int(response.headers.get('content-length', 0))
-            filepath = os.path.join(temp_dir, f"media.{ext}")
+            
+            is_audio_requested = ext in ["mp3", "m4a"]
+            if is_audio_requested:
+                download_ext = "mp4"
+                filepath = os.path.join(temp_dir, f"temp_source.mp4")
+            else:
+                download_ext = ext
+                filepath = os.path.join(temp_dir, f"media.{ext}")
+                
             downloaded = 0
             
             with open(filepath, 'wb') as f:
@@ -1478,9 +2374,40 @@ def bg_download_task(download_id, url, format_id, ext, quality="192", title="med
                                 with downloads_status_lock:
                                     if download_id in downloads_status:
                                         downloads_status[download_id].update({
-                                            "progress": min(95, percent),
+                                            "progress": min(80 if is_audio_requested else 95, percent),
                                             "message": f"Downloading direct file: {percent}%"
                                         })
+                                        
+            # Extract audio if requested
+            if is_audio_requested:
+                with downloads_status_lock:
+                    if download_id in downloads_status:
+                        downloads_status[download_id].update({
+                            "progress": 85,
+                            "message": "Extracting audio track..."
+                        })
+                        
+                final_filepath = os.path.join(temp_dir, f"media.{ext}")
+                
+                if ext == "m4a":
+                    # Try copying audio track directly
+                    cmd = ["ffmpeg", "-y", "-i", filepath, "-vn", "-acodec", "copy", final_filepath]
+                    res_cmd = subprocess.run(cmd, capture_output=True)
+                    if res_cmd.returncode != 0:
+                        logger.warning("ffmpeg audio copy failed, re-encoding to m4a...")
+                        cmd = ["ffmpeg", "-y", "-i", filepath, "-vn", "-c:a", "aac", "-b:a", "192k", final_filepath]
+                        subprocess.run(cmd, capture_output=True)
+                else: # mp3
+                    cmd = ["ffmpeg", "-y", "-i", filepath, "-vn", "-c:a", "libmp3lame", "-b:a", f"{quality}k", final_filepath]
+                    subprocess.run(cmd, capture_output=True)
+                    
+                # Delete temp video source file
+                try:
+                    os.remove(filepath)
+                except Exception:
+                    pass
+                    
+                filepath = final_filepath
             
             def sanitize_filename(name):
                 import re

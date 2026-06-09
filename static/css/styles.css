@@ -5,6 +5,7 @@
     --surface-hover: rgba(20, 24, 42, 0.7);
     --border: rgba(255, 255, 255, 0.06);
     --cyan-rgb: 99, 179, 237;
+    --purple-rgb: 183, 148, 244;
     --border-active: rgba(var(--cyan-rgb), 0.4);
 
     --cyan: #63b3ed;
@@ -169,7 +170,7 @@ body.modal-open {
     --surface: rgba(255, 255, 255, 0.7);
     --surface-hover: rgba(255, 255, 255, 0.9);
     --border: rgba(0, 0, 0, 0.07);
-    --border-active: rgba(99, 179, 237, 0.7);
+    --border-active: rgba(var(--cyan-rgb), 0.7);
 
     --text: #1e293b;
     --text-dim: #475569;
@@ -388,80 +389,13 @@ body.modal-open {
 .tag:not(.tag-duration) {
     top: 10px;
     left: 10px;
-}
-.tag-youtube, .tag-youtube-shorts, .tag-youtube-live, .tag-youtube-clip {
-    background: rgba(252, 129, 129, 0.15);
-    border: 1px solid rgba(252, 129, 129, 0.4);
-    color: var(--red);
-}
-.tag-youtube-kids {
-    background: rgba(246, 224, 94, 0.15);
-    border: 1px solid rgba(246, 224, 94, 0.4);
-    color: var(--yellow);
-}
-.tag-youtube-music {
-    background: rgba(183, 148, 244, 0.15);
-    border: 1px solid rgba(183, 148, 244, 0.4);
-    color: var(--purple);
-}
-.tag-facebook, .tag-facebook-watch {
-    background: rgba(66, 153, 225, 0.15);
-    border: 1px solid rgba(66, 153, 225, 0.4);
+    background: rgba(var(--cyan-rgb), 0.15);
+    border: 1px solid rgba(var(--cyan-rgb), 0.4);
     color: var(--cyan);
 }
-.tag-facebook-reel {
-    background: rgba(237, 100, 166, 0.15);
-    border: 1px solid rgba(237, 100, 166, 0.4);
-    color: #ed64a6;
-}
-.tag-facebook-live {
-    background: rgba(245, 101, 101, 0.15);
-    border: 1px solid rgba(245, 101, 101, 0.4);
-    color: #f56565;
-}
-.tag-facebook-gaming {
-    background: rgba(72, 187, 120, 0.15);
-    border: 1px solid rgba(72, 187, 120, 0.4);
-    color: #48bb78;
-}
-.tag-facebook-group {
-    background: rgba(56, 178, 172, 0.15);
-    border: 1px solid rgba(56, 178, 172, 0.4);
-    color: #38b2ac;
-}
-.tag-facebook-story {
-    background: rgba(236, 201, 75, 0.15);
-    border: 1px solid rgba(236, 201, 75, 0.4);
-    color: #ecc94b;
-}
-.tag-tiktok {
-    background: rgba(79, 209, 197, 0.15);
-    border: 1px solid rgba(79, 209, 197, 0.4);
-    color: #4fd1c5;
-}
-.tag-instagram, .tag-instagram-post {
-    background: rgba(225, 48, 108, 0.15);
-    border: 1px solid rgba(225, 48, 108, 0.4);
-    color: #e1306c;
-}
-.tag-instagram-reel {
-    background: rgba(255, 138, 0, 0.15);
-    border: 1px solid rgba(255, 138, 0, 0.4);
-    color: #ff8a00;
-}
-.tag-instagram-story {
-    background: rgba(138, 58, 185, 0.15);
-    border: 1px solid rgba(138, 58, 185, 0.4);
-    color: #8a3ab9;
-}
-.tag-instagram-tv {
-    background: rgba(88, 81, 219, 0.15);
-    border: 1px solid rgba(88, 81, 219, 0.4);
-    color: #5851db;
-}
 .tag-default {
-    background: rgba(183, 148, 244, 0.15);
-    border: 1px solid rgba(183, 148, 244, 0.4);
+    background: rgba(var(--purple-rgb), 0.15);
+    border: 1px solid rgba(var(--purple-rgb), 0.4);
     color: var(--purple);
 }
 .tag-duration {
@@ -569,6 +503,7 @@ body.modal-open {
 }
 .format-row.video-row .format-icon { color: var(--purple); }
 .format-row.audio-row .format-icon { color: var(--green); }
+.format-row.photo-row .format-icon { color: var(--cyan); }
 
 .format-name {
     font-size: 0.9rem;
@@ -753,7 +688,7 @@ body.modal-open {
     border-radius: 20px;
     background: rgba(255, 255, 255, 0.04);
     color: var(--cyan);
-    border: 1px solid rgba(99, 179, 237, 0.15);
+    border: 1px solid rgba(var(--cyan-rgb), 0.15);
     font-weight: 500;
     white-space: nowrap;
 }
@@ -797,8 +732,8 @@ body.modal-open {
 .tag-pill {
     font-size: 0.72rem;
     color: var(--purple);
-    background: rgba(183, 148, 244, 0.06);
-    border: 1px solid rgba(183, 148, 244, 0.15);
+    background: rgba(var(--purple-rgb), 0.06);
+    border: 1px solid rgba(var(--purple-rgb), 0.15);
     padding: 3px 8px;
     border-radius: 4px;
     font-weight: 500;
@@ -1080,7 +1015,7 @@ body.modal-open {
 }
 .cookie-dropzone:hover, .cookie-dropzone.dragover {
     border-color: var(--cyan);
-    background: rgba(99, 179, 237, 0.04);
+    background: rgba(var(--cyan-rgb), 0.04);
 }
 .upload-arrow {
     width: 32px;
@@ -1260,7 +1195,7 @@ body.modal-open {
 .image-card:hover {
     transform: translateY(-3px);
     border-color: var(--cyan);
-    box-shadow: 0 10px 20px rgba(99, 179, 237, 0.1);
+    box-shadow: 0 10px 20px rgba(var(--cyan-rgb), 0.1);
 }
 .light-theme .image-card {
     background: rgba(255, 255, 255, 0.95);
@@ -1378,7 +1313,7 @@ body.modal-open {
     transition: background 0.2s, color 0.2s, border-color 0.2s;
 }
 .image-card-download-btn:hover {
-    background: rgba(99, 179, 237, 0.1);
+    background: rgba(var(--cyan-rgb), 0.1);
     color: var(--cyan);
     border-color: var(--cyan);
 }
@@ -1386,7 +1321,7 @@ body.modal-open {
     background: rgba(0, 0, 0, 0.02);
 }
 .light-theme .image-card-download-btn:hover {
-    background: rgba(99, 179, 237, 0.05);
+    background: rgba(var(--cyan-rgb), 0.05);
 }
 
 .image-card-download-btn svg {
@@ -1401,8 +1336,8 @@ body.modal-open {
 }
 
 .image-card-preview-btn {
-    background: rgba(99, 179, 237, 0.05);
-    border: 1px solid rgba(99, 179, 237, 0.2);
+    background: rgba(var(--cyan-rgb), 0.05);
+    border: 1px solid rgba(var(--cyan-rgb), 0.2);
     color: var(--cyan);
     cursor: pointer;
     padding: 4px 8px;
@@ -1414,10 +1349,10 @@ body.modal-open {
     transition: background 0.2s, color 0.2s, border-color 0.2s;
 }
 .image-card-preview-btn:hover {
-    background: rgba(99, 179, 237, 0.15);
+    background: rgba(var(--cyan-rgb), 0.15);
     border-color: var(--cyan);
     color: #fff;
-    box-shadow: 0 0 8px rgba(99, 179, 237, 0.2);
+    box-shadow: 0 0 8px rgba(var(--cyan-rgb), 0.2);
 }
 .image-card-preview-btn svg {
     width: 10px;
@@ -1427,7 +1362,7 @@ body.modal-open {
     background: rgba(0, 0, 0, 0.02);
 }
 .light-theme .image-card-preview-btn:hover {
-    background: rgba(99, 179, 237, 0.05);
+    background: rgba(var(--cyan-rgb), 0.05);
 }
 
 /* === PREVIEW BUTTONS & MODAL === */
@@ -1442,8 +1377,8 @@ body.modal-open {
     letter-spacing: 0.3px;
     text-transform: uppercase;
     color: var(--cyan);
-    background: rgba(99, 179, 237, 0.05);
-    border: 1px solid rgba(99, 179, 237, 0.2);
+    background: rgba(var(--cyan-rgb), 0.05);
+    border: 1px solid rgba(var(--cyan-rgb), 0.2);
     border-radius: 6px;
     cursor: pointer;
     transition: all 0.2s;
@@ -1452,10 +1387,10 @@ body.modal-open {
 }
 .btn-preview svg { width: 13px; height: 13px; }
 .btn-preview:hover {
-    background: rgba(99, 179, 237, 0.15);
+    background: rgba(var(--cyan-rgb), 0.15);
     border-color: var(--cyan);
     color: #fff;
-    box-shadow: 0 0 10px rgba(99, 179, 237, 0.25);
+    box-shadow: 0 0 10px rgba(var(--cyan-rgb), 0.25);
 }
 
 .format-actions {
@@ -1640,7 +1575,7 @@ body.modal-open {
 .preview-loader-spinner {
     width: 40px;
     height: 40px;
-    border: 3px solid rgba(99, 179, 237, 0.1);
+    border: 3px solid rgba(var(--cyan-rgb), 0.1);
     border-radius: 50%;
     border-top-color: var(--cyan);
     animation: spin 1s linear infinite;
@@ -1702,10 +1637,10 @@ body.modal-open {
         gap: 12px;
         align-items: stretch;
         padding: 16px;
-    }
     .preview-meta {
         text-align: center;
     }
+}
 
 /* Light Theme Overrides for Preview Components */
 .light-theme .preview-content-area {
@@ -1744,7 +1679,7 @@ body.modal-open {
     background: rgba(245, 247, 251, 0.95);
 }
 .light-theme .btn-preview {
-    background: rgba(99, 179, 237, 0.08);
+    background: rgba(var(--cyan-rgb), 0.08);
 }
 .light-theme .btn-preview:hover {
     color: #ffffff;
@@ -1757,31 +1692,37 @@ body.theme-youtube {
     --cyan: #ff0000;
     --purple: #ff4d4d;
     --cyan-rgb: 255, 0, 0;
+    --purple-rgb: 255, 77, 77;
 }
 body.theme-youtube-kids {
     --cyan: #ffbb00;
     --purple: #00ff66;
     --cyan-rgb: 255, 187, 0;
+    --purple-rgb: 0, 255, 102;
 }
 body.theme-youtube-music {
     --cyan: #00ffd0;
     --purple: #0088ff;
     --cyan-rgb: 0, 255, 208;
+    --purple-rgb: 0, 136, 255;
 }
 body.theme-youtube-shorts {
     --cyan: #ff3e3e;
     --purple: #ff8a00;
     --cyan-rgb: 255, 62, 62;
+    --purple-rgb: 255, 138, 0;
 }
 body.theme-youtube-live {
     --cyan: #ff003c;
     --purple: #ff00a0;
     --cyan-rgb: 255, 0, 60;
+    --purple-rgb: 255, 0, 160;
 }
 body.theme-youtube-clip {
     --cyan: #e62117;
     --purple: #ff6e6e;
     --cyan-rgb: 230, 33, 23;
+    --purple-rgb: 255, 110, 110;
 }
 
 /* Facebook Themes */
@@ -1789,36 +1730,43 @@ body.theme-facebook {
     --cyan: #1877f2;
     --purple: #00c6ff;
     --cyan-rgb: 24, 119, 242;
+    --purple-rgb: 0, 198, 255;
 }
 body.theme-facebook-reel {
     --cyan: #2ecc71;
     --purple: #00e5ff;
     --cyan-rgb: 46, 204, 113;
+    --purple-rgb: 0, 229, 255;
 }
 body.theme-facebook-group {
     --cyan: #20b2aa;
     --purple: #48d1cc;
     --cyan-rgb: 32, 178, 170;
+    --purple-rgb: 72, 209, 204;
 }
 body.theme-facebook-live {
     --cyan: #ff4500;
     --purple: #ff8c00;
     --cyan-rgb: 255, 69, 0;
+    --purple-rgb: 255, 140, 0;
 }
 body.theme-facebook-watch {
     --cyan: #4267b2;
     --purple: #898f9c;
     --cyan-rgb: 66, 103, 178;
+    --purple-rgb: 137, 143, 156;
 }
 body.theme-facebook-story {
     --cyan: #7b1fa2;
     --purple: #e91e63;
     --cyan-rgb: 123, 31, 162;
+    --purple-rgb: 233, 30, 99;
 }
 body.theme-facebook-gaming {
     --cyan: #00bcd4;
     --purple: #3f51b5;
     --cyan-rgb: 0, 188, 212;
+    --purple-rgb: 63, 81, 181;
 }
 
 /* Instagram Themes */
@@ -1826,25 +1774,47 @@ body.theme-instagram {
     --cyan: #e1306c;
     --purple: #f77737;
     --cyan-rgb: 225, 48, 108;
+    --purple-rgb: 247, 119, 55;
 }
 body.theme-instagram-reel {
     --cyan: #ff8a00;
     --purple: #da00ff;
     --cyan-rgb: 255, 138, 0;
+    --purple-rgb: 218, 0, 255;
 }
 body.theme-instagram-story {
     --cyan: #8a3ab9;
     --purple: #e95950;
     --cyan-rgb: 138, 58, 185;
+    --purple-rgb: 233, 89, 80;
 }
 body.theme-instagram-tv {
     --cyan: #5851db;
     --purple: #c13584;
     --cyan-rgb: 88, 81, 219;
+    --purple-rgb: 193, 53, 132;
 }
 body.theme-instagram-post {
     --cyan: #fd1d1d;
     --purple: #fccc63;
     --cyan-rgb: 253, 29, 29;
+    --purple-rgb: 252, 204, 99;
 }
+
+/* Threads Theme */
+body.theme-threads {
+    --cyan: #a855f7;
+    --purple: #ec4899;
+    --cyan-rgb: 168, 85, 247;
+    --purple-rgb: 236, 72, 153;
+}
+
+/* TikTok Theme */
+body.theme-tiktok {
+    --cyan: #00f2fe;
+    --purple: #fe0979;
+    --cyan-rgb: 0, 242, 254;
+    --purple-rgb: 254, 9, 121;
+}
+
 
