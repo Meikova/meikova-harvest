@@ -75,6 +75,15 @@ body.modal-open {
     animation: float 18s ease-in-out infinite alternate;
     opacity: 0.06;
 }
+#cursor-canvas {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    pointer-events: none;
+    z-index: 0;
+}
 
 @keyframes float {
     0% { transform: translate(0, 0) scale(1); }
@@ -110,6 +119,19 @@ body.modal-open {
     width: 30px; height: 30px;
     color: var(--cyan);
     filter: drop-shadow(0 0 6px rgba(var(--cyan-rgb),0.4));
+}
+.logo-img {
+    width: 46px;
+    height: 46px;
+    object-fit: cover;
+    border-radius: 10px;
+    border: 2px solid rgba(var(--cyan-rgb), 0.35);
+    box-shadow: 0 0 15px rgba(var(--cyan-rgb), 0.25);
+    filter: drop-shadow(0 0 6px rgba(var(--cyan-rgb), 0.3));
+    transition: transform 0.3s ease;
+}
+.logo-img:hover {
+    transform: scale(1.05);
 }
 .logo h1 {
     font-family: var(--font-display);
@@ -172,6 +194,11 @@ body.modal-open {
     --border: rgba(0, 0, 0, 0.07);
     --border-active: rgba(var(--cyan-rgb), 0.7);
 
+    --cyan-rgb: 49, 130, 206;
+    --purple-rgb: 107, 70, 193;
+    --cyan: #3182ce;
+    --purple: #6b46c1;
+
     --text: #1e293b;
     --text-dim: #475569;
     --text-faint: rgba(30, 41, 59, 0.35);
@@ -179,6 +206,41 @@ body.modal-open {
 .light-theme .bg-glow-1 { opacity: 0.08; }
 .light-theme .bg-glow-2 { opacity: 0.08; }
 .light-theme .bg-glow-3 { opacity: 0.03; }
+
+/* Light theme platform overrides for higher contrast */
+body.light-theme.theme-tiktok,
+body.light-theme.theme-tiktok-video,
+body.light-theme.theme-tiktok-slideshow,
+body.light-theme.theme-tiktok-story {
+    --cyan: #0b8c9c;
+    --purple: #d53f8c;
+    --cyan-rgb: 11, 140, 156;
+    --purple-rgb: 213, 63, 140;
+}
+body.light-theme.theme-youtube {
+    --cyan: #c53030;
+    --purple: #e53e3e;
+    --cyan-rgb: 197, 48, 48;
+    --purple-rgb: 229, 62, 62;
+}
+body.light-theme.theme-facebook {
+    --cyan: #2b6cb0;
+    --purple: #2c5282;
+    --cyan-rgb: 43, 108, 176;
+    --purple-rgb: 44, 82, 130;
+}
+body.light-theme.theme-instagram {
+    --cyan: #dd6b20;
+    --purple: #b83280;
+    --cyan-rgb: 221, 107, 32;
+    --purple-rgb: 184, 50, 128;
+}
+body.light-theme.theme-threads {
+    --cyan: #2d3748;
+    --purple: #4a5568;
+    --cyan-rgb: 45, 55, 72;
+    --purple-rgb: 74, 85, 104;
+}
 
 .light-theme .search-input-wrap {
     background: rgba(255, 255, 255, 0.8);
@@ -1077,6 +1139,28 @@ body.modal-open {
     font-size: 0.75rem;
     letter-spacing: 0.3px;
 }
+.footer-link {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    color: var(--text-faint);
+    text-decoration: none;
+    font-weight: 500;
+    transition: color 0.15s ease;
+}
+.footer-link:hover {
+    color: var(--cyan);
+}
+.social-icon {
+    width: 14px;
+    height: 14px;
+    vertical-align: middle;
+    transition: transform 0.2s ease, color 0.2s ease;
+}
+.footer-link:hover .social-icon {
+    transform: scale(1.15);
+    color: var(--cyan);
+}
 
 /* === HELPERS === */
 .hidden { display: none !important; }
@@ -1096,6 +1180,7 @@ body.modal-open {
     .app-shell { gap: 14px; max-width: 100%; }
     .logo h1 { font-size: 1.5rem; }
     .logo-icon { width: 24px; height: 24px; }
+    .logo-img { width: 34px; height: 34px; border-radius: 8px; border-width: 1.5px; }
     .theme-toggle-btn { right: 0px; top: 0px; width: 36px; height: 36px; }
     .subtitle { font-size: 0.8rem; }
     .card { padding: 16px; gap: 16px; }

@@ -151,6 +151,12 @@ def index():
     return render_template("index.html")
 
 
+@app.route("/robots.txt")
+def robots_txt():
+    content = "User-agent: *\nAllow: /\nDisallow: /api/\n"
+    return Response(content, mimetype="text/plain")
+
+
 def parse_cookies_to_dict(content):
     cookies = {}
     stripped = content.strip()

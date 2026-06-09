@@ -1409,7 +1409,439 @@ document.addEventListener("DOMContentLoaded", () => {
 
         } catch (err) {
             console.error(err);
-            previewLoaderText.textContent = "Connection failed. Unable to start preview.";
+                        previewLoaderText.textContent = "Connection failed. Unable to start preview.";
         }
     }
+});
+
+// --- Star Grid Mesh (3D Gravity Well & Elastic Net) Effect ---
+document.addEventListener("DOMContentLoaded", () => {
+    const canvas = document.getElementById("cursor-canvas");
+    if (!canvas) return;
+
+    const ctx = canvas.getContext("2d");
+    let grid = [];
+    let particles = [];
+    let sparkles = [];
+    let cols = 0;
+    let rows = 0;
+    
+    let mouse = { x: 0, y: 0, active: false, inactivityTimeout: null };
+    let lastMouse = { x: window.innerWidth / 2, y: window.innerHeight / 2 };
+    const maxDist = 180; // Gravity well interaction radius
+
+    // Resize canvas and recreate the grid mesh
+    function resizeCanvas() {
+        canvas.width = window.innerWidth;
+        canvas.height = window.innerHeight;
+        initGrid();
+    }
+    window.addEventListener("resize", resizeCanvas);
+
+    // Track mouse and touch events
+    function handleMouseMove(x, y) {
+        mouse.x = x;
+        mouse.y = y;
+        mouse.active = true;
+        
+        lastMouse.x = x;
+        lastMouse.y = y;
+
+        // Spawn tiny sparkling stardust at the mouse tip
+        if (Math.random() < 0.6) {
+            sparkles.push(new Sparkle(x, y));
+        }
+
+        clearTimeout(mouse.inactivityTimeout);
+        mouse.inactivityTimeout = setTimeout(() => {
+            mouse.active = false;
+        }, 1200); // return to normal shape after 1.2s of inactivity
+    }
+
+    window.addEventListener("mousemove", (e) => {
+        handleMouseMove(e.clientX, e.clientY);
+    });
+
+    window.addEventListener("mouseleave", () => {
+        mouse.active = false;
+    });
+
+    window.addEventListener("touchmove", (e) => {
+        if (e.touches.length > 0) {
+            handleMouseMove(e.touches[0].clientX, e.touches[0].clientY);
+        }
+    }, { passive: true });
+
+    window.addEventListener("touchend", () => {
+        mouse.active = false;
+    });
+
+    // Get theme colors from CSS variables
+    let activeColors = ['#00f2fe', '#fe0979'];
+    let isLightTheme = false;
+    function updateColors() {
+        isLightTheme = document.body.classList.contains("light-theme");
+        const style = getComputedStyle(document.body);
+        const cyan = style.getPropertyValue('--cyan').trim() || '#00f2fe';
+        const purple = style.getPropertyValue('--purple').trim() || '#fe0979';
+        activeColors = [cyan, purple];
+    }
+    updateColors();
+
+    // Helper to blend two colors dynamically based on tension/displacement ratio
+    function blendColors(c1, c2, ratio) {
+        if (ratio <= 0) return c1;
+        if (ratio >= 1) return c2;
+        
+        let r1 = parseInt(c1.substring(1, 3), 16);
+        let g1 = parseInt(c1.substring(3, 5), 16);
+        let b1 = parseInt(c1.substring(5, 7), 16);
+        
+        let r2 = parseInt(c2.substring(1, 3), 16);
+        let g2 = parseInt(c2.substring(3, 5), 16);
+        let b2 = parseInt(c2.substring(5, 7), 16);
+        
+        let r = Math.round(r1 + (r2 - r1) * ratio);
+        let g = Math.round(g1 + (g2 - g1) * ratio);
+        let b = Math.round(b1 + (b2 - b1) * ratio);
+        
+        return `rgb(${r}, ${g}, ${b})`;
+    }
+
+    class Sparkle {
+        constructor(x, y) {
+            this.x = x;
+            this.y = y;
+            let angle = Math.random() * Math.PI * 2;
+            let speed = Math.random() * 2 + 1;
+            this.vx = Math.cos(angle) * speed;
+            this.vy = Math.sin(angle) * speed - 0.4; // slight upward drift
+            this.size = Math.random() * 2.5 + 1.5;
+            this.life = Math.random() * 20 + 20;
+            this.maxLife = this.life;
+            this.color = activeColors[Math.floor(Math.random() * 2)];
+            this.rotation = Math.random() * Math.PI;
+            this.rotSpeed = (Math.random() - 0.5) * 0.08;
+        }
+        update() {
+            this.x += this.vx;
+            this.y += this.vy;
+            this.vx *= 0.96;
+            this.vy *= 0.96;
+            this.rotation += this.rotSpeed;
+            this.life--;
+        }
+        draw(ctx) {
+            let alpha = this.life / this.maxLife;
+            let size = this.size * alpha;
+            let inner = size * 0.35;
+            ctx.save();
+            ctx.translate(this.x, this.y);
+            ctx.rotate(this.rotation);
+            ctx.beginPath();
+            
+            // Draw tiny 4-pointed sparkle star
+            ctx.moveTo(0, -size);
+            for (let i = 0; i < 4; i++) {
+                let rot = -Math.PI / 2 + (Math.PI / 2) * i;
+                ctx.lineTo(Math.cos(rot) * size, Math.sin(rot) * size);
+                rot += Math.PI / 4;
+                ctx.lineTo(Math.cos(rot) * inner, Math.sin(rot) * inner);
+            }
+            ctx.closePath();
+            ctx.fillStyle = this.color;
+            ctx.globalAlpha = alpha;
+            ctx.shadowBlur = 8;
+            ctx.shadowColor = this.color;
+            ctx.fill();
+            ctx.restore();
+        }
+    }
+
+    class Particle {
+        constructor(baseX, baseY, col, row) {
+            this.baseX = baseX;
+            this.baseY = baseY;
+            this.col = col;
+            this.row = row;
+
+            this.x = baseX;
+            this.y = baseY;
+            this.z = 0; // 3D depth displacement
+
+            this.vx = 0;
+            this.vy = 0;
+            this.vz = 0;
+
+            this.baseSize = Math.random() * 2 + 2.5; // Elegant star size
+            this.spikes = 4;
+            this.colorIndex = (col + row) % 2; // checkerboard theme coloring
+            
+            this.rotation = Math.random() * Math.PI;
+            this.rotationSpeed = (Math.random() - 0.5) * 0.02;
+            
+            // Screen projected positions
+            this.px = this.x;
+            this.py = this.y;
+            this.scale = 1;
+        }
+
+        update(mouse, maxDist) {
+            this.rotation += this.rotationSpeed;
+
+            // 1. Slow wave movement for the floating effect
+            let time = Date.now() * 0.0006;
+            let waveX = Math.sin(time + (this.col * 0.25) + (this.row * 0.18)) * 12;
+            let waveY = Math.cos(time + (this.col * 0.18) + (this.row * 0.25)) * 12;
+
+            // 3D Parallax camera tilt: entire grid shifts slightly based on cursor location
+            let paraX = mouse.active ? (mouse.x - window.innerWidth / 2) * 0.025 : 0;
+            let paraY = mouse.active ? (mouse.y - window.innerHeight / 2) * 0.025 : 0;
+
+            let currentOrigX = this.baseX + waveX + paraX;
+            let currentOrigY = this.baseY + waveY + paraY;
+
+            // 2. Gravitational well indentation with fluid ripple wave
+            let targetZ = 0;
+            let pushX = 0;
+            let pushY = 0;
+
+            let dx = mouse.x - this.x;
+            let dy = mouse.y - this.y;
+            let dist = Math.sqrt(dx*dx + dy*dy);
+
+            if (mouse.active && dist < maxDist) {
+                let influence = 1 - dist / maxDist; // 0 to 1
+                let force = influence * influence;
+
+                // Push Z back (negative value pulls away looking like a funnel)
+                // Add a liquid ripple wave radiating from the mouse cursor
+                let waveSpeed = Date.now() * 0.015;
+                let ripple = Math.sin(dist * 0.07 - waveSpeed) * 20 * influence;
+                targetZ = -135 * force + ripple;
+
+                // Pull points slightly inward towards cursor center to emphasize indentation
+                pushX = (dx / dist) * force * 24;
+                pushY = (dy / dist) * force * 24;
+            }
+
+            // 3. Elastic spring physics for Z depth (highly responsive, bouncy)
+            this.vz += (targetZ - this.z) * 0.04;
+            this.vz *= 0.91;
+            this.z += this.vz;
+
+            // 4. Elastic spring physics for X and Y coordinate restoration (rubbery rebound)
+            let targetX = currentOrigX + pushX;
+            let targetY = currentOrigY + pushY;
+
+            this.vx += (targetX - this.x) * 0.04;
+            this.vy += (targetY - this.y) * 0.04;
+            this.vx *= 0.91;
+            this.vy *= 0.91;
+
+            this.x += this.vx;
+            this.y += this.vy;
+        }
+
+        project(projX, projY, fov) {
+            // Perspective projection relative to the indentation center (mouse position)
+            // This ensures the funnel is mathematically centered exactly at the cursor!
+            let scale = fov / (fov - this.z);
+            this.scale = scale;
+            this.px = projX + (this.x - projX) * scale;
+            this.py = projY + (this.y - projY) * scale;
+        }
+
+        draw(ctx) {
+            // Breathing size oscillation for a lifelike organic pulse
+            let breathe = Math.sin(Date.now() * 0.003 + this.col * 0.5 + this.row * 0.3) * 0.6;
+            let size = (this.baseSize + (isLightTheme ? 0.5 : 0) + breathe) * this.scale;
+            if (size < 1) size = 1;
+
+            let alpha = isLightTheme ? 0.45 + (this.scale * 0.45) : 0.2 + (this.scale * 0.6); // Deeper points fade away
+            if (alpha < 0.1) alpha = 0.1;
+            if (alpha > 1) alpha = 1;
+
+            const color = activeColors[this.colorIndex];
+            const innerRadius = size * 0.35;
+
+            ctx.save();
+            ctx.translate(this.px, this.py);
+            ctx.rotate(this.rotation);
+            ctx.beginPath();
+
+            let rot = -Math.PI / 2;
+            let step = Math.PI / this.spikes;
+
+            ctx.moveTo(0, -size);
+            for (let i = 0; i < this.spikes; i++) {
+                let x = Math.cos(rot) * size;
+                let y = Math.sin(rot) * size;
+                ctx.lineTo(x, y);
+                rot += step;
+
+                x = Math.cos(rot) * innerRadius;
+                y = Math.sin(rot) * innerRadius;
+                ctx.lineTo(x, y);
+                rot += step;
+            }
+            ctx.lineTo(0, -size);
+            ctx.closePath();
+
+            ctx.fillStyle = color;
+            ctx.globalAlpha = alpha;
+            ctx.fill();
+            ctx.restore();
+        }
+    }
+
+    function initGrid() {
+        grid = [];
+        particles = [];
+        
+        let spacing = 62; // Optimal distance between grid nodes
+        cols = Math.ceil(window.innerWidth / spacing) + 2;
+        rows = Math.ceil(window.innerHeight / spacing) + 2;
+
+        for (let c = 0; c < cols; c++) {
+            grid[c] = [];
+            for (let r = 0; r < rows; r++) {
+                // Symmetrical grid offset
+                let baseX = (c - 0.5) * spacing;
+                let baseY = (r - 0.5) * spacing;
+
+                let p = new Particle(baseX, baseY, c, r);
+                grid[c][r] = p;
+                particles.push(p);
+            }
+        }
+    }
+
+    // Initialize
+    initGrid();
+    resizeCanvas();
+
+    // Loop
+    let frameCount = 0;
+    function animate() {
+        frameCount++;
+        if (frameCount % 60 === 0) {
+            updateColors();
+        }
+
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+        // Center projection relative to active or last mouse coordinates
+        let projX = mouse.active ? mouse.x : lastMouse.x;
+        let projY = mouse.active ? mouse.y : lastMouse.y;
+        let fov = 400; // perspective focal length
+
+        // 1. Update and Project all grid nodes
+        particles.forEach(p => {
+            p.update(mouse, maxDist);
+            p.project(projX, projY, fov);
+        });
+
+        // 2. Draw connecting grid lines (mesh structure)
+        for (let c = 0; c < cols; c++) {
+            for (let r = 0; r < rows; r++) {
+                let p1 = grid[c][r];
+                if (!p1) continue;
+
+                // Draw line to right neighbor
+                if (c + 1 < cols && grid[c + 1][r]) {
+                    let p2 = grid[c + 1][r];
+                    let baseAlpha = isLightTheme ? 0.32 : 0.08;
+                    let lineAlpha = baseAlpha * ((p1.scale + p2.scale) / 2); // baseline alpha
+                    
+                    // Tension displacement calculation
+                    let displacement = Math.max(Math.abs(p1.z), Math.abs(p2.z));
+                    lineAlpha += (displacement / 150) * 0.22;
+
+                    // Blend horizontal color: from cyan (rest) to purple (stressed)
+                    let strokeColor = blendColors(activeColors[0], activeColors[1], displacement / 140);
+
+                    ctx.strokeStyle = strokeColor;
+                    ctx.globalAlpha = lineAlpha;
+                    ctx.lineWidth = 0.8;
+                    ctx.beginPath();
+                    ctx.moveTo(p1.px, p1.py);
+                    ctx.lineTo(p2.px, p2.py);
+                    ctx.stroke();
+                }
+
+                // Draw line to bottom neighbor
+                if (r + 1 < rows && grid[c][r + 1]) {
+                    let p2 = grid[c][r + 1];
+                    let baseAlpha = isLightTheme ? 0.32 : 0.08;
+                    let lineAlpha = baseAlpha * ((p1.scale + p2.scale) / 2);
+                    
+                    // Tension displacement calculation
+                    let displacement = Math.max(Math.abs(p1.z), Math.abs(p2.z));
+                    lineAlpha += (displacement / 150) * 0.22;
+
+                    // Blend vertical color: from purple (rest) to cyan (stressed)
+                    let strokeColor = blendColors(activeColors[1], activeColors[0], displacement / 140);
+
+                    ctx.strokeStyle = strokeColor;
+                    ctx.globalAlpha = lineAlpha;
+                    ctx.lineWidth = 0.8;
+                    ctx.beginPath();
+                    ctx.moveTo(p1.px, p1.py);
+                    ctx.lineTo(p2.px, p2.py);
+                    ctx.stroke();
+                }
+            }
+        }
+
+        // 3. Draw magnetic web connections directly from mouse to nearest nodes
+        if (mouse.active) {
+            let nearby = [];
+            particles.forEach(p => {
+                let dx = mouse.x - p.px;
+                let dy = mouse.y - p.py;
+                let d = dx*dx + dy*dy;
+                if (d < maxDist * maxDist) {
+                    nearby.push({ p: p, d: d });
+                }
+            });
+
+            // Sort by distance and connect the closest 6 nodes to the cursor
+            nearby.sort((a, b) => a.d - b.d);
+            let limit = Math.min(nearby.length, 6);
+            for (let i = 0; i < limit; i++) {
+                let p = nearby[i].p;
+                let dist = Math.sqrt(nearby[i].d);
+                let alpha = 0.28 * (1 - dist / maxDist);
+
+                // Glow links directly pulling the mesh
+                ctx.strokeStyle = activeColors[0];
+                ctx.globalAlpha = alpha;
+                ctx.lineWidth = 0.6;
+                ctx.beginPath();
+                ctx.moveTo(mouse.x, mouse.y);
+                ctx.lineTo(p.px, p.py);
+                ctx.stroke();
+            }
+        }
+
+        // 4. Draw grid stars
+        particles.forEach(p => {
+            p.draw(ctx);
+        });
+
+        // 5. Update and Draw active sparkler particles (stardust)
+        for (let i = sparkles.length - 1; i >= 0; i--) {
+            let s = sparkles[i];
+            s.update();
+            if (s.life <= 0) {
+                sparkles.splice(i, 1);
+            } else {
+                s.draw(ctx);
+            }
+        }
+
+        requestAnimationFrame(animate);
+    }
+    animate();
 });
