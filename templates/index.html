@@ -8,7 +8,7 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&family=Space+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}?v=2.1">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}?v=2.8">
     <script>
         (function() {
             const savedTheme = localStorage.getItem('theme');
@@ -52,7 +52,7 @@
                         <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/>
                         <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/>
                     </svg>
-                    <input type="text" id="url-input" placeholder="Paste a YouTube URL here..." autocomplete="off" spellcheck="false">
+                    <input type="text" id="url-input" placeholder="Paste a YouTube or Facebook URL here..." autocomplete="off" spellcheck="false">
                     <button id="paste-btn" class="icon-btn" title="Paste from clipboard">
                         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
                             <rect x="8" y="2" width="8" height="4" rx="1" ry="1"/>
@@ -68,6 +68,13 @@
                 </button>
             </div>
 
+            <!-- Active Cookies Badge -->
+            <div id="active-cookies-badge" class="active-cookies-badge hidden">
+                <span class="pulse-dot"></span>
+                <span>Active session cookies loaded</span>
+                <button id="clear-cookies-btn" class="btn-clear-cookies" title="Clear cookies">Clear</button>
+            </div>
+
             <!-- Loader -->
             <div id="loader" class="loader hidden">
                 <div class="spinner"><div class="spinner-ring"></div></div>
@@ -80,6 +87,44 @@
                     <circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/>
                 </svg>
                 <p id="error-message">An error occurred.</p>
+            </div>
+
+            <!-- Cookies Upload Section (Initially Hidden) -->
+            <div id="cookies-section" class="cookies-panel hidden">
+                <div class="cookies-header">
+                    <svg class="cookies-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M12 2a10 10 0 1 0 10 10c0-1.66-1.34-3-3-3s-3 1.34-3 3-1.34 3-3 3-3-1.34-3-3 1.34-3 3-3 3 1.34 3 3a3 3 0 1 1-6 0c0-3.31 2.69-6 6-6Z"/>
+                    </svg>
+                    <h4>Authentication Required (Cookies Upload)</h4>
+                </div>
+                <div class="cookies-instructions">
+                    <p>This media requires authentication. Export your browser session cookies using one of the following extensions:</p>
+                    <div class="cookies-methods">
+                        <div class="cookie-method">
+                            <h5>Method 1: J2TEAM Cookies (Recommended)</h5>
+                            <ol>
+                                <li>Install <a href="https://chromewebstore.google.com/detail/j2team-cookies/okpidcojinmlaakglciglbpcpajaibco" target="_blank" rel="noopener">J2TEAM Cookies</a>.</li>
+                                <li>Log in to the video platform in your browser.</li>
+                                <li>Click the extension icon and select <strong>Export</strong> (downloads a `.json` file).</li>
+                            </ol>
+                        </div>
+                        <div class="cookie-method">
+                            <h5>Method 2: Get cookies.txt LOCALLY</h5>
+                            <ol>
+                                <li>Install <a href="https://chromewebstore.google.com/detail/get-cookiestxt-locally/cclelndahbckbenkjhflpdbgdldlbecc" target="_blank" rel="noopener">Get cookies.txt LOCALLY</a>.</li>
+                                <li>Log in to the video platform in your browser.</li>
+                                <li>Open the extension and click <strong>Export</strong> (downloads a `.txt` file).</li>
+                            </ol>
+                        </div>
+                    </div>
+                </div>
+                <div id="cookie-dropzone" class="cookie-dropzone">
+                    <input type="file" id="cookie-file-input" accept=".txt,.json" class="hidden">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" class="upload-arrow">
+                        <polyline points="16 16 12 12 8 16"/><line x1="12" y1="12" x2="12" y2="21"/><path d="M20.39 18.39A5 5 0 0 0 18 9h-1.26A8 8 0 1 0 3 16.3"/>
+                    </svg>
+                    <p id="dropzone-text">Drag & drop your cookies.txt or cookies.json here or <span>browse file</span></p>
+                </div>
             </div>
 
             <!-- Results -->
@@ -142,6 +187,16 @@
                             </svg>
                             <span>View Description</span>
                         </button>
+
+                        <!-- Images Trigger Button -->
+                        <button id="images-toggle-btn" class="images-toggle-btn-modal" title="View Images">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+                                <rect x="3" y="3" width="18" height="18" rx="2" ry="2"/>
+                                <circle cx="8.5" cy="8.5" r="1.5"/>
+                                <polyline points="21 15 16 10 5 21"/>
+                            </svg>
+                            <span>View Images</span>
+                        </button>
                     </div>
 
                     <!-- Right: Format Options -->
@@ -192,6 +247,35 @@
         </div>
     </div>
 
-    <script src="{{ url_for('static', filename='js/main.js') }}?v=2.1"></script>
+    <!-- Images Modal -->
+    <div id="images-modal" class="modal-overlay hidden">
+        <div class="modal-card modal-card-wide">
+            <div class="modal-header">
+                <h3>Extracted Images / Thumbnails</h3>
+                <button id="images-modal-close-btn" class="modal-close-btn" title="Close">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
+                    </svg>
+                </button>
+            </div>
+            
+            <div class="images-modal-toolbar">
+                <label class="select-all-wrap">
+                    <input type="checkbox" id="images-select-all" class="custom-checkbox">
+                    <span>Select All</span>
+                </label>
+                <button id="images-download-selected" class="btn-primary btn-sm">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width: 14px; height: 14px; margin-right: 6px;"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+                    <span>Download Selected</span>
+                </button>
+            </div>
+
+            <div id="modal-images-grid" class="modal-body images-grid">
+                <!-- Grid items will be injected here -->
+            </div>
+        </div>
+    </div>
+
+    <script src="{{ url_for('static', filename='js/main.js') }}?v=2.8"></script>
 </body>
 </html>

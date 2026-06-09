@@ -31,12 +31,14 @@ os.makedirs(TEMP_DOWNLOAD_DIR, exist_ok=True)
 logger.info("Cleaning up leftover temporary downloads...")
 try:
     for item in os.listdir(TEMP_DOWNLOAD_DIR):
+        if item == "cookies":
+            continue
         item_path = os.path.join(TEMP_DOWNLOAD_DIR, item)
         if os.path.isdir(item_path):
             shutil.rmtree(item_path)
         else:
             os.remove(item_path)
-    logger.info("Leftover temporary downloads cleaned.")
+    logger.info("Leftover temporary downloads cleaned (cookies preserved).")
 except Exception as e:
     logger.warning(f"Failed to clean downloads directory on startup: {e}")
 
@@ -61,9 +63,188 @@ def schedule_cleanup(temp_dir, download_id, delay=300):
     timer.start()
 
 
+def create_ydl_instance(ydl_opts, url=None, client_id=None):
+    """
+    Attempts to instantiate YoutubeDL. 
+    If cookiesfrombrowser is 'auto', it will attempt different browsers one by one.
+    If all fail, it will fall back to using no cookies.
+    """
+    # Check if a client-specific cookies file exists
+    if client_id:
+        client_cookies = os.path.join(TEMP_DOWNLOAD_DIR, "cookies", f"cookies_{client_id}.txt")
+        if os.path.exists(client_cookies):
+            logger.info(f"Using client-specific cookies for client: {client_id}")
+            opts = ydl_opts.copy()
+            opts["cookiefile"] = client_cookies
+            opts.pop("cookiesfrombrowser", None)
+            try:
+                return yt_dlp.YoutubeDL(opts)
+            except Exception as e:
+                logger.warning(f"Failed to load client cookies: {e}")
+
+    # Check if a local cookies.txt file exists in the root folder
+    local_cookies = os.path.join(os.path.dirname(os.path.abspath(__file__)), "cookies.txt")
+    if os.path.exists(local_cookies):
+        logger.info("Using local default cookies.txt file")
+        opts = ydl_opts.copy()
+        opts["cookiefile"] = local_cookies
+        opts.pop("cookiesfrombrowser", None)
+        try:
+            return yt_dlp.YoutubeDL(opts)
+        except Exception as e:
+            logger.warning(f"Failed to load local cookies.txt: {e}")
+
+    if ydl_opts.get("cookiesfrombrowser") != "auto":
+        return yt_dlp.YoutubeDL(ydl_opts)
+        
+    browsers = ["chrome", "edge", "firefox", "opera", "vivaldi", "brave"]
+    
+    # Extract target domain for cookie filtering
+    target_domain = None
+    if url:
+        url_lower = url.lower()
+        if "facebook" in url_lower or "fb.watch" in url_lower or "fb.gg" in url_lower or "fb.com" in url_lower:
+            target_domain = "facebook"
+        elif "youtube" in url_lower or "youtu.be" in url_lower:
+            target_domain = "youtube"
+        elif "instagram" in url_lower:
+            target_domain = "instagram"
+        elif "tiktok" in url_lower:
+            target_domain = "tiktok"
+
+    # Step 1: Prioritize browsers that have cookies for the target domain
+    if target_domain:
+        for browser in browsers:
+            opts = ydl_opts.copy()
+            opts["cookiesfrombrowser"] = (browser,)
+            try:
+                ydl = yt_dlp.YoutubeDL(opts)
+                # Force loading of cookiejar and check for domain cookies
+                cookiejar = ydl.cookiejar
+                if any(target_domain in cookie.domain for cookie in cookiejar):
+                    logger.info(f"Successfully loaded cookies from browser: {browser} (matched target domain '{target_domain}')")
+                    return ydl
+            except Exception:
+                pass
+
+    # Step 2: Fallback to the first browser that loads successfully (regardless of domain cookies)
+    for browser in browsers:
+        opts = ydl_opts.copy()
+        opts["cookiesfrombrowser"] = (browser,)
+        try:
+            ydl = yt_dlp.YoutubeDL(opts)
+            _ = ydl.cookiejar
+            logger.info(f"Fallback to cookies from browser: {browser}")
+            return ydl
+        except Exception as e:
+            logger.warning(f"Failed to load cookies from browser '{browser}': {e}")
+            
+    # Step 3: Fallback to no cookies if all failed
+    opts = ydl_opts.copy()
+    opts.pop("cookiesfrombrowser", None)
+    logger.info("Falling back to YoutubeDL instance without cookies")
+    return yt_dlp.YoutubeDL(opts)
+
+
 @app.route("/")
 def index():
     return render_template("index.html")
+
+
+@app.route("/api/cookies/upload", methods=["POST"])
+def upload_cookies():
+    client_id = request.form.get("client_id")
+    if not client_id:
+        return jsonify({"status": "error", "message": "Client ID is required."}), 400
+        
+    if "file" not in request.files:
+        return jsonify({"status": "error", "message": "No file uploaded."}), 400
+        
+    file = request.files["file"]
+    if file.filename == "":
+        return jsonify({"status": "error", "message": "No selected file."}), 400
+        
+    try:
+        content = file.read().decode("utf-8", errors="ignore")
+    except Exception as e:
+        return jsonify({"status": "error", "message": f"Failed to read file content: {e}"}), 400
+
+    # Automatically detect and convert JSON format (from J2TEAM Cookies, etc.) to Netscape format
+    stripped = content.strip()
+    if stripped.startswith("[") or stripped.startswith("{"):
+        import json
+        try:
+            data = json.loads(stripped)
+            cookies_list = None
+            if isinstance(data, list):
+                cookies_list = data
+            elif isinstance(data, dict):
+                cookies_list = data.get("cookies") or data.get("list") or []
+                
+            if isinstance(cookies_list, list):
+                netscape_lines = [
+                    "# Netscape HTTP Cookie File",
+                    "# http://curl.haxx.se/rfc/cookie_spec.html",
+                    "# This is a generated file!  Do not edit.",
+                    ""
+                ]
+                for cookie in cookies_list:
+                    domain = cookie.get("domain", "")
+                    if not domain:
+                        continue
+                    path = cookie.get("path", "/")
+                    secure = "TRUE" if cookie.get("secure", False) else "FALSE"
+                    expiration = int(cookie.get("expirationDate") or 0)
+                    flag = "TRUE" if domain.startswith(".") else "FALSE"
+                    name = cookie.get("name", "")
+                    value = cookie.get("value", "")
+                    
+                    netscape_lines.append(f"{domain}\t{flag}\t{path}\t{secure}\t{expiration}\t{name}\t{value}")
+                
+                content = "\n".join(netscape_lines)
+                logger.info(f"Successfully converted uploaded JSON cookies for client {client_id}")
+            else:
+                return jsonify({"status": "error", "message": "Uploaded JSON does not contain a valid cookies list."}), 400
+        except Exception as e:
+            logger.warning(f"Failed to parse uploaded cookies as JSON (falling back to raw): {e}")
+
+    cookies_dir = os.path.join(TEMP_DOWNLOAD_DIR, "cookies")
+    os.makedirs(cookies_dir, exist_ok=True)
+    
+    filepath = os.path.join(cookies_dir, f"cookies_{client_id}.txt")
+    try:
+        with open(filepath, "w", encoding="utf-8") as f:
+            f.write(content)
+    except Exception as e:
+         return jsonify({"status": "error", "message": f"Failed to save cookies to server: {e}"}), 500
+         
+    logger.info(f"Saved cookies for client {client_id}")
+    return jsonify({"status": "success", "message": "Cookies uploaded successfully!"})
+
+
+@app.route("/api/cookies/status/<client_id>", methods=["GET"])
+def get_cookie_status(client_id):
+    if not client_id:
+        return jsonify({"has_cookies": False})
+    client_cookies = os.path.join(TEMP_DOWNLOAD_DIR, "cookies", f"cookies_{client_id}.txt")
+    return jsonify({"has_cookies": os.path.exists(client_cookies)})
+
+
+@app.route("/api/cookies/clear/<client_id>", methods=["POST"])
+def clear_cookies(client_id):
+    if not client_id:
+        return jsonify({"status": "error", "message": "Client ID is required."}), 400
+        
+    client_cookies = os.path.join(TEMP_DOWNLOAD_DIR, "cookies", f"cookies_{client_id}.txt")
+    if os.path.exists(client_cookies):
+        try:
+            os.remove(client_cookies)
+            logger.info(f"Cleared cookies for client {client_id}")
+            return jsonify({"status": "success", "message": "Cookies cleared successfully."})
+        except Exception as e:
+            return jsonify({"status": "error", "message": f"Failed to clear cookies: {e}"}), 500
+            
+    return jsonify({"status": "success", "message": "No cookies to clear."})
 
 
 def format_duration(seconds):
@@ -96,11 +277,329 @@ def format_size(size_bytes):
 def get_info():
     data = request.get_json() or {}
     url = data.get("url", "").strip()
+    client_id = data.get("client_id")
 
     if not url:
         return jsonify({"status": "error", "message": "Link URL is required."}), 400
 
-    logger.info(f"Fetching metadata for URL: {url}")
+    if "/stories/" in url and ("facebook.com" in url or "fb.com" in url or "fb.watch" in url):
+        client_cookies = os.path.join(TEMP_DOWNLOAD_DIR, "cookies", f"cookies_{client_id}.txt") if client_id else None
+        if not client_cookies or not os.path.exists(client_cookies):
+            return jsonify({
+                "status": "error",
+                "message": "Cookies are required to download Facebook Stories. Please export and upload your cookies first."
+            }), 400
+            
+        try:
+            import subprocess
+            import re
+            import urllib.parse
+            
+            command = [
+                "curl",
+                "-s",
+                "-L",
+                "-b", client_cookies,
+                "-A", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+                "-H", "Accept: text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,image/apng,*/*;q=0.8",
+                "-H", "Accept-Language: vi-VN,vi;q=0.9,en-US;q=0.8,en;q=0.7",
+                "-H", "Sec-Fetch-Mode: navigate",
+                "-H", "Upgrade-Insecure-Requests: 1",
+                url
+            ]
+            
+            result = subprocess.run(command, capture_output=True, text=True, encoding="utf-8", errors="ignore")
+            html = result.stdout
+            
+            if "Sorry, something went wrong" in html or len(html) < 20000:
+                if "login.php" in html or "login_form" in html:
+                    return jsonify({
+                        "status": "error",
+                        "message": "Unable to authenticate with Facebook. Your uploaded cookies may be expired or invalid. Please re-export and upload them."
+                    }), 400
+                return jsonify({
+                    "status": "error",
+                    "message": "Facebook returned an error or blocked the request. Please check if your cookies file is valid and active."
+                }), 400
+
+            uploader = "Facebook User"
+            owner_match = re.search(r'"story_bucket_owner"\s*:\s*{[^}]+?"name"\s*:\s*"([^"]+)"', html)
+            if owner_match:
+                uploader = owner_match.group(1)
+            else:
+                owner_match2 = re.search(r'"owner"\s*:\s*{\s*"name"\s*:\s*"([^"]+)"', html)
+                if owner_match2:
+                    uploader = owner_match2.group(1)
+
+            title = f"Story by {uploader}" if uploader != "Facebook User" else "Facebook Story"
+
+            bucket_id = None
+            story_id = None
+            url_match = re.search(r'/stories/([^/]+)/([^//?]+)', url)
+            if url_match:
+                bucket_id = url_match.group(1)
+                story_id = url_match.group(2)
+            else:
+                url_match2 = re.search(r'/stories/([^//?]+)', url)
+                if url_match2:
+                    bucket_id = url_match2.group(1)
+
+            # Try JSON extraction first
+            parsed_stories = []
+            uploader_from_json = None
+            import json
+            scripts = re.findall(r'<script[^>]*type=["\']application/json["\'][^>]*>(.*?)</script>', html, re.DOTALL)
+            
+            def search_for_buckets(d):
+                nonlocal uploader_from_json
+                if isinstance(d, dict):
+                    for k in ['unified_stories', 'unified_stories_with_notes']:
+                        if k in d and isinstance(d[k], dict) and 'edges' in d[k]:
+                            edges = d[k]['edges']
+                            if edges:
+                                current_bucket_id = d.get('id')
+                                if bucket_id and str(current_bucket_id) != str(bucket_id):
+                                    continue
+                                    
+                                owner = d.get('story_bucket_owner') or d.get('owner')
+                                if isinstance(owner, dict) and owner.get('name'):
+                                    uploader_from_json = owner.get('name')
+                                    
+                                for edge in edges:
+                                    node = edge.get('node') if isinstance(edge, dict) else None
+                                    if not isinstance(node, dict):
+                                        continue
+                                    card_id = node.get('id')
+                                    if any(s['card_id'] == card_id for s in parsed_stories):
+                                        continue
+                                        
+                                    attachments = node.get('attachments') or []
+                                    media = None
+                                    if attachments and isinstance(attachments, list):
+                                        att = attachments[0]
+                                        if isinstance(att, dict):
+                                            media = att.get('media')
+                                    if not media and 'media' in node:
+                                        media = node.get('media')
+                                        
+                                    if isinstance(media, dict):
+                                        typename = media.get('__typename')
+                                        media_id = media.get('id')
+                                        playable_url = media.get('playable_url') or media.get('progressive_url')
+                                        if playable_url:
+                                            playable_url = playable_url.replace("\\/", "/").replace("\\u0025", "%")
+                                            playable_url = urllib.parse.unquote(playable_url)
+                                            
+                                        thumbnail_uri = None
+                                        preferred_thumbnail = media.get('preferred_thumbnail')
+                                        if isinstance(preferred_thumbnail, dict):
+                                            img = preferred_thumbnail.get('image')
+                                            if isinstance(img, dict) and img.get('uri'):
+                                                thumbnail_uri = img.get('uri')
+                                        if not thumbnail_uri:
+                                            img_node = media.get('image') or media.get('previewImage')
+                                            if isinstance(img_node, dict) and img_node.get('uri'):
+                                                thumbnail_uri = img_node.get('uri')
+                                        
+                                        if thumbnail_uri:
+                                            thumbnail_uri = thumbnail_uri.replace("\\/", "/").replace("\\u0025", "%")
+                                            thumbnail_uri = urllib.parse.unquote(thumbnail_uri)
+                                            
+                                        parsed_stories.append({
+                                            'card_id': card_id,
+                                            'typename': typename,
+                                            'media_id': media_id,
+                                            'playable_url': playable_url,
+                                            'thumbnail_uri': thumbnail_uri
+                                        })
+                    for v in d.values():
+                        search_for_buckets(v)
+                elif isinstance(d, list):
+                    for item in d:
+                        search_for_buckets(item)
+
+            for script in scripts:
+                try:
+                    data = json.loads(script)
+                    search_for_buckets(data)
+                except Exception:
+                    pass
+
+            video_options = []
+            unique_video_urls = []
+            unique_photo_urls = []
+            if parsed_stories:
+                if uploader_from_json:
+                    uploader = uploader_from_json
+                    title = f"Story by {uploader}"
+                    
+                # Prioritize active story at the top
+                active_story_idx = -1
+                for idx, s in enumerate(parsed_stories):
+                    if story_id and s['card_id'] == story_id:
+                        active_story_idx = idx
+                        break
+                if active_story_idx != -1:
+                    active_story = parsed_stories.pop(active_story_idx)
+                    parsed_stories.insert(0, active_story)
+                    
+                video_count = 0
+                photo_count = 0
+                for idx, s in enumerate(parsed_stories):
+                    is_active = (story_id and s['card_id'] == story_id) or (idx == 0 and not story_id)
+                    
+                    if s['playable_url']:
+                        video_count += 1
+                        label = f"Video Story {video_count} (Current)" if is_active else f"Video Story {video_count}"
+                        video_options.append({
+                            "format_id": f"direct_video_{idx+1}",
+                            "ext": "mp4",
+                            "resolution": "HD" if "quality_hd" in s['playable_url'].lower() else "SD",
+                            "size": "Unknown Size",
+                            "label": label,
+                            "url": s['playable_url']
+                        })
+                        unique_video_urls.append(s['playable_url'])
+                    
+                    if s['thumbnail_uri']:
+                        unique_photo_urls.append(s['thumbnail_uri'])
+                        if not s['playable_url']:
+                            photo_count += 1
+                            label = f"Photo Story {photo_count} (Current)" if is_active else f"Photo Story {photo_count}"
+                            video_options.append({
+                                "format_id": f"direct_photo_{idx+1}",
+                                "ext": "jpg",
+                                "resolution": "Original",
+                                "size": "Unknown Size",
+                                "label": label,
+                                "url": s['thumbnail_uri']
+                            })
+
+            if not video_options:
+                # Fallback to regex extraction
+                raw_playable = re.findall(r'"playable_url"\s*:\s*"([^"]+)"', html)
+                raw_progressive = re.findall(r'"progressive_url"\s*:\s*"([^"]+)"', html)
+                
+                unique_video_urls = []
+                for u in raw_playable + raw_progressive:
+                    clean = u.replace("\\/", "/").replace("\\u0025", "%")
+                    clean = urllib.parse.unquote(clean)
+                    if clean not in unique_video_urls and "fbcdn.net" in clean:
+                        if "dash_baseline" in clean or "_nc_vs" in clean or "dash_prefetch" in clean:
+                            continue
+                        unique_video_urls.append(clean)
+                        
+                raw_photos = re.findall(r'"preferred_thumbnail"\s*:\s*{\s*"image"\s*:\s*{\s*"uri"\s*:\s*"([^"]+)"', html)
+                raw_photos2 = re.findall(r'"overlay_image_uri"\s*:\s*"([^"]+)"', html)
+                
+                unique_photo_urls = []
+                for u in raw_photos + raw_photos2:
+                    clean = u.replace("\\/", "/").replace("\\u0025", "%")
+                    clean = urllib.parse.unquote(clean)
+                    if clean not in unique_photo_urls and "fbcdn.net" in clean:
+                        unique_photo_urls.append(clean)
+
+                active_video_url = None
+                active_photo_url = None
+                if story_id:
+                    pos = html.find(story_id)
+                    if pos != -1:
+                        segment = html[pos:pos+150000]
+                        media_match = re.search(r'"media"\s*:\s*{\s*"id"\s*:\s*"(\d+)"', segment)
+                        if media_match:
+                            media_id = media_match.group(1)
+                            video_pos = html.find(f'"video_id":"{media_id}"')
+                            if video_pos != -1:
+                                video_segment = html[max(0, video_pos-3000):video_pos+1000]
+                                url_match = re.search(r'"playable_url"\s*:\s*"([^"]+)"', video_segment) or re.search(r'"progressive_url"\s*:\s*"([^"]+)"', video_segment)
+                                if url_match:
+                                    active_video_url = url_match.group(1).replace("\\/", "/").replace("\\u0025", "%")
+                                    active_video_url = urllib.parse.unquote(active_video_url)
+                            else:
+                                photo_pos = html.find(media_id)
+                                if photo_pos != -1:
+                                    photo_segment = html[photo_pos:photo_pos+5000]
+                                    url_match = re.search(r'"uri"\s*:\s*"([^"]+)"', photo_segment)
+                                    if url_match:
+                                        active_photo_url = url_match.group(1).replace("\\/", "/").replace("\\u0025", "%")
+                                        active_photo_url = urllib.parse.unquote(active_photo_url)
+
+                if active_video_url and active_video_url in unique_video_urls:
+                    unique_video_urls.remove(active_video_url)
+                    unique_video_urls.insert(0, active_video_url)
+                if active_photo_url and active_photo_url in unique_photo_urls:
+                    unique_photo_urls.remove(active_photo_url)
+                    unique_photo_urls.insert(0, active_photo_url)
+
+                for idx, v_url in enumerate(unique_video_urls):
+                    is_active = (v_url == active_video_url) or (idx == 0 and not active_video_url)
+                    label = f"Video Story {idx+1} (Current)" if is_active else f"Video Story {idx+1}"
+                    video_options.append({
+                        "format_id": f"direct_video_{idx+1}",
+                        "ext": "mp4",
+                        "resolution": "HD" if "quality_hd" in v_url.lower() else "SD",
+                        "size": "Unknown Size",
+                        "label": label,
+                        "url": v_url
+                    })
+                    
+                for idx, p_url in enumerate(unique_photo_urls):
+                    is_active = (p_url == active_photo_url) or (idx == 0 and not active_photo_url and not unique_video_urls)
+                    label = f"Photo Story {idx+1} (Current)" if is_active else f"Photo Story {idx+1}"
+                    video_options.append({
+                        "format_id": f"direct_photo_{idx+1}",
+                        "ext": "jpg",
+                        "resolution": "Original",
+                        "size": "Unknown Size",
+                        "label": label,
+                        "url": p_url
+                    })
+
+            if not video_options:
+                return jsonify({
+                    "status": "error",
+                    "message": "Could not find any video or photo resources in the Story. The story may have expired or been deleted."
+                }), 400
+
+            thumbnail = unique_photo_urls[0] if unique_photo_urls else "https://www.facebook.com/images/assets_files/yoodle/yoodle_default.png"
+            
+            images = []
+            for idx, p_url in enumerate(unique_photo_urls):
+                images.append({
+                    "label": f"Story Thumbnail {idx+1}",
+                    "url": p_url,
+                    "ext": "jpg"
+                })
+
+            result = {
+                "status": "success",
+                "title": title,
+                "duration": "0:15" if unique_video_urls else "0:05",
+                "uploader": uploader,
+                "thumbnail": thumbnail,
+                "views": "N/A",
+                "likes": "N/A",
+                "upload_date": "Today",
+                "category": "Facebook Story",
+                "tags": ["Story"],
+                "subtitles": [],
+                "video_options": video_options,
+                "audio_options": [],
+                "images": images,
+                "platform": "Facebook Story",
+                "platform_class": "facebook-story"
+            }
+            logger.info(f"Successfully extracted {len(video_options)} Facebook Story options.")
+            return jsonify(result)
+
+        except Exception as e:
+            logger.error(f"Error scraping Facebook Story: {e}")
+            return jsonify({
+                "status": "error",
+                "message": f"Failed to extract Facebook Story contents: {e}"
+            }), 500
+
+    logger.info(f"Fetching metadata for URL: {url} (client_id: {client_id})")
 
     ydl_opts = {
         "quiet": True,
@@ -108,11 +607,42 @@ def get_info():
         "nocheckcertificate": True,
         "noplaylist": True,
         "js_runtimes": {"deno": {}, "node": {}, "bun": {}, "quickjs": {}},
+        "cookiesfrombrowser": "auto",
+        "ignoreerrors": True,
     }
 
     try:
-        with yt_dlp.YoutubeDL(ydl_opts) as ydl:
-            info = ydl.extract_info(url, download=False)
+        info = None
+        try:
+            with create_ydl_instance(ydl_opts, url, client_id) as ydl:
+                info = ydl.extract_info(url, download=False)
+        except Exception as e:
+            logger.warning(f"Metadata extraction with cookies failed: {e}. Retrying without cookies...")
+
+        if not info:
+            logger.info("Retrying metadata extraction without cookies...")
+            ydl_opts_nocookies = ydl_opts.copy()
+            ydl_opts_nocookies.pop("cookiefile", None)
+            ydl_opts_nocookies.pop("cookiesfrombrowser", None)
+            try:
+                with yt_dlp.YoutubeDL(ydl_opts_nocookies) as ydl_nocookies:
+                    info = ydl_nocookies.extract_info(url, download=False)
+            except Exception as nocookie_e:
+                logger.error(f"Metadata extraction without cookies also failed: {nocookie_e}")
+                return jsonify({
+                    "status": "error",
+                    "message": f"Unable to extract media metadata: {nocookie_e}"
+                }), 400
+
+        if not info:
+            return jsonify({
+                "status": "error",
+                "message": "Unable to extract media metadata. This link may be private, require log in, or be invalid. Please make sure the link is correct."
+            }), 400
+
+        if True:
+
+            extractor = info.get("extractor_key", "").lower() if info.get("extractor_key") else ""
 
             title = info.get("title", "Unknown Title")
             duration_sec = info.get("duration", 0)
@@ -138,6 +668,68 @@ def get_info():
                 
             views_label = format_count(view_count) if view_count else "Unknown"
             likes_label = format_count(like_count) if like_count else "Unknown"
+            
+            # Clean up Facebook title and extract views/reactions if present in the title
+            if "facebook" in extractor:
+                import re
+                fb_match = re.match(r"^([\d.,]+[KMB]?) views?\s*·\s*([\d.,]+[KMB]?)\s*reactions?\s*\|\s*(.*)$", title, re.IGNORECASE)
+                if fb_match:
+                    views_label = fb_match.group(1)
+                    likes_label = fb_match.group(2)
+                    title = fb_match.group(3)
+                else:
+                    fb_match_views = re.match(r"^([\d.,]+[KMB]?) views?\s*\|\s*(.*)$", title, re.IGNORECASE)
+                    if fb_match_views:
+                        views_label = fb_match_views.group(1)
+                        title = fb_match_views.group(2)
+                
+                if uploader and uploader != "Unknown Channel":
+                    title = re.compile(rf"\s*\|\s*{re.escape(uploader)}\s*$", re.IGNORECASE).sub("", title)
+
+                # Fallback curl scraper for Facebook Reel/Video likes and views if still Unknown or 0
+                if likes_label == "Unknown" or likes_label == "0" or views_label == "Unknown" or views_label == "0":
+                    video_id = info.get("id")
+                    if video_id:
+                        client_cookies = os.path.join(TEMP_DOWNLOAD_DIR, "cookies", f"cookies_{client_id}.txt") if client_id else None
+                        if client_cookies and os.path.exists(client_cookies):
+                            try:
+                                import subprocess
+                                curl_url = f"https://m.facebook.com/watch/?v={video_id}"
+                                command = [
+                                    "curl",
+                                    "-s",
+                                    "-L",
+                                    "-b", client_cookies,
+                                    "-A", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+                                    "-H", "Accept: text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,image/apng,*/*;q=0.8",
+                                    "-H", "Accept-Language: vi-VN,vi;q=0.9,en-US;q=0.8,en;q=0.7",
+                                    curl_url
+                                ]
+                                res = subprocess.run(command, capture_output=True, text=True, encoding="utf-8", errors="ignore")
+                                curl_html = res.stdout
+                                
+                                # Search for "reaction_count":{"count":XXXX}
+                                if likes_label == "Unknown" or likes_label == "0":
+                                    react_match = re.search(r'"reaction_count"\s*:\s*{\s*"count"\s*:\s*(\d+)', curl_html)
+                                    if react_match:
+                                        likes_val = int(react_match.group(1))
+                                        likes_label = format_count(likes_val)
+                                        logger.info(f"Scraped Facebook likes count {likes_val} from Comet HTML")
+                                    else:
+                                        react_match2 = re.search(r'"i18n_reaction_count"\s*:\s*"([^"]+)"', curl_html)
+                                        if react_match2:
+                                            likes_label = react_match2.group(1).replace(",", ".")
+                                            logger.info(f"Scraped Facebook likes label {likes_label} from Comet HTML")
+
+                                # Search for "video_view_count":XXXX
+                                if views_label == "Unknown" or views_label == "0":
+                                    views_match = re.search(r'"video_view_count"\s*:\s*(\d+)', curl_html)
+                                    if views_match:
+                                        views_val = int(views_match.group(1))
+                                        views_label = format_count(views_val)
+                                        logger.info(f"Scraped Facebook views count {views_val} from Comet HTML")
+                            except Exception as ex:
+                                logger.warning(f"Failed to scrape Facebook likes/views count: {ex}")
             
             raw_date = info.get("upload_date")
             formatted_date = "Unknown"
@@ -263,7 +855,6 @@ def get_info():
                 })
 
             # --- Detect platform and source ---
-            extractor = info.get("extractor_key", "").lower()
             platform_class = "default"
             
             if "youtube" in extractor:
@@ -294,12 +885,28 @@ def get_info():
             elif "tiktok" in extractor:
                 platform_label = "TikTok"
                 platform_class = "tiktok"
-            elif "facebook" in extractor:
+            elif "facebook" in extractor or "facebook" in url or "fb.watch" in url or "fb.gg" in url or "fb.com" in url:
                 if "/reel/" in url or "/reels/" in url:
                     platform_label = "Facebook Reel"
+                    platform_class = "facebook-reel"
+                elif "/groups/" in url:
+                    platform_label = "Facebook Group"
+                    platform_class = "facebook-group"
+                elif "/watch/live" in url or "/live" in url:
+                    platform_label = "Facebook Live"
+                    platform_class = "facebook-live"
+                elif "/watch/" in url or "/videos/" in url:
+                    platform_label = "Facebook Watch"
+                    platform_class = "facebook-watch"
+                elif "/stories/" in url:
+                    platform_label = "Facebook Story"
+                    platform_class = "facebook-story"
+                elif "fb.gg" in url or "/gaming/" in url:
+                    platform_label = "Facebook Gaming"
+                    platform_class = "facebook-gaming"
                 else:
                     platform_label = "Facebook"
-                platform_class = "facebook"
+                    platform_class = "facebook"
             elif "instagram" in extractor:
                 if "/reel/" in url or "/reels/" in url:
                     platform_label = "Instagram Reel"
@@ -311,6 +918,35 @@ def get_info():
                 raw_platform = info.get("extractor_key", "Video")
                 platform_label = raw_platform.capitalize() if raw_platform else "Video"
                 platform_class = "default"
+
+            # --- Extract images / thumbnails ---
+            images = []
+            yt_id = info.get("id")
+            if "youtube" in extractor and yt_id:
+                images = [
+                    {"label": "Max Resolution Thumbnail (1280x720)", "url": f"https://img.youtube.com/vi/{yt_id}/maxresdefault.jpg", "ext": "jpg"},
+                    {"label": "Standard Quality Thumbnail (640x480)", "url": f"https://img.youtube.com/vi/{yt_id}/sddefault.jpg", "ext": "jpg"},
+                    {"label": "High Quality Thumbnail (480x360)", "url": f"https://img.youtube.com/vi/{yt_id}/hqdefault.jpg", "ext": "jpg"},
+                    {"label": "Medium Quality Thumbnail (320x180)", "url": f"https://img.youtube.com/vi/{yt_id}/mqdefault.jpg", "ext": "jpg"},
+                    {"label": "Default Quality Thumbnail (120x90)", "url": f"https://img.youtube.com/vi/{yt_id}/default.jpg", "ext": "jpg"}
+                ]
+            else:
+                thumbnails_list = info.get("thumbnails") or []
+                for idx, t in enumerate(thumbnails_list):
+                    url_val = t.get("url")
+                    if url_val and url_val.startswith("http"):
+                        if not any(img["url"] == url_val for img in images):
+                            images.append({
+                                "label": f"Thumbnail {idx+1}",
+                                "url": url_val,
+                                "ext": "jpg"
+                            })
+                if not images and thumbnail:
+                    images.append({
+                        "label": "Main Thumbnail",
+                        "url": thumbnail,
+                        "ext": "jpg"
+                    })
 
             return jsonify({
                 "status": "success",
@@ -330,6 +966,7 @@ def get_info():
                 "video_options": video_options,
                 "audio_options": audio_options,
                 "subtitles": subtitles,
+                "images": images,
             })
 
     except Exception as e:
@@ -337,11 +974,85 @@ def get_info():
         return jsonify({"status": "error", "message": f"Could not parse URL. {str(e)}"}), 500
 
 
-def bg_download_task(download_id, url, format_id, ext, quality="192"):
+def bg_download_task(download_id, url, format_id, ext, quality="192", title="media", client_id=None):
     """Background thread task to download media via yt-dlp."""
     temp_dir = os.path.join(TEMP_DOWNLOAD_DIR, f"temp_{download_id}")
     os.makedirs(temp_dir, exist_ok=True)
     logger.info(f"Task {download_id}: Start download {url} (format={format_id}, ext={ext}, quality={quality})")
+
+    # Direct CDN stream download bypass
+    if format_id.startswith("direct_video") or format_id.startswith("direct_photo"):
+        try:
+            import requests
+            
+            with downloads_status_lock:
+                if download_id in downloads_status:
+                    downloads_status[download_id].update({
+                        "status": "downloading",
+                        "progress": 5,
+                        "message": "Connecting to direct stream source..."
+                    })
+                    
+            response = requests.get(url, stream=True, timeout=30)
+            response.raise_for_status()
+            
+            total_size = int(response.headers.get('content-length', 0))
+            filepath = os.path.join(temp_dir, f"media.{ext}")
+            downloaded = 0
+            
+            with open(filepath, 'wb') as f:
+                for chunk in response.iter_content(chunk_size=16384):
+                    if chunk:
+                        f.write(chunk)
+                        downloaded += len(chunk)
+                        if total_size > 0:
+                            percent = int((downloaded / total_size) * 100)
+                            if percent % 5 == 0 or percent == 100:
+                                with downloads_status_lock:
+                                    if download_id in downloads_status:
+                                        downloads_status[download_id].update({
+                                            "progress": min(95, percent),
+                                            "message": f"Downloading direct file: {percent}%"
+                                        })
+            
+            def sanitize_filename(name):
+                import re
+                cleaned = re.sub(r'[\\/*?:"<>|]', "", name)
+                return cleaned[:80].strip() or "media"
+
+            safe_title = sanitize_filename(title)
+            user_filename = f"{safe_title}.{ext}"
+
+            with downloads_status_lock:
+                if download_id in downloads_status:
+                    downloads_status[download_id].update({
+                        "status": "complete",
+                        "progress": 100,
+                        "message": "Ready!",
+                        "filepath": filepath,
+                        "temp_dir": temp_dir,
+                        "filename": user_filename,
+                    })
+                    logger.info(f"Task {download_id}: Complete. File: {user_filename}")
+            
+            schedule_cleanup(temp_dir, download_id, delay=300)
+            return
+            
+        except Exception as e:
+            logger.error(f"Direct download failed for task {download_id}: {e}")
+            try:
+                shutil.rmtree(temp_dir)
+            except Exception:
+                pass
+            with downloads_status_lock:
+                if download_id in downloads_status:
+                    downloads_status[download_id].update({
+                        "status": "error",
+                        "progress": 0,
+                        "message": f"Download failed: {str(e)}",
+                        "error": str(e),
+                    })
+            return
 
     # Track how many times 'finished' fires
     # For video: finished fires once for video stream, once for audio stream
@@ -448,13 +1159,15 @@ def bg_download_task(download_id, url, format_id, ext, quality="192"):
                             })
 
     ydl_opts = {
-        "outtmpl": os.path.join(temp_dir, "%(title)s.%(ext)s"),
+        "outtmpl": os.path.join(temp_dir, "media.%(ext)s"),
         "nocheckcertificate": True,
         "quiet": True,
         "no_warnings": True,
         "noplaylist": True,
         "progress_hooks": [progress_hook],
         "js_runtimes": {"deno": {}, "node": {}, "bun": {}, "quickjs": {}},
+        "cookiesfrombrowser": "auto",
+        "ignoreerrors": True,
     }
 
     if ext == "mp3":
@@ -487,30 +1200,53 @@ def bg_download_task(download_id, url, format_id, ext, quality="192"):
         })
 
     try:
-        with yt_dlp.YoutubeDL(ydl_opts) as ydl:
-            ydl.download([url])
+        try:
+            with create_ydl_instance(ydl_opts, url, client_id) as ydl:
+                ret_code = ydl.download([url])
+                if ret_code != 0:
+                    raise Exception(f"yt-dlp download returned non-zero code {ret_code}")
+        except Exception as e:
+            logger.warning(f"Download with cookies failed: {e}. Retrying without cookies...")
+            ydl_opts_no_cookies = ydl_opts.copy()
+            ydl_opts_no_cookies.pop("cookiefile", None)
+            ydl_opts_no_cookies.pop("cookiesfrombrowser", None)
+            with yt_dlp.YoutubeDL(ydl_opts_no_cookies) as ydl_nocookies:
+                ret_nocookies = ydl_nocookies.download([url])
+                if ret_nocookies != 0:
+                    raise Exception(f"Fallback download also failed with code {ret_nocookies}")
 
-            downloaded_files = os.listdir(temp_dir)
-            if not downloaded_files:
-                raise Exception("Download completed but no output file found.")
+        downloaded_files = os.listdir(temp_dir)
+        if not downloaded_files:
+            raise Exception("Download completed but no output file found.")
 
-            filename = downloaded_files[0]
-            filepath = os.path.join(temp_dir, filename)
+        filename_on_disk = downloaded_files[0]
+        filepath = os.path.join(temp_dir, filename_on_disk)
 
-            with downloads_status_lock:
-                if download_id in downloads_status:
-                    downloads_status[download_id].update({
-                        "status": "complete",
-                        "progress": 100,
-                        "message": "Ready!",
-                        "filepath": filepath,
-                        "temp_dir": temp_dir,
-                        "filename": filename,
-                    })
-                    logger.info(f"Task {download_id}: Complete. File: {filename}")
+        def sanitize_filename(name):
+            import re
+            cleaned = re.sub(r'[\\/*?:"<>|]', "", name)
+            return cleaned[:80].strip() or "media"
 
-            # Clean up the file 5 minutes (300 seconds) after completion
-            schedule_cleanup(temp_dir, download_id, delay=300)
+        safe_title = sanitize_filename(title)
+        if ext == "vtt":
+            user_filename = f"{safe_title}.{format_id}.vtt"
+        else:
+            user_filename = f"{safe_title}.{ext}"
+
+        with downloads_status_lock:
+            if download_id in downloads_status:
+                downloads_status[download_id].update({
+                    "status": "complete",
+                    "progress": 100,
+                    "message": "Ready!",
+                    "filepath": filepath,
+                    "temp_dir": temp_dir,
+                    "filename": user_filename,
+                })
+                logger.info(f"Task {download_id}: Complete. File: {user_filename}")
+
+        # Clean up the file 5 minutes (300 seconds) after completion
+        schedule_cleanup(temp_dir, download_id, delay=300)
 
     except Exception as e:
         logger.error(f"Task {download_id} failed: {str(e)}")
@@ -535,6 +1271,8 @@ def start_download():
     format_id = (data.get("format_id") or "").strip()
     ext = (data.get("ext") or "mp4").strip()
     quality = (data.get("quality") or "192").strip()
+    title = (data.get("title") or "media").strip()
+    client_id = data.get("client_id")
 
     if not url or not format_id:
         return jsonify({"status": "error", "message": "URL and format_id are required."}), 400
@@ -553,8 +1291,8 @@ def start_download():
             "error": None,
         }
 
-    logger.info(f"Enqueued task {download_id} for {url}")
-    thread = threading.Thread(target=bg_download_task, args=(download_id, url, format_id, ext, quality))
+    logger.info(f"Enqueued task {download_id} for {url} (client_id: {client_id})")
+    thread = threading.Thread(target=bg_download_task, args=(download_id, url, format_id, ext, quality, title, client_id))
     thread.start()
 
     return jsonify({"status": "success", "download_id": download_id})
@@ -644,6 +1382,79 @@ def get_download_file(download_id):
     }
 
     return Response(generate_chunks(), headers=headers)
+
+
+@app.route("/api/download/image", methods=["GET"])
+def download_image():
+    url = request.args.get("url")
+    filename = request.args.get("filename") or "image.jpg"
+    if not url:
+        return "Missing url parameter", 400
+    try:
+        import requests
+        headers = {
+            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
+        }
+        resp = requests.get(url, headers=headers, stream=True, timeout=10)
+        if resp.status_code == 200:
+            from flask import Response
+            fallback_filename = "image.jpg"
+            encoded_filename = quote(filename)
+            headers = {
+                "Content-Disposition": f'attachment; filename="{fallback_filename}"; filename*=UTF-8\'\'{encoded_filename}',
+                "Content-Type": resp.headers.get("Content-Type", "image/jpeg")
+            }
+            return Response(resp.content, headers=headers)
+        else:
+            return f"Failed to download image: HTTP {resp.status_code}", 500
+    except Exception as e:
+        return f"Error: {e}", 500
+
+
+@app.route("/api/download/images/zip", methods=["POST"])
+def download_images_zip():
+    data = request.get_json() or {}
+    urls = data.get("urls", [])
+    title = data.get("title", "images")
+    if not urls:
+        return jsonify({"status": "error", "message": "No urls provided"}), 400
+    try:
+        import io
+        import zipfile
+        import requests
+        
+        memory_file = io.BytesIO()
+        with zipfile.ZipFile(memory_file, 'w') as zf:
+            headers = {
+                "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
+            }
+            for idx, item in enumerate(urls):
+                url = item.get("url")
+                label = item.get("label", f"image_{idx+1}")
+                ext = item.get("ext", "jpg")
+                if not url:
+                    continue
+                try:
+                    resp = requests.get(url, headers=headers, timeout=10)
+                    if resp.status_code == 200:
+                        import re
+                        safe_label = re.sub(r'[\\/*?:"<>|]', "", label).strip()
+                        filename = f"{safe_label}.{ext}"
+                        zf.writestr(filename, resp.content)
+                except Exception as e:
+                    logger.warning(f"Failed to zip image {url}: {e}")
+                    
+        memory_file.seek(0)
+        from flask import send_file
+        
+        return send_file(
+            memory_file,
+            mimetype="application/zip",
+            as_attachment=True,
+            download_name=f"{title}_images.zip"
+        )
+    except Exception as e:
+        return jsonify({"status": "error", "message": f"Failed to create ZIP: {e}"}), 500
 
 
 if __name__ == "__main__":
