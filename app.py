@@ -882,8 +882,29 @@ def get_info():
                 logger.error(f"Metadata extraction without cookies also failed: {nocookie_e}")
                 err_str = f"{str(first_err)} | {str(nocookie_e)}".lower()
                 
+                is_youtube = any(domain in url.lower() for domain in ["youtube.com", "youtu.be", "youtubekids.com", "youtube-nocookie.com"])
+                if is_youtube:
+                    youtube_auth_keywords = [
+                        "confirm you're not a bot", 
+                        "confirm you are not a bot",
+                        "sign in to confirm", 
+                        "sign in to view",
+                        "sign in", 
+                        "confirm your age", 
+                        "private video", 
+                        "this video is private",
+                        "use --cookies",
+                        "cookies-from-browser"
+                    ]
+                    if any(keyword in err_str for keyword in youtube_auth_keywords):
+                        return jsonify({
+                            "status": "error",
+                            "message": "YouTube yêu cầu xác minh danh tính (Sign in / Confirm you are not a bot) hoặc video này là riêng tư/giới hạn độ tuổi. Vui lòng xuất và tải lên file cookie J2TEAM (chọn định dạng Netscape hoặc JSON) của YouTube để tiếp tục."
+                        }), 400
+
                 # --- Instagram photo post fallback ---
                 if is_instagram:
+
                     try:
                         gallery_info = extract_instagram_via_gallery_dl(url, client_id)
                         if gallery_info:
