@@ -4,7 +4,8 @@
     --surface: rgba(14, 17, 30, 0.55);
     --surface-hover: rgba(20, 24, 42, 0.7);
     --border: rgba(255, 255, 255, 0.06);
-    --border-active: rgba(99, 179, 237, 0.4);
+    --cyan-rgb: 99, 179, 237;
+    --border-active: rgba(var(--cyan-rgb), 0.4);
 
     --cyan: #63b3ed;
     --purple: #b794f4;
@@ -107,7 +108,7 @@ body.modal-open {
 .logo-icon {
     width: 30px; height: 30px;
     color: var(--cyan);
-    filter: drop-shadow(0 0 6px rgba(99,179,237,0.4));
+    filter: drop-shadow(0 0 6px rgba(var(--cyan-rgb),0.4));
 }
 .logo h1 {
     font-family: var(--font-display);
@@ -237,7 +238,7 @@ body.modal-open {
 }
 .search-input-wrap:focus-within {
     border-color: var(--cyan);
-    box-shadow: 0 0 0 3px rgba(99,179,237,0.1);
+    box-shadow: 0 0 0 3px rgba(var(--cyan-rgb), 0.1);
 }
 .search-icon {
     width: 18px; height: 18px;
@@ -286,14 +287,14 @@ body.modal-open {
     border-radius: var(--radius-sm);
     cursor: pointer;
     min-height: 48px;
-    box-shadow: 0 4px 14px rgba(99,179,237,0.25);
+    box-shadow: 0 4px 14px rgba(var(--cyan-rgb), 0.25);
     transition: transform 0.15s, box-shadow 0.2s, opacity 0.2s;
     white-space: nowrap;
 }
 .btn-primary svg { width: 15px; height: 15px; }
 .btn-primary:hover {
     transform: translateY(-1px);
-    box-shadow: 0 6px 20px rgba(99,179,237,0.35);
+    box-shadow: 0 6px 20px rgba(var(--cyan-rgb), 0.35);
 }
 .btn-primary:disabled {
     opacity: 0.5;
@@ -438,10 +439,25 @@ body.modal-open {
     border: 1px solid rgba(79, 209, 197, 0.4);
     color: #4fd1c5;
 }
-.tag-instagram {
-    background: rgba(237, 100, 166, 0.15);
-    border: 1px solid rgba(237, 100, 166, 0.4);
-    color: #ed64a6;
+.tag-instagram, .tag-instagram-post {
+    background: rgba(225, 48, 108, 0.15);
+    border: 1px solid rgba(225, 48, 108, 0.4);
+    color: #e1306c;
+}
+.tag-instagram-reel {
+    background: rgba(255, 138, 0, 0.15);
+    border: 1px solid rgba(255, 138, 0, 0.4);
+    color: #ff8a00;
+}
+.tag-instagram-story {
+    background: rgba(138, 58, 185, 0.15);
+    border: 1px solid rgba(138, 58, 185, 0.4);
+    color: #8a3ab9;
+}
+.tag-instagram-tv {
+    background: rgba(88, 81, 219, 0.15);
+    border: 1px solid rgba(88, 81, 219, 0.4);
+    color: #5851db;
 }
 .tag-default {
     background: rgba(183, 148, 244, 0.15);
@@ -538,7 +554,7 @@ body.modal-open {
 }
 .format-row.is-downloading {
     border-color: var(--cyan);
-    background: rgba(99,179,237,0.05);
+    background: rgba(var(--cyan-rgb), 0.05);
 }
 
 .format-left {
@@ -606,10 +622,10 @@ body.modal-open {
 
 /* === PROGRESS PANEL === */
 .progress-panel {
-    border: 1px solid rgba(99,179,237,0.12);
+    border: 1px solid rgba(var(--cyan-rgb), 0.12);
     border-radius: var(--radius-sm);
     padding: 14px 18px;
-    background: rgba(99,179,237,0.03);
+    background: rgba(var(--cyan-rgb), 0.03);
     display: flex;
     flex-direction: column;
     gap: 8px;
@@ -669,7 +685,7 @@ body.modal-open {
     width: 0%;
     border-radius: 10px;
     background: linear-gradient(90deg, var(--cyan), var(--purple));
-    box-shadow: 0 0 8px rgba(99,179,237,0.3);
+    box-shadow: 0 0 8px rgba(var(--cyan-rgb), 0.3);
     transition: width 0.4s ease;
 }
 .state-complete .progress-fill {
@@ -1733,3 +1749,102 @@ body.modal-open {
 .light-theme .btn-preview:hover {
     color: #ffffff;
 }
+
+/* === DYNAMIC ADAPTIVE THEME OVERRIDES === */
+
+/* YouTube Themes */
+body.theme-youtube {
+    --cyan: #ff0000;
+    --purple: #ff4d4d;
+    --cyan-rgb: 255, 0, 0;
+}
+body.theme-youtube-kids {
+    --cyan: #ffbb00;
+    --purple: #00ff66;
+    --cyan-rgb: 255, 187, 0;
+}
+body.theme-youtube-music {
+    --cyan: #00ffd0;
+    --purple: #0088ff;
+    --cyan-rgb: 0, 255, 208;
+}
+body.theme-youtube-shorts {
+    --cyan: #ff3e3e;
+    --purple: #ff8a00;
+    --cyan-rgb: 255, 62, 62;
+}
+body.theme-youtube-live {
+    --cyan: #ff003c;
+    --purple: #ff00a0;
+    --cyan-rgb: 255, 0, 60;
+}
+body.theme-youtube-clip {
+    --cyan: #e62117;
+    --purple: #ff6e6e;
+    --cyan-rgb: 230, 33, 23;
+}
+
+/* Facebook Themes */
+body.theme-facebook {
+    --cyan: #1877f2;
+    --purple: #00c6ff;
+    --cyan-rgb: 24, 119, 242;
+}
+body.theme-facebook-reel {
+    --cyan: #2ecc71;
+    --purple: #00e5ff;
+    --cyan-rgb: 46, 204, 113;
+}
+body.theme-facebook-group {
+    --cyan: #20b2aa;
+    --purple: #48d1cc;
+    --cyan-rgb: 32, 178, 170;
+}
+body.theme-facebook-live {
+    --cyan: #ff4500;
+    --purple: #ff8c00;
+    --cyan-rgb: 255, 69, 0;
+}
+body.theme-facebook-watch {
+    --cyan: #4267b2;
+    --purple: #898f9c;
+    --cyan-rgb: 66, 103, 178;
+}
+body.theme-facebook-story {
+    --cyan: #7b1fa2;
+    --purple: #e91e63;
+    --cyan-rgb: 123, 31, 162;
+}
+body.theme-facebook-gaming {
+    --cyan: #00bcd4;
+    --purple: #3f51b5;
+    --cyan-rgb: 0, 188, 212;
+}
+
+/* Instagram Themes */
+body.theme-instagram {
+    --cyan: #e1306c;
+    --purple: #f77737;
+    --cyan-rgb: 225, 48, 108;
+}
+body.theme-instagram-reel {
+    --cyan: #ff8a00;
+    --purple: #da00ff;
+    --cyan-rgb: 255, 138, 0;
+}
+body.theme-instagram-story {
+    --cyan: #8a3ab9;
+    --purple: #e95950;
+    --cyan-rgb: 138, 58, 185;
+}
+body.theme-instagram-tv {
+    --cyan: #5851db;
+    --purple: #c13584;
+    --cyan-rgb: 88, 81, 219;
+}
+body.theme-instagram-post {
+    --cyan: #fd1d1d;
+    --purple: #fccc63;
+    --cyan-rgb: 253, 29, 29;
+}
+

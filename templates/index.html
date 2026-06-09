@@ -8,7 +8,7 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&family=Space+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}?v=3.4">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}?v=3.5">
     <script>
         (function() {
             const savedTheme = localStorage.getItem('theme');
@@ -52,7 +52,7 @@
                         <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/>
                         <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/>
                     </svg>
-                    <input type="text" id="url-input" placeholder="Paste a YouTube or Facebook URL here..." autocomplete="off" spellcheck="false">
+                    <input type="text" id="url-input" placeholder="Paste a YouTube, Facebook, or Instagram URL here..." autocomplete="off" spellcheck="false">
                     <button id="paste-btn" class="icon-btn" title="Paste from clipboard">
                         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
                             <rect x="8" y="2" width="8" height="4" rx="1" ry="1"/>
@@ -350,6 +350,6 @@
         </div>
     </div>
 
-    <script src="{{ url_for('static', filename='js/main.js') }}?v=3.4"></script>
+    <script src="{{ url_for('static', filename='js/main.js') }}?v=3.5"></script>
 </body>
 </html>

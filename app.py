@@ -273,6 +273,244 @@ def format_size(size_bytes):
     return f"{size_bytes:.1f} TB"
 
 
+def extract_instagram_via_gallery_dl(url, client_id):
+    """
+    Invokes gallery-dl via subprocess to extract Instagram photo/video posts.
+    Reuses the client's uploaded J2TEAM cookies if available.
+    """
+    import subprocess
+    import json
+    import os
+    
+    # Locate gallery-dl executable
+    gallery_dl_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "venv", "Scripts", "gallery-dl.exe")
+    if not os.path.exists(gallery_dl_path):
+        gallery_dl_path = "gallery-dl" # Fallback to path
+        
+    command = [gallery_dl_path, "--dump-json"]
+    
+    # Check if a client-specific cookies file exists
+    if client_id:
+        client_cookies = os.path.join(TEMP_DOWNLOAD_DIR, "cookies", f"cookies_{client_id}.txt")
+        if os.path.exists(client_cookies):
+            command.extend(["--cookies", client_cookies])
+            logger.info(f"gallery-dl: Using client cookies file: {client_cookies}")
+            
+    command.append(url)
+    
+    try:
+        logger.info(f"Invoking gallery-dl: {' '.join(command)}")
+        result = subprocess.run(command, capture_output=True, text=True, encoding="utf-8", errors="ignore")
+        
+        stdout = result.stdout.strip()
+        if not stdout:
+            logger.warning(f"gallery-dl returned empty output. Stderr: {result.stderr}")
+            return None
+            
+        # Parse output
+        entries = []
+        try:
+            # Try parsing the entire stdout as a single JSON array
+            data = json.loads(stdout)
+            if isinstance(data, list):
+                if data and isinstance(data[0], list):
+                    # It's a list of entries
+                    for item in data:
+                        if isinstance(item, list):
+                            entries.append(item)
+                else:
+                    # It's a single entry list
+                    entries = [data]
+        except Exception as json_e:
+            logger.info(f"Failed to parse entire gallery-dl stdout as JSON: {json_e}. Falling back to line-by-line parsing.")
+            lines = stdout.splitlines()
+            for line in lines:
+                if line.strip().startswith("["):
+                    try:
+                        entry = json.loads(line)
+                        if isinstance(entry, list):
+                            entries.append(entry)
+                    except Exception as parse_e:
+                        logger.warning(f"Failed to parse line: {line}. Error: {parse_e}")
+
+        # Check for errors in entries
+        valid_entries = []
+        for entry in entries:
+            if len(entry) >= 2 and isinstance(entry[1], dict) and "error" in entry[1]:
+                err_msg = entry[1].get("message", "")
+                logger.warning(f"gallery-dl returned error: {err_msg}")
+                if any(k in err_msg.lower() for k in ["login", "redirect", "cookie"]):
+                    raise Exception("Instagram login required")
+                continue
+            valid_entries.append(entry)
+            
+        entries = valid_entries
+        if not entries:
+            return None
+            
+        # Extract metadata from the first entry
+        first_metadata = {}
+        for entry in entries:
+            if len(entry) == 2 and isinstance(entry[1], dict):
+                first_metadata = entry[1]
+                break
+            elif len(entry) >= 3 and isinstance(entry[2], dict):
+                first_metadata = entry[2]
+                break
+                
+        uploader = first_metadata.get("username") or first_metadata.get("owner") or "Instagram User"
+        if isinstance(uploader, dict):
+            uploader = uploader.get("username") or uploader.get("name") or "Instagram User"
+            
+        caption = first_metadata.get("caption") or first_metadata.get("description") or ""
+        
+        # Clean caption for title
+        title = caption.split("\n")[0] if caption else f"Instagram Post by {uploader}"
+        if len(title) > 80:
+            title = title[:80] + "..."
+            
+        description = caption or "No description available."
+        
+        images = []
+        video_options = []
+        audio_options = []
+        
+        is_story = "/stories/" in url.lower()
+        unit_label = "Story" if is_story else "Slide"
+        
+        slide_num = 0
+        for entry in entries:
+            if len(entry) < 3 or not isinstance(entry[1], str):
+                continue
+            media_url = entry[1]
+            meta = entry[2] if len(entry) >= 3 and isinstance(entry[2], dict) else {}
+            
+            # Determine extension
+            ext = "jpg"
+            if ".mp4" in media_url.lower() or meta.get("media_type") == 2:
+                ext = "mp4"
+                
+            slide_num += 1
+            
+            if ext == "mp4":
+                video_options.append({
+                    "format_id": f"direct_video_slide_{slide_num}",
+                    "resolution": "HD",
+                    "ext": "mp4",
+                    "type": "video",
+                    "size": "Unknown Size",
+                    "label": f"Video {unit_label} {slide_num}",
+                    "url": media_url
+                })
+                # Add default video thumbnail placeholder
+                images.append({
+                    "label": f"{unit_label} {slide_num} Video Thumbnail",
+                    "url": media_url,
+                    "ext": "mp4"
+                })
+            else:
+                images.append({
+                    "label": f"{unit_label} {slide_num} Image",
+                    "url": media_url,
+                    "ext": "jpg"
+                })
+                video_options.append({
+                    "format_id": f"direct_photo_slide_{slide_num}",
+                    "resolution": "Original",
+                    "ext": "jpg",
+                    "type": "image",
+                    "size": "Unknown Size",
+                    "label": f"Photo - {unit_label} {slide_num}",
+                    "url": media_url
+                })
+                
+        thumbnail = images[0]["url"] if images else "https://images.unsplash.com/photo-1611162617213-7d7a39e9b1d7?q=80&w=600"
+        
+        # Classify sub-platform
+        platform_label = "Instagram Post"
+        platform_class = "instagram-post"
+        if "/reel/" in url or "/reels/" in url:
+            platform_label = "Instagram Reel"
+            platform_class = "instagram-reel"
+        elif "/stories/" in url:
+            platform_label = "Instagram Story"
+            platform_class = "instagram-story"
+        elif "/tv/" in url:
+            platform_label = "Instagram TV"
+            platform_class = "instagram-tv"
+            
+        # Extract upload date
+        upload_date = "Unknown"
+        raw_date = first_metadata.get("post_date") or first_metadata.get("date")
+        if raw_date:
+            try:
+                from datetime import datetime
+                dt = datetime.strptime(raw_date.split(".")[0], "%Y-%m-%d %H:%M:%S")
+                upload_date = dt.strftime("%d %b %Y")
+            except Exception:
+                upload_date = raw_date.split(" ")[0] if " " in raw_date else raw_date
+
+        # Extract likes
+        likes_val = first_metadata.get("likes")
+        likes = "N/A" if is_story else "Unknown"
+        if likes_val is not None and not is_story:
+            try:
+                likes_count = int(likes_val)
+                if likes_count >= 1_000_000:
+                    likes = f"{likes_count / 1_000_000:.1f}M"
+                elif likes_count >= 1_000:
+                    likes = f"{likes_count / 1_000:.1f}K"
+                else:
+                    likes = str(likes_count)
+            except Exception:
+                likes = str(likes_val)
+
+        # Extract views
+        views_val = first_metadata.get("views") or first_metadata.get("view_count")
+        views = "N/A"
+        has_video_slides = any(".mp4" in entry[1].lower() or (len(entry) >= 3 and isinstance(entry[2], dict) and entry[2].get("media_type") == 2) for entry in entries if len(entry) >= 3 and isinstance(entry[1], str))
+        if has_video_slides and not is_story:
+            views = "Unknown"
+            
+        if views_val is not None:
+            try:
+                views_count = int(views_val)
+                if views_count >= 1_000_000:
+                    views = f"{views_count / 1_000_000:.1f}M"
+                elif views_count >= 1_000:
+                    views = f"{views_count / 1_000:.1f}K"
+                else:
+                    views = str(views_count)
+            except Exception:
+                views = str(views_val)
+
+        return {
+            "status": "success",
+            "title": title,
+            "uploader": uploader,
+            "duration": "0:00",
+            "thumbnail": thumbnail,
+            "is_shorts": False,
+            "platform_label": platform_label,
+            "platform_class": platform_class,
+            "views": views,
+            "likes": likes,
+            "upload_date": upload_date,
+            "description": description,
+            "category": "Instagram Media",
+            "tags": ["Instagram"],
+            "video_options": video_options,
+            "audio_options": audio_options,
+            "subtitles": [],
+            "images": images,
+        }
+    except Exception as e:
+        logger.error(f"gallery-dl extraction error: {e}")
+        if "login" in str(e).lower():
+            raise e
+        return None
+
+
 @app.route("/api/info", methods=["POST"])
 def get_info():
     data = request.get_json() or {}
@@ -281,6 +519,15 @@ def get_info():
 
     if not url:
         return jsonify({"status": "error", "message": "Link URL is required."}), 400
+
+    is_instagram = "instagram.com" in url.lower() or "instagr.am" in url.lower()
+    if is_instagram:
+        lower_url = url.lower()
+        if not any(path in lower_url for path in ["/p/", "/reel/", "/reels/", "/stories/", "/tv/"]):
+            return jsonify({
+                "status": "error",
+                "message": "Vui lòng nhập liên kết của một bài đăng (Post), Reel, Story hoặc TV cụ thể trên Instagram thay vì trang cá nhân của người dùng."
+            }), 400
 
     if "/stories/" in url and ("facebook.com" in url or "fb.com" in url or "fb.watch" in url):
         client_cookies = os.path.join(TEMP_DOWNLOAD_DIR, "cookies", f"cookies_{client_id}.txt") if client_id else None
@@ -601,22 +848,26 @@ def get_info():
 
     logger.info(f"Fetching metadata for URL: {url} (client_id: {client_id})")
 
+    is_instagram = "instagram.com" in url.lower() or "instagr.am" in url.lower()
+
     ydl_opts = {
         "quiet": True,
         "no_warnings": True,
         "nocheckcertificate": True,
-        "noplaylist": True,
+        "noplaylist": not is_instagram,
         "js_runtimes": {"deno": {}, "node": {}, "bun": {}, "quickjs": {}},
         "cookiesfrombrowser": "auto",
-        "ignoreerrors": True,
+        "ignoreerrors": False,
     }
 
     try:
         info = None
+        first_err = None
         try:
             with create_ydl_instance(ydl_opts, url, client_id) as ydl:
                 info = ydl.extract_info(url, download=False)
         except Exception as e:
+            first_err = e
             logger.warning(f"Metadata extraction with cookies failed: {e}. Retrying without cookies...")
 
         if not info:
@@ -629,18 +880,81 @@ def get_info():
                     info = ydl_nocookies.extract_info(url, download=False)
             except Exception as nocookie_e:
                 logger.error(f"Metadata extraction without cookies also failed: {nocookie_e}")
+                err_str = f"{str(first_err)} | {str(nocookie_e)}".lower()
+                
+                # --- Instagram photo post fallback ---
+                if is_instagram:
+                    try:
+                        gallery_info = extract_instagram_via_gallery_dl(url, client_id)
+                        if gallery_info:
+                            return jsonify(gallery_info)
+                    except Exception as gallery_e:
+                        if any(keyword in str(gallery_e).lower() for keyword in ["login", "redirect", "cookie"]):
+                            return jsonify({
+                                "status": "error",
+                                "message": "Instagram yêu cầu cookie tài khoản để truy cập. Vui lòng xuất và tải lên file cookie J2TEAM (chọn định dạng Netscape hoặc JSON) để tiếp tục."
+                            }), 400
+
+                if "there is no video in this post" in err_str:
+                    return jsonify({
+                        "status": "error",
+                        "message": "Không thể tải được thông tin hình ảnh từ Instagram. Instagram có thể yêu cầu cookie tài khoản để truy cập bài viết này. Vui lòng tải lên cookie J2TEAM (chọn định dạng Netscape hoặc JSON) để tiếp tục."
+                    }), 400
+                if is_instagram and any(keyword in err_str for keyword in ["login", "logged-in", "cookies", "redirect", "confirm your age", "challenge", "checkpoint", "sign in", "rate limit", "empty media", "unable to extract"]):
+                    return jsonify({
+                        "status": "error",
+                        "message": "Instagram yêu cầu cookie tài khoản để truy cập. Vui lòng xuất và tải lên file cookie J2TEAM (chọn định dạng Netscape hoặc JSON) để tiếp tục."
+                    }), 400
                 return jsonify({
                     "status": "error",
                     "message": f"Unable to extract media metadata: {nocookie_e}"
                 }), 400
 
         if not info:
+            if is_instagram:
+                # --- Instagram photo post fallback ---
+                try:
+                    gallery_info = extract_instagram_via_gallery_dl(url, client_id)
+                    if gallery_info:
+                        return jsonify(gallery_info)
+                except Exception as gallery_e:
+                    if any(keyword in str(gallery_e).lower() for keyword in ["login", "redirect", "cookie"]):
+                        return jsonify({
+                            "status": "error",
+                            "message": "Instagram yêu cầu cookie tài khoản để truy cập. Vui lòng xuất và tải lên file cookie J2TEAM (chọn định dạng Netscape hoặc JSON) để tiếp tục."
+                        }), 400
+                return jsonify({
+                    "status": "error",
+                    "message": "Instagram yêu cầu cookie tài khoản để truy cập. Vui lòng xuất và tải lên file cookie J2TEAM (chọn định dạng Netscape hoặc JSON) để tiếp tục."
+                }), 400
             return jsonify({
                 "status": "error",
-                "message": "Unable to extract media metadata. This link may be private, require log in, or be invalid. Please make sure the link is correct."
+                "message": "Failed to extract media metadata."
             }), 400
 
         if True:
+            if is_instagram and info:
+                formats_list = info.get("formats", [])
+                entries = info.get("entries", [])
+                has_video = False
+                if formats_list:
+                    has_video = any(f.get("vcodec") != "none" for f in formats_list)
+                elif entries:
+                    has_video = True
+                    
+                if not has_video:
+                    logger.info("Instagram post has no video formats/entries. Falling back to gallery-dl.")
+                    try:
+                        gallery_info = extract_instagram_via_gallery_dl(url, client_id)
+                        if gallery_info:
+                            return jsonify(gallery_info)
+                    except Exception as gallery_e:
+                        logger.warning(f"gallery-dl fallback failed for photo post: {gallery_e}")
+                        if any(keyword in str(gallery_e).lower() for keyword in ["login", "redirect", "cookie"]):
+                            return jsonify({
+                                "status": "error",
+                                "message": "Instagram yêu cầu cookie tài khoản để truy cập. Vui lòng xuất và tải lên file cookie J2TEAM (chọn định dạng Netscape hoặc JSON) để tiếp tục."
+                            }), 400
 
             extractor = info.get("extractor_key", "").lower() if info.get("extractor_key") else ""
 
@@ -666,7 +980,7 @@ def get_info():
                     return f"{count / 1_000:.1f}K"
                 return str(count)
                 
-            views_label = format_count(view_count) if view_count else "Unknown"
+            views_label = format_count(view_count) if view_count else ("N/A" if is_instagram else "Unknown")
             likes_label = format_count(like_count) if like_count else "Unknown"
             
             # Clean up Facebook title and extract views/reactions if present in the title
@@ -770,91 +1084,184 @@ def get_info():
                         "is_auto": True
                     })
 
+            images = []
             formats_list = info.get("formats", [])
             is_shorts = "/shorts/" in url or (info.get("duration", 0) and info.get("duration", 0) <= 60)
 
-            # --- Find best audio stream for size estimation ---
-            best_audio_format = None
-            for f in formats_list:
-                if f.get("vcodec") == "none" and f.get("acodec") != "none":
-                    if not best_audio_format or (f.get("tbr") or 0) > (best_audio_format.get("tbr") or 0):
-                        best_audio_format = f
-
-            best_audio_size = 0
-            if best_audio_format:
-                best_audio_size = best_audio_format.get("filesize") or best_audio_format.get("filesize_approx") or 0
-                if not best_audio_size and duration_sec and best_audio_format.get("tbr"):
-                    best_audio_size = int(duration_sec * best_audio_format.get("tbr") * 1000 / 8)
-            if not best_audio_size and duration_sec:
-                best_audio_size = int(duration_sec * 128 * 1000 / 8)
-
-            # --- Build video options ---
             video_options = []
-            added_resolutions = set()
+            audio_options = []
 
-            for f in formats_list:
-                height = f.get("height")
-                vcodec = f.get("vcodec")
-                if height and vcodec and vcodec != "none":
-                    res_label = f"{height}p"
-                    if res_label not in added_resolutions:
-                        v_size = f.get("filesize") or f.get("filesize_approx") or 0
-                        if not v_size and duration_sec and f.get("tbr"):
-                            v_size = int(duration_sec * f.get("tbr") * 1000 / 8)
-                        total_size = (v_size + best_audio_size) if v_size else 0
+            # --- Check for Instagram Carousel/Playlist (Story list) ---
+            entries = info.get("entries") or []
+            if is_instagram and entries:
+                uploader = info.get("uploader") or info.get("playlist_uploader") or uploader
+                title = info.get("title") or info.get("playlist_title") or title
 
+                is_story = "/stories/" in url.lower()
+                unit_label = "Story" if is_story else "Slide"
+
+                for idx, entry in enumerate(entries):
+                    if not entry:
+                        continue
+                    slide_num = idx + 1
+                    entry_duration = entry.get("duration")
+
+                    # Determine if it's video
+                    entry_formats = entry.get("formats", [])
+                    is_video_slide = False
+                    if entry_formats:
+                        is_video_slide = any(f.get("vcodec") != "none" for f in entry_formats)
+                    elif entry.get("ext") in ["mp4", "mkv", "webm", "avi", "mov"]:
+                        is_video_slide = True
+                    elif entry.get("width") and entry.get("height") and not entry_formats:
+                        is_video_slide = bool(entry_duration)
+
+                    # Get direct URL
+                    direct_url = None
+                    if is_video_slide:
+                        best_f = None
+                        for f in entry_formats:
+                            if f.get("vcodec") != "none" and f.get("url"):
+                                if not best_f or (f.get("height") or 0) > (best_f.get("height") or 0):
+                                    best_f = f
+                        if best_f:
+                            direct_url = best_f.get("url")
+                        if not direct_url:
+                            direct_url = entry.get("url")
+                    else:
+                        direct_url = entry.get("url")
+                        if not direct_url and entry.get("thumbnails"):
+                            direct_url = entry.get("thumbnails")[-1].get("url")
+
+                    if not direct_url:
+                        continue
+
+                    if is_video_slide:
+                        height = entry.get("height") or "HD"
+                        res_label = f"{height}p" if isinstance(height, int) else str(height)
                         video_options.append({
-                            "format_id": f"bestvideo[height={height}]+bestaudio[ext=m4a]/bestvideo[height={height}]+bestaudio/best[height={height}]",
+                            "format_id": f"direct_video_slide_{slide_num}",
                             "resolution": res_label,
                             "ext": "mp4",
                             "type": "video",
-                            "size": format_size(total_size),
-                            "label": f"Video {res_label}"
+                            "size": format_size(entry.get("filesize") or entry.get("filesize_approx") or 0) or "Unknown Size",
+                            "label": f"Video {unit_label} {slide_num} ({res_label})",
+                            "url": direct_url
                         })
-                        added_resolutions.add(res_label)
+                        slide_thumb = entry.get("thumbnail") or (
+                            entry.get("thumbnails")[-1].get("url") if entry.get("thumbnails") else None
+                        )
+                        if slide_thumb:
+                            images.append({
+                                "label": f"{unit_label} {slide_num} Thumbnail",
+                                "url": slide_thumb,
+                                "ext": "jpg"
+                            })
+                    else:
+                        images.append({
+                            "label": f"{unit_label} {slide_num} Image",
+                            "url": direct_url,
+                            "ext": "jpg"
+                        })
+                        video_options.append({
+                            "format_id": f"direct_photo_slide_{slide_num}",
+                            "resolution": "Original",
+                            "ext": "jpg",
+                            "type": "image",
+                            "size": "Unknown Size",
+                            "label": f"Photo - {unit_label} {slide_num}",
+                            "url": direct_url
+                        })
 
-            video_options.sort(key=lambda x: int(x["resolution"].replace("p", "")), reverse=True)
+                if not video_options:
+                    video_options.append({
+                        "format_id": "bestvideo+bestaudio/best",
+                        "resolution": "Best",
+                        "ext": "mp4",
+                        "type": "video",
+                        "size": None,
+                        "label": "Video (Best Quality)"
+                    })
+            else:
+                # --- Find best audio stream for size estimation ---
+                best_audio_format = None
+                for f in formats_list:
+                    if f.get("vcodec") == "none" and f.get("acodec") != "none":
+                        if not best_audio_format or (f.get("tbr") or 0) > (best_audio_format.get("tbr") or 0):
+                            best_audio_format = f
 
-            if not video_options:
-                video_options.append({
-                    "format_id": "bestvideo+bestaudio/best",
-                    "resolution": "Best",
-                    "ext": "mp4",
-                    "type": "video",
-                    "size": None,
-                    "label": "Video (Best Quality)"
-                })
+                best_audio_size = 0
+                if best_audio_format:
+                    best_audio_size = best_audio_format.get("filesize") or best_audio_format.get("filesize_approx") or 0
+                    if not best_audio_size and duration_sec and best_audio_format.get("tbr"):
+                        best_audio_size = int(duration_sec * best_audio_format.get("tbr") * 1000 / 8)
+                if not best_audio_size and duration_sec:
+                    best_audio_size = int(duration_sec * 128 * 1000 / 8)
 
-            # --- Build audio options ---
-            audio_options = []
-            
-            # Native M4A (no conversion, ultra fast)
-            est_m4a_size = format_size(best_audio_size) if best_audio_size else None
-            audio_options.append({
-                "format_id": "bestaudio[ext=m4a]/bestaudio",
-                "resolution": "Audio",
-                "ext": "m4a",
-                "type": "audio",
-                "size": est_m4a_size,
-                "label": "M4A AAC (Original Quality - Fast)"
-            })
-            
-            qualities = [
-                ("320", "Ultra", "320kbps"),
-                ("192", "High", "192kbps"),
-                ("128", "Standard", "128kbps"),
-            ]
-            for q_val, q_name, q_label in qualities:
-                est_size = format_size(int(duration_sec * int(q_val) * 1000 / 8)) if duration_sec else None
+                # --- Build video options ---
+                added_resolutions = set()
+
+                for f in formats_list:
+                    height = f.get("height")
+                    vcodec = f.get("vcodec")
+                    if height and vcodec and vcodec != "none":
+                        res_label = f"{height}p"
+                        if res_label not in added_resolutions:
+                            v_size = f.get("filesize") or f.get("filesize_approx") or 0
+                            if not v_size and duration_sec and f.get("tbr"):
+                                v_size = int(duration_sec * f.get("tbr") * 1000 / 8)
+                            total_size = (v_size + best_audio_size) if v_size else 0
+
+                            video_options.append({
+                                "format_id": f"bestvideo[height={height}]+bestaudio[ext=m4a]/bestvideo[height={height}]+bestaudio/best[height={height}]",
+                                "resolution": res_label,
+                                "ext": "mp4",
+                                "type": "video",
+                                "size": format_size(total_size),
+                                "label": f"Video {res_label}"
+                            })
+                            added_resolutions.add(res_label)
+
+                video_options.sort(key=lambda x: int(x["resolution"].replace("p", "")), reverse=True)
+
+                if not video_options:
+                    video_options.append({
+                        "format_id": "bestvideo+bestaudio/best",
+                        "resolution": "Best",
+                        "ext": "mp4",
+                        "type": "video",
+                        "size": None,
+                        "label": "Video (Best Quality)"
+                    })
+
+                # --- Build audio options ---
+                # Native M4A (no conversion, ultra fast)
+                est_m4a_size = format_size(best_audio_size) if best_audio_size else None
                 audio_options.append({
-                    "format_id": "bestaudio/best",
+                    "format_id": "bestaudio[ext=m4a]/bestaudio",
                     "resolution": "Audio",
-                    "ext": "mp3",
+                    "ext": "m4a",
                     "type": "audio",
-                    "quality": q_val,
-                    "size": est_size,
-                    "label": f"MP3 {q_name} ({q_label})"
+                    "size": est_m4a_size,
+                    "label": "M4A AAC (Original Quality - Fast)"
                 })
+
+                qualities = [
+                    ("320", "Ultra", "320kbps"),
+                    ("192", "High", "192kbps"),
+                    ("128", "Standard", "128kbps"),
+                ]
+                for q_val, q_name, q_label in qualities:
+                    est_size = format_size(int(duration_sec * int(q_val) * 1000 / 8)) if duration_sec else None
+                    audio_options.append({
+                        "format_id": "bestaudio/best",
+                        "resolution": "Audio",
+                        "ext": "mp3",
+                        "type": "audio",
+                        "quality": q_val,
+                        "size": est_size,
+                        "label": f"MP3 {q_name} ({q_label})"
+                    })
 
             # --- Detect platform and source ---
             platform_class = "default"
@@ -909,12 +1316,22 @@ def get_info():
                 else:
                     platform_label = "Facebook"
                     platform_class = "facebook"
-            elif "instagram" in extractor:
+            elif "instagram" in extractor or is_instagram:
                 if "/reel/" in url or "/reels/" in url:
                     platform_label = "Instagram Reel"
+                    platform_class = "instagram-reel"
+                elif "/stories/" in url:
+                    platform_label = "Instagram Story"
+                    platform_class = "instagram-story"
+                elif "/tv/" in url:
+                    platform_label = "Instagram TV"
+                    platform_class = "instagram-tv"
+                elif "/p/" in url:
+                    platform_label = "Instagram Post"
+                    platform_class = "instagram-post"
                 else:
                     platform_label = "Instagram"
-                platform_class = "instagram"
+                    platform_class = "instagram"
             else:
                 # Capitalize first letter of extractor
                 raw_platform = info.get("extractor_key", "Video")
@@ -922,7 +1339,8 @@ def get_info():
                 platform_class = "default"
 
             # --- Extract images / thumbnails ---
-            images = []
+            if not images:
+                images = []
             yt_id = info.get("id")
             if "youtube" in extractor and yt_id:
                 images = [

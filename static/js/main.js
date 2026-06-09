@@ -319,7 +319,23 @@ document.addEventListener("DOMContentLoaded", () => {
     function isValidUrl(url) {
         const youtubeRegex = /^(https?:\/\/)?([a-z0-9-]+\.)?(youtube\.com|youtu\.be|youtubekids\.com|youtube-nocookie\.com)/i;
         const facebookRegex = /^(https?:\/\/)?([a-z0-9-]+\.)?(facebook\.com|fb\.com|fb\.watch|fb\.gg|messenger\.com)/i;
-        return youtubeRegex.test(url) || facebookRegex.test(url);
+        const instagramRegex = /^(https?:\/\/)?([a-z0-9-]+\.)?(instagram\.com|instagr\.am)/i;
+        return youtubeRegex.test(url) || facebookRegex.test(url) || instagramRegex.test(url);
+    }
+
+    function setPlatformTheme(platformClass) {
+        // Remove existing theme classes
+        const classes = Array.from(document.body.classList);
+        classes.forEach(c => {
+            if (c.startsWith("theme-")) {
+                document.body.classList.remove(c);
+            }
+        });
+        
+        // Add new theme class if present
+        if (platformClass) {
+            document.body.classList.add(`theme-${platformClass}`);
+        }
     }
 
     async function performAnalysis() {
@@ -331,11 +347,12 @@ document.addEventListener("DOMContentLoaded", () => {
         }
 
         if (!isValidUrl(url)) {
-            showError("Invalid URL. Please make sure it is a valid YouTube or Facebook link.");
+            showError("Invalid URL. Please make sure it is a valid YouTube, Facebook, or Instagram link.");
             return;
         }
 
         // Reset UI States
+        setPlatformTheme(null);
         errorCard.classList.add("hidden");
         resultSection.classList.add("hidden");
         downloadProgress.classList.add("hidden");
@@ -360,8 +377,10 @@ document.addEventListener("DOMContentLoaded", () => {
 
             if (response.ok && data.status === "success") {
                 activeUrl = url;
+                setPlatformTheme(data.platform_class);
                 displayMetadata(data);
             } else {
+                setPlatformTheme(null);
                 showError(data.message || "Unable to extract media information from this URL.");
                 const msg = (data.message || "").toLowerCase();
                 const authKeywords = ["private", "log in", "login", "sign in", "signin", "invalid", "cookie", "confirm", "subscriber", "membership", "member"];
@@ -371,6 +390,7 @@ document.addEventListener("DOMContentLoaded", () => {
             }
         } catch (err) {
             console.error(err);
+            setPlatformTheme(null);
             showError("Connection lost. Unable to contact local Python downloader server.");
         } finally {
             loaderSection.classList.add("hidden");
