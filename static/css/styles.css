@@ -164,11 +164,17 @@ body.modal-open {
     font-weight: 300;
 }
 
-/* === THEME TOGGLE === */
-.theme-toggle-btn {
+/* === HEADER ACTIONS (Settings + Theme Toggle) === */
+.header-actions {
     position: absolute;
     right: 0;
     top: 4px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    z-index: 100;
+}
+.header-action-btn {
     background: rgba(255, 255, 255, 0.03);
     border: 1px solid var(--glass-border);
     backdrop-filter: blur(8px);
@@ -182,24 +188,93 @@ body.modal-open {
     align-items: center;
     justify-content: center;
     transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
-    z-index: 10;
     box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+    position: relative;
 }
-.theme-toggle-btn:hover {
+.header-action-btn:hover {
     background: var(--surface-hover);
     color: var(--cyan);
     border-color: var(--border-active);
     transform: scale(1.05);
 }
-.theme-toggle-btn .sun-icon {
-    display: block;
+.header-action-btn svg {
     width: 20px;
     height: 20px;
 }
-.theme-toggle-btn .moon-icon {
+.header-action-btn .sun-icon {
+    display: block;
+}
+.header-action-btn .moon-icon {
     display: none;
-    width: 20px;
-    height: 20px;
+}
+#settings-toggle.active {
+    background: rgba(var(--cyan-rgb), 0.15);
+    color: var(--cyan);
+    border-color: var(--cyan);
+    box-shadow: 0 0 15px rgba(var(--cyan-rgb), 0.3);
+}
+#settings-toggle.active svg {
+    animation: settingsRotate 0.5s cubic-bezier(0.25, 0.8, 0.25, 1);
+}
+@keyframes settingsRotate {
+    from { transform: rotate(0deg); }
+    to { transform: rotate(90deg); }
+}
+
+/* === SETTINGS DROPDOWN === */
+.settings-dropdown {
+    position: absolute;
+    top: calc(100% + 12px);
+    right: 0;
+    min-width: 300px;
+    background: rgba(15, 17, 25, 0.92);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    border: 1px solid rgba(var(--cyan-rgb), 0.15);
+    border-radius: 14px;
+    padding: 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    box-shadow:
+        0 8px 32px rgba(0, 0, 0, 0.4),
+        0 0 20px rgba(var(--cyan-rgb), 0.08),
+        inset 0 1px 0 rgba(255, 255, 255, 0.05);
+    transform-origin: top right;
+    animation: settingsSlideIn 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+    z-index: 999;
+}
+.settings-dropdown.hidden {
+    display: none;
+}
+@keyframes settingsSlideIn {
+    from {
+        opacity: 0;
+        transform: scale(0.92) translateY(-8px);
+    }
+    to {
+        opacity: 1;
+        transform: scale(1) translateY(0);
+    }
+}
+.settings-dropdown-header {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-family: var(--font-display);
+    font-size: 0.8rem;
+    font-weight: 600;
+    letter-spacing: 0.5px;
+    text-transform: uppercase;
+    color: var(--cyan);
+    padding-bottom: 10px;
+    border-bottom: 1px solid rgba(var(--cyan-rgb), 0.1);
+    margin-bottom: 2px;
+}
+.settings-dropdown-header svg {
+    width: 15px;
+    height: 15px;
+    opacity: 0.9;
 }
 
 /* === LIGHT THEME OVERRIDES === */
@@ -274,6 +349,36 @@ body.light-theme.theme-threads {
     --cyan-rgb: 45, 55, 72;
     --purple-rgb: 74, 85, 104;
 }
+body.light-theme.theme-twitter-x {
+    --cyan: #1a8cd8;
+    --purple: #0f1419;
+    --cyan-rgb: 26, 140, 216;
+    --purple-rgb: 15, 20, 25;
+}
+body.light-theme.theme-reddit {
+    --cyan: #e03d00;
+    --purple: #d97c00;
+    --cyan-rgb: 224, 61, 0;
+    --purple-rgb: 217, 124, 0;
+}
+body.light-theme.theme-soundcloud {
+    --cyan: #e54d00;
+    --purple: #e59400;
+    --cyan-rgb: 229, 77, 0;
+    --purple-rgb: 229, 148, 0;
+}
+body.light-theme.theme-pinterest {
+    --cyan: #bd081c;
+    --purple: #ad0000;
+    --cyan-rgb: 189, 8, 28;
+    --purple-rgb: 173, 0, 0;
+}
+body.light-theme.theme-vimeo {
+    --cyan: #008ebc;
+    --purple: #007094;
+    --cyan-rgb: 0, 142, 188;
+    --purple-rgb: 0, 112, 148;
+}
 
 .light-theme .search-input-wrap {
     background: rgba(255, 255, 255, 0.65);
@@ -293,14 +398,23 @@ body.light-theme.theme-threads {
 .light-theme .progress-track {
     background: rgba(0, 0, 0, 0.06);
 }
-.light-theme .theme-toggle-btn {
-    background: rgba(0, 0, 0, 0.03);
+.light-theme .header-action-btn {
+    background: rgba(0, 0, 0, 0.04);
+    border-color: rgba(0, 0, 0, 0.08);
 }
-.light-theme .theme-toggle-btn .sun-icon {
+.light-theme .header-action-btn .sun-icon {
     display: none;
 }
-.light-theme .theme-toggle-btn .moon-icon {
+.light-theme .header-action-btn .moon-icon {
     display: block;
+}
+.light-theme .settings-dropdown {
+    background: rgba(255, 255, 255, 0.95);
+    border-color: rgba(0, 0, 0, 0.08);
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.12), 0 1px 0 rgba(255, 255, 255, 0.5) inset;
+}
+.light-theme #settings-toggle.active {
+    background: rgba(var(--cyan-rgb), 0.1);
 }
 
 /* === CARD === */
@@ -598,6 +712,7 @@ body[class*="theme-"] .card {
     inset: 0;
     width: 100%; height: 100%;
     object-fit: cover;
+    transition: opacity 0.25s ease-in-out;
 }
 .tag {
     position: absolute;
@@ -1381,7 +1496,9 @@ body[class*="theme-"] .card {
     .logo h1 { font-size: 1.5rem; }
     .logo-icon { width: 24px; height: 24px; }
     .logo-img { width: 34px; height: 34px; border-radius: 8px; border-width: 1.5px; }
-    .theme-toggle-btn { right: 0px; top: 0px; width: 36px; height: 36px; }
+    .header-action-btn { width: 34px; height: 34px; }
+    .header-actions { top: 0px; gap: 6px; }
+    .settings-dropdown { min-width: 260px; padding: 14px; }
     .subtitle { font-size: 0.8rem; }
     .card { padding: 16px; gap: 16px; }
     .search-bar { flex-direction: column; gap: 10px; }
@@ -1959,6 +2076,7 @@ body[class*="theme-"] .card {
         gap: 12px;
         align-items: stretch;
         padding: 16px;
+    }
     .preview-meta {
         text-align: center;
     }
@@ -2142,4 +2260,599 @@ body.theme-tiktok-story {
     --purple-rgb: 254, 9, 121;
 }
 
+/* Twitter/X Theme */
+body.theme-twitter-x {
+    --cyan: #1d9bf0;
+    --purple: #ffffff;
+    --cyan-rgb: 29, 155, 240;
+    --purple-rgb: 255, 255, 255;
+}
 
+/* Reddit Theme */
+body.theme-reddit {
+    --cyan: #ff4500;
+    --purple: #ffb700;
+    --cyan-rgb: 255, 69, 0;
+    --purple-rgb: 255, 183, 0;
+}
+
+/* SoundCloud Theme */
+body.theme-soundcloud {
+    --cyan: #ff5500;
+    --purple: #ffaa00;
+    --cyan-rgb: 255, 85, 0;
+    --purple-rgb: 255, 170, 0;
+}
+
+/* Pinterest Theme */
+body.theme-pinterest {
+    --cyan: #bd081c;
+    background: rgba(255, 255, 255, 0.95);
+    border-color: rgba(0,0,0,0.08);
+    box-shadow: 0 10px 25px rgba(0,0,0,0.1);
+}
+.light-theme .btn-control {
+    color: #475569;
+}
+.light-theme .btn-control:hover {
+    background: rgba(0, 0, 0, 0.05);
+    color: var(--cyan);
+}
+.light-theme .subtitle-preview-box {
+    background: #ffffff;
+    box-shadow: 0 10px 30px rgba(0,0,0,0.05);
+}
+.light-theme .subtitle-preview-box .sub-header {
+    background: rgba(0, 0, 0, 0.02);
+    border-bottom-color: var(--border);
+}
+.light-theme .subtitle-preview-box .sub-text-area {
+    color: #334155;
+    background: rgba(0, 0, 0, 0.02);
+}
+.light-theme .preview-loader {
+    background: rgba(245, 247, 251, 0.95);
+}
+.light-theme .btn-preview {
+    background: rgba(var(--cyan-rgb), 0.08);
+}
+.light-theme .btn-preview:hover {
+    color: #ffffff;
+}
+
+/* === DYNAMIC ADAPTIVE THEME OVERRIDES === */
+
+/* YouTube Themes */
+body.theme-youtube {
+    --cyan: #ff0000;
+    --purple: #ff4d4d;
+    --cyan-rgb: 255, 0, 0;
+    --purple-rgb: 255, 77, 77;
+}
+body.theme-youtube-kids {
+    --cyan: #ffbb00;
+    --purple: #00ff66;
+    --cyan-rgb: 255, 187, 0;
+    --purple-rgb: 0, 255, 102;
+}
+body.theme-youtube-music {
+    --cyan: #00ffd0;
+    --purple: #0088ff;
+    --cyan-rgb: 0, 255, 208;
+    --purple-rgb: 0, 136, 255;
+}
+body.theme-youtube-shorts {
+    --cyan: #ff3e3e;
+    --purple: #ff8a00;
+    --cyan-rgb: 255, 62, 62;
+    --purple-rgb: 255, 138, 0;
+}
+body.theme-youtube-live {
+    --cyan: #ff003c;
+    --purple: #ff00a0;
+    --cyan-rgb: 255, 0, 60;
+    --purple-rgb: 255, 0, 160;
+}
+body.theme-youtube-clip {
+    --cyan: #e62117;
+    --purple: #ff6e6e;
+    --cyan-rgb: 230, 33, 23;
+    --purple-rgb: 255, 110, 110;
+}
+
+/* Facebook Themes */
+body.theme-facebook {
+    --cyan: #1877f2;
+    --purple: #00c6ff;
+    --cyan-rgb: 24, 119, 242;
+    --purple-rgb: 0, 198, 255;
+}
+body.theme-facebook-reel {
+    --cyan: #2ecc71;
+    --purple: #00e5ff;
+    --cyan-rgb: 46, 204, 113;
+    --purple-rgb: 0, 229, 255;
+}
+body.theme-facebook-group {
+    --cyan: #20b2aa;
+    --purple: #48d1cc;
+    --cyan-rgb: 32, 178, 170;
+    --purple-rgb: 72, 209, 204;
+}
+body.theme-facebook-live {
+    --cyan: #ff4500;
+    --purple: #ff8c00;
+    --cyan-rgb: 255, 69, 0;
+    --purple-rgb: 255, 140, 0;
+}
+body.theme-facebook-watch {
+    --cyan: #4267b2;
+    --purple: #898f9c;
+    --cyan-rgb: 66, 103, 178;
+    --purple-rgb: 137, 143, 156;
+}
+body.theme-facebook-story {
+    --cyan: #7b1fa2;
+    --purple: #e91e63;
+    --cyan-rgb: 123, 31, 162;
+    --purple-rgb: 233, 30, 99;
+}
+body.theme-facebook-gaming {
+    --cyan: #00bcd4;
+    --purple: #3f51b5;
+    --cyan-rgb: 0, 188, 212;
+    --purple-rgb: 63, 81, 181;
+}
+
+/* Instagram Themes */
+body.theme-instagram {
+    --cyan: #e1306c;
+    --purple: #f77737;
+    --cyan-rgb: 225, 48, 108;
+    --purple-rgb: 247, 119, 55;
+}
+body.theme-instagram-reel {
+    --cyan: #ff8a00;
+    --purple: #da00ff;
+    --cyan-rgb: 255, 138, 0;
+    --purple-rgb: 218, 0, 255;
+}
+body.theme-instagram-story {
+    --cyan: #8a3ab9;
+    --purple: #e95950;
+    --cyan-rgb: 138, 58, 185;
+    --purple-rgb: 233, 89, 80;
+}
+body.theme-instagram-tv {
+    --cyan: #5851db;
+    --purple: #c13584;
+    --cyan-rgb: 88, 81, 219;
+    --purple-rgb: 193, 53, 132;
+}
+body.theme-instagram-post {
+    --cyan: #fd1d1d;
+    --purple: #fccc63;
+    --cyan-rgb: 253, 29, 29;
+    --purple-rgb: 252, 204, 99;
+}
+
+/* Threads Theme */
+body.theme-threads {
+    --cyan: #a855f7;
+    --purple: #ec4899;
+    --cyan-rgb: 168, 85, 247;
+    --purple-rgb: 236, 72, 153;
+}
+
+/* TikTok Theme */
+body.theme-tiktok,
+body.theme-tiktok-video,
+body.theme-tiktok-slideshow,
+body.theme-tiktok-story {
+    --cyan: #00f2fe;
+    --purple: #fe0979;
+    --cyan-rgb: 0, 242, 254;
+    --purple-rgb: 254, 9, 121;
+}
+
+/* Twitter/X Theme */
+body.theme-twitter-x {
+    --cyan: #1d9bf0;
+    --purple: #ffffff;
+    --cyan-rgb: 29, 155, 240;
+    --purple-rgb: 255, 255, 255;
+}
+
+/* Reddit Theme */
+body.theme-reddit {
+    --cyan: #ff4500;
+    --purple: #ffb700;
+    --cyan-rgb: 255, 69, 0;
+    --purple-rgb: 255, 183, 0;
+}
+
+/* SoundCloud Theme */
+body.theme-soundcloud {
+    --cyan: #ff5500;
+    --purple: #ffaa00;
+    --cyan-rgb: 255, 85, 0;
+    --purple-rgb: 255, 170, 0;
+}
+
+/* Pinterest Theme */
+body.theme-pinterest {
+    --cyan: #bd081c;
+    --purple: #e60023;
+    --cyan-rgb: 189, 8, 28;
+    --purple-rgb: 230, 0, 35;
+}
+
+/* Vimeo Theme */
+body.theme-vimeo {
+    --cyan: #1ab7ea;
+    --purple: #86d9f8;
+    --cyan-rgb: 26, 183, 234;
+    --purple-rgb: 134, 217, 248;
+}
+
+/* ==========================================
+   WELCOME DASHBOARD & HISTORY SYSTEM
+   ========================================== */
+.welcome-dashboard {
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+    padding: 16px 20px;
+    background: rgba(255, 255, 255, 0.015);
+    border: 1px solid rgba(255, 255, 255, 0.04);
+    border-radius: var(--radius-sm);
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.02);
+}
+.welcome-header {
+    text-align: center;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+    padding-bottom: 16px;
+    margin-bottom: 4px;
+}
+.welcome-title {
+    font-family: var(--font-display);
+    font-size: 1.5rem;
+    font-weight: 700;
+    margin: 0 0 6px 0;
+    background: linear-gradient(135deg, #00f2fe, #a855f7);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    text-shadow: 0 0 40px rgba(0, 242, 254, 0.15);
+    letter-spacing: 0.5px;
+}
+.welcome-subtitle {
+    font-size: 0.85rem;
+    color: var(--text-dim);
+    margin: 0;
+    line-height: 1.4;
+}
+.welcome-section-title {
+    font-family: var(--font-display);
+    font-size: 0.8rem;
+    font-weight: 600;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    color: var(--text-dim);
+    margin: 0 0 12px 0;
+    opacity: 0.85;
+}
+.platform-badges-grid {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+}
+.platform-badge {
+    padding: 6px 12px;
+    border-radius: 6px;
+    font-size: 0.78rem;
+    font-weight: 500;
+    backdrop-filter: blur(4px);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    background: rgba(255, 255, 255, 0.02);
+    color: var(--text-dim);
+    transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
+    cursor: pointer;
+    user-select: none;
+}
+.platform-badge:hover {
+    color: #fff;
+    transform: translateY(-2px);
+}
+.platform-badge.tag-youtube:hover {
+    border-color: rgba(255, 0, 0, 0.6);
+    background: rgba(255, 0, 0, 0.12);
+    box-shadow: 0 0 15px rgba(255, 0, 0, 0.3);
+}
+.platform-badge.tag-facebook:hover {
+    border-color: rgba(24, 119, 242, 0.6);
+    background: rgba(24, 119, 242, 0.12);
+    box-shadow: 0 0 15px rgba(24, 119, 242, 0.3);
+}
+.platform-badge.tag-instagram:hover {
+    border-color: rgba(225, 48, 108, 0.6);
+    background: rgba(225, 48, 108, 0.12);
+    box-shadow: 0 0 15px rgba(225, 48, 108, 0.3);
+}
+.platform-badge.tag-threads:hover {
+    border-color: rgba(168, 85, 247, 0.6);
+    background: rgba(168, 85, 247, 0.12);
+    box-shadow: 0 0 15px rgba(168, 85, 247, 0.3);
+}
+.platform-badge.tag-tiktok:hover {
+    border-color: rgba(0, 242, 254, 0.6);
+    background: rgba(0, 242, 254, 0.12);
+    box-shadow: 0 0 15px rgba(0, 242, 254, 0.3);
+}
+.platform-badge.tag-twitter:hover {
+    border-color: rgba(29, 155, 240, 0.6);
+    background: rgba(29, 155, 240, 0.12);
+    box-shadow: 0 0 15px rgba(29, 155, 240, 0.3);
+}
+.platform-badge.tag-reddit:hover {
+    border-color: rgba(255, 69, 0, 0.6);
+    background: rgba(255, 69, 0, 0.12);
+    box-shadow: 0 0 15px rgba(255, 69, 0, 0.3);
+}
+.platform-badge.tag-soundcloud:hover {
+    border-color: rgba(255, 85, 0, 0.6);
+    background: rgba(255, 85, 0, 0.12);
+    box-shadow: 0 0 15px rgba(255, 85, 0, 0.3);
+}
+.platform-badge.tag-pinterest:hover {
+    border-color: rgba(189, 8, 28, 0.6);
+    background: rgba(189, 8, 28, 0.12);
+    box-shadow: 0 0 15px rgba(189, 8, 28, 0.3);
+}
+.platform-badge.tag-vimeo:hover {
+    border-color: rgba(26, 183, 234, 0.6);
+    background: rgba(26, 183, 234, 0.12);
+    box-shadow: 0 0 15px rgba(26, 183, 234, 0.3);
+}
+
+.welcome-history {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+.history-list {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    max-height: 260px;
+    overflow-y: auto;
+    padding-right: 4px;
+}
+.history-list::-webkit-scrollbar { width: 4px; }
+.history-list::-webkit-scrollbar-track { background: transparent; }
+.history-list::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.06); border-radius: 10px; }
+.history-list::-webkit-scrollbar-thumb:hover { background: linear-gradient(180deg, var(--cyan), var(--purple)); }
+
+.history-item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 8px 12px;
+    border: 1px solid rgba(255, 255, 255, 0.05);
+    border-radius: var(--radius-xs);
+    background: rgba(255, 255, 255, 0.01);
+    transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
+    cursor: pointer;
+}
+.history-item:hover {
+    border-color: rgba(0, 242, 254, 0.35);
+    background: rgba(0, 242, 254, 0.04);
+    transform: translateX(4px);
+    box-shadow: 0 4px 12px rgba(0, 242, 254, 0.05);
+}
+.history-item-left {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    min-width: 0;
+    flex: 1;
+}
+.history-thumb {
+    width: 48px;
+    height: 28px;
+    border-radius: 4px;
+    object-fit: cover;
+    background: rgba(0, 0, 0, 0.3);
+    border: 1px solid rgba(255, 255, 255, 0.04);
+    flex-shrink: 0;
+}
+.history-details {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    min-width: 0;
+    flex: 1;
+}
+.history-title {
+    font-size: 0.82rem;
+    font-weight: 500;
+    color: var(--text);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+.history-meta {
+    font-size: 0.7rem;
+    color: var(--text-faint);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+.history-platform-tag {
+    font-size: 0.65rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    padding: 1px 5px;
+    border-radius: 3px;
+    line-height: 1;
+    background: rgba(255, 255, 255, 0.06);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+}
+.history-platform-tag.youtube { color: #ff0000; border-color: rgba(255, 0, 0, 0.3); background: rgba(255, 0, 0, 0.06); }
+.history-platform-tag.facebook { color: #1877f2; border-color: rgba(24, 119, 242, 0.3); background: rgba(24, 119, 242, 0.06); }
+.history-platform-tag.instagram { color: #e1306c; border-color: rgba(225, 48, 108, 0.3); background: rgba(225, 48, 108, 0.06); }
+.history-platform-tag.threads { color: #a855f7; border-color: rgba(168, 85, 247, 0.3); background: rgba(168, 85, 247, 0.06); }
+.history-platform-tag.tiktok { color: #00f2fe; border-color: rgba(0, 242, 254, 0.3); background: rgba(0, 242, 254, 0.06); }
+.history-platform-tag.twitter-x { color: #1d9bf0; border-color: rgba(29, 155, 240, 0.3); background: rgba(29, 155, 240, 0.06); }
+.history-platform-tag.reddit { color: #ff4500; border-color: rgba(255, 69, 0, 0.3); background: rgba(255, 69, 0, 0.06); }
+.history-platform-tag.soundcloud { color: #ff5500; border-color: rgba(255, 85, 0, 0.3); background: rgba(255, 85, 0, 0.06); }
+.history-platform-tag.pinterest { color: #bd081c; border-color: rgba(189, 8, 28, 0.3); background: rgba(189, 8, 28, 0.06); }
+.history-platform-tag.vimeo { color: #1ab7ea; border-color: rgba(26, 183, 234, 0.3); background: rgba(26, 183, 234, 0.06); }
+
+.history-arrow {
+    width: 14px;
+    height: 14px;
+    color: var(--text-faint);
+    transition: transform 0.2s ease, color 0.2s ease;
+}
+.history-item:hover .history-arrow {
+    transform: translateX(2px);
+    color: #00f2fe;
+}
+
+/* Specific styling for result grid in welcome-mode */
+.result-grid.welcome-mode {
+    grid-template-columns: 1fr;
+}
+.result-grid.welcome-mode .media-info {
+    display: none;
+}
+.result-grid.welcome-mode .format-panel {
+    width: 100%;
+}
+.result-grid.welcome-mode .format-list {
+    display: none;
+}
+.result-grid.welcome-mode .welcome-dashboard {
+    display: flex;
+}
+.result-grid:not(.welcome-mode) .welcome-dashboard {
+    display: none;
+}
+.result-grid:not(.welcome-mode) .format-list {
+    display: flex;
+}
+
+/* Light Theme overrides for Welcome Dashboard */
+.light-theme .welcome-dashboard {
+    background: rgba(0, 0, 0, 0.01);
+    border: 1px solid rgba(0, 0, 0, 0.05);
+}
+.light-theme .platform-badge {
+    background: rgba(0, 0, 0, 0.02);
+    border: 1px solid rgba(0, 0, 0, 0.06);
+    color: #4a5568;
+}
+.light-theme .platform-badge:hover {
+    color: #000;
+}
+.light-theme .history-item {
+    background: rgba(0, 0, 0, 0.01);
+    border: 1px solid rgba(0, 0, 0, 0.05);
+}
+.light-theme .history-item:hover {
+    border-color: rgba(var(--cyan-rgb), 0.25);
+    background: rgba(var(--cyan-rgb), 0.04);
+}
+.light-theme .history-title {
+    color: #2d3748;
+}
+.light-theme .history-platform-tag {
+    background: rgba(0, 0, 0, 0.04);
+    border: 1px solid rgba(0, 0, 0, 0.06);
+}
+
+/* === ADVANCED OPTIONS (now in settings dropdown) === */
+.advanced-label {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 0.82rem;
+    color: var(--text-dim);
+    cursor: pointer;
+    user-select: none;
+}
+.advanced-label input[type="checkbox"] {
+    display: none;
+}
+.custom-checkbox {
+    width: 14px;
+    height: 14px;
+    border: 1px solid rgba(var(--cyan-rgb), 0.5);
+    border-radius: 3px;
+    background: rgba(255, 255, 255, 0.02);
+    position: relative;
+    transition: all 0.2s;
+}
+.advanced-label input[type="checkbox"]:checked + .custom-checkbox {
+    background: var(--cyan);
+    border-color: var(--cyan);
+}
+.advanced-label input[type="checkbox"]:checked + .custom-checkbox::after {
+    content: '';
+    position: absolute;
+    top: 2px;
+    left: 4px;
+    width: 3px;
+    height: 6px;
+    border: solid #fff;
+    border-width: 0 1.5px 1.5px 0;
+    transform: rotate(45deg);
+}
+.trim-inputs {
+    display: flex;
+    gap: 12px;
+    margin-top: 8px;
+    animation: slideDown 0.2s ease-out;
+}
+.trim-field {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 0.8rem;
+    color: var(--text-faint);
+}
+.trim-field input {
+    width: 84px;
+    background: rgba(0, 0, 0, 0.25);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    padding: 4px 6px;
+    color: var(--text);
+    font-family: var(--font-mono);
+    font-size: 0.8rem;
+    text-align: center;
+    box-shadow: inset 0 1px 2px rgba(0,0,0,0.2);
+}
+.trim-field input:focus {
+    border-color: var(--cyan);
+    outline: none;
+    box-shadow: 0 0 8px rgba(var(--cyan-rgb), 0.3);
+}
+
+/* Light Theme overrides */
+/* Light theme: settings dropdown overrides */
+.light-theme .settings-dropdown {
+    background: rgba(255, 255, 255, 0.96);
+}
+.light-theme .trim-field input {
+    background: rgba(255, 255, 255, 0.85);
+    border-color: rgba(0,0,0,0.1);
+    color: #000;
+}
+.light-theme .custom-checkbox {
+    border-color: rgba(0, 0, 0, 0.2);
+}
+.light-theme .advanced-label input[type="checkbox"]:checked + .custom-checkbox {
+    background: var(--cyan);
+    border-color: var(--cyan);
+}

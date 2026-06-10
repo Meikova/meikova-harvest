@@ -314,6 +314,16 @@ def get_cookie_status(client_id):
                 domains.add("TikTok")
             elif "threads.net" in domain or "threads.com" in domain:
                 domains.add("Threads")
+            elif "twitter.com" in domain or "x.com" in domain:
+                domains.add("Twitter/X")
+            elif "reddit.com" in domain:
+                domains.add("Reddit")
+            elif "soundcloud.com" in domain:
+                domains.add("SoundCloud")
+            elif "pinterest.com" in domain:
+                domains.add("Pinterest")
+            elif "vimeo.com" in domain:
+                domains.add("Vimeo")
     except Exception as e:
         logger.warning(f"Error parsing cookies for status check: {e}")
         
@@ -366,6 +376,44 @@ def format_size(size_bytes):
     return f"{size_bytes:.1f} TB"
 
 
+def format_number(val):
+    if val is None:
+        return "N/A"
+    try:
+        val = int(val)
+        if val >= 1_000_000:
+            return f"{val / 1_000_000:.1f}M"
+        elif val >= 1_000:
+            return f"{val / 1_000:.1f}K"
+        return str(val)
+    except Exception:
+        return str(val)
+
+
+def get_referer_by_url(url):
+    """Helper to return the correct Referer header based on the target URL domain."""
+    if not url:
+        return "https://www.facebook.com/"
+    url_lower = url.lower()
+    if "tiktok" in url_lower or "tiktokcdn" in url_lower:
+        return "https://www.tiktok.com/"
+    elif "twitter" in url_lower or "x.com" in url_lower or "twimg" in url_lower:
+        return "https://x.com/"
+    elif "instagram" in url_lower:
+        return "https://www.instagram.com/"
+    elif "threads" in url_lower:
+        return "https://www.threads.net/"
+    elif "reddit" in url_lower or "redd.it" in url_lower:
+        return "https://www.reddit.com/"
+    elif "soundcloud" in url_lower or "sndcdn" in url_lower:
+        return "https://soundcloud.com/"
+    elif "pinterest" in url_lower or "pinimg" in url_lower:
+        return "https://www.pinterest.com/"
+    elif "vimeo" in url_lower or "vimeocdn" in url_lower:
+        return "https://vimeo.com/"
+    return "https://www.facebook.com/"
+
+
 def get_url_content_length(url, cookies_file=None):
     """Fetches the Content-Length of a URL via HTTP HEAD request."""
     import requests
@@ -376,8 +424,7 @@ def get_url_content_length(url, cookies_file=None):
     }
     
     req_headers = headers.copy()
-    if "tiktok" in url.lower() or "tiktokcdn" in url.lower():
-        req_headers["Referer"] = "https://www.tiktok.com/"
+    req_headers["Referer"] = get_referer_by_url(url)
 
     use_session = False
     if cookies_file and os.path.exists(cookies_file):
@@ -531,6 +578,10 @@ def extract_instagram_via_gallery_dl(url, client_id):
                 continue
             media_url = entry[1]
             meta = entry[2] if len(entry) >= 3 and isinstance(entry[2], dict) else {}
+            
+            # Skip redirect entries
+            if meta.get("subcategory") == "redirect" or meta.get("type") == "redirect":
+                continue
             
             # Get duration
             try:
@@ -976,6 +1027,772 @@ def extract_tiktok_slideshow_via_gallery_dl(url, client_id):
         logger.error(f"gallery-dl TikTok slideshow extraction error: {e}")
         if "login" in str(e).lower() or "verification" in str(e).lower() or "cookie" in str(e).lower():
             raise e
+        return None
+
+def extract_twitter_video_thumbnail_from_html(url):
+    """
+    Attempts to scrape the actual Twitter video thumbnail/poster image URL from the page HTML.
+    """
+    try:
+        import urllib.request
+        import re
+        headers = {
+            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+            "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8",
+            "Accept-Language": "en-US,en;q=0.5",
+            "Referer": "https://x.com/"
+        }
+        req = urllib.request.Request(url, headers=headers)
+        with urllib.request.urlopen(req, timeout=5) as res:
+            html_content = res.read().decode("utf-8", errors="ignore")
+            # Search for amplify_video_thumb or ext_tw_video_thumb or media
+            match = re.search(r'https://pbs\.twimg\.com/(?:amplify_video_thumb|ext_tw_video_thumb|media)/[^\s"\']+', html_content)
+            if match:
+                return match.group(0)
+    except Exception as e:
+        logger.warning(f"Failed to scrape Twitter video thumbnail from HTML: {e}")
+    return None
+
+def extract_twitter_via_gallery_dl(url, client_id):
+    """
+    Invokes gallery-dl via subprocess to extract Twitter/X photo/video posts.
+    Reuses the client's uploaded J2TEAM cookies if available.
+    """
+    import subprocess
+    import json
+    import os
+    from concurrent.futures import ThreadPoolExecutor
+    
+    # Locate gallery-dl executable
+    gallery_dl_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "venv", "Scripts", "gallery-dl.exe")
+    if not os.path.exists(gallery_dl_path):
+        gallery_dl_path = "gallery-dl" # Fallback to path
+        
+    command = [gallery_dl_path, "--dump-json"]
+    
+    # Check if a client-specific cookies file exists
+    if client_id:
+        client_cookies = os.path.join(TEMP_DOWNLOAD_DIR, "cookies", f"cookies_{client_id}.txt")
+        if os.path.exists(client_cookies):
+            command.extend(["--cookies", client_cookies])
+            logger.info(f"gallery-dl (Twitter): Using client cookies file: {client_cookies}")
+            
+    command.append(url)
+    
+    try:
+        logger.info(f"Invoking gallery-dl for Twitter/X: {' '.join(command)}")
+        result = subprocess.run(command, capture_output=True, text=True, encoding="utf-8", errors="ignore")
+        
+        stdout = result.stdout.strip()
+        if not stdout:
+            logger.warning(f"gallery-dl (Twitter) returned empty output. Stderr: {result.stderr}")
+            return None
+            
+        # Parse output
+        entries = []
+        try:
+            data = json.loads(stdout)
+            if isinstance(data, list):
+                if data and isinstance(data[0], list):
+                    for item in data:
+                        if isinstance(item, list):
+                            entries.append(item)
+                else:
+                    entries = [data]
+        except Exception as json_e:
+            logger.info(f"Failed to parse entire gallery-dl (Twitter) stdout as JSON: {json_e}")
+            lines = stdout.splitlines()
+            for line in lines:
+                if line.strip().startswith("["):
+                    try:
+                        entry = json.loads(line)
+                        if isinstance(entry, list):
+                            entries.append(entry)
+                    except Exception as parse_e:
+                        logger.warning(f"Failed to parse Twitter line: {line}. Error: {parse_e}")
+
+        # Check for errors in entries
+        valid_entries = []
+        for entry in entries:
+            if len(entry) >= 2 and isinstance(entry[1], dict) and "error" in entry[1]:
+                err_msg = entry[1].get("message", "")
+                logger.warning(f"gallery-dl (Twitter) returned error: {err_msg}")
+                if any(k in err_msg.lower() for k in ["login", "redirect", "cookie"]):
+                    raise Exception("Twitter login required")
+                continue
+            valid_entries.append(entry)
+            
+        entries = valid_entries
+        if not entries:
+            return None
+            
+        # Extract metadata from the first entry
+        first_metadata = {}
+        for entry in entries:
+            if len(entry) == 2 and isinstance(entry[1], dict):
+                first_metadata = entry[1]
+                break
+            elif len(entry) >= 3 and isinstance(entry[2], dict):
+                first_metadata = entry[2]
+                break
+                
+        # Handle Twitter-specific metadata keys
+        user_info = first_metadata.get("user") or {}
+        uploader = user_info.get("nick") or user_info.get("name") or first_metadata.get("author", {}).get("nick") or "Twitter User"
+        content = first_metadata.get("content") or first_metadata.get("description") or ""
+        
+        title = content.split("\n")[0] if content else f"Tweet by {uploader}"
+        if len(title) > 80:
+            title = title[:80] + "..."
+            
+        description = content or "No description available."
+        
+        # Format date
+        raw_date = first_metadata.get("date")
+        upload_date = "Unknown Date"
+        if raw_date:
+            try:
+                # gallery-dl returns e.g. "2026-06-09 05:21:59"
+                from datetime import datetime
+                dt = datetime.strptime(raw_date.split(".")[0], "%Y-%m-%d %H:%M:%S")
+                upload_date = dt.strftime("%d %b %Y")
+            except Exception:
+                upload_date = raw_date
+                
+        # Stats
+        views = first_metadata.get("view_count")
+        views = format_number(int(views)) if views is not None else "N/A"
+        likes = first_metadata.get("favorite_count")
+        likes = format_number(int(likes)) if likes is not None else "N/A"
+        
+        images = []
+        video_options = []
+        audio_options = []
+        
+        slide_num = 0
+        thumbnail = None
+        duration_sec = 0.0
+        
+        for entry in entries:
+            if len(entry) < 3 or not isinstance(entry[1], str):
+                continue
+            media_url = entry[1]
+            meta = entry[2] if len(entry) >= 3 and isinstance(entry[2], dict) else {}
+            
+            # Skip redirect entries
+            if meta.get("subcategory") == "redirect" or meta.get("type") == "redirect":
+                continue
+            
+            # Determine extension
+            ext = meta.get("extension") or "jpg"
+            if ".mp4" in media_url.lower() or meta.get("type") == "video" or meta.get("type") == "gif":
+                ext = "mp4"
+                
+            slide_num += 1
+            if ext != "mp4" and not thumbnail:
+                thumbnail = media_url
+                
+            if ext == "mp4":
+                # Video item
+                d_val = meta.get("duration")
+                if d_val:
+                    try:
+                        duration_sec = max(duration_sec, float(d_val))
+                    except Exception:
+                        pass
+
+                video_options.append({
+                    "format_id": f"direct_video_slide_{slide_num}",
+                    "resolution": "HD",
+                    "ext": "mp4",
+                    "type": "video",
+                    "size": "Unknown Size",
+                    "label": f"Video Slide {slide_num}",
+                    "url": media_url
+                })
+                # Add video audio options (M4A and MP3)
+                audio_options.append({
+                    "format_id": f"direct_audio_slide_{slide_num}_m4a",
+                    "resolution": "Audio",
+                    "ext": "m4a",
+                    "type": "audio",
+                    "size": "Unknown Size",
+                    "label": f"M4A Audio Slide {slide_num} (128kbps)",
+                    "url": media_url
+                })
+                audio_options.append({
+                    "format_id": f"direct_audio_slide_{slide_num}_mp3",
+                    "resolution": "Audio",
+                    "ext": "mp3",
+                    "type": "audio",
+                    "size": "Unknown Size",
+                    "label": f"MP3 Audio Slide {slide_num} (192kbps)",
+                    "url": media_url
+                })
+            else:
+                # Photo item
+                images.append({
+                    "label": f"Photo {slide_num}",
+                    "url": media_url,
+                    "ext": "jpg"
+                })
+                video_options.append({
+                    "format_id": f"direct_photo_slide_{slide_num}",
+                    "resolution": f"{meta.get('width', 0)}x{meta.get('height', 0)}" if meta.get("width") else "Original",
+                    "ext": "jpg",
+                    "type": "image",
+                    "size": "Unknown Size",
+                    "label": f"Photo {slide_num}",
+                    "url": media_url
+                })
+                
+        # Estimate audio sizes using duration_sec
+        if duration_sec:
+            for opt in audio_options:
+                q_val = "128"
+                if "mp3" in opt.get("format_id", "").lower():
+                    q_val = "192"
+                try:
+                    opt["size"] = format_size(int(duration_sec * int(q_val) * 1000 / 8))
+                except Exception:
+                    pass
+
+        # Resolve sizes in parallel
+        client_cookies = os.path.join(TEMP_DOWNLOAD_DIR, "cookies", f"cookies_{client_id}.txt") if client_id else None
+        
+        def resolve_size(opt):
+            url_to_check = opt.get("url")
+            if url_to_check:
+                size_bytes = get_url_content_length(url_to_check, client_cookies)
+                if size_bytes:
+                    opt["size"] = format_size(size_bytes)
+                    
+        if video_options:
+            with ThreadPoolExecutor(max_workers=min(10, len(video_options))) as executor:
+                list(executor.map(resolve_size, video_options))
+                
+        # If it has a video and the thumbnail is None or avatar, attempt to scrape video thumbnail from HTML
+        has_video_options = any(opt.get("type") == "video" for opt in video_options)
+        if has_video_options and (not thumbnail or (user_info and thumbnail == user_info.get("profile_image"))):
+            scraped_thumb = extract_twitter_video_thumbnail_from_html(url)
+            if scraped_thumb:
+                thumbnail = scraped_thumb
+                logger.info(f"Successfully scraped Twitter video thumbnail from HTML: {thumbnail}")
+                
+        return {
+            "status": "success",
+            "title": title,
+            "uploader": uploader,
+            "duration": format_duration(duration_sec) if duration_sec else "0:00",
+            "thumbnail": thumbnail or (user_info.get("profile_image") if user_info else None),
+            "is_shorts": False,
+            "platform_label": "Twitter/X",
+            "platform_class": "twitter-x",
+            "views": views,
+            "likes": likes,
+            "upload_date": upload_date,
+            "description": description,
+            "category": "Twitter/X Post",
+            "tags": ["Twitter", "X"],
+            "video_options": video_options,
+            "audio_options": audio_options,
+            "subtitles": [],
+            "images": images,
+        }
+    except Exception as e:
+        logger.error(f"gallery-dl Twitter extraction error: {e}")
+        if any(k in str(e).lower() for k in ["login", "redirect", "cookie"]):
+            raise e
+        return None
+
+
+def extract_reddit_via_gallery_dl(url, client_id):
+    """
+    Invokes gallery-dl via subprocess to extract Reddit photo/video posts.
+    Reuses the client's uploaded J2TEAM cookies if available.
+    """
+    import subprocess
+    import json
+    import os
+    from concurrent.futures import ThreadPoolExecutor
+    
+    # Locate gallery-dl executable
+    gallery_dl_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "venv", "Scripts", "gallery-dl.exe")
+    if not os.path.exists(gallery_dl_path):
+        gallery_dl_path = "gallery-dl"
+        
+    command = [gallery_dl_path, "--dump-json"]
+    
+    # Check if a client-specific cookies file exists
+    client_cookies = None
+    if client_id:
+        client_cookies = os.path.join(TEMP_DOWNLOAD_DIR, "cookies", f"cookies_{client_id}.txt")
+        if os.path.exists(client_cookies):
+            command.extend(["--cookies", client_cookies])
+            logger.info(f"gallery-dl (Reddit): Using client cookies file: {client_cookies}")
+            
+    command.append(url)
+    
+    try:
+        logger.info(f"Invoking gallery-dl for Reddit: {' '.join(command)}")
+        result = subprocess.run(command, capture_output=True, text=True, encoding="utf-8", errors="ignore")
+        
+        stdout = result.stdout.strip()
+        if not stdout:
+            logger.warning(f"gallery-dl (Reddit) returned empty output. Stderr: {result.stderr}")
+            return None
+            
+        # Parse output
+        entries = []
+        try:
+            data = json.loads(stdout)
+            if isinstance(data, list):
+                if data and isinstance(data[0], list):
+                    for item in data:
+                        if isinstance(item, list):
+                            entries.append(item)
+                else:
+                    entries = [data]
+        except Exception as json_e:
+            logger.info(f"Failed to parse entire gallery-dl (Reddit) stdout as JSON: {json_e}")
+            lines = stdout.splitlines()
+            for line in lines:
+                if line.strip().startswith("["):
+                    try:
+                        entry = json.loads(line)
+                        if isinstance(entry, list):
+                            entries.append(entry)
+                    except Exception as parse_e:
+                        logger.warning(f"Failed to parse Reddit line: {line}. Error: {parse_e}")
+
+        # Check for errors in entries
+        valid_entries = []
+        for entry in entries:
+            if len(entry) >= 2 and isinstance(entry[1], dict) and "error" in entry[1]:
+                err_msg = entry[1].get("message", "")
+                logger.warning(f"gallery-dl (Reddit) returned error: {err_msg}")
+                if any(k in err_msg.lower() for k in ["login", "redirect", "cookie", "security", "blocked"]):
+                    raise Exception("Reddit login required")
+                continue
+            valid_entries.append(entry)
+            
+        entries = valid_entries
+        if not entries:
+            return None
+            
+        # Extract metadata from the first entry
+        first_metadata = {}
+        for entry in entries:
+            if len(entry) == 2 and isinstance(entry[1], dict):
+                first_metadata = entry[1]
+                break
+            elif len(entry) >= 3 and isinstance(entry[2], dict):
+                first_metadata = entry[2]
+                break
+                
+        uploader = first_metadata.get("author") or "Reddit User"
+        subreddit = first_metadata.get("subreddit") or "reddit"
+        title = first_metadata.get("title") or f"Reddit Post by {uploader}"
+        if len(title) > 80:
+            title = title[:80] + "..."
+            
+        description = first_metadata.get("content") or first_metadata.get("description") or f"Subreddit: r/{subreddit}"
+        
+        # Stats
+        views = first_metadata.get("view_count") or "N/A"
+        likes = first_metadata.get("ups") or first_metadata.get("score") or "N/A"
+        likes = format_number(int(likes)) if likes != "N/A" else "N/A"
+        
+        # Format date
+        raw_date = first_metadata.get("created_utc")
+        upload_date = "Unknown Date"
+        if raw_date:
+            try:
+                from datetime import datetime
+                dt = datetime.fromtimestamp(float(raw_date))
+                upload_date = dt.strftime("%d %b %Y")
+            except Exception:
+                upload_date = str(raw_date)
+                
+        images = []
+        video_options = []
+        audio_options = []
+        
+        slide_num = 0
+        thumbnail = None
+        duration_sec = 0.0
+        
+        for entry in entries:
+            if len(entry) < 3 or not isinstance(entry[1], str):
+                continue
+            media_url = entry[1]
+            meta = entry[2] if len(entry) >= 3 and isinstance(entry[2], dict) else {}
+            
+            # Skip redirect entries
+            if meta.get("subcategory") == "redirect" or meta.get("type") == "redirect":
+                continue
+            
+            ext = meta.get("extension") or "jpg"
+            # Reddit video files usually have .mp4 or m3u8
+            is_video = ".mp4" in media_url.lower() or meta.get("type") == "video" or "v.redd.it" in media_url.lower()
+            if is_video:
+                ext = "mp4"
+                
+            slide_num += 1
+            if not thumbnail:
+                raw_thumb = first_metadata.get("thumbnail", "")
+                # Reddit API returns placeholder strings like 'image', 'self', 'default', 'nsfw', 'spoiler'
+                # instead of actual URLs for some posts. Only use it if it's a real URL.
+                if raw_thumb and raw_thumb.startswith("http"):
+                    thumbnail = raw_thumb
+                else:
+                    thumbnail = media_url
+                
+            if ext == "mp4":
+                # Video item
+                d_val = meta.get("duration")
+                if d_val:
+                    try:
+                        duration_sec = max(duration_sec, float(d_val))
+                    except Exception:
+                        pass
+                video_options.append({
+                    "format_id": f"direct_video_slide_{slide_num}",
+                    "resolution": "HD",
+                    "ext": "mp4",
+                    "type": "video",
+                    "size": "Unknown Size",
+                    "label": f"Video Slide {slide_num}",
+                    "url": media_url
+                })
+                # Add audio options
+                audio_options.append({
+                    "format_id": f"direct_audio_slide_{slide_num}_m4a",
+                    "resolution": "Audio",
+                    "ext": "m4a",
+                    "type": "audio",
+                    "size": "Unknown Size",
+                    "label": f"M4A Audio Slide {slide_num} (128kbps)",
+                    "url": media_url
+                })
+                audio_options.append({
+                    "format_id": f"direct_audio_slide_{slide_num}_mp3",
+                    "resolution": "Audio",
+                    "ext": "mp3",
+                    "type": "audio",
+                    "size": "Unknown Size",
+                    "label": f"MP3 Audio Slide {slide_num} (192kbps)",
+                    "url": media_url
+                })
+            else:
+                # Photo item
+                images.append({
+                    "label": f"Photo {slide_num}",
+                    "url": media_url,
+                    "ext": "jpg"
+                })
+                video_options.append({
+                    "format_id": f"direct_photo_slide_{slide_num}",
+                    "resolution": f"{meta.get('width', 0)}x{meta.get('height', 0)}" if meta.get("width") else "Original",
+                    "ext": "jpg",
+                    "type": "image",
+                    "size": "Unknown Size",
+                    "label": f"Photo {slide_num}",
+                    "url": media_url
+                })
+                
+        # Estimate audio sizes
+        if duration_sec:
+            for opt in audio_options:
+                q_val = "128"
+                if "mp3" in opt.get("format_id", "").lower():
+                    q_val = "192"
+                try:
+                    opt["size"] = format_size(int(duration_sec * int(q_val) * 1000 / 8))
+                except Exception:
+                    pass
+                    
+        # Resolve sizes in parallel
+        def resolve_size(opt):
+            url_to_check = opt.get("url")
+            if url_to_check:
+                size_bytes = get_url_content_length(url_to_check, client_cookies)
+                if size_bytes:
+                    opt["size"] = format_size(size_bytes)
+                    
+        if video_options:
+            with ThreadPoolExecutor(max_workers=min(10, len(video_options))) as executor:
+                list(executor.map(resolve_size, video_options))
+                
+        # Fix thumbnail if it's a video file or Reddit placeholder string
+        if thumbnail and not thumbnail.startswith("http"):
+            thumbnail = None
+        if thumbnail and (".mp4" in thumbnail.lower() or "self" in thumbnail.lower() or "default" in thumbnail.lower() or "image" == thumbnail.lower() or "nsfw" == thumbnail.lower() or "spoiler" == thumbnail.lower()):
+            thumbnail = None
+            
+        return {
+            "status": "success",
+            "title": title,
+            "uploader": uploader,
+            "duration": format_duration(duration_sec) if duration_sec else "0:00",
+            "thumbnail": thumbnail,
+            "is_shorts": False,
+            "platform_label": "Reddit",
+            "platform_class": "reddit",
+            "views": views,
+            "likes": likes,
+            "upload_date": upload_date,
+            "description": description,
+            "category": f"r/{subreddit}",
+            "tags": ["Reddit", subreddit],
+            "video_options": video_options,
+            "audio_options": audio_options,
+            "subtitles": [],
+            "images": images,
+        }
+    except Exception as e:
+        logger.error(f"gallery-dl Reddit extraction error: {e}")
+        if "login" in str(e).lower() or "security" in str(e).lower() or "blocked" in str(e).lower():
+            raise e
+        return None
+
+
+
+def scrape_reddit_fallback(url, client_id=None):
+    """
+    Fallback scraper for Reddit posts using old.reddit.com HTML.
+    Bypasses Cloudflare block on www.reddit.com API endpoints.
+    """
+    import requests
+    import re
+    import html
+    from concurrent.futures import ThreadPoolExecutor
+
+    cookies_dict = {}
+    client_cookies = None
+    if client_id:
+        client_cookies = os.path.join(TEMP_DOWNLOAD_DIR, "cookies", f"cookies_{client_id}.txt")
+        if os.path.exists(client_cookies):
+            try:
+                with open(client_cookies, 'r', encoding='utf-8', errors='ignore') as f:
+                    for line in f:
+                        line = line.strip()
+                        if not line or line.startswith('#'):
+                            continue
+                        parts = line.split('\t')
+                        if len(parts) >= 7:
+                            cookies_dict[parts[5]] = parts[6]
+            except Exception as cookie_err:
+                logger.warning(f"Failed to parse cookies for Reddit fallback: {cookie_err}")
+
+    # Normalize to old.reddit.com and strip query parameters
+    m = re.match(r"https?://(?:www\.|old\.|new\.|embed\.)?reddit\.com/(r/[^/]+/comments/[^/]+/[^/]+)", url)
+    if not m:
+        # Check for redd.it short link
+        m2 = re.match(r"https?://redd\.it/([^/?]+)", url)
+        # Check for Reddit share link format: reddit.com/r/xxx/s/xxx
+        m3 = re.match(r"https?://(?:www\.|old\.|new\.)?reddit\.com/(r/[^/]+/s/[^/?]+)", url) if not m2 else None
+        
+        if m2 or m3:
+            resolve_url = url
+            if m2:
+                post_id = m2.group(1)
+                resolve_url = f"https://old.reddit.com/{post_id}"
+            
+            # Fetch to resolve redirect
+            headers = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"}
+            try:
+                res = requests.get(resolve_url, headers=headers, cookies=cookies_dict, timeout=15, allow_redirects=True)
+                url = res.url
+                logger.info(f"Reddit share/short link resolved to: {url}")
+                m = re.match(r"https?://(?:www\.|old\.|new\.|embed\.)?reddit\.com/(r/[^/]+/comments/[^/]+/[^/]+)", url)
+            except Exception as e:
+                logger.warning(f"Failed to resolve Reddit short/share URL: {e}")
+                return None
+        else:
+            return None
+
+    path = m.group(1)
+    old_url = f"https://old.reddit.com/{path}/"
+    logger.info(f"Reddit Fallback: Scraping HTML from {old_url}")
+    
+    headers = {
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+        "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8",
+        "Accept-Language": "en-US,en;q=0.5"
+    }
+
+    try:
+        res = requests.get(old_url, headers=headers, cookies=cookies_dict, timeout=15)
+        if res.status_code != 200:
+            logger.warning(f"Reddit Fallback request failed with status code {res.status_code}")
+            return None
+            
+        html_content = res.text
+        if "verification" in html_content.lower() and "captcha" in html_content.lower():
+            logger.warning("Reddit Fallback: Hit verification/captcha block even on old.reddit.com")
+            return None
+
+        # Parse title
+        title = "Reddit Post"
+        title_m = re.search(r'<title>(.*?)</title>', html_content)
+        if title_m:
+            title = title_m.group(1).strip()
+            title = re.sub(r"\s*:\s*\w+$", "", title)
+            title = html.unescape(title)
+            
+        # Parse subreddit
+        subreddit = "reddit"
+        sub_url_m = re.search(r"/r/([^/]+)/comments/", url)
+        if sub_url_m:
+            subreddit = sub_url_m.group(1)
+            
+        # Parse author
+        author = "Reddit User"
+        author_m = re.search(r'class="[^"]*author[^"]*"[^>]*>(.*?)</a>', html_content)
+        if author_m:
+            author = author_m.group(1)
+            
+        # Find all media IDs in gallery
+        media_ids = {} # maps id -> ext
+        
+        # Look for preview/direct links in HTML
+        preview_links = re.findall(r'https?://preview\.redd\.it/([^./?]+)\.([^/?"]+)', html_content)
+        for media_id, ext in preview_links:
+            ext = ext.split("&")[0].split("?")[0]
+            if len(media_id) > 5:
+                media_ids[media_id] = ext
+                
+        direct_links = re.findall(r'https?://i\.redd\.it/([^./?]+)\.([^/?"]+)', html_content)
+        for media_id, ext in direct_links:
+            ext = ext.split("&")[0].split("?")[0]
+            if len(media_id) > 5:
+                media_ids[media_id] = ext
+                
+        logger.info(f"Reddit Fallback: Found media IDs: {media_ids}")
+        
+        images = []
+        video_options = []
+        audio_options = []
+        
+        slide_num = 0
+        thumbnail = None
+        
+        for media_id, ext in media_ids.items():
+            slide_num += 1
+            direct_url = f"https://i.redd.it/{media_id}.{ext}"
+            
+            if not thumbnail:
+                thumbnail = f"https://preview.redd.it/{media_id}.jpg?width=320&crop=smart&auto=webp"
+                
+            if ext.lower() == "gif":
+                images.append({
+                    "label": f"GIF {slide_num}",
+                    "url": direct_url,
+                    "ext": "gif"
+                })
+                mp4_url = f"https://preview.redd.it/{media_id}.gif?format=mp4"
+                video_options.append({
+                    "format_id": f"direct_video_slide_{slide_num}",
+                    "resolution": "GIF/MP4",
+                    "ext": "mp4",
+                    "type": "video",
+                    "size": "Unknown Size",
+                    "label": f"Animated GIF {slide_num}",
+                    "url": mp4_url
+                })
+            else:
+                images.append({
+                    "label": f"Photo {slide_num}",
+                    "url": direct_url,
+                    "ext": ext
+                })
+                video_options.append({
+                    "format_id": f"direct_photo_slide_{slide_num}",
+                    "resolution": "Original",
+                    "ext": ext,
+                    "type": "image",
+                    "size": "Unknown Size",
+                    "label": f"Photo {slide_num}",
+                    "url": direct_url
+                })
+                
+        # Look for single video post (v.redd.it)
+        v_reddit_m = re.search(r'https?://v\.redd\.it/([^/\s"]+)', html_content)
+        if v_reddit_m:
+            video_id = v_reddit_m.group(1)
+            logger.info(f"Reddit Fallback: Detected v.redd.it video ID: {video_id}")
+            hls_url = f"https://v.redd.it/{video_id}/HLSPlaylist.m3u8"
+            video_options.append({
+                "format_id": "reddit_hls",
+                "resolution": "Multi",
+                "ext": "mp4",
+                "type": "video",
+                "size": "Unknown Size",
+                "label": "HLS Playlist (Video + Audio)",
+                "url": hls_url
+            })
+            resolutions = ["1080", "720", "480", "360", "240"]
+            for res_val in resolutions:
+                video_options.append({
+                    "format_id": f"reddit_dash_{res_val}",
+                    "resolution": f"{res_val}p",
+                    "ext": "mp4",
+                    "type": "video",
+                    "size": "Unknown Size",
+                    "label": f"Direct Video ({res_val}p)",
+                    "url": f"https://v.redd.it/{video_id}/DASH_{res_val}.mp4"
+                })
+            audio_options.append({
+                "format_id": "reddit_audio",
+                "resolution": "Audio",
+                "ext": "m4a",
+                "type": "audio",
+                "size": "Unknown Size",
+                "label": "Reddit Video Audio",
+                "url": f"https://v.redd.it/{video_id}/DASH_AUDIO_128.mp4"
+            })
+            thumb_m = re.search(r'<meta property="og:image" content="([^"]+)"', html_content)
+            if thumb_m:
+                thumbnail = thumb_m.group(1)
+                
+        if not video_options and not images:
+            logger.warning("Reddit Fallback: Scraped 0 media options.")
+            return None
+            
+        # Resolve sizes in parallel
+        def resolve_size(opt):
+            url_to_check = opt.get("url")
+            if url_to_check:
+                size_bytes = get_url_content_length(url_to_check, client_cookies)
+                if size_bytes:
+                    opt["size"] = format_size(size_bytes)
+                    
+        with ThreadPoolExecutor(max_workers=min(10, len(video_options) + len(audio_options))) as executor:
+            list(executor.map(resolve_size, video_options + audio_options))
+
+        return {
+            "status": "success",
+            "title": title,
+            "uploader": author,
+            "duration": "0:00",
+            "thumbnail": thumbnail,
+            "is_shorts": False,
+            "platform_label": "Reddit",
+            "platform_class": "reddit",
+            "views": "N/A",
+            "likes": "N/A",
+            "upload_date": "Unknown Date",
+            "description": f"Subreddit: r/{subreddit}",
+            "category": f"r/{subreddit}",
+            "tags": ["Reddit", subreddit],
+            "video_options": video_options,
+            "audio_options": audio_options,
+            "subtitles": [],
+            "images": images,
+        }
+    except Exception as e:
+        logger.error(f"Reddit Fallback scraper error: {e}")
         return None
 
 
@@ -1534,6 +2351,95 @@ def get_info():
     if not url:
         return jsonify({"status": "error", "message": "Link URL is required."}), 400
 
+    is_twitter = "twitter.com" in url.lower() or "x.com" in url.lower()
+    twitter_gallery_fallback = None
+    if is_twitter:
+        try:
+            logger.info("Twitter/X URL detected. Attempting extraction via gallery-dl first...")
+            gallery_info = extract_twitter_via_gallery_dl(url, client_id)
+            if gallery_info:
+                # Check if this tweet has video options
+                has_video = False
+                for opt in gallery_info.get("video_options", []):
+                    if opt.get("type") == "video":
+                        has_video = True
+                        break
+                
+                if not has_video:
+                    logger.info("Successfully extracted Twitter/X photo post using gallery-dl.")
+                    return jsonify(gallery_info)
+                else:
+                    logger.info("Twitter/X video post detected. Deferring to yt-dlp for full metadata and thumbnail extraction.")
+                    twitter_gallery_fallback = gallery_info
+        except Exception as gallery_e:
+            logger.warning(f"Primary gallery-dl Twitter/X extraction failed: {gallery_e}. Falling back to yt-dlp...")
+            if any(keyword in str(gallery_e).lower() for keyword in ["login", "redirect", "cookie"]):
+                return jsonify({
+                    "status": "error",
+                    "message": "Bài đăng Twitter/X này yêu cầu cookie tài khoản để truy cập hoặc bị giới hạn độ tuổi. Vui lòng đăng nhập vào Twitter/X trên trình duyệt, xuất và tải lên file cookie J2TEAM (chọn định dạng Netscape hoặc JSON) để tiếp tục."
+                }), 400
+
+    is_reddit = "reddit.com" in url.lower() or "redd.it" in url.lower()
+    reddit_gallery_fallback = None
+    if is_reddit:
+        # Pre-resolve Reddit share links (/r/xxx/s/xxx) to canonical /comments/ URLs
+        import re as re_reddit
+        is_share_link = re_reddit.match(r"https?://(?:www\.|old\.|new\.)?reddit\.com/r/[^/]+/s/[^/?]+", url)
+        if is_share_link:
+            try:
+                import requests as req_resolve
+                resolve_headers = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"}
+                cookies_dict = {}
+                if client_id:
+                    client_cookies = os.path.join(TEMP_DOWNLOAD_DIR, "cookies", f"cookies_{client_id}.txt")
+                    if os.path.exists(client_cookies):
+                        try:
+                            with open(client_cookies, 'r', encoding='utf-8', errors='ignore') as f:
+                                for line in f:
+                                    line = line.strip()
+                                    if not line or line.startswith('#'):
+                                        continue
+                                    parts = line.split('\t')
+                                    if len(parts) >= 7:
+                                        cookies_dict[parts[5]] = parts[6]
+                        except Exception as cookie_err:
+                            logger.warning(f"Failed to parse cookies for Reddit share resolution: {cookie_err}")
+                resolve_res = req_resolve.get(url, headers=resolve_headers, cookies=cookies_dict, timeout=15, allow_redirects=True)
+                resolved_url = resolve_res.url
+                logger.info(f"Reddit share link resolved: {url} -> {resolved_url}")
+                url = resolved_url
+            except Exception as resolve_e:
+                logger.warning(f"Failed to resolve Reddit share link: {resolve_e}")
+        
+        gallery_info = None
+        try:
+            logger.info("Reddit URL detected. Attempting extraction via gallery-dl first...")
+            gallery_info = extract_reddit_via_gallery_dl(url, client_id)
+        except Exception as gallery_e:
+            logger.warning(f"Primary gallery-dl Reddit extraction failed: {gallery_e}. Trying fallback scraper...")
+            
+        if not gallery_info:
+            try:
+                gallery_info = scrape_reddit_fallback(url, client_id)
+            except Exception as fallback_e:
+                logger.error(f"Reddit fallback scraper failed: {fallback_e}")
+                gallery_info = None
+                
+        if gallery_info:
+            # Check if this post has video options
+            has_video = False
+            for opt in gallery_info.get("video_options", []):
+                if opt.get("type") == "video":
+                    has_video = True
+                    break
+            
+            if not has_video:
+                logger.info("Successfully extracted Reddit photo post.")
+                return jsonify(gallery_info)
+            else:
+                logger.info("Reddit video post detected. Deferring to yt-dlp first.")
+                reddit_gallery_fallback = gallery_info
+
     is_threads = "threads.net" in url.lower() or "threads.com" in url.lower()
     if is_threads:
         try:
@@ -1988,6 +2894,14 @@ def get_info():
                     info = ydl_nocookies.extract_info(url, download=False)
             except Exception as nocookie_e:
                 logger.error(f"Metadata extraction without cookies also failed: {nocookie_e}")
+                
+                if is_reddit and reddit_gallery_fallback:
+                    logger.info("yt-dlp failed for Reddit. Falling back to pre-extracted gallery-dl info.")
+                    return jsonify(reddit_gallery_fallback)
+                if is_twitter and twitter_gallery_fallback:
+                    logger.info("yt-dlp failed for Twitter. Falling back to pre-extracted gallery-dl info.")
+                    return jsonify(twitter_gallery_fallback)
+                    
                 err_str = f"{str(first_err)} | {str(nocookie_e)}".lower()
                 
                 is_facebook = any(domain in url.lower() for domain in ["facebook.com", "fb.com", "fb.watch", "fb.gg"])
@@ -2043,7 +2957,7 @@ def get_info():
                         "cookies",
                         "cookies-from-browser",
                         "not available",
-                        "unexpected response",
+                         "unexpected response",
                         "unable to extract",
                         "rehydration"
                     ]
@@ -2051,6 +2965,26 @@ def get_info():
                         return jsonify({
                             "status": "error",
                             "message": "Video hoặc Slideshow TikTok này yêu cầu cookie tài khoản để truy cập hoặc IP hệ thống đang bị chặn (gặp captcha). Vui lòng đăng nhập vào TikTok trên trình duyệt, xuất và tải lên file cookie J2TEAM (chọn định dạng Netscape hoặc JSON) của TikTok để tiếp tục."
+                        }), 400
+
+                is_reddit = "reddit.com" in url.lower() or "redd.it" in url.lower()
+                if is_reddit:
+                    reddit_auth_keywords = [
+                        "authentication is required",
+                        "username and password",
+                        "cookies",
+                        "cookies-from-browser",
+                        "sign in",
+                        "login",
+                        "log in",
+                        "rate limit",
+                        "403",
+                        "429"
+                    ]
+                    if any(keyword in err_str for keyword in reddit_auth_keywords):
+                        return jsonify({
+                            "status": "error",
+                            "message": "Reddit yêu cầu cookie tài khoản để truy cập hoặc IP hệ thống đang bị rate-limit. Vui lòng đăng nhập vào Reddit trên trình duyệt, xuất và tải lên file cookie J2TEAM (chọn định dạng Netscape hoặc JSON) của Reddit để tiếp tục."
                         }), 400
 
                 # --- Instagram photo post fallback ---
@@ -2077,6 +3011,12 @@ def get_info():
                         "status": "error",
                         "message": "Instagram yêu cầu cookie tài khoản để truy cập. Vui lòng xuất và tải lên file cookie J2TEAM (chọn định dạng Netscape hoặc JSON) để tiếp tục."
                     }), 400
+                if is_reddit and reddit_gallery_fallback:
+                    logger.info("yt-dlp failed for Reddit video. Falling back to pre-extracted gallery-dl info.")
+                    return jsonify(reddit_gallery_fallback)
+                if is_twitter and twitter_gallery_fallback:
+                    logger.info("yt-dlp failed for Twitter video. Falling back to pre-extracted gallery-dl info.")
+                    return jsonify(twitter_gallery_fallback)
                 return jsonify({
                     "status": "error",
                     "message": f"Unable to extract media metadata: {nocookie_e}"
@@ -2099,6 +3039,12 @@ def get_info():
                     "status": "error",
                     "message": "Instagram yêu cầu cookie tài khoản để truy cập. Vui lòng xuất và tải lên file cookie J2TEAM (chọn định dạng Netscape hoặc JSON) để tiếp tục."
                 }), 400
+            if is_reddit and reddit_gallery_fallback:
+                logger.info("yt-dlp returned no info for Reddit video. Falling back to pre-extracted gallery-dl info.")
+                return jsonify(reddit_gallery_fallback)
+            if is_twitter and twitter_gallery_fallback:
+                logger.info("yt-dlp returned no info for Twitter video. Falling back to pre-extracted gallery-dl info.")
+                return jsonify(twitter_gallery_fallback)
             return jsonify({
                 "status": "error",
                 "message": "Failed to extract media metadata."
@@ -2500,6 +3446,32 @@ def get_info():
 
                 video_options.sort(key=lambda x: int(x["resolution"].replace("p", "")), reverse=True)
 
+                # Resolve sizes of single video formats in parallel if they are Unknown Size or missing (only for Twitter, TikTok, Instagram, Reddit)
+                is_twitter = "twitter.com" in url.lower() or "x.com" in url.lower()
+                is_tiktok = "tiktok.com" in url.lower()
+                is_instagram = "instagram.com" in url.lower()
+                is_reddit = "reddit.com" in url.lower() or "redd.it" in url.lower()
+                
+                if video_options and (is_twitter or is_tiktok or is_instagram or is_reddit):
+                    from concurrent.futures import ThreadPoolExecutor
+                    client_cookies = os.path.join(TEMP_DOWNLOAD_DIR, "cookies", f"cookies_{client_id}.txt") if client_id else None
+                    
+                    def resolve_single_format_size(opt):
+                        if opt.get("size") == "Unknown Size" or not opt.get("size"):
+                            url_to_check = opt.get("url") or info.get("url")
+                            if opt.get("format_id"):
+                                for f in info.get("formats", []):
+                                    if f.get("format_id") == opt.get("format_id") and f.get("url"):
+                                        url_to_check = f.get("url")
+                                        break
+                            if url_to_check and url_to_check.startswith("http"):
+                                s_bytes = get_url_content_length(url_to_check, cookies_file=client_cookies)
+                                if s_bytes:
+                                    opt["size"] = format_size(s_bytes)
+                                    
+                    with ThreadPoolExecutor(max_workers=min(10, len(video_options))) as executor:
+                        list(executor.map(resolve_single_format_size, video_options))
+
                 if not video_options:
                     video_options.append({
                         "format_id": "bestvideo+bestaudio/best",
@@ -2621,6 +3593,21 @@ def get_info():
                 else:
                     platform_label = "Instagram"
                     platform_class = "instagram"
+            elif "twitter" in extractor or "x.com" in url or "twitter.com" in url:
+                platform_label = "Twitter/X"
+                platform_class = "twitter-x"
+            elif "reddit" in extractor or "reddit.com" in url or "redd.it" in url:
+                platform_label = "Reddit"
+                platform_class = "reddit"
+            elif "soundcloud" in extractor or "soundcloud.com" in url:
+                platform_label = "SoundCloud"
+                platform_class = "soundcloud"
+            elif "pinterest" in extractor or "pinterest.com" in url or "pin.it" in url:
+                platform_label = "Pinterest"
+                platform_class = "pinterest"
+            elif "vimeo" in extractor or "vimeo.com" in url:
+                platform_label = "Vimeo"
+                platform_class = "vimeo"
             else:
                 # Capitalize first letter of extractor
                 raw_platform = info.get("extractor_key", "Video")
@@ -2708,7 +3695,86 @@ def get_info():
         return jsonify({"status": "error", "message": f"Could not parse URL. {str(e)}"}), 500
 
 
-def bg_download_task(download_id, url, format_id, ext, quality="192", title="media", client_id=None):
+def trim_file_if_needed(filepath, trim_start, trim_end):
+    if not filepath or not os.path.exists(filepath):
+        return filepath
+    
+    start = str(trim_start or "").strip()
+    end = str(trim_end or "").strip()
+    
+    def is_zero_time(t):
+        if not t:
+            return True
+        t_clean = t.replace(":", "").replace(".", "").strip()
+        try:
+            return int(t_clean) == 0
+        except Exception:
+            return False
+            
+    if (not start or is_zero_time(start)) and (not end or is_zero_time(end)):
+        return filepath
+        
+    logger.info(f"Trimming file {filepath} from {start} to {end or 'EOF'}...")
+    
+    base, ext = os.path.splitext(filepath)
+    output_filepath = base + "_trimmed" + ext
+    
+    try:
+        import static_ffmpeg
+        static_ffmpeg.add_paths()
+    except Exception as path_e:
+        logger.warning(f"Failed to add static-ffmpeg paths for trimming: {path_e}")
+        
+    cmd = ["ffmpeg", "-y"]
+    if start and not is_zero_time(start):
+        cmd.extend(["-ss", start])
+    if end and not is_zero_time(end):
+        cmd.extend(["-to", end])
+        
+    cmd.extend(["-i", filepath, "-c", "copy", output_filepath])
+    
+    logger.info(f"Running FFmpeg trim command: {' '.join(cmd)}")
+    import subprocess
+    result = subprocess.run(cmd, capture_output=True, text=True)
+    if result.returncode == 0 and os.path.exists(output_filepath) and os.path.getsize(output_filepath) > 0:
+        logger.info("Trimming successful. Replacing original file.")
+        try:
+            os.remove(filepath)
+            os.rename(output_filepath, filepath)
+            return filepath
+        except Exception as replace_err:
+            logger.warning(f"Failed to replace trimmed file: {replace_err}")
+            return output_filepath
+    else:
+        logger.warning(f"FFmpeg copy trim failed (code {result.returncode}). Stderr: {result.stderr}")
+        cmd_transcode = ["ffmpeg", "-y"]
+        if start and not is_zero_time(start):
+            cmd_transcode.extend(["-ss", start])
+        if end and not is_zero_time(end):
+            cmd_transcode.extend(["-to", end])
+        cmd_transcode.extend(["-i", filepath, output_filepath])
+        logger.info(f"Running FFmpeg transcode trim fallback: {' '.join(cmd_transcode)}")
+        res_trans = subprocess.run(cmd_transcode, capture_output=True, text=True)
+        if res_trans.returncode == 0 and os.path.exists(output_filepath) and os.path.getsize(output_filepath) > 0:
+            logger.info("Transcode trim fallback successful. Replacing original file.")
+            try:
+                os.remove(filepath)
+                os.rename(output_filepath, filepath)
+                return filepath
+            except Exception as replace_err:
+                logger.warning(f"Failed to replace trimmed file: {replace_err}")
+                return output_filepath
+        else:
+            logger.error(f"FFmpeg transcode trim also failed. Stderr: {res_trans.stderr}")
+            if os.path.exists(output_filepath):
+                try:
+                    os.remove(output_filepath)
+                except Exception:
+                    pass
+            return filepath
+
+
+def bg_download_task(download_id, url, format_id, ext, quality="192", title="media", client_id=None, trim_start=None, trim_end=None, translate_subs=None):
     """Background thread task to download media via yt-dlp."""
     temp_dir = os.path.join(TEMP_DOWNLOAD_DIR, f"temp_{download_id}")
     os.makedirs(temp_dir, exist_ok=True)
@@ -2728,15 +3794,10 @@ def bg_download_task(download_id, url, format_id, ext, quality="192", title="med
                         "message": "Connecting to direct stream source..."
                     })
                     
-            referer = "https://www.facebook.com/"
-            url_lower = url.lower()
-            format_id_lower = str(format_id).lower()
-            if "tiktok" in url_lower or "tiktok" in format_id_lower:
+            referer = get_referer_by_url(url)
+            # Fallback for format_id check if referer defaults to facebook
+            if referer == "https://www.facebook.com/" and "tiktok" in str(format_id).lower():
                 referer = "https://www.tiktok.com/"
-            elif "instagram" in url_lower:
-                referer = "https://www.instagram.com/"
-            elif "threads" in url_lower:
-                referer = "https://www.threads.net/"
 
             headers = {
                 "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
@@ -2904,6 +3965,26 @@ def bg_download_task(download_id, url, format_id, ext, quality="192", title="med
                     progress_val = int(pct * 0.90)
                     msg = f"Downloading: {pct}%"
 
+            speed_bytes = d.get("speed")
+            speed_str = ""
+            if speed_bytes is not None:
+                if speed_bytes > 1024 * 1024:
+                    speed_str = f"{speed_bytes / (1024 * 1024):.1f} MB/s"
+                elif speed_bytes > 1024:
+                    speed_str = f"{speed_bytes / 1024:.1f} KB/s"
+                else:
+                    speed_str = f"{speed_bytes:.0f} B/s"
+
+            eta_seconds = d.get("eta")
+            eta_str = ""
+            if eta_seconds is not None:
+                if eta_seconds > 60:
+                    m = int(eta_seconds // 60)
+                    s = int(eta_seconds % 60)
+                    eta_str = f"{m}m {s}s"
+                else:
+                    eta_str = f"{eta_seconds}s"
+
             with downloads_status_lock:
                 if download_id in downloads_status:
                     cur = downloads_status[download_id].get("progress", 0)
@@ -2911,6 +3992,8 @@ def bg_download_task(download_id, url, format_id, ext, quality="192", title="med
                         "status": "downloading",
                         "progress": max(cur, progress_val),
                         "message": msg,
+                        "speed": speed_str,
+                        "eta": eta_str,
                     })
 
         elif d["status"] == "finished":
@@ -3124,6 +4207,8 @@ def get_download_status(download_id):
         "message": status_info["message"],
         "ext": status_info.get("ext", ""),
         "error": status_info.get("error"),
+        "speed": status_info.get("speed", ""),
+        "eta": status_info.get("eta", ""),
     })
 
 
@@ -3211,7 +4296,8 @@ def download_image():
     try:
         import requests
         headers = {
-            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
+            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+            "Referer": get_referer_by_url(url)
         }
         
         cookies_dict = {}
@@ -3244,6 +4330,54 @@ def download_image():
             return Response(resp.content, headers=headers)
         else:
             return f"Failed to download image: HTTP {resp.status_code}", 500
+    except Exception as e:
+        return f"Error: {e}", 500
+
+
+@app.route("/api/proxy/image", methods=["GET"])
+def proxy_image():
+    url = request.args.get("url")
+    client_id = request.args.get("client_id")
+    if not url:
+        return "Missing url parameter", 400
+    try:
+        import requests
+        headers = {
+            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+            "Referer": get_referer_by_url(url)
+        }
+        
+        cookies_dict = {}
+        if client_id:
+            client_cookies = os.path.join(TEMP_DOWNLOAD_DIR, "cookies", f"cookies_{client_id}.txt")
+            if os.path.exists(client_cookies):
+                try:
+                    with open(client_cookies, 'r', encoding='utf-8', errors='ignore') as f:
+                        for line in f:
+                            line = line.strip()
+                            if not line or line.startswith('#'):
+                                continue
+                            parts = line.split('\t')
+                            if len(parts) >= 7:
+                                name = parts[5]
+                                value = parts[6]
+                                cookies_dict[name] = value
+                except Exception as cookie_err:
+                    logger.warning(f"Failed to parse cookies file {client_cookies}: {cookie_err}")
+
+        resp = requests.get(url, headers=headers, cookies=cookies_dict, timeout=15)
+        if resp.status_code == 200:
+            from flask import Response
+            content_type = resp.headers.get("Content-Type", "image/jpeg")
+            # Detect anti-bot block pages: CDN returns HTML instead of image
+            if content_type.startswith("text/html") or (resp.content[:50].strip().startswith(b"<") and not content_type.startswith("image/")):
+                logger.warning(f"Proxy image blocked by CDN (HTML response): {url[:120]}")
+                return "CDN blocked the request (anti-bot)", 502
+            if not content_type.startswith("image/"):
+                content_type = "image/jpeg"
+            return Response(resp.content, mimetype=content_type)
+        else:
+            return f"Failed to proxy image: HTTP {resp.status_code}", resp.status_code
     except Exception as e:
         return f"Error: {e}", 500
 
@@ -3292,8 +4426,7 @@ def download_images_zip():
                     continue
                 try:
                     req_headers = headers.copy()
-                    if "tiktok" in url.lower() or "tiktokcdn" in url.lower():
-                        req_headers["Referer"] = "https://www.tiktok.com/"
+                    req_headers["Referer"] = get_referer_by_url(url)
                     resp = requests.get(url, headers=req_headers, cookies=cookies_dict, timeout=10)
                     if resp.status_code == 200:
                         import re

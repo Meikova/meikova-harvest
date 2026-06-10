@@ -18,11 +18,126 @@ document.addEventListener("DOMContentLoaded", () => {
         });
     }
 
+    // Settings Dropdown Toggle
+    const settingsToggle = document.getElementById("settings-toggle");
+    const settingsDropdown = document.getElementById("settings-dropdown");
+    if (settingsToggle && settingsDropdown) {
+        settingsToggle.addEventListener("click", (e) => {
+            e.stopPropagation();
+            const isHidden = settingsDropdown.classList.contains("hidden");
+            if (isHidden) {
+                settingsDropdown.classList.remove("hidden");
+                settingsToggle.classList.add("active");
+            } else {
+                settingsDropdown.classList.add("hidden");
+                settingsToggle.classList.remove("active");
+            }
+        });
+        // Close on click outside
+        document.addEventListener("click", (e) => {
+            if (!settingsDropdown.contains(e.target) && !settingsToggle.contains(e.target)) {
+                settingsDropdown.classList.add("hidden");
+                settingsToggle.classList.remove("active");
+            }
+        });
+        // Wire up trim checkbox toggle inside dropdown
+        const trimCb = document.getElementById("trim-checkbox");
+        const trimContainer = document.getElementById("trim-inputs-container");
+        if (trimCb && trimContainer) {
+            trimCb.addEventListener("change", () => {
+                if (trimCb.checked) {
+                    trimContainer.classList.remove("hidden");
+                } else {
+                    trimContainer.classList.add("hidden");
+                }
+            });
+        }
+    }
+
     // Unique Client ID Management
     let clientId = localStorage.getItem("client_id");
     if (!clientId) {
         clientId = "client_" + Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15);
         localStorage.setItem("client_id", clientId);
+    }
+
+    // UI Elements
+    const urlInput = document.getElementById("url-input");
+    const pasteBtn = document.getElementById("paste-btn");
+    const analyzeBtn = document.getElementById("analyze-btn");
+    
+    const loaderSection = document.getElementById("loader");
+    const loaderText = document.getElementById("loader-text");
+    const errorCard = document.getElementById("error-card");
+    const errorMessage = document.getElementById("error-message");
+    
+    const resultSection = document.getElementById("result-section");
+    const videoThumbnail = document.getElementById("video-thumbnail");
+    if (videoThumbnail) {
+        videoThumbnail.addEventListener("load", function() {
+            videoThumbnail.style.opacity = "1";
+        });
+        videoThumbnail.addEventListener("error", function() {
+            // If the proxied URL failed, try loading the original direct URL as fallback
+            const currentSrc = videoThumbnail.src || "";
+            const originalUrl = videoThumbnail.getAttribute("data-original-url");
+            if (currentSrc.includes("/api/proxy/image") && originalUrl) {
+                console.warn("Proxy image failed, falling back to direct URL:", originalUrl);
+                videoThumbnail.removeAttribute("data-original-url"); // prevent infinite loop
+                videoThumbnail.src = originalUrl;
+                return;
+            }
+            // Final fallback: show a styled placeholder
+            videoThumbnail.style.opacity = "1";
+            videoThumbnail.alt = "Thumbnail unavailable";
+        });
+    }
+    const videoTitle = document.getElementById("video-title");
+    const videoUploader = document.getElementById("video-uploader");
+    const videoDuration = document.getElementById("video-duration-badge");
+    const mediaBadge = document.getElementById("media-badge");
+    const optionsContainer = document.getElementById("options-container");
+    
+    const downloadProgress = document.getElementById("download-progress");
+    const progressPercent = document.getElementById("progress-percent");
+    const progressBarFill = document.getElementById("progress-fill");
+    const downloadStatusTitle = document.getElementById("download-status-title");
+    const downloadStatusMessage = document.getElementById("download-status-message");
+    const downloadFormatLabel = document.getElementById("download-format-label");
+
+    // Preview Modal DOM Elements
+    const previewModal = document.getElementById("preview-modal");
+    const previewModalCloseBtn = document.getElementById("preview-modal-close-btn");
+    const previewTitle = document.getElementById("preview-title");
+    const previewLoader = document.getElementById("preview-loader");
+    const previewLoaderText = document.getElementById("preview-loader-text");
+    const previewVideoContainer = document.getElementById("preview-video-container");
+    const previewVideoPlayer = document.getElementById("preview-video-player");
+    const previewAudioContainer = document.getElementById("preview-audio-container");
+    const previewAudioPlayer = document.getElementById("preview-audio-player");
+    const previewImageContainer = document.getElementById("preview-image-container");
+    const previewImageElement = document.getElementById("preview-image-element");
+    const previewSubtitleContainer = document.getElementById("preview-subtitle-container");
+    const previewSubLang = document.getElementById("preview-sub-lang");
+    const previewSubText = document.getElementById("preview-sub-text");
+    const btnCopySub = document.getElementById("btn-copy-sub");
+    const previewMetaInfo = document.getElementById("preview-meta-info");
+    const previewDownloadBtn = document.getElementById("preview-download-btn");
+    const btnZoomIn = document.getElementById("btn-zoom-in");
+    const btnZoomOut = document.getElementById("btn-zoom-out");
+    const btnRotate = document.getElementById("btn-rotate");
+
+    function getProxiedImageUrl(url) {
+        if (!url) return "";
+        // Reject Reddit placeholder strings like 'image', 'self', 'default', 'nsfw', 'spoiler'
+        if (!url.startsWith("http")) return "";
+        // Reddit CDN (redd.it, redditmedia.com, redditstatic.com) blocks server-side
+        // requests via TLS fingerprinting / anti-bot, but allows direct browser loading.
+        // So we do NOT proxy Reddit image URLs — let the browser fetch them directly.
+        if (url.includes("twimg.com") || url.includes("instagram.com") || url.includes("cdninstagram.com") || url.includes("fbcdn.net") || url.includes("pinimg.com")) {
+            return `/api/proxy/image?url=${encodeURIComponent(url)}${clientId ? `&client_id=${clientId}` : ''}`;
+        }
+        return url;
     }
 
     // Cookies UI Elements
@@ -34,6 +149,22 @@ document.addEventListener("DOMContentLoaded", () => {
 
     // Check cookie status on load
     checkCookieStatus();
+
+    // Initialize welcome dashboard and render history
+    showWelcomeDashboard();
+
+    // Wire up platform badge example URL clicks
+    const platformBadges = document.querySelectorAll(".platform-badge");
+    platformBadges.forEach(badge => {
+        badge.addEventListener("click", () => {
+            const hintUrl = badge.getAttribute("data-url-hint");
+            if (hintUrl) {
+                urlInput.value = hintUrl;
+                urlInput.focus();
+                triggerGlowEffect();
+            }
+        });
+    });
 
     async function checkCookieStatus() {
         try {
@@ -156,57 +287,10 @@ document.addEventListener("DOMContentLoaded", () => {
         }
     }
 
-    // UI Elements
-    const urlInput = document.getElementById("url-input");
-    const pasteBtn = document.getElementById("paste-btn");
-    const analyzeBtn = document.getElementById("analyze-btn");
-    
-    const loaderSection = document.getElementById("loader");
-    const loaderText = document.getElementById("loader-text");
-    const errorCard = document.getElementById("error-card");
-    const errorMessage = document.getElementById("error-message");
-    
-    const resultSection = document.getElementById("result-section");
-    const videoThumbnail = document.getElementById("video-thumbnail");
-    const videoTitle = document.getElementById("video-title");
-    const videoUploader = document.getElementById("video-uploader");
-    const videoDuration = document.getElementById("video-duration-badge");
-    const mediaBadge = document.getElementById("media-badge");
-    const optionsContainer = document.getElementById("options-container");
-    
-    const downloadProgress = document.getElementById("download-progress");
-    const progressPercent = document.getElementById("progress-percent");
-    const progressBarFill = document.getElementById("progress-fill");
-    const downloadStatusTitle = document.getElementById("download-status-title");
-    const downloadStatusMessage = document.getElementById("download-status-message");
-    const downloadFormatLabel = document.getElementById("download-format-label");
-
     // Global state
     let activeUrl = "";
     let pollingInterval = null;
     let extractedImages = [];
-
-    // Preview Modal DOM Elements
-    const previewModal = document.getElementById("preview-modal");
-    const previewModalCloseBtn = document.getElementById("preview-modal-close-btn");
-    const previewTitle = document.getElementById("preview-title");
-    const previewLoader = document.getElementById("preview-loader");
-    const previewLoaderText = document.getElementById("preview-loader-text");
-    const previewVideoContainer = document.getElementById("preview-video-container");
-    const previewVideoPlayer = document.getElementById("preview-video-player");
-    const previewAudioContainer = document.getElementById("preview-audio-container");
-    const previewAudioPlayer = document.getElementById("preview-audio-player");
-    const previewImageContainer = document.getElementById("preview-image-container");
-    const previewImageElement = document.getElementById("preview-image-element");
-    const previewSubtitleContainer = document.getElementById("preview-subtitle-container");
-    const previewSubLang = document.getElementById("preview-sub-lang");
-    const previewSubText = document.getElementById("preview-sub-text");
-    const btnCopySub = document.getElementById("btn-copy-sub");
-    const previewMetaInfo = document.getElementById("preview-meta-info");
-    const previewDownloadBtn = document.getElementById("preview-download-btn");
-    const btnZoomIn = document.getElementById("btn-zoom-in");
-    const btnZoomOut = document.getElementById("btn-zoom-out");
-    const btnRotate = document.getElementById("btn-rotate");
 
     // Preview state variables
     let previewZoomLevel = 1;
@@ -342,7 +426,21 @@ document.addEventListener("DOMContentLoaded", () => {
         const instagramRegex = /^(https?:\/\/)?([a-z0-9-]+\.)?(instagram\.com|instagr\.am)/i;
         const threadsRegex = /^(https?:\/\/)?([a-z0-9-]+\.)?(threads\.net|threads\.com)/i;
         const tiktokRegex = /^(https?:\/\/)?([a-z0-9-]+\.)?(tiktok\.com)/i;
-        return youtubeRegex.test(url) || facebookRegex.test(url) || instagramRegex.test(url) || threadsRegex.test(url) || tiktokRegex.test(url);
+        const twitterRegex = /^(https?:\/\/)?([a-z0-9-]+\.)?(twitter\.com|x\.com)/i;
+        const redditRegex = /^(https?:\/\/)?([a-z0-9-]+\.)?(reddit\.com|redd\.it)/i;
+        const soundcloudRegex = /^(https?:\/\/)?([a-z0-9-]+\.)?(soundcloud\.com)/i;
+        const pinterestRegex = /^(https?:\/\/)?([a-z0-9-]+\.)?(pinterest\.com|pin\.it)/i;
+        const vimeoRegex = /^(https?:\/\/)?([a-z0-9-]+\.)?(vimeo\.com)/i;
+        return youtubeRegex.test(url) || 
+               facebookRegex.test(url) || 
+               instagramRegex.test(url) || 
+               threadsRegex.test(url) || 
+               tiktokRegex.test(url) ||
+               twitterRegex.test(url) ||
+               redditRegex.test(url) ||
+               soundcloudRegex.test(url) ||
+               pinterestRegex.test(url) ||
+               vimeoRegex.test(url);
     }
 
     const themeColors = {
@@ -437,6 +535,26 @@ document.addEventListener("DOMContentLoaded", () => {
         "tiktok-story": {
             cyan: "#00f2fe", purple: "#fe0979",
             cyanRgb: "0, 242, 254", purpleRgb: "254, 9, 121"
+        },
+        "twitter-x": {
+            cyan: "#1d9bf0", purple: "#ffffff",
+            cyanRgb: "29, 155, 240", purpleRgb: "255, 255, 255"
+        },
+        "reddit": {
+            cyan: "#ff4500", purple: "#ffb700",
+            cyanRgb: "255, 69, 0", purpleRgb: "255, 183, 0"
+        },
+        "soundcloud": {
+            cyan: "#ff5500", purple: "#ffaa00",
+            cyanRgb: "255, 85, 0", purpleRgb: "255, 170, 0"
+        },
+        "pinterest": {
+            cyan: "#bd081c", purple: "#e60023",
+            cyanRgb: "189, 8, 28", purpleRgb: "230, 0, 35"
+        },
+        "vimeo": {
+            cyan: "#1ab7ea", purple: "#86d9f8",
+            cyanRgb: "26, 183, 234", purpleRgb: "134, 217, 248"
         }
     };
 
@@ -469,6 +587,94 @@ document.addEventListener("DOMContentLoaded", () => {
         }
     }
 
+    function showWelcomeDashboard() {
+        const resultGrid = resultSection.querySelector(".result-grid");
+        if (resultGrid) {
+            resultGrid.classList.add("welcome-mode");
+        }
+        resultSection.classList.remove("hidden");
+        renderHistory();
+    }
+
+    function saveToHistory(url, data) {
+        try {
+            let history = JSON.parse(localStorage.getItem("downloader_history") || "[]");
+            
+            // Remove duplicate of the same URL if exists
+            history = history.filter(item => item.url !== url);
+            
+            // Add to the beginning
+            history.unshift({
+                url: url,
+                title: data.title || "Untitled Media",
+                thumbnail: data.thumbnail || "",
+                platform_label: data.platform_label || "Video",
+                platform_class: data.platform_class || "default",
+                timestamp: Date.now()
+            });
+            
+            // Keep at most 10 items
+            if (history.length > 10) {
+                history.pop();
+            }
+            
+            localStorage.setItem("downloader_history", JSON.stringify(history));
+        } catch (e) {
+            console.error("Error saving history:", e);
+        }
+    }
+
+    function renderHistory() {
+        const historyList = document.getElementById("history-list");
+        const historySection = document.getElementById("welcome-history-section");
+        if (!historyList || !historySection) return;
+        
+        try {
+            const history = JSON.parse(localStorage.getItem("downloader_history") || "[]");
+            if (history.length === 0) {
+                historySection.classList.add("hidden");
+                return;
+            }
+            
+            historySection.classList.remove("hidden");
+            historyList.innerHTML = "";
+            
+            history.forEach(item => {
+                const row = document.createElement("div");
+                row.className = "history-item";
+                row.setAttribute("data-url", item.url);
+                
+                const thumbUrl = getProxiedImageUrl(item.thumbnail) || "https://images.unsplash.com/photo-1611162617213-7d7a39e9b1d7?q=80&w=120";
+                
+                row.innerHTML = `
+                    <div class="history-item-left">
+                        <img class="history-thumb" src="${thumbUrl}" alt="Thumb">
+                        <div class="history-details">
+                            <span class="history-title">${item.title}</span>
+                            <div class="history-meta">
+                                <span class="history-platform-tag ${item.platform_class}">${item.platform_label}</span>
+                                <span>${new Date(item.timestamp).toLocaleDateString()}</span>
+                            </div>
+                        </div>
+                    </div>
+                    <svg class="history-arrow" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <line x1="5" y1="12" x2="19" y2="12"></line>
+                        <polyline points="12 5 19 12 12 19"></polyline>
+                    </svg>
+                `;
+                
+                row.addEventListener("click", () => {
+                    urlInput.value = item.url;
+                    performAnalysis();
+                });
+                
+                historyList.appendChild(row);
+            });
+        } catch (e) {
+            console.error("Error rendering history:", e);
+        }
+    }
+
     async function performAnalysis() {
         const url = urlInput.value.trim();
         
@@ -488,6 +694,27 @@ document.addEventListener("DOMContentLoaded", () => {
         resultSection.classList.add("hidden");
         downloadProgress.classList.add("hidden");
         cookiesSection.classList.add("hidden");
+
+        // Reset stale metadata from previous analysis
+        videoThumbnail.src = "";
+        videoThumbnail.style.opacity = "0";
+        videoThumbnail.alt = "Thumbnail";
+        videoTitle.textContent = "Đang phân tích...";
+        videoUploader.textContent = "";
+        videoDuration.textContent = "0:00";
+        if (mediaBadge) {
+            mediaBadge.textContent = "Video";
+            mediaBadge.className = "tag tag-default";
+        }
+        const viewsEl_reset = document.getElementById("video-views");
+        const likesEl_reset = document.getElementById("video-likes");
+        const dateEl_reset = document.getElementById("video-date");
+        if (viewsEl_reset) viewsEl_reset.textContent = "—";
+        if (likesEl_reset) likesEl_reset.textContent = "—";
+        if (dateEl_reset) dateEl_reset.textContent = "—";
+        const tagsReset = document.getElementById("video-tags-container");
+        if (tagsReset) tagsReset.innerHTML = "";
+        optionsContainer.innerHTML = "";
         
         // Show Loading
         loaderSection.classList.remove("hidden");
@@ -510,6 +737,7 @@ document.addEventListener("DOMContentLoaded", () => {
                 activeUrl = url;
                 setPlatformTheme(data.platform_class);
                 displayMetadata(data);
+                saveToHistory(url, data);
             } else {
                 setPlatformTheme(null);
                 showError(data.message || "Unable to extract media information from this URL.");
@@ -518,11 +746,13 @@ document.addEventListener("DOMContentLoaded", () => {
                 if (authKeywords.some(keyword => msg.includes(keyword))) {
                     cookiesSection.classList.remove("hidden");
                 }
+                showWelcomeDashboard();
             }
         } catch (err) {
             console.error(err);
             setPlatformTheme(null);
             showError("Connection lost. Unable to contact local Python downloader server.");
+            showWelcomeDashboard();
         } finally {
             loaderSection.classList.add("hidden");
             analyzeBtn.disabled = false;
@@ -532,8 +762,18 @@ document.addEventListener("DOMContentLoaded", () => {
 
     // Display parsed metadata
     function displayMetadata(data) {
+        const resultGrid = resultSection.querySelector(".result-grid");
+        if (resultGrid) {
+            resultGrid.classList.remove("welcome-mode");
+        }
+        
         // Thumbnail & Title
-        videoThumbnail.src = data.thumbnail || "https://images.unsplash.com/photo-1611162617213-7d7a39e9b1d7?q=80&w=600";
+        videoThumbnail.style.opacity = "0";
+        // Store original URL for fallback if proxy fails
+        if (data.thumbnail) {
+            videoThumbnail.setAttribute("data-original-url", data.thumbnail);
+        }
+        videoThumbnail.src = getProxiedImageUrl(data.thumbnail) || "https://images.unsplash.com/photo-1611162617213-7d7a39e9b1d7?q=80&w=600";
         videoTitle.textContent = data.title;
         videoUploader.textContent = data.uploader;
         videoDuration.textContent = data.duration;
@@ -700,7 +940,7 @@ document.addEventListener("DOMContentLoaded", () => {
                         <input type="checkbox" class="image-select-check custom-checkbox" data-url="${imgUrl}" data-label="${cleanLabel}" data-ext="${imgExt}" data-filename="${filename}">
                     </div>
                     <div class="image-preview-wrap">
-                        <img src="${imgUrl}" alt="${imgLabel}" loading="lazy" onerror="this.src='https://images.unsplash.com/photo-1611162617213-7d7a39e9b1d7?q=80&w=600'">
+                        <img src="${getProxiedImageUrl(imgUrl)}" alt="${imgLabel}" loading="lazy" onerror="this.src='https://images.unsplash.com/photo-1611162617213-7d7a39e9b1d7?q=80&w=600'">
                     </div>
                     <div class="image-info-bar">
                         <div class="image-label" title="${imgLabel}">${cleanLabel}</div>
@@ -1098,6 +1338,38 @@ document.addEventListener("DOMContentLoaded", () => {
             });
         });
 
+        // Setup Advanced Options panel state for the new media
+        const trimCheckbox = document.getElementById("trim-checkbox");
+        const trimInputsContainer = document.getElementById("trim-inputs-container");
+        const trimStartInput = document.getElementById("trim-start");
+        const trimEndInput = document.getElementById("trim-end");
+        const subTranslateContainer = document.getElementById("sub-translate-container");
+        const translateCheckbox = document.getElementById("translate-subs-checkbox");
+
+        if (trimCheckbox) {
+            trimCheckbox.checked = false;
+            if (trimInputsContainer) trimInputsContainer.classList.add("hidden");
+            if (trimStartInput) trimStartInput.value = "00:00:00";
+            if (trimEndInput) {
+                let dur = data.duration || "00:00:10";
+                if (dur.split(":").length === 2) {
+                    dur = "00:" + dur;
+                }
+                trimEndInput.value = dur;
+            }
+        }
+
+        if (subTranslateContainer) {
+            if (data.subtitles && data.subtitles.length > 0) {
+                subTranslateContainer.classList.remove("hidden");
+            } else {
+                subTranslateContainer.classList.add("hidden");
+            }
+        }
+        if (translateCheckbox) {
+            translateCheckbox.checked = false;
+        }
+
         // Show result section
         resultSection.classList.remove("hidden");
         resultSection.scrollIntoView({ behavior: "smooth", block: "nearest" });
@@ -1141,20 +1413,34 @@ document.addEventListener("DOMContentLoaded", () => {
         }
 
         try {
+            const requestBody = {
+                url: customUrl || activeUrl,
+                format_id: formatId,
+                ext: ext,
+                quality: quality,
+                title: videoTitle.textContent,
+                client_id: clientId
+            };
+
+            const trimCheckbox = document.getElementById("trim-checkbox");
+            if (trimCheckbox && trimCheckbox.checked) {
+                requestBody.trim_start = document.getElementById("trim-start").value.trim();
+                requestBody.trim_end = document.getElementById("trim-end").value.trim();
+            }
+
+            const translateCheckbox = document.getElementById("translate-subs-checkbox");
+            const subTranslateContainer = document.getElementById("sub-translate-container");
+            if (translateCheckbox && translateCheckbox.checked && subTranslateContainer && !subTranslateContainer.classList.contains("hidden")) {
+                requestBody.translate_subs = "vi";
+            }
+
             // Step A: Request the server to start the download task in the background
             const response = await fetch("/api/download", {
                 method: "POST",
                 headers: {
                     "Content-Type": "application/json"
                 },
-                body: JSON.stringify({
-                    url: customUrl || activeUrl,
-                    format_id: formatId,
-                    ext: ext,
-                    quality: quality,
-                    title: videoTitle.textContent,
-                    client_id: clientId
-                })
+                body: JSON.stringify(requestBody)
             });
 
             const data = await response.json();
@@ -1189,7 +1475,16 @@ document.addEventListener("DOMContentLoaded", () => {
                         progressPercent.textContent = `${statusData.progress}%`;
                         const platform = mediaBadge ? mediaBadge.textContent : "YouTube";
                         downloadStatusTitle.textContent = `Downloading from ${platform}...`;
-                        downloadStatusMessage.textContent = statusData.message;
+                        
+                        let msg = statusData.message;
+                        if (statusData.speed && statusData.eta) {
+                            msg += ` | Speed: ${statusData.speed} | ETA: ${statusData.eta}`;
+                        } else if (statusData.speed) {
+                            msg += ` | Speed: ${statusData.speed}`;
+                        } else if (statusData.eta) {
+                            msg += ` | ETA: ${statusData.eta}`;
+                        }
+                        downloadStatusMessage.textContent = msg;
                     } 
                     else if (statusData.status === "merging" || statusData.status === "processing") {
                         progressBarFill.classList.add("striped");
@@ -1399,7 +1694,12 @@ document.addEventListener("DOMContentLoaded", () => {
                         previewLoaderText.textContent = `Preview failed: ${statusData.error || "Unknown server error."}`;
                     } else {
                         const progress = statusData.progress || 0;
-                        const msg = statusData.message || "Downloading stream components...";
+                        let msg = statusData.message || "Downloading stream components...";
+                        if (statusData.speed && statusData.eta) {
+                            msg += ` | Speed: ${statusData.speed} | ETA: ${statusData.eta}`;
+                        } else if (statusData.speed) {
+                            msg += ` | Speed: ${statusData.speed}`;
+                        }
                         previewLoaderText.textContent = `[${progress}%] ${msg}`;
                     }
                 } catch (err) {

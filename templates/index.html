@@ -28,7 +28,7 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&family=Space+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}?v=4.5">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}?v=5.0">
     <script>
         (function() {
             const savedTheme = localStorage.getItem('theme');
@@ -68,14 +68,59 @@
                 <img src="{{ url_for('static', filename='logo.png') }}" alt="Logo" class="logo-img">
                 <h1>Everything<span class="brand-accent">Downloader</span></h1>
             </div>
-            <button id="theme-toggle" class="theme-toggle-btn" title="Toggle theme">
-                <svg class="sun-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
-                    <circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/>
-                </svg>
-                <svg class="moon-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
-                    <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>
-                </svg>
-            </button>
+            <div class="header-actions">
+                <button id="settings-toggle" class="header-action-btn" title="Tùy chọn nâng cao">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+                        <circle cx="12" cy="12" r="3"/>
+                        <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/>
+                    </svg>
+                </button>
+                <button id="theme-toggle" class="header-action-btn" title="Toggle theme">
+                    <svg class="sun-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+                        <circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/>
+                    </svg>
+                    <svg class="moon-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>
+                    </svg>
+                </button>
+
+                <!-- Settings Dropdown Panel -->
+                <div id="settings-dropdown" class="settings-dropdown hidden">
+                    <div class="settings-dropdown-header">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+                            <circle cx="12" cy="12" r="3"/>
+                            <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/>
+                        </svg>
+                        <span>Tùy chọn nâng cao</span>
+                    </div>
+                    <!-- Trim Media -->
+                    <div class="trim-section">
+                        <label class="advanced-label">
+                            <input type="checkbox" id="trim-checkbox">
+                            <span class="custom-checkbox"></span>
+                            <span>Cắt thời lượng (Trim Media)</span>
+                        </label>
+                        <div id="trim-inputs-container" class="trim-inputs hidden">
+                            <div class="trim-field">
+                                <span>Bắt đầu:</span>
+                                <input type="text" id="trim-start" value="00:00:00" placeholder="hh:mm:ss">
+                            </div>
+                            <div class="trim-field">
+                                <span>Kết thúc:</span>
+                                <input type="text" id="trim-end" value="00:00:10" placeholder="hh:mm:ss">
+                            </div>
+                        </div>
+                    </div>
+                    <!-- Subtitles Translation -->
+                    <div class="subtitle-translate-section hidden" id="sub-translate-container">
+                        <label class="advanced-label">
+                            <input type="checkbox" id="translate-subs-checkbox">
+                            <span class="custom-checkbox"></span>
+                            <span>Tự dịch phụ đề sang Tiếng Việt</span>
+                        </label>
+                    </div>
+                </div>
+            </div>
             <p class="subtitle">High-performance media extraction — No ads, no limits, no API keys</p>
         </header>
 
@@ -179,8 +224,8 @@
             </div>
 
             <!-- Results -->
-            <section id="result-section" class="result hidden">
-                <div class="result-grid">
+            <section id="result-section" class="result">
+                <div class="result-grid welcome-mode">
                     <!-- Left: Media Info -->
                     <div class="media-info">
                         <div class="thumb-wrap">
@@ -188,14 +233,14 @@
                             <span id="media-badge" class="tag tag-default">Video</span>
                             <span id="video-duration-badge" class="tag tag-duration">0:00</span>
                         </div>
-                        <h2 id="video-title" class="media-title">Title</h2>
+                        <h2 id="video-title" class="media-title"></h2>
                         
                         <div class="media-meta-row">
                             <div class="meta-author">
                                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
                                     <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/>
                                 </svg>
-                                <span id="video-uploader">Channel</span>
+                                <span id="video-uploader"></span>
                             </div>
                             <span id="video-category" class="category-badge hidden">Music</span>
                         </div>
@@ -206,19 +251,19 @@
                                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
                                     <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/>
                                 </svg>
-                                <span id="video-views">0</span>
+                                <span id="video-views">—</span>
                             </div>
                             <div class="stat-item" title="Likes">
                                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
                                     <path d="M14 9V5a3 3 0 0 0-3-3l-4 9v11h11.28a2 2 0 0 0 2-1.7l1.38-9a2 2 0 0 0-2-2.3zM7 22H4a2 2 0 0 1-2-2v-7a2 2 0 0 1 2-2h3"/>
                                 </svg>
-                                <span id="video-likes">0</span>
+                                <span id="video-likes">—</span>
                             </div>
                             <div class="stat-item" title="Upload Date">
                                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
                                     <rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/>
                                 </svg>
-                                <span id="video-date">01 Jan 2000</span>
+                                <span id="video-date">—</span>
                             </div>
                         </div>
 
@@ -248,12 +293,45 @@
                             </svg>
                             <span>View Images</span>
                         </button>
+
+
                     </div>
 
                     <!-- Right: Format Options -->
                     <div class="format-panel">
                         <div id="options-container" class="format-list">
                             <!-- JS injects here -->
+                        </div>
+                        <div id="welcome-dashboard" class="welcome-dashboard">
+                            <div class="welcome-header">
+                                <h3 class="welcome-title">EveryThingDownloader</h3>
+                                <p class="welcome-subtitle">Dán link bất kỳ từ các nền tảng để phân tích và tải xuống đa phương tiện.</p>
+                            </div>
+                            
+                            <!-- Supported Platforms Badges -->
+                            <div class="welcome-platforms">
+                                <h4 class="welcome-section-title">Nền tảng hỗ trợ</h4>
+                                <div class="platform-badges-grid">
+                                    <span class="platform-badge tag-youtube" data-url-hint="https://www.youtube.com/watch?v=aqz-KE-bpKQ">YouTube</span>
+                                    <span class="platform-badge tag-facebook" data-url-hint="https://www.facebook.com/watch/?v=3827182910">Facebook</span>
+                                    <span class="platform-badge tag-instagram" data-url-hint="https://www.instagram.com/p/C_xYz12uD9B/">Instagram</span>
+                                    <span class="platform-badge tag-threads" data-url-hint="https://www.threads.net/@zuck/post/Cx12871s">Threads</span>
+                                    <span class="platform-badge tag-tiktok" data-url-hint="https://www.tiktok.com/@tiktok/video/710293810293">TikTok</span>
+                                    <span class="platform-badge tag-twitter" data-url-hint="https://x.com/NASA/status/1682845876543">Twitter/X</span>
+                                    <span class="platform-badge tag-reddit" data-url-hint="https://www.reddit.com/r/gamingpc/comments/1ty80y7/just_finished_my_build/">Reddit</span>
+                                    <span class="platform-badge tag-soundcloud" data-url-hint="https://soundcloud.com/octobersveryown/drake-back-to-back">SoundCloud</span>
+                                    <span class="platform-badge tag-pinterest" data-url-hint="https://www.pinterest.com/pin/123456789012/">Pinterest</span>
+                                    <span class="platform-badge tag-vimeo" data-url-hint="https://vimeo.com/83928172">Vimeo</span>
+                                </div>
+                            </div>
+
+                            <!-- History Section -->
+                            <div class="welcome-history" id="welcome-history-section">
+                                <h4 class="welcome-section-title">Lịch sử phân tích gần đây</h4>
+                                <div class="history-list" id="history-list">
+                                    <!-- JS injects items here -->
+                                </div>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -410,6 +488,6 @@
         </div>
     </div>
 
-    <script src="{{ url_for('static', filename='js/main.js') }}?v=4.9"></script>
+    <script src="{{ url_for('static', filename='js/main.js') }}?v=5.5"></script>
 </body>
 </html>
