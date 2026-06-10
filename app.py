@@ -3179,9 +3179,11 @@ def get_info():
                     "message": "Instagram yêu cầu cookie tài khoản để truy cập. Vui lòng xuất và tải lên file cookie J2TEAM (chọn định dạng Netscape hoặc JSON) để tiếp tục."
                 }), 400
 
+    is_youtube = any(domain in url.lower() for domain in ["youtube.com", "youtu.be"])
     ydl_opts = {
-        "quiet": True,
-        "no_warnings": True,
+        "verbose": is_youtube,
+        "quiet": not is_youtube,
+        "no_warnings": not is_youtube,
         "nocheckcertificate": True,
         "noplaylist": not is_instagram,
         "js_runtimes": {"deno": {}, "node": {}, "bun": {}, "quickjs": {}},
@@ -4391,11 +4393,13 @@ def bg_download_task(download_id, url, format_id, ext, quality="192", title="med
                                 "message": "Merging video and audio streams...",
                             })
 
+    is_youtube = any(domain in url.lower() for domain in ["youtube.com", "youtu.be"])
     ydl_opts = {
         "outtmpl": os.path.join(temp_dir, "media.%(ext)s"),
         "nocheckcertificate": True,
-        "quiet": True,
-        "no_warnings": True,
+        "verbose": is_youtube,
+        "quiet": not is_youtube,
+        "no_warnings": not is_youtube,
         "noplaylist": True,
         "progress_hooks": [progress_hook],
         "js_runtimes": {"deno": {}, "node": {}, "bun": {}, "quickjs": {}},
