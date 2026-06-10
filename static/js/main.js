@@ -108,6 +108,16 @@ document.addEventListener("DOMContentLoaded", () => {
     // Preview Modal DOM Elements
     const previewModal = document.getElementById("preview-modal");
     const previewModalCloseBtn = document.getElementById("preview-modal-close-btn");
+
+    // Confirm Modal DOM Elements
+    const confirmModal = document.getElementById("confirm-modal");
+    const confirmModalTitle = document.getElementById("confirm-modal-title");
+    const confirmModalMessage = document.getElementById("confirm-modal-message");
+    const confirmModalBtnYes = document.getElementById("confirm-modal-btn-yes");
+    const confirmModalBtnNo = document.getElementById("confirm-modal-btn-no");
+    const confirmCloseBtn = document.getElementById("confirm-close-btn");
+    let confirmYesCallback = null;
+    let confirmNoCallback = null;
     const previewTitle = document.getElementById("preview-title");
     const previewLoader = document.getElementById("preview-loader");
     const previewLoaderText = document.getElementById("preview-loader-text");
@@ -338,6 +348,67 @@ document.addEventListener("DOMContentLoaded", () => {
         });
     }
 
+    // Confirm Modal Behavior
+    function showConfirm(options = {}) {
+        if (!confirmModal) return;
+        confirmModalTitle.textContent = options.title || "Xác nhận";
+        confirmModalMessage.textContent = options.message || "Bạn có chắc chắn?";
+        confirmModalBtnYes.textContent = options.yesText || "Đồng ý";
+        confirmModalBtnNo.textContent = options.noText || "Hủy";
+
+        confirmYesCallback = options.onYes || null;
+        confirmNoCallback = options.onNo || null;
+
+        confirmModal.classList.remove("hidden");
+        document.body.classList.add("modal-open");
+    }
+
+    function hideConfirm() {
+        if (!confirmModal) return;
+        confirmModal.classList.add("hidden");
+        const anyVisible = Array.from(document.querySelectorAll(".modal-overlay")).some(el => !el.classList.contains("hidden"));
+        if (!anyVisible) {
+            document.body.classList.remove("modal-open");
+        }
+    }
+
+    if (confirmModalBtnYes) {
+        confirmModalBtnYes.onclick = () => {
+            hideConfirm();
+            if (confirmYesCallback) confirmYesCallback();
+        };
+    }
+
+    if (confirmModalBtnNo) {
+        confirmModalBtnNo.onclick = () => {
+            hideConfirm();
+            if (confirmNoCallback) confirmNoCallback();
+        };
+    }
+
+    if (confirmCloseBtn) {
+        confirmCloseBtn.onclick = () => {
+            hideConfirm();
+            if (confirmNoCallback) confirmNoCallback();
+        };
+    }
+
+    if (confirmModal) {
+        confirmModal.onclick = (e) => {
+            if (e.target === confirmModal) {
+                hideConfirm();
+                if (confirmNoCallback) confirmNoCallback();
+            }
+        };
+
+        document.addEventListener("keydown", (e) => {
+            if (e.key === "Escape" && !confirmModal.classList.contains("hidden")) {
+                hideConfirm();
+                if (confirmNoCallback) confirmNoCallback();
+            }
+        });
+    }
+
     // Image preview transform controls
     function updateImageTransform() {
         if (previewImageElement) {
@@ -424,10 +495,16 @@ document.addEventListener("DOMContentLoaded", () => {
     const clearHistoryBtn = document.getElementById("clear-history-btn");
     if (clearHistoryBtn) {
         clearHistoryBtn.addEventListener("click", () => {
-            if (confirm("Bạn có chắc chắn muốn xóa toàn bộ lịch sử phân tích không?")) {
-                localStorage.removeItem("downloader_history");
-                renderHistory();
-            }
+            showConfirm({
+                title: "Xác nhận xóa lịch sử",
+                message: "Bạn có chắc chắn muốn xóa toàn bộ lịch sử phân tích không?",
+                yesText: "Đồng ý",
+                noText: "Hủy",
+                onYes: () => {
+                    localStorage.removeItem("downloader_history");
+                    renderHistory();
+                }
+            });
         });
     }
 
