@@ -17,6 +17,39 @@ import static_ffmpeg
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
 logger = logging.getLogger(__name__)
 
+# Monkey-patch CurlCFFIRH to dynamically match the TLS fingerprint with the request's User-Agent
+try:
+    from yt_dlp.networking._curlcffi import CurlCFFIRH
+    if ImpersonateTarget and CurlCFFIRH:
+        original_get_request_target = CurlCFFIRH._get_request_target
+
+        def custom_get_request_target(self, request):
+            ua = request.headers.get('User-Agent', '')
+            if ua:
+                ua_lower = ua.lower()
+                if 'firefox' in ua_lower:
+                    target_str = 'firefox'
+                elif 'safari' in ua_lower and 'chrome' not in ua_lower and 'chromium' not in ua_lower:
+                    target_str = 'safari'
+                elif 'edge' in ua_lower or 'edg/' in ua_lower:
+                    target_str = 'edge'
+                elif 'android' in ua_lower:
+                    target_str = 'chrome-131:android-14'
+                else:
+                    target_str = 'chrome'
+                try:
+                    resolved = self._resolve_target(ImpersonateTarget.from_str(target_str))
+                    if resolved:
+                        return resolved
+                except Exception:
+                    pass
+            return original_get_request_target(self, request)
+
+        CurlCFFIRH._get_request_target = custom_get_request_target
+        logger.info("Successfully monkey-patched CurlCFFIRH._get_request_target to align TLS fingerprint with User-Agent.")
+except Exception as patch_err:
+    logger.warning(f"Could not monkey-patch CurlCFFIRH: {patch_err}")
+
 # Initialize static-ffmpeg to add portable binaries to PATH
 logger.info("Initializing static-ffmpeg...")
 try:
