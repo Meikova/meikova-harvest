@@ -7,6 +7,10 @@ from urllib.parse import quote
 from flask import Flask, request, jsonify, render_template, Response
 from flask_cors import CORS
 import yt_dlp
+try:
+    from yt_dlp.networking.impersonate import ImpersonateTarget
+except ImportError:
+    ImpersonateTarget = None
 import static_ffmpeg
 
 # Setup logging
@@ -70,6 +74,12 @@ def create_ydl_instance(ydl_opts, url=None, client_id=None):
     If all fail, it will fall back to using no cookies.
     """
     logger.info(f"create_ydl_instance: client_id='{client_id}', url='{url}'")
+    if ImpersonateTarget:
+        try:
+            ydl_opts["impersonate"] = ImpersonateTarget.from_str("chrome")
+            logger.info("Automatically added 'chrome' impersonate option to ydl_opts in create_ydl_instance.")
+        except Exception as e:
+            logger.warning(f"Failed to apply client impersonate settings in create_ydl_instance: {e}")
     # Check if a client-specific cookies file exists
     if client_id:
         client_cookies = os.path.join(TEMP_DOWNLOAD_DIR, "cookies", f"cookies_{client_id}.txt")
@@ -3129,6 +3139,11 @@ def get_info():
         "cookiesfrombrowser": "auto",
         "ignoreerrors": False,
     }
+    if ImpersonateTarget:
+        try:
+            ydl_opts["impersonate"] = ImpersonateTarget.from_str("chrome")
+        except Exception as e:
+            logger.warning(f"Could not set impersonate option in get_info: {e}")
 
     try:
         info = None
@@ -4333,6 +4348,11 @@ def bg_download_task(download_id, url, format_id, ext, quality="192", title="med
         "cookiesfrombrowser": "auto",
         "ignoreerrors": True,
     }
+    if ImpersonateTarget:
+        try:
+            ydl_opts["impersonate"] = ImpersonateTarget.from_str("chrome")
+        except Exception as e:
+            logger.warning(f"Could not set impersonate option in bg_download_task: {e}")
 
     if ext == "mp3":
         ydl_opts.update({

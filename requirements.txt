@@ -4,4 +4,5 @@ flask-cors==4.0.1
 static-ffmpeg==2.5
 yt-dlp-ejs>=0.8.0
 gallery-dl
+curl-cffi
 
