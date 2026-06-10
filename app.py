@@ -3187,6 +3187,11 @@ def get_info():
         "js_runtimes": {"deno": {}, "node": {}, "bun": {}, "quickjs": {}},
         "cookiesfrombrowser": "auto",
         "ignoreerrors": False,
+        "extractor_args": {
+            "youtube": {
+                "player_client": ["default", "-tv", "-tv_downgraded"],
+            }
+        },
     }
     if ImpersonateTarget:
         try:
@@ -4396,6 +4401,11 @@ def bg_download_task(download_id, url, format_id, ext, quality="192", title="med
         "js_runtimes": {"deno": {}, "node": {}, "bun": {}, "quickjs": {}},
         "cookiesfrombrowser": "auto",
         "ignoreerrors": True,
+        "extractor_args": {
+            "youtube": {
+                "player_client": ["default", "-tv", "-tv_downgraded"],
+            }
+        },
     }
     if ImpersonateTarget:
         try:
