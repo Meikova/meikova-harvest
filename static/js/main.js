@@ -140,6 +140,12 @@ document.addEventListener("DOMContentLoaded", () => {
         return url;
     }
 
+    function getSafeTitle(title, defaultVal = "image") {
+        if (!title) return defaultVal;
+        const cleaned = String(title).replace(/[\\/*?:"<>|]/g, "");
+        return [...cleaned].slice(0, 50).join("").trim() || defaultVal;
+    }
+
     // Cookies UI Elements
     const activeCookiesBadge = document.getElementById("active-cookies-badge");
     const clearCookiesBtn = document.getElementById("clear-cookies-btn");
@@ -941,8 +947,7 @@ document.addEventListener("DOMContentLoaded", () => {
                 const resLabel = resMatch ? resMatch[1] : (imgExt ? imgExt.toUpperCase() : "Image");
                 const cleanLabel = imgLabel.replace(/\s*\(\d+x\d+\)/, "");
                 
-                const safeTitle = data.title || "image";
-                const cleanTitle = safeTitle.replace(/[\\/*?:"<>|]/g, "").substring(0, 50).trim();
+                const cleanTitle = getSafeTitle(data.title, "image");
                 const filename = `${cleanTitle}_${cleanLabel.replace(/\s+/g, "_")}.${imgExt}`;
                 const proxyDownloadUrl = `/api/download/image?url=${encodeURIComponent(imgUrl)}&filename=${encodeURIComponent(filename)}&client_id=${encodeURIComponent(clientId)}`;
 
@@ -1078,7 +1083,7 @@ document.addEventListener("DOMContentLoaded", () => {
                             },
                             body: JSON.stringify({
                                 urls: selectedItems.map(item => ({ url: item.url, label: item.label, ext: item.ext })),
-                                title: data.title ? data.title.replace(/[\\/*?:"<>|]/g, "").substring(0, 50).trim() : "images",
+                                title: getSafeTitle(data.title, "images"),
                                 client_id: clientId
                             })
                         });
@@ -1091,7 +1096,7 @@ document.addEventListener("DOMContentLoaded", () => {
                         const blobUrl = URL.createObjectURL(blob);
                         const downloadAnchor = document.createElement("a");
                         downloadAnchor.href = blobUrl;
-                        downloadAnchor.download = `${data.title ? data.title.replace(/[\\/*?:"<>|]/g, "").substring(0, 50).trim() : "images"}_images.zip`;
+                        downloadAnchor.download = `${getSafeTitle(data.title, "images")}_images.zip`;
                         document.body.appendChild(downloadAnchor);
                         downloadAnchor.click();
                         document.body.removeChild(downloadAnchor);
@@ -1294,8 +1299,7 @@ document.addEventListener("DOMContentLoaded", () => {
                 }
                 
                 const cleanLabel = imgLabel.replace(/\s*\(\d+x\d+\)/, "");
-                const safeTitle = data.title || "image";
-                const cleanTitle = safeTitle.replace(/[\\/*?:"<>|]/g, "").substring(0, 50).trim();
+                const cleanTitle = getSafeTitle(data.title, "image");
                 const filename = `${cleanTitle}_${cleanLabel.replace(/\s+/g, "_")}.${imgExt}`;
                 const proxyDownloadUrl = `/api/download/image?url=${encodeURIComponent(imgUrl)}&filename=${encodeURIComponent(filename)}&client_id=${encodeURIComponent(clientId)}`;
 

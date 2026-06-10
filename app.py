@@ -4139,6 +4139,12 @@ def bg_download_task(download_id, url, format_id, ext, quality="192", title="med
                     
                 filepath = final_filepath
             
+            if (trim_start or trim_end) and ext != "vtt":
+                try:
+                    filepath = trim_file_if_needed(filepath, trim_start, trim_end)
+                except Exception as trim_err:
+                    logger.error(f"Error during direct file trimming: {trim_err}")
+            
             def sanitize_filename(name):
                 import re
                 cleaned = re.sub(r'[\\/*?:"<>|]', "", name)
@@ -4333,11 +4339,12 @@ def bg_download_task(download_id, url, format_id, ext, quality="192", title="med
             "format": "bestaudio[ext=m4a]/bestaudio",
         })
     elif ext == "vtt":
+        lang = "vi" if translate_subs == "vi" else format_id
         ydl_opts.update({
             "skip_download": True,
             "writesubtitles": True,
             "writeautomaticsub": True,
-            "subtitleslangs": [format_id],
+            "subtitleslangs": [lang],
         })
     else:
         ydl_opts.update({
@@ -4368,6 +4375,14 @@ def bg_download_task(download_id, url, format_id, ext, quality="192", title="med
         filename_on_disk = downloaded_files[0]
         filepath = os.path.join(temp_dir, filename_on_disk)
 
+        # Call trim if requested (for audio/video files)
+        if (trim_start or trim_end) and ext != "vtt":
+            try:
+                filepath = trim_file_if_needed(filepath, trim_start, trim_end)
+                filename_on_disk = os.path.basename(filepath)
+            except Exception as trim_err:
+                logger.error(f"Error during file trimming: {trim_err}")
+
         def sanitize_filename(name):
             import re
             cleaned = re.sub(r'[\\/*?:"<>|]', "", name)
@@ -4375,7 +4390,8 @@ def bg_download_task(download_id, url, format_id, ext, quality="192", title="med
 
         safe_title = sanitize_filename(title)
         if ext == "vtt":
-            user_filename = f"{safe_title}.{format_id}.vtt"
+            lang = "vi" if translate_subs == "vi" else format_id
+            user_filename = f"{safe_title}.{lang}.vtt"
         else:
             user_filename = f"{safe_title}.{ext}"
 
@@ -4423,6 +4439,10 @@ def start_download():
     title = (data.get("title") or "media").strip()
     client_id = data.get("client_id")
 
+    trim_start = data.get("trim_start")
+    trim_end = data.get("trim_end")
+    translate_subs = data.get("translate_subs")
+
     if not url or not format_id:
         return jsonify({"status": "error", "message": "URL and format_id are required."}), 400
 
@@ -4441,7 +4461,11 @@ def start_download():
         }
 
     logger.info(f"Enqueued task {download_id} for {url} (client_id: {client_id})")
-    thread = threading.Thread(target=bg_download_task, args=(download_id, url, format_id, ext, quality, title, client_id))
+    thread = threading.Thread(
+        target=bg_download_task, 
+        args=(download_id, url, format_id, ext, quality, title, client_id),
+        kwargs={"trim_start": trim_start, "trim_end": trim_end, "translate_subs": translate_subs}
+    )
     thread.start()
 
     return jsonify({"status": "success", "download_id": download_id})
