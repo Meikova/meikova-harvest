@@ -1423,8 +1423,11 @@ document.addEventListener("DOMContentLoaded", () => {
     let grid = [];
     let particles = [];
     let sparkles = [];
+    let rippleBuffer1 = [];
+    let rippleBuffer2 = [];
     let cols = 0;
     let rows = 0;
+    let spacing = 54; // Optimal distance between grid nodes
     
     let mouse = { x: 0, y: 0, active: false, inactivityTimeout: null };
     let lastMouse = { x: window.innerWidth / 2, y: window.innerHeight / 2 };
@@ -1438,14 +1441,40 @@ document.addEventListener("DOMContentLoaded", () => {
     }
     window.addEventListener("resize", resizeCanvas);
 
-    // Track mouse and touch events
+    // Track mouse speed and touch events for ripple propagation
+    let mouseSpeed = 0;
+    let prevMouseX = window.innerWidth / 2;
+    let prevMouseY = window.innerHeight / 2;
+
     function handleMouseMove(x, y) {
+        let dx = x - prevMouseX;
+        let dy = y - prevMouseY;
+        mouseSpeed = Math.sqrt(dx*dx + dy*dy);
+        prevMouseX = x;
+        prevMouseY = y;
+
         mouse.x = x;
         mouse.y = y;
         mouse.active = true;
         
         lastMouse.x = x;
         lastMouse.y = y;
+
+        // Disturb the ripple buffer at the grid node nearest to the mouse
+        if (cols > 0 && rows > 0) {
+            let col = Math.round((x + 0.5 * spacing) / spacing);
+            let row = Math.round((y + 0.5 * spacing) / spacing);
+            
+            // Disturb a small 3x3 region around the mouse
+            for (let c = col - 1; c <= col + 1; c++) {
+                for (let r = row - 1; r <= row + 1; r++) {
+                    if (c >= 0 && c < cols && r >= 0 && r < rows) {
+                        // Disturb proportional to mouse speed
+                        rippleBuffer1[c][r] = -Math.min(100, mouseSpeed * 1.5);
+                    }
+                }
+            }
+        }
 
         // Spawn tiny sparkling stardust at the mouse tip
         if (Math.random() < 0.6) {
@@ -1455,6 +1484,7 @@ document.addEventListener("DOMContentLoaded", () => {
         clearTimeout(mouse.inactivityTimeout);
         mouse.inactivityTimeout = setTimeout(() => {
             mouse.active = false;
+            mouseSpeed = 0;
         }, 1200); // return to normal shape after 1.2s of inactivity
     }
 
@@ -1464,6 +1494,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
     window.addEventListener("mouseleave", () => {
         mouse.active = false;
+        mouseSpeed = 0;
     });
 
     window.addEventListener("touchmove", (e) => {
@@ -1474,6 +1505,29 @@ document.addEventListener("DOMContentLoaded", () => {
 
     window.addEventListener("touchend", () => {
         mouse.active = false;
+        mouseSpeed = 0;
+    });
+
+    window.addEventListener("click", (e) => {
+        let x = e.clientX;
+        let y = e.clientY;
+        if (cols > 0 && rows > 0) {
+            let col = Math.round((x + 0.5 * spacing) / spacing);
+            let row = Math.round((y + 0.5 * spacing) / spacing);
+            
+            // Inject a much larger force field in a 5x5 region to propagate a big mechanical wave
+            for (let c = col - 2; c <= col + 2; c++) {
+                for (let r = row - 2; r <= row + 2; r++) {
+                    if (c >= 0 && c < cols && r >= 0 && r < rows) {
+                        let distFromCenter = Math.sqrt((c - col) * (c - col) + (r - row) * (r - row));
+                        let strength = (1 - distFromCenter / 3) * -180;
+                        if (strength < 0) {
+                            rippleBuffer1[c][r] = strength;
+                        }
+                    }
+                }
+            }
+        }
     });
 
     // Get theme colors from CSS variables
@@ -1524,10 +1578,29 @@ document.addEventListener("DOMContentLoaded", () => {
             this.rotSpeed = (Math.random() - 0.5) * 0.08;
         }
         update() {
+            // Gravitational pull & spiral vortex towards mouse
+            if (mouse.active) {
+                let dx = mouse.x - this.x;
+                let dy = mouse.y - this.y;
+                let dist = Math.sqrt(dx*dx + dy*dy);
+                if (dist > 8 && dist < maxDist) {
+                    let force = (1 - dist / maxDist); // stronger pull closer to mouse
+                    // Pull strength (gravitational attraction)
+                    let pull = force * force * 0.28;
+                    this.vx += (dx / dist) * pull;
+                    this.vy += (dy / dist) * pull;
+
+                    // Tangential swirl (orbital velocity)
+                    let swirl = force * 0.45;
+                    this.vx += (-dy / dist) * swirl;
+                    this.vy += (dx / dist) * swirl;
+                }
+            }
+
             this.x += this.vx;
             this.y += this.vy;
-            this.vx *= 0.96;
-            this.vy *= 0.96;
+            this.vx *= 0.94; // slightly damp speed to spiral in
+            this.vy *= 0.94;
             this.rotation += this.rotSpeed;
             this.life--;
         }
@@ -1584,58 +1657,60 @@ document.addEventListener("DOMContentLoaded", () => {
             this.px = this.x;
             this.py = this.y;
             this.scale = 1;
+
+            // Anchor factor for physical net behavior: boundary nodes are locked to 0
+            let distCol = Math.min(col, cols - 1 - col);
+            let distRow = Math.min(row, rows - 1 - row);
+            this.anchorFactor = Math.min(1.0, distCol / 2.0) * Math.min(1.0, distRow / 2.0);
         }
 
         update(mouse, maxDist) {
             this.rotation += this.rotationSpeed;
 
-            // 1. Slow wave movement for the floating effect
-            let time = Date.now() * 0.0006;
-            let waveX = Math.sin(time + (this.col * 0.25) + (this.row * 0.18)) * 12;
-            let waveY = Math.cos(time + (this.col * 0.18) + (this.row * 0.25)) * 12;
+            // 1. Slow wave movement for the floating effect (superimposed organic wave)
+            let time = Date.now() * 0.0005;
+            let waveX = Math.sin(time * 1.3 + (this.col * 0.22) + (this.row * 0.15)) * 10 + Math.cos(time * 0.7 + (this.row * 0.35)) * 4;
+            let waveY = Math.cos(time * 1.1 + (this.col * 0.15) + (this.row * 0.22)) * 10 + Math.sin(time * 0.6 + (this.col * 0.35)) * 4;
 
-            // 3D Parallax camera tilt: entire grid shifts slightly based on cursor location
-            let paraX = mouse.active ? (mouse.x - window.innerWidth / 2) * 0.025 : 0;
-            let paraY = mouse.active ? (mouse.y - window.innerHeight / 2) * 0.025 : 0;
+            // Keep grid coordinate stable globally
+            let currentOrigX = this.baseX + waveX * this.anchorFactor;
+            let currentOrigY = this.baseY + waveY * this.anchorFactor;
 
-            let currentOrigX = this.baseX + waveX + paraX;
-            let currentOrigY = this.baseY + waveY + paraY;
-
-            // 2. Gravitational well indentation with fluid ripple wave
+            // Fetch wave height from the 2D ripple buffer
             let targetZ = 0;
-            let pushX = 0;
-            let pushY = 0;
+            if (rippleBuffer1[this.col] && rippleBuffer1[this.col][this.row] !== undefined) {
+                targetZ = rippleBuffer1[this.col][this.row] * this.anchorFactor;
+            }
 
+            // Calculate constant mouse indentation (funnel effect) centered under the cursor
             let dx = mouse.x - this.x;
             let dy = mouse.y - this.y;
             let dist = Math.sqrt(dx*dx + dy*dy);
+            let indentZ = 0;
 
             if (mouse.active && dist < maxDist) {
-                let influence = 1 - dist / maxDist; // 0 to 1
-                let force = influence * influence;
+                // Cubic smoothstep for smooth gravity well
+                let t = dist / maxDist;
+                let force = 1 - (3 * t * t - 2 * t * t * t);
 
                 // Push Z back (negative value pulls away looking like a funnel)
-                // Add a liquid ripple wave radiating from the mouse cursor
-                let waveSpeed = Date.now() * 0.015;
-                let ripple = Math.sin(dist * 0.07 - waveSpeed) * 20 * influence;
-                targetZ = -135 * force + ripple;
-
-                // Pull points slightly inward towards cursor center to emphasize indentation
-                pushX = (dx / dist) * force * 24;
-                pushY = (dy / dist) * force * 24;
+                // Maximum funnel displacement: -130px, scaled by anchorFactor
+                indentZ = -130 * force * this.anchorFactor;
             }
 
-            // 3. Elastic spring physics for Z depth (highly responsive, bouncy)
-            this.vz += (targetZ - this.z) * 0.04;
-            this.vz *= 0.91;
+            // 2. Spring physics for Z depth (combine ripple height and funnel indentation)
+            let combinedTargetZ = targetZ + indentZ;
+            this.vz += (combinedTargetZ - this.z) * 0.07; // physical spring coefficient
+            this.vz *= 0.91; // damping
             this.z += this.vz;
 
-            // 4. Elastic spring physics for X and Y coordinate restoration (rubbery rebound)
-            let targetX = currentOrigX + pushX;
-            let targetY = currentOrigY + pushY;
+            // 3. Horizontal coordinate restoration (let 3D perspective projection handle the funnel shift naturally)
+            let targetX = currentOrigX;
+            let targetY = currentOrigY;
 
-            this.vx += (targetX - this.x) * 0.04;
-            this.vy += (targetY - this.y) * 0.04;
+            // 4. Spring physics for X and Y coordinate restoration
+            this.vx += (targetX - this.x) * 0.06;
+            this.vy += (targetY - this.y) * 0.06;
             this.vx *= 0.91;
             this.vy *= 0.91;
 
@@ -1653,12 +1728,17 @@ document.addEventListener("DOMContentLoaded", () => {
         }
 
         draw(ctx) {
-            // Breathing size oscillation for a lifelike organic pulse
-            let breathe = Math.sin(Date.now() * 0.003 + this.col * 0.5 + this.row * 0.3) * 0.6;
-            let size = (this.baseSize + (isLightTheme ? 0.5 : 0) + breathe) * this.scale;
+            // Breathing size oscillation + high-frequency twinkle for a lifelike organic pulse
+            let twinkle = Math.sin(Date.now() * 0.016 + this.col * 1.7 + this.row * 1.3) * 0.4;
+            let breathe = Math.sin(Date.now() * 0.0025 + this.col * 0.5 + this.row * 0.3) * 0.55 + twinkle;
+            
+            // Tension increases brightness and size of the knot
+            let tension = Math.min(1.5, Math.abs(this.z) / 80);
+            let size = (this.baseSize + (isLightTheme ? 0.5 : 0) + breathe + tension * 1.5) * this.scale;
             if (size < 1) size = 1;
 
             let alpha = isLightTheme ? 0.45 + (this.scale * 0.45) : 0.2 + (this.scale * 0.6); // Deeper points fade away
+            alpha += tension * 0.3;
             if (alpha < 0.1) alpha = 0.1;
             if (alpha > 1) alpha = 1;
 
@@ -1667,6 +1747,15 @@ document.addEventListener("DOMContentLoaded", () => {
 
             ctx.save();
             ctx.translate(this.px, this.py);
+
+            // Draw a subtle outer glow circle at each knot (reduced size and alpha for delicate look)
+            ctx.beginPath();
+            ctx.arc(0, 0, size * 1.5, 0, Math.PI * 2);
+            ctx.fillStyle = color;
+            ctx.globalAlpha = alpha * 0.08;
+            ctx.fill();
+
+            // Draw the central 4-pointed knot star
             ctx.rotate(this.rotation);
             ctx.beginPath();
 
@@ -1698,13 +1787,16 @@ document.addEventListener("DOMContentLoaded", () => {
     function initGrid() {
         grid = [];
         particles = [];
+        rippleBuffer1 = [];
+        rippleBuffer2 = [];
         
-        let spacing = 62; // Optimal distance between grid nodes
         cols = Math.ceil(window.innerWidth / spacing) + 2;
         rows = Math.ceil(window.innerHeight / spacing) + 2;
 
         for (let c = 0; c < cols; c++) {
             grid[c] = [];
+            rippleBuffer1[c] = new Float32Array(rows);
+            rippleBuffer2[c] = new Float32Array(rows);
             for (let r = 0; r < rows; r++) {
                 // Symmetrical grid offset
                 let baseX = (c - 0.5) * spacing;
@@ -1736,13 +1828,52 @@ document.addEventListener("DOMContentLoaded", () => {
         let projY = mouse.active ? mouse.y : lastMouse.y;
         let fov = 400; // perspective focal length
 
-        // 1. Update and Project all grid nodes
+        // 0. Radial Gravity Well Glow (under the grid lines for layered depth)
+        if (mouse.active) {
+            let glowGrad = ctx.createRadialGradient(projX, projY, 0, projX, projY, maxDist * 1.2);
+            glowGrad.addColorStop(0, blendColors(activeColors[0], activeColors[1], 0.5));
+            glowGrad.addColorStop(0.2, activeColors[0]);
+            glowGrad.addColorStop(0.5, activeColors[1]);
+            glowGrad.addColorStop(1, 'rgba(0, 0, 0, 0)');
+
+            ctx.save();
+            ctx.globalCompositeOperation = 'screen';
+            ctx.globalAlpha = isLightTheme ? 0.14 : 0.08;
+            ctx.fillStyle = glowGrad;
+            ctx.beginPath();
+            ctx.arc(projX, projY, maxDist * 1.2, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.restore();
+        }
+
+        // 1. 2D Discrete Wave Equation Simulation (Water Ripple Propagation)
+        if (cols > 0 && rows > 0 && rippleBuffer1.length > 0 && rippleBuffer2.length > 0) {
+            for (let c = 1; c < cols - 1; c++) {
+                for (let r = 1; r < rows - 1; r++) {
+                    rippleBuffer2[c][r] = (
+                        rippleBuffer1[c - 1][r] +
+                        rippleBuffer1[c + 1][r] +
+                        rippleBuffer1[c][r - 1] +
+                        rippleBuffer1[c][r + 1]
+                    ) / 2 - rippleBuffer2[c][r];
+                    // Damping factor: keeps wave bouncing but dissipates energy slowly
+                    rippleBuffer2[c][r] *= 0.975;
+                }
+            }
+
+            // Swap ripple buffers
+            let temp = rippleBuffer1;
+            rippleBuffer1 = rippleBuffer2;
+            rippleBuffer2 = temp;
+        }
+
+        // 2. Update and Project all grid nodes
         particles.forEach(p => {
             p.update(mouse, maxDist);
             p.project(projX, projY, fov);
         });
 
-        // 2. Draw connecting grid lines (mesh structure)
+        // 3. Draw connecting grid lines (mesh structure)
         for (let c = 0; c < cols; c++) {
             for (let r = 0; r < rows; r++) {
                 let p1 = grid[c][r];
@@ -1761,9 +1892,18 @@ document.addEventListener("DOMContentLoaded", () => {
                     // Blend horizontal color: from cyan (rest) to purple (stressed)
                     let strokeColor = blendColors(activeColors[0], activeColors[1], displacement / 140);
 
+                    // Outer Glow Envelope (double-drawn glow filament - reduced for delicate look)
                     ctx.strokeStyle = strokeColor;
+                    ctx.globalAlpha = lineAlpha * 0.35;
+                    ctx.lineWidth = 1.6;
+                    ctx.beginPath();
+                    ctx.moveTo(p1.px, p1.py);
+                    ctx.lineTo(p2.px, p2.py);
+                    ctx.stroke();
+
+                    // Core Filament (solid bright center)
                     ctx.globalAlpha = lineAlpha;
-                    ctx.lineWidth = 0.8;
+                    ctx.lineWidth = 0.6;
                     ctx.beginPath();
                     ctx.moveTo(p1.px, p1.py);
                     ctx.lineTo(p2.px, p2.py);
@@ -1783,9 +1923,18 @@ document.addEventListener("DOMContentLoaded", () => {
                     // Blend vertical color: from purple (rest) to cyan (stressed)
                     let strokeColor = blendColors(activeColors[1], activeColors[0], displacement / 140);
 
+                    // Outer Glow Envelope (double-drawn glow filament - reduced for delicate look)
                     ctx.strokeStyle = strokeColor;
+                    ctx.globalAlpha = lineAlpha * 0.35;
+                    ctx.lineWidth = 1.6;
+                    ctx.beginPath();
+                    ctx.moveTo(p1.px, p1.py);
+                    ctx.lineTo(p2.px, p2.py);
+                    ctx.stroke();
+
+                    // Core Filament (solid bright center)
                     ctx.globalAlpha = lineAlpha;
-                    ctx.lineWidth = 0.8;
+                    ctx.lineWidth = 0.6;
                     ctx.beginPath();
                     ctx.moveTo(p1.px, p1.py);
                     ctx.lineTo(p2.px, p2.py);
@@ -1794,43 +1943,12 @@ document.addEventListener("DOMContentLoaded", () => {
             }
         }
 
-        // 3. Draw magnetic web connections directly from mouse to nearest nodes
-        if (mouse.active) {
-            let nearby = [];
-            particles.forEach(p => {
-                let dx = mouse.x - p.px;
-                let dy = mouse.y - p.py;
-                let d = dx*dx + dy*dy;
-                if (d < maxDist * maxDist) {
-                    nearby.push({ p: p, d: d });
-                }
-            });
-
-            // Sort by distance and connect the closest 6 nodes to the cursor
-            nearby.sort((a, b) => a.d - b.d);
-            let limit = Math.min(nearby.length, 6);
-            for (let i = 0; i < limit; i++) {
-                let p = nearby[i].p;
-                let dist = Math.sqrt(nearby[i].d);
-                let alpha = 0.28 * (1 - dist / maxDist);
-
-                // Glow links directly pulling the mesh
-                ctx.strokeStyle = activeColors[0];
-                ctx.globalAlpha = alpha;
-                ctx.lineWidth = 0.6;
-                ctx.beginPath();
-                ctx.moveTo(mouse.x, mouse.y);
-                ctx.lineTo(p.px, p.py);
-                ctx.stroke();
-            }
-        }
-
-        // 4. Draw grid stars
+        // 4. Draw grid stars (knots)
         particles.forEach(p => {
             p.draw(ctx);
         });
 
-        // 5. Update and Draw active sparkler particles (stardust)
+        // 5. Update and Draw active sparkler particles (stardust vortex)
         for (let i = sparkles.length - 1; i >= 0; i--) {
             let s = sparkles[i];
             s.update();
