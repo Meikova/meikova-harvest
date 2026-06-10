@@ -123,6 +123,22 @@ def create_ydl_instance(ydl_opts, url=None, client_id=None):
             opts["cookiefile"] = client_cookies
             opts.pop("cookiesfrombrowser", None)
             try:
+                with open(client_cookies, "r", encoding="utf-8") as f:
+                    cookie_content = f.read()
+                youtube_cookie_lines = []
+                for line in cookie_content.splitlines():
+                    if not line.strip().startswith("#") and "youtube.com" in line:
+                        parts = line.split("\t")
+                        if len(parts) >= 7:
+                            masked_val = parts[6][:4] + "..." + parts[6][-4:] if len(parts[6]) > 8 else "..."
+                            youtube_cookie_lines.append(f"Domain={parts[0]}, Name={parts[5]}, Expires={parts[4]}, Value={masked_val}")
+                logger.info(f"Loaded client cookies for youtube.com (count={len(youtube_cookie_lines)}):")
+                for c_log in youtube_cookie_lines:
+                    logger.info(f"  [Cookie] {c_log}")
+            except Exception as read_err:
+                logger.warning(f"Could not print cookies diagnostics: {read_err}")
+
+            try:
                 ydl = yt_dlp.YoutubeDL(opts)
                 logger.info(f"Successfully loaded yt_dlp with client-specific cookies for: {client_id}")
                 return ydl
