@@ -414,6 +414,17 @@ document.addEventListener("DOMContentLoaded", () => {
 
     // 2. Link Analysis
     analyzeBtn.addEventListener("click", performAnalysis);
+    
+    const clearHistoryBtn = document.getElementById("clear-history-btn");
+    if (clearHistoryBtn) {
+        clearHistoryBtn.addEventListener("click", () => {
+            if (confirm("Bạn có chắc chắn muốn xóa toàn bộ lịch sử phân tích không?")) {
+                localStorage.removeItem("downloader_history");
+                renderHistory();
+            }
+        });
+    }
+
     urlInput.addEventListener("keydown", (e) => {
         if (e.key === "Enter") {
             performAnalysis();
