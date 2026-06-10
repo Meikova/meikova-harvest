@@ -69,16 +69,20 @@ def create_ydl_instance(ydl_opts, url=None, client_id=None):
     If cookiesfrombrowser is 'auto', it will attempt different browsers one by one.
     If all fail, it will fall back to using no cookies.
     """
+    logger.info(f"create_ydl_instance: client_id='{client_id}', url='{url}'")
     # Check if a client-specific cookies file exists
     if client_id:
         client_cookies = os.path.join(TEMP_DOWNLOAD_DIR, "cookies", f"cookies_{client_id}.txt")
+        logger.info(f"Checking client-specific cookies at: {client_cookies} (exists={os.path.exists(client_cookies)})")
         if os.path.exists(client_cookies):
             logger.info(f"Using client-specific cookies for client: {client_id}")
             opts = ydl_opts.copy()
             opts["cookiefile"] = client_cookies
             opts.pop("cookiesfrombrowser", None)
             try:
-                return yt_dlp.YoutubeDL(opts)
+                ydl = yt_dlp.YoutubeDL(opts)
+                logger.info(f"Successfully loaded yt_dlp with client-specific cookies for: {client_id}")
+                return ydl
             except Exception as e:
                 logger.warning(f"Failed to load client cookies: {e}")
 
@@ -97,6 +101,14 @@ def create_ydl_instance(ydl_opts, url=None, client_id=None):
     if ydl_opts.get("cookiesfrombrowser") != "auto":
         return yt_dlp.YoutubeDL(ydl_opts)
         
+    is_headless = os.path.exists('/.dockerenv') or os.environ.get('RENDER') == 'true'
+    if is_headless:
+        logger.info("Running in headless/Docker/Render environment. Skipping browser cookies search.")
+        opts = ydl_opts.copy()
+        opts.pop("cookiesfrombrowser", None)
+        logger.info("Falling back to YoutubeDL instance without cookies")
+        return yt_dlp.YoutubeDL(opts)
+
     browsers = ["chrome", "edge", "firefox", "opera", "vivaldi", "brave"]
     
     # Extract target domain for cookie filtering
