@@ -3189,7 +3189,7 @@ def get_info():
         "ignoreerrors": False,
         "extractor_args": {
             "youtube": {
-                "player_client": ["default", "-tv", "-tv_downgraded"],
+                "player_client": ["default"],
             }
         },
     }
@@ -4403,7 +4403,7 @@ def bg_download_task(download_id, url, format_id, ext, quality="192", title="med
         "ignoreerrors": True,
         "extractor_args": {
             "youtube": {
-                "player_client": ["default", "-tv", "-tv_downgraded"],
+                "player_client": ["default"],
             }
         },
     }
