@@ -1,30 +1,41 @@
-import requests, json, sys
+import sys
+import os
+import json
+
+sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
 if hasattr(sys.stdout, "reconfigure"):
     sys.stdout.reconfigure(encoding="utf-8")
 
-url = "https://www.facebook.com/share/v/18fgW8Tbvc/"
+from app import app
+
+client = app.test_client()
+
+# Use an unsupported URL to trigger the Unsupported URL error
+url = "https://www.pinterest.com/?show_error=true"
 client_id = "client_lvnnn0l2zy8d6g9idw3j9a"
 
-r = requests.post("http://127.0.0.1:5000/api/info", json={"url": url, "client_id": client_id}, timeout=120)
-data = r.json()
+print(f"Sending request with URL: {url}")
+response = client.post(
+    "/api/info",
+    data=json.dumps({"url": url, "client_id": client_id}),
+    content_type="application/json"
+)
 
-print(f"HTTP Status: {r.status_code}")
-print(f"status: {data.get('status', 'N/A')}")
-print(f"title: {data.get('title', 'N/A')[:150]}")
-print(f"uploader: {data.get('uploader', 'N/A')}")
-print(f"thumbnail: {'YES' if data.get('thumbnail') else 'NO'}")
-print(f"duration: {data.get('duration', 'N/A')}")
-
-vo = data.get("video_options", [])
-print(f"\nvideo_options: {len(vo)}")
-for v in vo:
-    print(f"  {v['format_id']}: {v['label']} | res={v.get('resolution','?')} | size={v.get('size','?')}")
-
-ao = data.get("audio_options", [])
-print(f"\naudio_options: {len(ao)}")
-
-imgs = data.get("images", [])
-print(f"images: {len(imgs)}")
-
-if data.get("message"):
-    print(f"\nError message: {data['message']}")
+print(f"Status Code: {response.status_code}")
+try:
+    data = json.loads(response.data.decode("utf-8"))
+    message = data.get("message", "")
+    print(f"Response Message: {message}")
+    
+    # Check if any ANSI escape codes exist in the message
+    # ANSI escape code starts with \x1b or \033
+    contains_ansi = "\x1b" in message or "\033" in message or "[0;31m" in message
+    print(f"Contains ANSI escape codes: {contains_ansi}")
+    if not contains_ansi:
+        print("✅ Success! ANSI escape codes have been successfully stripped.")
+    else:
+        print("❌ Failed! ANSI escape codes are still present.")
+except Exception as e:
+    print("Error parsing response:", e)
+    print("Raw response:", response.data)

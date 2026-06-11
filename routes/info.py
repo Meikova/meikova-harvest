@@ -31,6 +31,14 @@ info_bp = Blueprint("info", __name__)
 logger = logging.getLogger(__name__)
 
 
+def strip_ansi_codes(text):
+    if not text:
+        return ""
+    # Strip ANSI color/escape sequences
+    ansi_escape = re.compile(r'\x1B(?:[@-Z\\-_]|\[[0-?]*[ -/]*[@-~])')
+    return ansi_escape.sub('', text)
+
+
 @info_bp.route("/api/info", methods=["POST"])
 def get_info():
     data = request.get_json() or {}
@@ -814,7 +822,7 @@ def get_info():
                     return jsonify(pinterest_gallery_fallback)
                 return jsonify({
                     "status": "error",
-                    "message": f"Unable to extract media metadata: {nocookie_e}"
+                    "message": f"Unable to extract media metadata: {strip_ansi_codes(str(nocookie_e))}"
                 }), 400
 
         if not info:
@@ -1483,4 +1491,4 @@ def get_info():
 
     except Exception as e:
         logger.error(f"Error fetching metadata: {str(e)}")
-        return jsonify({"status": "error", "message": f"Could not parse URL. {str(e)}"}), 500
+        return jsonify({"status": "error", "message": f"Could not parse URL. {strip_ansi_codes(str(e))}"}), 500
