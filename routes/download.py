@@ -7,6 +7,8 @@ import re
 import io
 import zipfile
 import requests
+import json
+import time
 from urllib.parse import quote
 from flask import Blueprint, request, jsonify, send_file, Response
 
@@ -78,6 +80,44 @@ def get_download_status(download_id):
         "speed": status_info.get("speed", ""),
         "eta": status_info.get("eta", ""),
     })
+
+
+@download_bp.route("/api/download/progress/<download_id>", methods=["GET"])
+def get_download_progress_sse(download_id):
+    def event_generator():
+        # Keep track of active state
+        while True:
+            with downloads_status_lock:
+                status_info = downloads_status.get(download_id)
+            
+            if not status_info:
+                err_data = {"status": "error", "message": "Download task not found.", "progress": 0}
+                yield f"data: {json.dumps(err_data)}\n\n"
+                break
+            
+            # Formulate update data
+            data = {
+                "status": status_info["status"],
+                "progress": status_info["progress"],
+                "message": status_info["message"],
+                "ext": status_info.get("ext", ""),
+                "error": status_info.get("error"),
+                "speed": status_info.get("speed", ""),
+                "eta": status_info.get("eta", ""),
+            }
+            
+            yield f"data: {json.dumps(data)}\n\n"
+            
+            # Check for termination conditions
+            if status_info["status"] in ["complete", "error"]:
+                break
+                
+            time.sleep(0.5) # Send updates every 500ms for extra responsiveness
+            
+    response = Response(event_generator(), mimetype="text/event-stream")
+    response.headers["Cache-Control"] = "no-cache"
+    response.headers["X-Accel-Buffering"] = "no"
+    return response
 
 
 @download_bp.route("/api/download/file/<download_id>", methods=["GET"])

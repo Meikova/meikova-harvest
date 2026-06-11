@@ -486,6 +486,7 @@ def get_info():
                 "status": "success",
                 "title": title,
                 "duration": "0:15" if unique_video_urls else "0:05",
+                "duration_raw": 15 if unique_video_urls else 5,
                 "uploader": uploader,
                 "thumbnail": thumbnail,
                 "views": "N/A",
@@ -1164,13 +1165,17 @@ def get_info():
                         list(executor.map(resolve_ytdl_slide_size, video_options))
 
                 if not video_options:
+                    best_url = info.get("url")
+                    if not best_url and formats_list:
+                        best_url = formats_list[-1].get("url") if formats_list else None
                     video_options.append({
                         "format_id": "bestvideo+bestaudio/best",
                         "resolution": "Best",
                         "ext": "mp4",
                         "type": "video",
                         "size": None,
-                        "label": "Video (Best Quality)"
+                        "label": "Video (Best Quality)",
+                        "url": best_url
                     })
             else:
                 # --- Find best audio stream for size estimation ---
@@ -1239,7 +1244,8 @@ def get_info():
                                 "ext": "mp4",
                                 "type": "video",
                                 "size": format_size(total_size) if total_size else "Unknown Size",
-                                "label": f"Video {res_label}"
+                                "label": f"Video {res_label}",
+                                "url": f.get("url")
                             }
                             video_options.append(opt_dict)
                             added_resolutions.add(res_label)
@@ -1273,13 +1279,17 @@ def get_info():
                         list(executor.map(resolve_single_format_size, video_options))
 
                 if not video_options:
+                    best_url = info.get("url")
+                    if not best_url and formats_list:
+                        best_url = formats_list[-1].get("url") if formats_list else None
                     video_options.append({
                         "format_id": "bestvideo+bestaudio/best",
                         "resolution": "Best",
                         "ext": "mp4",
                         "type": "video",
                         "size": None,
-                        "label": "Video (Best Quality)"
+                        "label": "Video (Best Quality)",
+                        "url": best_url
                     })
 
                 # --- Build audio options ---
@@ -1473,6 +1483,7 @@ def get_info():
                 "title": title,
                 "uploader": uploader,
                 "duration": duration,
+                "duration_raw": duration_sec,
                 "thumbnail": thumbnail,
                 "is_shorts": is_shorts,
                 "platform_label": platform_label,

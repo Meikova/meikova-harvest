@@ -43,12 +43,23 @@ document.addEventListener("DOMContentLoaded", () => {
         // Wire up trim checkbox toggle inside dropdown
         const trimCb = document.getElementById("trim-checkbox");
         const trimContainer = document.getElementById("trim-inputs-container");
+        const trimPreviewContainer = document.getElementById("trim-preview-container");
+        const trimPreviewPlayer = document.getElementById("trim-preview-player");
         if (trimCb && trimContainer) {
             trimCb.addEventListener("change", () => {
                 if (trimCb.checked) {
                     trimContainer.classList.remove("hidden");
+                    if (trimPreviewContainer && !trimPreviewContainer.classList.contains("force-hidden")) {
+                        trimPreviewContainer.classList.remove("hidden");
+                    }
                 } else {
                     trimContainer.classList.add("hidden");
+                    if (trimPreviewContainer) {
+                        trimPreviewContainer.classList.add("hidden");
+                    }
+                    if (trimPreviewPlayer) {
+                        trimPreviewPlayer.pause();
+                    }
                 }
             });
         }
@@ -1441,12 +1452,16 @@ document.addEventListener("DOMContentLoaded", () => {
         const trimInputsContainer = document.getElementById("trim-inputs-container");
         const trimStartInput = document.getElementById("trim-start");
         const trimEndInput = document.getElementById("trim-end");
+        const trimPreviewContainer = document.getElementById("trim-preview-container");
+        const trimPreviewPlayer = document.getElementById("trim-preview-player");
+        const trimRangeSlider = document.getElementById("trim-range-slider");
         const subTranslateContainer = document.getElementById("sub-translate-container");
         const translateCheckbox = document.getElementById("translate-subs-checkbox");
 
         if (trimCheckbox) {
             trimCheckbox.checked = false;
             if (trimInputsContainer) trimInputsContainer.classList.add("hidden");
+            if (trimPreviewContainer) trimPreviewContainer.classList.add("hidden");
             if (trimStartInput) trimStartInput.value = "00:00:00";
             if (trimEndInput) {
                 let dur = data.duration || "00:00:10";
@@ -1454,6 +1469,111 @@ document.addEventListener("DOMContentLoaded", () => {
                     dur = "00:" + dur;
                 }
                 trimEndInput.value = dur;
+            }
+
+            // Clean up old preview player state
+            if (trimPreviewPlayer) {
+                trimPreviewPlayer.removeAttribute("src");
+                trimPreviewPlayer.load();
+            }
+
+            // Visual trimmer logic: setup noUiSlider
+            const durationSeconds = parseFloat(data.duration_raw) || 0;
+            const hasVideo = data.video_options && data.video_options.some(opt => opt.ext !== "jpg");
+            
+            if (durationSeconds > 0 && hasVideo && trimRangeSlider) {
+                // Determine a valid video format URL to load in background preview
+                const previewVideoOption = data.video_options.find(opt => opt.ext !== "jpg" && opt.url);
+                const previewVideoUrl = previewVideoOption ? previewVideoOption.url : null;
+                
+                if (previewVideoUrl && trimPreviewPlayer) {
+                    trimPreviewPlayer.src = previewVideoUrl;
+                    trimPreviewPlayer.load();
+                }
+
+                // Show preview area when trim is active, mark it not force-hidden
+                if (trimPreviewContainer) {
+                    trimPreviewContainer.classList.remove("force-hidden");
+                }
+
+                // Destroy any existing slider
+                if (trimRangeSlider.noUiSlider) {
+                    trimRangeSlider.noUiSlider.destroy();
+                }
+
+                // Initialize noUiSlider
+                noUiSlider.create(trimRangeSlider, {
+                    start: [0, durationSeconds],
+                    connect: true,
+                    step: 1,
+                    range: {
+                        'min': 0,
+                        'max': durationSeconds
+                    }
+                });
+
+                // Helper to format seconds to time string hh:mm:ss
+                function formatSecsToTime(secs) {
+                    const h = Math.floor(secs / 3600);
+                    const m = Math.floor((secs % 3600) / 60);
+                    const s = Math.floor(secs % 60);
+                    const pad = (n) => String(n).padStart(2, '0');
+                    return `${pad(h)}:${pad(m)}:${pad(s)}`;
+                }
+
+                // Helper to parse time string hh:mm:ss to seconds
+                function parseTimeToSecs(timeStr) {
+                    const parts = timeStr.split(':').map(Number);
+                    if (parts.length === 3) {
+                        return parts[0] * 3600 + parts[1] * 60 + parts[2];
+                    } else if (parts.length === 2) {
+                        return parts[0] * 60 + parts[1];
+                    } else if (parts.length === 1) {
+                        return parts[0];
+                    }
+                    return 0;
+                }
+
+                // Update text inputs on slider change
+                trimRangeSlider.noUiSlider.on('update', (values) => {
+                    const startVal = Math.round(parseFloat(values[0]));
+                    const endVal = Math.round(parseFloat(values[1]));
+                    if (trimStartInput) trimStartInput.value = formatSecsToTime(startVal);
+                    if (trimEndInput) trimEndInput.value = formatSecsToTime(endVal);
+                });
+
+                // Seek preview video player to the handle being dragged/interacted with in real-time
+                const seekToHandle = (values, handle) => {
+                    const seekVal = Math.round(parseFloat(values[handle]));
+                    if (trimPreviewPlayer) {
+                        trimPreviewPlayer.currentTime = seekVal;
+                    }
+                };
+                trimRangeSlider.noUiSlider.on('slide', seekToHandle);
+                trimRangeSlider.noUiSlider.on('change', seekToHandle);
+
+                // Two-way sync: manual changes to input text update the slider
+                if (trimStartInput) {
+                    trimStartInput.onchange = () => {
+                        const sec = parseTimeToSecs(trimStartInput.value);
+                        trimRangeSlider.noUiSlider.set([sec, null]);
+                        if (trimPreviewPlayer) trimPreviewPlayer.currentTime = sec;
+                    };
+                }
+                if (trimEndInput) {
+                    trimEndInput.onchange = () => {
+                        const sec = parseTimeToSecs(trimEndInput.value);
+                        trimRangeSlider.noUiSlider.set([null, sec]);
+                        if (trimPreviewPlayer) trimPreviewPlayer.currentTime = sec;
+                    };
+                }
+
+            } else {
+                // If it is a photo post or has no valid duration, force hide preview player & slider
+                if (trimPreviewContainer) {
+                    trimPreviewContainer.classList.add("force-hidden");
+                    trimPreviewContainer.classList.add("hidden");
+                }
             }
         }
 
@@ -1550,15 +1670,12 @@ document.addEventListener("DOMContentLoaded", () => {
             const downloadId = data.download_id;
             console.log(`Download enqueued. ID: ${downloadId}`);
 
-            // Step B: Set up polling to fetch status progress
-            pollingInterval = setInterval(async () => {
+            // Step B: Set up Server-Sent Events (SSE) to fetch status progress
+            pollingInterval = new EventSource(`/api/download/progress/${downloadId}`);
+            
+            pollingInterval.onmessage = (event) => {
                 try {
-                    const statusRes = await fetch(`/api/download/status/${downloadId}`);
-                    if (!statusRes.ok) {
-                        throw new Error("Unable to fetch download status from server.");
-                    }
-
-                    const statusData = await statusRes.json();
+                    const statusData = JSON.parse(event.data);
                     
                     if (statusData.status === "pending") {
                         progressBarFill.classList.add("striped");
@@ -1592,8 +1709,10 @@ document.addEventListener("DOMContentLoaded", () => {
                         downloadStatusMessage.textContent = statusData.message;
                     } 
                     else if (statusData.status === "complete") {
-                        clearInterval(pollingInterval);
-                        pollingInterval = null;
+                        if (pollingInterval) {
+                            pollingInterval.close();
+                            pollingInterval = null;
+                        }
                         
                         progressBarFill.classList.remove("striped");
                         progressBarFill.style.width = "100%";
@@ -1622,11 +1741,21 @@ document.addEventListener("DOMContentLoaded", () => {
                         throw new Error(statusData.error || statusData.message || "An error occurred on the downloader backend.");
                     }
                 } catch (pollErr) {
-                    clearInterval(pollingInterval);
-                    pollingInterval = null;
+                    if (pollingInterval) {
+                        pollingInterval.close();
+                        pollingInterval = null;
+                    }
                     handleDownloadFailure(pollErr.message, activeRow, allButtons);
                 }
-            }, 1000); // Poll every second
+            };
+
+            pollingInterval.onerror = (err) => {
+                if (pollingInterval) {
+                    pollingInterval.close();
+                    pollingInterval = null;
+                }
+                handleDownloadFailure("Loss of SSE connection to server progress handler.", activeRow, allButtons);
+            };
 
         } catch (err) {
             handleDownloadFailure(err.message, activeRow, allButtons);
@@ -1745,19 +1874,30 @@ document.addEventListener("DOMContentLoaded", () => {
             const downloadId = data.download_id;
             previewActiveDownloadId = downloadId;
 
-            // Poll the status progress
-            const pollInterval = setInterval(async () => {
+            // Step B: Set up Server-Sent Events (SSE) to fetch status progress
+            let pollInterval = new EventSource(`/api/download/progress/${downloadId}`);
+            
+            // Periodically check if preview modal was closed
+            const modalCheckTimer = setInterval(() => {
                 if (previewModal.classList.contains("hidden")) {
-                    clearInterval(pollInterval);
-                    return;
+                    if (pollInterval) {
+                        pollInterval.close();
+                        pollInterval = null;
+                    }
+                    clearInterval(modalCheckTimer);
                 }
+            }, 500);
 
+            pollInterval.onmessage = async (event) => {
                 try {
-                    const statusRes = await fetch(`/api/download/status/${downloadId}`);
-                    const statusData = await statusRes.json();
+                    const statusData = JSON.parse(event.data);
 
                     if (statusData.status === "complete") {
-                        clearInterval(pollInterval);
+                        if (pollInterval) {
+                            pollInterval.close();
+                            pollInterval = null;
+                        }
+                        clearInterval(modalCheckTimer);
                         previewLoader.classList.add("hidden");
 
                         const previewStreamUrl = `/api/download/file/${downloadId}?preview=true`;
@@ -1788,7 +1928,11 @@ document.addEventListener("DOMContentLoaded", () => {
                             }
                         }
                     } else if (statusData.status === "error") {
-                        clearInterval(pollInterval);
+                        if (pollInterval) {
+                            pollInterval.close();
+                            pollInterval = null;
+                        }
+                        clearInterval(modalCheckTimer);
                         previewLoaderText.textContent = `Preview failed: ${statusData.error || "Unknown server error."}`;
                     } else {
                         const progress = statusData.progress || 0;
@@ -1801,9 +1945,18 @@ document.addEventListener("DOMContentLoaded", () => {
                         previewLoaderText.textContent = `[${progress}%] ${msg}`;
                     }
                 } catch (err) {
-                    console.error("Error polling preview status:", err);
+                    console.error("Error handling preview SSE progress:", err);
                 }
-            }, 1000);
+            };
+
+            pollInterval.onerror = (err) => {
+                if (pollInterval) {
+                    pollInterval.close();
+                    pollInterval = null;
+                }
+                clearInterval(modalCheckTimer);
+                previewLoaderText.textContent = "Connection to preview progress server lost.";
+            };
 
         } catch (err) {
             console.error(err);
