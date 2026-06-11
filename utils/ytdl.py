@@ -115,6 +115,38 @@ def create_ydl_instance(ydl_opts, url=None, client_id=None):
 
     browsers = ["chrome", "edge", "firefox", "opera", "vivaldi", "brave"]
     
+    # Filter browsers based on whether their user data directory exists to avoid FileNotFoundError logs
+    available_browsers = []
+    appdata_local = os.environ.get("LOCALAPPDATA")
+    appdata_roaming = os.environ.get("APPDATA")
+    
+    for browser in browsers:
+        exists = False
+        if browser == "chrome" and appdata_local:
+            exists = os.path.exists(os.path.join(appdata_local, "Google/Chrome/User Data"))
+        elif browser == "edge" and appdata_local:
+            exists = os.path.exists(os.path.join(appdata_local, "Microsoft/Edge/User Data"))
+        elif browser == "brave" and appdata_local:
+            exists = os.path.exists(os.path.join(appdata_local, "BraveSoftware/Brave-Browser/User Data"))
+        elif browser == "vivaldi" and appdata_local:
+            exists = os.path.exists(os.path.join(appdata_local, "Vivaldi/User Data"))
+        elif browser == "opera":
+            exists = (
+                (appdata_roaming and os.path.exists(os.path.join(appdata_roaming, "Opera Software"))) or 
+                (appdata_local and os.path.exists(os.path.join(appdata_local, "Opera Software")))
+            )
+        elif browser == "firefox" and appdata_roaming:
+            exists = os.path.exists(os.path.join(appdata_roaming, "Mozilla/Firefox/Profiles"))
+        else:
+            # Fallback for non-Windows or unknown environments
+            exists = True
+            
+        if exists:
+            available_browsers.append(browser)
+            
+    browsers = available_browsers
+    logger.info(f"Available browser cookie sources: {browsers}")
+
     # Extract target domain for cookie filtering
     target_domain = None
     if url:

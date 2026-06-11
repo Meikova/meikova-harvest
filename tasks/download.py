@@ -13,7 +13,7 @@ except ImportError:
 
 from config import TEMP_DOWNLOAD_DIR, downloads_status, downloads_status_lock
 from utils.helpers import get_referer_by_url
-from utils.ffmpeg import trim_file_if_needed
+from utils.ffmpeg import trim_file_if_needed, apply_post_processing
 from utils.ytdl import create_ydl_instance
 
 logger = logging.getLogger(__name__)
@@ -36,7 +36,34 @@ def schedule_cleanup(temp_dir, download_id, delay=300):
     timer.start()
 
 
-def bg_download_task(download_id, url, format_id, ext, quality="192", title="media", client_id=None, trim_start=None, trim_end=None, translate_subs=None):
+def upload_to_telegram(filepath, bot_token, chat_id):
+    """Uploads a file directly to Telegram using a Bot."""
+    ext = filepath.rsplit(".", 1)[-1].lower() if "." in filepath else ""
+    if ext in ["mp4", "mov"]:
+        method = "sendVideo"
+        file_key = "video"
+    elif ext == "gif":
+        method = "sendAnimation"
+        file_key = "animation"
+    else:
+        method = "sendDocument"
+        file_key = "document"
+        
+    url = f"https://api.telegram.org/bot{bot_token}/{method}"
+    try:
+        with open(filepath, 'rb') as f:
+            files = {file_key: f}
+            data = {'chat_id': chat_id}
+            resp = requests.post(url, data=data, files=files, timeout=300)
+        if resp.status_code == 200:
+            return True, "Success"
+        else:
+            return False, f"Telegram API Error (HTTP {resp.status_code}): {resp.text}"
+    except Exception as e:
+        return False, f"Telegram upload connection failed: {e}"
+
+
+def bg_download_task(download_id, url, format_id, ext, quality="192", title="media", client_id=None, trim_start=None, trim_end=None, translate_subs=None, **kwargs):
     """Background thread task to download media via yt-dlp."""
     temp_dir = os.path.join(TEMP_DOWNLOAD_DIR, f"temp_{download_id}")
     os.makedirs(temp_dir, exist_ok=True)
@@ -145,11 +172,36 @@ def bg_download_task(download_id, url, format_id, ext, quality="192", title="med
                     
                 filepath = final_filepath
             
-            if (trim_start or trim_end) and ext != "vtt":
-                try:
-                    filepath = trim_file_if_needed(filepath, trim_start, trim_end)
-                except Exception as trim_err:
-                    logger.error(f"Error during direct file trimming: {trim_err}")
+            vtt_files = [f for f in os.listdir(temp_dir) if f.endswith(".vtt")]
+            subtitles_path = None
+            if vtt_files:
+                vi_vtt = [f for f in vtt_files if f.endswith(".vi.vtt")]
+                subtitles_path = os.path.join(temp_dir, vi_vtt[0]) if vi_vtt else os.path.join(temp_dir, vtt_files[0])
+
+            def progress_cb(message, progress_val):
+                with downloads_status_lock:
+                    if download_id in downloads_status:
+                        downloads_status[download_id].update({
+                            "status": "processing",
+                            "progress": progress_val,
+                            "message": message
+                        })
+
+            try:
+                filepath = apply_post_processing(
+                    filepath, temp_dir,
+                    trim_start=trim_start, trim_end=trim_end,
+                    export_type=kwargs.get("export_type", "default"),
+                    color_filter=kwargs.get("color_filter", "none"),
+                    voiceover_active=kwargs.get("voiceover_active", False),
+                    voiceover_voice=kwargs.get("voiceover_voice"),
+                    subtitles_path=subtitles_path,
+                    translate_subs=translate_subs,
+                    progress_callback=progress_cb
+                )
+                ext = filepath.rsplit(".", 1)[-1].lower()
+            except Exception as pp_err:
+                logger.error(f"Post-processing failed: {pp_err}")
             
             def sanitize_filename(name):
                 cleaned = re.sub(r'[\\/*?:"<>|]', "", name)
@@ -158,17 +210,52 @@ def bg_download_task(download_id, url, format_id, ext, quality="192", title="med
             safe_title = sanitize_filename(title)
             user_filename = f"{safe_title}.{ext}"
 
-            with downloads_status_lock:
-                if download_id in downloads_status:
-                    downloads_status[download_id].update({
-                        "status": "complete",
-                        "progress": 100,
-                        "message": "Ready!",
-                        "filepath": filepath,
-                        "temp_dir": temp_dir,
-                        "filename": user_filename,
-                    })
-                    logger.info(f"Task {download_id}: Complete. File: {user_filename}")
+            cloud_destination = kwargs.get("cloud_destination", "local")
+            tg_bot_token = kwargs.get("tg_bot_token")
+            tg_chat_id = kwargs.get("tg_chat_id")
+
+            if cloud_destination == "telegram" and tg_bot_token and tg_chat_id:
+                with downloads_status_lock:
+                    if download_id in downloads_status:
+                        downloads_status[download_id].update({
+                            "status": "processing",
+                            "progress": 90,
+                            "message": "Uploading file to Telegram Bot..."
+                        })
+                
+                success, msg = upload_to_telegram(filepath, tg_bot_token, tg_chat_id)
+                if success:
+                    try:
+                        if os.path.exists(filepath):
+                            os.remove(filepath)
+                            logger.info(f"File {filepath} purged immediately after successful Telegram upload.")
+                    except Exception as purge_e:
+                        logger.warning(f"Failed to delete file after Telegram upload: {purge_e}")
+                        
+                    with downloads_status_lock:
+                        if download_id in downloads_status:
+                            downloads_status[download_id].update({
+                                "status": "complete",
+                                "progress": 100,
+                                "message": "Uploaded successfully to Telegram!",
+                                "filepath": filepath,
+                                "temp_dir": temp_dir,
+                                "filename": user_filename,
+                            })
+                else:
+                    raise Exception(f"Telegram upload failed: {msg}")
+            else:
+                with downloads_status_lock:
+                    if download_id in downloads_status:
+                        downloads_status[download_id].update({
+                            "status": "complete",
+                            "progress": 100,
+                            "message": "Ready!",
+                            "filepath": filepath,
+                            "temp_dir": temp_dir,
+                            "filename": user_filename,
+                        })
+                        logger.info(f"Task {download_id}: Complete. File: {user_filename}")
             
             schedule_cleanup(temp_dir, download_id, delay=300)
             return
@@ -353,18 +440,27 @@ def bg_download_task(download_id, url, format_id, ext, quality="192", title="med
             "format": "bestaudio[ext=m4a]/bestaudio",
         })
     elif ext == "vtt":
-        lang = "vi" if translate_subs == "vi" else format_id
+        # We always download the selected subtitle language (format_id) first,
+        # then we will translate it if translate_subs == "vi"
         ydl_opts.update({
             "skip_download": True,
             "writesubtitles": True,
             "writeautomaticsub": True,
-            "subtitleslangs": [lang],
+            "subtitleslangs": [format_id],
         })
     else:
+        # For direct HLS/DASH stream manifests, tell yt-dlp to download the best available muxed stream
+        target_format = "bestvideo+bestaudio/best" if format_id.startswith("direct_") else format_id
         ydl_opts.update({
-            "format": format_id,
+            "format": target_format,
             "merge_output_format": "mp4",
         })
+        if kwargs.get("voiceover_active") or translate_subs:
+            ydl_opts.update({
+                "writesubtitles": True,
+                "writeautomaticsub": True,
+                "subtitleslangs": ["vi", "en"],
+            })
 
     try:
         try:
@@ -386,16 +482,52 @@ def bg_download_task(download_id, url, format_id, ext, quality="192", title="med
         if not downloaded_files:
             raise Exception("Download completed but no output file found.")
 
-        filename_on_disk = downloaded_files[0]
-        filepath = os.path.join(temp_dir, filename_on_disk)
+        if ext == "vtt":
+            # For subtitles, we only look for .vtt or .srt files
+            sub_files = [f for f in downloaded_files if f.endswith((".vtt", ".srt"))]
+            if not sub_files:
+                raise Exception("Subtitle download completed but no subtitle file was found on disk.")
+            filename_on_disk = sub_files[0]
+            filepath = os.path.join(temp_dir, filename_on_disk)
+        else:
+            # Ignore subtitle, metadata and helper files to avoid alphabetical selection bug
+            media_files = [f for f in downloaded_files if not f.endswith((".vtt", ".srt", ".ass", ".json", ".png", ".jpg", ".jpeg", ".webp", ".txt", ".description"))]
+            if not media_files:
+                raise Exception("Download completed but no media file found.")
+            filename_on_disk = media_files[0]
+            filepath = os.path.join(temp_dir, filename_on_disk)
 
-        # Call trim if requested
-        if (trim_start or trim_end) and ext != "vtt":
-            try:
-                filepath = trim_file_if_needed(filepath, trim_start, trim_end)
-                filename_on_disk = os.path.basename(filepath)
-            except Exception as trim_err:
-                logger.error(f"Error during file trimming: {trim_err}")
+        # Apply all post-processing: trim, voiceover, color filters, export formatting
+        vtt_files = [f for f in os.listdir(temp_dir) if f.endswith(".vtt")]
+        subtitles_path = None
+        if vtt_files:
+            vi_vtt = [f for f in vtt_files if f.endswith(".vi.vtt")]
+            subtitles_path = os.path.join(temp_dir, vi_vtt[0]) if vi_vtt else os.path.join(temp_dir, vtt_files[0])
+        
+        def progress_cb(message, progress_val):
+            with downloads_status_lock:
+                if download_id in downloads_status:
+                    downloads_status[download_id].update({
+                        "status": "processing",
+                        "progress": progress_val,
+                        "message": message
+                    })
+
+        try:
+            filepath = apply_post_processing(
+                filepath, temp_dir, 
+                trim_start=trim_start, trim_end=trim_end,
+                export_type=kwargs.get("export_type", "default"),
+                color_filter=kwargs.get("color_filter", "none"),
+                voiceover_active=kwargs.get("voiceover_active", False),
+                voiceover_voice=kwargs.get("voiceover_voice"),
+                subtitles_path=subtitles_path,
+                translate_subs=translate_subs,
+                progress_callback=progress_cb
+            )
+            ext = filepath.rsplit(".", 1)[-1].lower()
+        except Exception as pp_err:
+            logger.error(f"Post-processing failed: {pp_err}")
 
         def sanitize_filename(name):
             cleaned = re.sub(r'[\\/*?:"<>|]', "", name)
@@ -408,17 +540,52 @@ def bg_download_task(download_id, url, format_id, ext, quality="192", title="med
         else:
             user_filename = f"{safe_title}.{ext}"
 
-        with downloads_status_lock:
-            if download_id in downloads_status:
-                downloads_status[download_id].update({
-                    "status": "complete",
-                    "progress": 100,
-                    "message": "Ready!",
-                    "filepath": filepath,
-                    "temp_dir": temp_dir,
-                    "filename": user_filename,
-                })
-                logger.info(f"Task {download_id}: Complete. File: {user_filename}")
+        cloud_destination = kwargs.get("cloud_destination", "local")
+        tg_bot_token = kwargs.get("tg_bot_token")
+        tg_chat_id = kwargs.get("tg_chat_id")
+
+        if cloud_destination == "telegram" and tg_bot_token and tg_chat_id:
+            with downloads_status_lock:
+                if download_id in downloads_status:
+                    downloads_status[download_id].update({
+                        "status": "processing",
+                        "progress": 90,
+                        "message": "Uploading file to Telegram Bot..."
+                    })
+            
+            success, msg = upload_to_telegram(filepath, tg_bot_token, tg_chat_id)
+            if success:
+                try:
+                    if os.path.exists(filepath):
+                        os.remove(filepath)
+                        logger.info(f"File {filepath} purged immediately after successful Telegram upload.")
+                except Exception as purge_e:
+                    logger.warning(f"Failed to delete file after Telegram upload: {purge_e}")
+                    
+                with downloads_status_lock:
+                    if download_id in downloads_status:
+                        downloads_status[download_id].update({
+                            "status": "complete",
+                            "progress": 100,
+                            "message": "Uploaded successfully to Telegram!",
+                            "filepath": filepath,
+                            "temp_dir": temp_dir,
+                            "filename": user_filename,
+                        })
+            else:
+                raise Exception(f"Telegram upload failed: {msg}")
+        else:
+            with downloads_status_lock:
+                if download_id in downloads_status:
+                    downloads_status[download_id].update({
+                        "status": "complete",
+                        "progress": 100,
+                        "message": "Ready!",
+                        "filepath": filepath,
+                        "temp_dir": temp_dir,
+                        "filename": user_filename,
+                    })
+                    logger.info(f"Task {download_id}: Complete. File: {user_filename}")
 
         # Clean up the file 5 minutes (300 seconds) after completion
         schedule_cleanup(temp_dir, download_id, delay=300)

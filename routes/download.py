@@ -35,6 +35,17 @@ def start_download():
     trim_start = data.get("trim_start")
     trim_end = data.get("trim_end")
     translate_subs = data.get("translate_subs")
+    
+    export_type = data.get("export_type") or "default"
+    if export_type == "gif":
+        ext = "gif"
+        
+    color_filter = data.get("color_filter") or "none"
+    voiceover_active = bool(data.get("voiceover_active"))
+    voiceover_voice = data.get("voiceover_voice") or "vi-VN-HoaiMyNeural"
+    cloud_destination = data.get("cloud_destination") or "local"
+    tg_bot_token = data.get("tg_bot_token")
+    tg_chat_id = data.get("tg_chat_id")
 
     if not url or not format_id:
         return jsonify({"status": "error", "message": "URL and format_id are required."}), 400
@@ -57,7 +68,18 @@ def start_download():
     thread = threading.Thread(
         target=bg_download_task, 
         args=(download_id, url, format_id, ext, quality, title, client_id),
-        kwargs={"trim_start": trim_start, "trim_end": trim_end, "translate_subs": translate_subs}
+        kwargs={
+            "trim_start": trim_start, 
+            "trim_end": trim_end, 
+            "translate_subs": translate_subs,
+            "export_type": export_type,
+            "color_filter": color_filter,
+            "voiceover_active": voiceover_active,
+            "voiceover_voice": voiceover_voice,
+            "cloud_destination": cloud_destination,
+            "tg_bot_token": tg_bot_token,
+            "tg_chat_id": tg_chat_id,
+        }
     )
     thread.start()
 

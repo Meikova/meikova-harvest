@@ -417,7 +417,7 @@ def scrape_reddit_fallback(url, client_id=None):
             logger.info(f"Reddit Fallback: Detected v.redd.it video ID: {video_id}")
             hls_url = f"https://v.redd.it/{video_id}/HLSPlaylist.m3u8"
             video_options.append({
-                "format_id": "reddit_hls",
+                "format_id": "direct_hls_reddit",
                 "resolution": "Multi",
                 "ext": "mp4",
                 "type": "video",
@@ -428,7 +428,7 @@ def scrape_reddit_fallback(url, client_id=None):
             resolutions = ["1080", "720", "480", "360", "240"]
             for res_val in resolutions:
                 video_options.append({
-                    "format_id": f"reddit_dash_{res_val}",
+                    "format_id": f"direct_dash_reddit_{res_val}",
                     "resolution": f"{res_val}p",
                     "ext": "mp4",
                     "type": "video",
@@ -437,7 +437,7 @@ def scrape_reddit_fallback(url, client_id=None):
                     "url": f"https://v.redd.it/{video_id}/DASH_{res_val}.mp4"
                 })
             audio_options.append({
-                "format_id": "reddit_audio",
+                "format_id": "direct_audio_reddit",
                 "resolution": "Audio",
                 "ext": "m4a",
                 "type": "audio",

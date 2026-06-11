@@ -5,4 +5,5 @@ static-ffmpeg==2.5
 yt-dlp-ejs>=0.8.0
 gallery-dl
 curl-cffi
+edge-tts
 

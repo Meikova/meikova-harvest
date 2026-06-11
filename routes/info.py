@@ -1503,3 +1503,55 @@ def get_info():
     except Exception as e:
         logger.error(f"Error fetching metadata: {str(e)}")
         return jsonify({"status": "error", "message": f"Could not parse URL. {strip_ansi_codes(str(e))}"}), 500
+
+
+@info_bp.route("/api/video/analyze-scenes", methods=["GET"])
+def analyze_video_scenes():
+    video_url = request.args.get("url")
+    if not video_url:
+        return jsonify({"status": "error", "message": "Missing url parameter"}), 400
+        
+    try:
+        referer = get_referer_by_url(video_url)
+        headers_str = (
+            "User-Agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36\r\n"
+            f"Referer: {referer}\r\n"
+        )
+        
+        # Run ffmpeg with showinfo filter to detect visual scene changes
+        cmd = [
+            "ffmpeg",
+            "-headers", headers_str,
+            "-ss", "0",
+            "-t", "600",  # Scan first 10 minutes maximum to keep it extremely fast
+            "-i", video_url,
+            "-vf", "select='gt(scene,0.45)',showinfo",
+            "-f", "null",
+            "-"
+        ]
+        
+        # Limit running time to 12 seconds to avoid blocking thread
+        try:
+            result = subprocess.run(
+                cmd,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+                text=True,
+                timeout=12
+            )
+            stderr_output = result.stderr or ""
+        except subprocess.TimeoutExpired as te:
+            stderr_output = te.stderr or ""
+            
+        # Parse showinfo output for pts_time values
+        # e.g., "pts_time:12.3456"
+        matches = re.findall(r"pts_time:\s*([0-9.]+)", stderr_output)
+        timestamps = sorted(list(set(round(float(m)) for m in matches)))
+        
+        return jsonify({
+            "status": "success",
+            "scenes": timestamps
+        })
+    except Exception as e:
+        logger.error(f"Error in analyze_video_scenes: {e}")
+        return jsonify({"status": "error", "message": str(e)}), 500

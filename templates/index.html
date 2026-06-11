@@ -96,13 +96,15 @@
                     </div>
                     <!-- Trim Media -->
                     <div class="trim-section">
+                        <div id="trim-preview-container" class="hidden" style="margin-top: 15px;">
+                            <video id="trim-preview-player" style="width: 100%; border-radius: 8px; margin-bottom: 15px;" controls></video>
+                        </div>
                         <label class="advanced-label">
                             <input type="checkbox" id="trim-checkbox">
                             <span class="custom-checkbox"></span>
                             <span>Cắt thời lượng (Trim Media)</span>
                         </label>
-                        <div id="trim-preview-container" class="hidden" style="margin-top: 15px;">
-                            <video id="trim-preview-player" style="width: 100%; border-radius: 8px; margin-bottom: 15px;" controls></video>
+                        <div id="trim-slider-container" class="hidden" style="margin-top: 15px; margin-bottom: 10px;">
                             <div id="trim-range-slider" style="margin: 10px 10px 20px 10px;"></div>
                         </div>
                         <div id="trim-inputs-container" class="trim-inputs hidden">
@@ -123,6 +125,58 @@
                             <span class="custom-checkbox"></span>
                             <span>Tự dịch phụ đề sang Tiếng Việt</span>
                         </label>
+                    </div>
+                    <!-- Export Format Option -->
+                    <div class="export-section" style="margin-top: 15px; border-top: 1px solid rgba(255, 255, 255, 0.05); padding-top: 15px;">
+                        <label class="advanced-label">
+                            <span>Định dạng xuất (Export Format):</span>
+                        </label>
+                        <select id="export-type-select" style="width: 100%; padding: 8px 12px; background: rgba(0,0,0,0.3); border: 1px solid var(--glass-border); border-radius: 8px; color: var(--text); font-family: var(--font); outline: none; margin-top: 5px; cursor: pointer;">
+                            <option value="default">Mặc định (Default format)</option>
+                            <option value="gif">Ảnh động GIF lặp (Looping GIF)</option>
+                            <option value="shorts">Video dọc Shorts/TikTok (9:16)</option>
+                        </select>
+                    </div>
+                    <!-- Cinematic Filters -->
+                    <div class="filter-section" style="margin-top: 15px; border-top: 1px solid rgba(255, 255, 255, 0.05); padding-top: 15px;">
+                        <label class="advanced-label">
+                            <span>Bộ lọc màu (Cinematic Filter):</span>
+                        </label>
+                        <select id="color-filter-select" style="width: 100%; padding: 8px 12px; background: rgba(0,0,0,0.3); border: 1px solid var(--glass-border); border-radius: 8px; color: var(--text); font-family: var(--font); outline: none; margin-top: 5px; cursor: pointer;">
+                            <option value="none">Gốc (Original)</option>
+                            <option value="cyberpunk">Cyberpunk (Cyan/Purple)</option>
+                            <option value="vintage">Hoài cổ (Vintage Warm)</option>
+                            <option value="noir">Trắng đen (Noir High Contrast)</option>
+                            <option value="enhance">Làm nét & Khử nhiễu (Denoise & Sharpen)</option>
+                        </select>
+                    </div>
+                    <!-- AI Voiceover (Lồng tiếng) -->
+                    <div class="voiceover-section" id="voiceover-container" style="margin-top: 15px; border-top: 1px solid rgba(255, 255, 255, 0.05); padding-top: 15px;">
+                        <label class="advanced-label">
+                            <input type="checkbox" id="voiceover-checkbox">
+                            <span class="custom-checkbox"></span>
+                            <span>Lồng tiếng AI (Vietnamese Voiceover)</span>
+                        </label>
+                        <div id="voiceover-select-container" class="hidden" style="margin-top: 8px;">
+                            <select id="voiceover-voice-select" style="width: 100%; padding: 8px 12px; background: rgba(0,0,0,0.3); border: 1px solid var(--glass-border); border-radius: 8px; color: var(--text); font-family: var(--font); outline: none; cursor: pointer;">
+                                <option value="vi-VN-HoaiMyNeural">Hoài My (Giọng nữ ấm áp)</option>
+                                <option value="vi-VN-NamMinhNeural">Nam Minh (Giọng nam truyền cảm)</option>
+                            </select>
+                        </div>
+                    </div>
+                    <!-- Cloud Sync Options -->
+                    <div class="cloud-sync-section" style="margin-top: 15px; border-top: 1px solid rgba(255, 255, 255, 0.05); padding-top: 15px;">
+                        <label class="advanced-label">
+                            <span>Lưu trữ đám mây (Cloud Sync):</span>
+                        </label>
+                        <select id="cloud-sync-select" style="width: 100%; padding: 8px 12px; background: rgba(0,0,0,0.3); border: 1px solid var(--glass-border); border-radius: 8px; color: var(--text); font-family: var(--font); outline: none; margin-top: 5px; cursor: pointer;">
+                            <option value="local">Tải về máy khách (Local Download)</option>
+                            <option value="telegram">Gửi qua Telegram Bot</option>
+                        </select>
+                        <div id="telegram-config-inputs" class="hidden" style="margin-top: 10px; display: flex; flex-direction: column; gap: 8px;">
+                            <input type="text" id="tg-bot-token" placeholder="Telegram Bot Token" style="width: 100%; padding: 8px 12px; background: rgba(0,0,0,0.3); border: 1px solid var(--glass-border); border-radius: 8px; color: var(--text); font-family: var(--font); font-size: 0.85rem;">
+                            <input type="text" id="tg-chat-id" placeholder="Telegram Chat/Group ID" style="width: 100%; padding: 8px 12px; background: rgba(0,0,0,0.3); border: 1px solid var(--glass-border); border-radius: 8px; color: var(--text); font-family: var(--font); font-size: 0.85rem;">
+                        </div>
                     </div>
                 </div>
             </div>

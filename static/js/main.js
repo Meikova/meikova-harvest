@@ -43,22 +43,83 @@ document.addEventListener("DOMContentLoaded", () => {
         // Wire up trim checkbox toggle inside dropdown
         const trimCb = document.getElementById("trim-checkbox");
         const trimContainer = document.getElementById("trim-inputs-container");
-        const trimPreviewContainer = document.getElementById("trim-preview-container");
+        const trimSliderContainer = document.getElementById("trim-slider-container");
         const trimPreviewPlayer = document.getElementById("trim-preview-player");
         if (trimCb && trimContainer) {
             trimCb.addEventListener("change", () => {
                 if (trimCb.checked) {
                     trimContainer.classList.remove("hidden");
-                    if (trimPreviewContainer && !trimPreviewContainer.classList.contains("force-hidden")) {
-                        trimPreviewContainer.classList.remove("hidden");
+                    if (trimSliderContainer) {
+                        trimSliderContainer.classList.remove("hidden");
                     }
                 } else {
                     trimContainer.classList.add("hidden");
-                    if (trimPreviewContainer) {
-                        trimPreviewContainer.classList.add("hidden");
+                    if (trimSliderContainer) {
+                        trimSliderContainer.classList.add("hidden");
                     }
-                    if (trimPreviewPlayer) {
-                        trimPreviewPlayer.pause();
+                }
+            });
+        }
+
+        // Voiceover checkbox toggle
+        const voiceoverCb = document.getElementById("voiceover-checkbox");
+        const voiceoverSelectContainer = document.getElementById("voiceover-select-container");
+        if (voiceoverCb && voiceoverSelectContainer) {
+            voiceoverCb.addEventListener("change", () => {
+                if (voiceoverCb.checked) {
+                    voiceoverSelectContainer.classList.remove("hidden");
+                } else {
+                    voiceoverSelectContainer.classList.add("hidden");
+                }
+            });
+        }
+
+        // Cloud sync select change
+        const cloudSyncSelect = document.getElementById("cloud-sync-select");
+        const telegramConfigInputs = document.getElementById("telegram-config-inputs");
+        const tgBotTokenInput = document.getElementById("tg-bot-token");
+        const tgChatIdInput = document.getElementById("tg-chat-id");
+
+        // Load saved Telegram credentials if any
+        if (tgBotTokenInput && tgChatIdInput) {
+            tgBotTokenInput.value = localStorage.getItem("tg_bot_token") || "";
+            tgChatIdInput.value = localStorage.getItem("tg_chat_id") || "";
+            
+            // Save on change
+            tgBotTokenInput.addEventListener("input", () => {
+                localStorage.setItem("tg_bot_token", tgBotTokenInput.value.trim());
+            });
+            tgChatIdInput.addEventListener("input", () => {
+                localStorage.setItem("tg_chat_id", tgChatIdInput.value.trim());
+            });
+        }
+
+        if (cloudSyncSelect && telegramConfigInputs) {
+            cloudSyncSelect.addEventListener("change", () => {
+                if (cloudSyncSelect.value === "telegram") {
+                    telegramConfigInputs.classList.remove("hidden");
+                } else {
+                    telegramConfigInputs.classList.add("hidden");
+                }
+            });
+        }
+
+        // Color filter preview application
+        const colorFilterSelect = document.getElementById("color-filter-select");
+        if (colorFilterSelect) {
+            colorFilterSelect.addEventListener("change", () => {
+                const filterVal = colorFilterSelect.value;
+                if (trimPreviewPlayer) {
+                    if (filterVal === "cyberpunk") {
+                        trimPreviewPlayer.style.filter = "hue-rotate(-10deg) saturate(1.5) contrast(1.1) brightness(0.95)";
+                    } else if (filterVal === "vintage") {
+                        trimPreviewPlayer.style.filter = "sepia(0.4) saturate(1.2) contrast(0.9) hue-rotate(5deg)";
+                    } else if (filterVal === "noir") {
+                        trimPreviewPlayer.style.filter = "grayscale(1) contrast(1.4) brightness(0.9)";
+                    } else if (filterVal === "enhance") {
+                        trimPreviewPlayer.style.filter = "contrast(1.05) saturate(1.1)";
+                    } else {
+                        trimPreviewPlayer.style.filter = "none";
                     }
                 }
             });
@@ -1450,6 +1511,7 @@ document.addEventListener("DOMContentLoaded", () => {
         // Setup Advanced Options panel state for the new media
         const trimCheckbox = document.getElementById("trim-checkbox");
         const trimInputsContainer = document.getElementById("trim-inputs-container");
+        const trimSliderContainer = document.getElementById("trim-slider-container");
         const trimStartInput = document.getElementById("trim-start");
         const trimEndInput = document.getElementById("trim-end");
         const trimPreviewContainer = document.getElementById("trim-preview-container");
@@ -1461,6 +1523,7 @@ document.addEventListener("DOMContentLoaded", () => {
         if (trimCheckbox) {
             trimCheckbox.checked = false;
             if (trimInputsContainer) trimInputsContainer.classList.add("hidden");
+            if (trimSliderContainer) trimSliderContainer.classList.add("hidden");
             if (trimPreviewContainer) trimPreviewContainer.classList.add("hidden");
             if (trimStartInput) trimStartInput.value = "00:00:00";
             if (trimEndInput) {
@@ -1491,8 +1554,9 @@ document.addEventListener("DOMContentLoaded", () => {
                     trimPreviewPlayer.load();
                 }
 
-                // Show preview area when trim is active, mark it not force-hidden
-                if (trimPreviewContainer) {
+                // Show preview area automatically when media has video
+                if (trimPreviewContainer && previewVideoUrl) {
+                    trimPreviewContainer.classList.remove("hidden");
                     trimPreviewContainer.classList.remove("force-hidden");
                 }
 
@@ -1568,6 +1632,54 @@ document.addEventListener("DOMContentLoaded", () => {
                     };
                 }
 
+                // Scene Detector API call
+                if (previewVideoUrl) {
+                    fetch(`/api/video/analyze-scenes?url=${encodeURIComponent(previewVideoUrl)}`)
+                        .then(res => res.json())
+                        .then(sceneData => {
+                            if (sceneData.status === "success" && sceneData.scenes && sceneData.scenes.length > 0) {
+                                renderSceneMarkers(sceneData.scenes, durationSeconds, trimRangeSlider);
+                            }
+                        })
+                        .catch(err => console.log("Failed to load scene highlights:", err));
+                }
+
+                // Render markers inside the noUiSlider
+                function renderSceneMarkers(scenes, totalDuration, sliderElement) {
+                    const noUiBase = sliderElement.querySelector('.noUi-base');
+                    if (!noUiBase) return;
+                    
+                    // Remove existing scene markers if any
+                    noUiBase.querySelectorAll('.scene-marker').forEach(el => el.remove());
+                    
+                    scenes.forEach(timeSec => {
+                        const pct = (timeSec / totalDuration) * 100;
+                        if (pct > 0 && pct < 100) {
+                            const marker = document.createElement('div');
+                            marker.className = 'scene-marker';
+                            marker.style.left = `${pct}%`;
+                            marker.title = `Scene change at ${formatSecsToTime(timeSec)}`;
+                            
+                            // On click seek player and snap slider handle
+                            marker.onclick = (e) => {
+                                e.stopPropagation();
+                                if (trimPreviewPlayer) {
+                                    trimPreviewPlayer.currentTime = timeSec;
+                                }
+                                const currentVals = sliderElement.noUiSlider.get().map(parseFloat);
+                                const distStart = Math.abs(currentVals[0] - timeSec);
+                                const distEnd = Math.abs(currentVals[1] - timeSec);
+                                if (distStart < distEnd) {
+                                    sliderElement.noUiSlider.set([timeSec, null]);
+                                } else {
+                                    sliderElement.noUiSlider.set([null, timeSec]);
+                                }
+                            };
+                            noUiBase.appendChild(marker);
+                        }
+                    });
+                }
+
             } else {
                 // If it is a photo post or has no valid duration, force hide preview player & slider
                 if (trimPreviewContainer) {
@@ -1632,7 +1744,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
         try {
             const requestBody = {
-                url: customUrl || activeUrl,
+                url: (formatId.startsWith("direct_") || formatId === "image_preview" || formatId === "image_download") ? (customUrl || activeUrl) : activeUrl,
                 format_id: formatId,
                 ext: ext,
                 quality: quality,
@@ -1650,6 +1762,42 @@ document.addEventListener("DOMContentLoaded", () => {
             const subTranslateContainer = document.getElementById("sub-translate-container");
             if (translateCheckbox && translateCheckbox.checked && subTranslateContainer && !subTranslateContainer.classList.contains("hidden")) {
                 requestBody.translate_subs = "vi";
+            }
+
+            // Export Format Type
+            const exportTypeSelect = document.getElementById("export-type-select");
+            if (exportTypeSelect) {
+                requestBody.export_type = exportTypeSelect.value;
+            }
+
+            // Cinematic color filter preset
+            const colorFilterSelect = document.getElementById("color-filter-select");
+            if (colorFilterSelect) {
+                requestBody.color_filter = colorFilterSelect.value;
+            }
+
+            // AI Voiceover settings
+            const voiceoverCb = document.getElementById("voiceover-checkbox");
+            const voiceoverVoiceSelect = document.getElementById("voiceover-voice-select");
+            if (voiceoverCb && voiceoverCb.checked) {
+                requestBody.voiceover_active = true;
+                if (voiceoverVoiceSelect) {
+                    requestBody.voiceover_voice = voiceoverVoiceSelect.value;
+                }
+            }
+
+            // Cloud sync upload settings
+            const cloudSyncSelect = document.getElementById("cloud-sync-select");
+            if (cloudSyncSelect) {
+                requestBody.cloud_destination = cloudSyncSelect.value;
+                if (cloudSyncSelect.value === "telegram") {
+                    const tgBotToken = document.getElementById("tg-bot-token");
+                    const tgChatId = document.getElementById("tg-chat-id");
+                    if (tgBotToken && tgChatId) {
+                        requestBody.tg_bot_token = tgBotToken.value.trim();
+                        requestBody.tg_chat_id = tgChatId.value.trim();
+                    }
+                }
             }
 
             // Step A: Request the server to start the download task in the background
@@ -1730,12 +1878,19 @@ document.addEventListener("DOMContentLoaded", () => {
                             activeRow.classList.remove("is-downloading");
                         }
 
-                        // Trigger file download
-                        const downloadAnchor = document.createElement("a");
-                        downloadAnchor.href = `/api/download/file/${downloadId}`;
-                        document.body.appendChild(downloadAnchor);
-                        downloadAnchor.click();
-                        downloadAnchor.remove();
+                        // Trigger file download only if not cloud sync upload
+                        const cloudSyncSelect = document.getElementById("cloud-sync-select");
+                        const isCloudUpload = cloudSyncSelect && cloudSyncSelect.value !== "local";
+
+                        if (isCloudUpload) {
+                            downloadStatusMessage.textContent = "File uploaded successfully to your Cloud storage!";
+                        } else {
+                            const downloadAnchor = document.createElement("a");
+                            downloadAnchor.href = `/api/download/file/${downloadId}`;
+                            document.body.appendChild(downloadAnchor);
+                            downloadAnchor.click();
+                            downloadAnchor.remove();
+                        }
                     } 
                     else if (statusData.status === "error") {
                         throw new Error(statusData.error || statusData.message || "An error occurred on the downloader backend.");
@@ -1849,7 +2004,7 @@ document.addEventListener("DOMContentLoaded", () => {
         // Audio, Video, Subtitle Preview Flow (Downloads to server & streams)
         try {
             const payload = {
-                url: customUrl || activeUrl,
+                url: (formatId.startsWith("direct_") || formatId === "image_preview" || formatId === "image_download") ? (customUrl || activeUrl) : activeUrl,
                 format_id: formatId,
                 ext: ext,
                 quality: quality || "192",
