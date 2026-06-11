@@ -796,6 +796,7 @@ document.addEventListener("DOMContentLoaded", () => {
         videoTitle.textContent = "Đang phân tích...";
         videoUploader.textContent = "";
         videoDuration.textContent = "0:00";
+        videoDuration.style.display = "none";
         if (mediaBadge) {
             mediaBadge.textContent = "Video";
             mediaBadge.className = "tag tag-default";
@@ -870,7 +871,12 @@ document.addEventListener("DOMContentLoaded", () => {
         videoThumbnail.src = getProxiedImageUrl(data.thumbnail) || "https://images.unsplash.com/photo-1611162617213-7d7a39e9b1d7?q=80&w=600";
         videoTitle.textContent = data.title;
         videoUploader.textContent = data.uploader;
-        videoDuration.textContent = data.duration;
+        if (data.duration && data.duration !== "Unknown" && data.duration !== "N/A" && data.duration !== "0:00") {
+            videoDuration.textContent = data.duration;
+            videoDuration.style.display = "inline-block";
+        } else {
+            videoDuration.style.display = "none";
+        }
 
         // Badges
         if (mediaBadge) {

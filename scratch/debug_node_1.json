@@ -1,0 +1,98 @@
+{
+  "actorID": "61556755526506",
+  "rootView": {
+    "allResources": [
+      {
+        "__dr": "CometSinglePostDialogRoot.react"
+      },
+      {
+        "__dr": "CometSinglePostDialogRoot.entrypoint"
+      }
+    ],
+    "resource": {
+      "__dr": "CometSinglePostDialogRoot.react"
+    },
+    "props": {
+      "actorID": 100012502785011,
+      "pageID": null,
+      "storyID": "UzpfSTEwMDAxMjUwMjc4NTAxMTpWSzoxNTA1OTg2NjY0NjQzMjE3",
+      "headerTitle": "Bài viết của Trương Vũ",
+      "isSeoVisit": false,
+      "commentDialogEntrypoint": "group_post_permalink"
+    },
+    "entryPoint": {
+      "__dr": "CometSinglePostDialogRoot.entrypoint"
+    }
+  },
+  "tracePolicy": "comet.post.single_dialog",
+  "meta": {
+    "title": "Thuê Code Tool Theo Yêu Cầu ✅ | Cần tìm người viết tool riseofkingdom",
+    "accessory": null,
+    "favicon": null
+  },
+  "prefetchable": true,
+  "canonicalRouteName": "comet.fbweb.CometSinglePostDialogRoute",
+  "entityKeyConfig": {
+    "entity_type": {
+      "source": "constant",
+      "value": "post"
+    },
+    "entity_id": {
+      "source": "prop",
+      "value": "storyID"
+    }
+  },
+  "hostableView": {
+    "allResources": [
+      {
+        "__dr": "CometSinglePostDialogRoot.react"
+      },
+      {
+        "__dr": "CometSinglePostDialogRoot.entrypoint"
+      }
+    ],
+    "resource": {
+      "__dr": "CometSinglePostDialogRoot.react"
+    },
+    "props": {
+      "actorID": 100012502785011,
+      "pageID": null,
+      "storyID": "UzpfSTEwMDAxMjUwMjc4NTAxMTpWSzoxNTA1OTg2NjY0NjQzMjE3",
+      "headerTitle": "Bài viết của Trương Vũ",
+      "isSeoVisit": false,
+      "commentDialogEntrypoint": "group_post_permalink"
+    },
+    "entryPoint": {
+      "__dr": "CometSinglePostDialogRoot.entrypoint"
+    }
+  },
+  "useCloseButton": true,
+  "isNavigationEligibleForForcedRefresh": false,
+  "canBePushView": true,
+  "transparencyType": "translucent",
+  "stripParams": [
+    "share_url"
+  ],
+  "replacePushViewOfSameTracePolicy": true,
+  "backgroundRouteConfig": {
+    "defaultBackgroundUrl": "/"
+  },
+  "url": "/groups/thuecodetooltheoyeucau/permalink/1505986664643217/?rdid=1INCOeHz0DbFT9ev&share_url=https%3A%2F%2Fwww.facebook.com%2Fshare%2Fp%2F1B9Tkjw1tE%2F",
+  "params": {
+    "idorvanity": "thuecodetooltheoyeucau",
+    "comment_id": null,
+    "reply_comment_id": null,
+    "story_id": "1505986664643217",
+    "notif_id": null,
+    "ref": null,
+    "notif_t": null,
+    "story_title": null,
+    "exp": null,
+    "mibextid": null,
+    "logged_out_landing_experience": null,
+    "force_open_as_dialog": false,
+    "from_related_discussions": false,
+    "start": null
+  },
+  "routePath": "/groups/{idorvanity}/posts/{?story_title}/{story_id}/"
+}
