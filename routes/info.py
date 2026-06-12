@@ -371,6 +371,23 @@ def get_info():
                     
                 err_str = f"{str(first_err)} | {str(nocookie_e)}".lower()
                 
+                is_twitter = "twitter.com" in url.lower() or "x.com" in url.lower()
+                if is_twitter:
+                    twitter_auth_keywords = ["login", "redirect", "cookie", "keyerror", "result", "guest", "authentication", "rate limit", "403", "429", "no video could be found"]
+                    if any(keyword in err_str for keyword in twitter_auth_keywords):
+                        return jsonify({
+                            "status": "error",
+                            "message": "Bài đăng Twitter/X này yêu cầu cookie đăng nhập để truy cập (Twitter đã chặn hoàn toàn việc xem ẩn danh). Vui lòng đăng nhập vào Twitter/X trên trình duyệt, xuất và tải lên file cookie J2TEAM (Netscape/JSON) của Twitter/X trong mục 'Manage Cookies' để tiếp tục."
+                        }), 400
+
+                is_soundcloud = "soundcloud.com" in url.lower()
+                if is_soundcloud:
+                    if any(k in err_str for k in ["geo", "restricted", "location", "country", "blocked", "copyright"]):
+                        return jsonify({
+                            "status": "error",
+                            "message": "Nội dung SoundCloud này bị giới hạn quốc gia (Geo-restricted) hoặc chặn bản quyền ở vị trí của máy chủ. Vui lòng thử lại sau hoặc sử dụng một máy chủ/VPN ở vị trí khác."
+                        }), 400
+                
                 is_facebook = any(domain in url.lower() for domain in ["facebook.com", "fb.com", "fb.watch", "fb.gg"])
                 if is_facebook:
                     # Try custom scraper as last resort before returning error
@@ -504,6 +521,24 @@ def get_info():
                 if is_pinterest and pinterest_gallery_fallback:
                     logger.info("yt-dlp failed for Pinterest video. Falling back to pre-extracted gallery-dl info.")
                     return jsonify(pinterest_gallery_fallback)
+                known_domains = [
+                    "youtube.com", "youtu.be", "youtubekids.com", "youtube-nocookie.com",
+                    "facebook.com", "fb.com", "fb.watch", "fb.gg",
+                    "instagram.com", "instagr.am",
+                    "tiktok.com",
+                    "twitter.com", "x.com",
+                    "threads.net", "threads.com",
+                    "reddit.com", "redd.it",
+                    "pinterest.com", "pin.it", "pinimg.com",
+                    "soundcloud.com"
+                ]
+                is_known_platform = any(domain in url.lower() for domain in known_domains)
+                if is_known_platform:
+                    return jsonify({
+                        "status": "error",
+                        "message": f"Unable to extract media metadata: {strip_ansi_codes(str(nocookie_e))}"
+                    }), 400
+
                 harvester_info = generic_html_link_harvester(url, client_id)
                 if harvester_info:
                     logger.info(f"Generic HTML link harvester succeeded for {url} (nocookie_e). Found {len(harvester_info.get('video_options', []))} options.")
@@ -539,6 +574,24 @@ def get_info():
             if is_pinterest and pinterest_gallery_fallback:
                 logger.info("yt-dlp returned no info for Pinterest video. Falling back to pre-extracted gallery-dl info.")
                 return jsonify(pinterest_gallery_fallback)
+            known_domains = [
+                "youtube.com", "youtu.be", "youtubekids.com", "youtube-nocookie.com",
+                "facebook.com", "fb.com", "fb.watch", "fb.gg",
+                "instagram.com", "instagr.am",
+                "tiktok.com",
+                "twitter.com", "x.com",
+                "threads.net", "threads.com",
+                "reddit.com", "redd.it",
+                "pinterest.com", "pin.it", "pinimg.com",
+                "soundcloud.com"
+            ]
+            is_known_platform = any(domain in url.lower() for domain in known_domains)
+            if is_known_platform:
+                return jsonify({
+                    "status": "error",
+                    "message": "Failed to extract media metadata from this platform."
+                }), 400
+
             harvester_info = generic_html_link_harvester(url, client_id)
             if harvester_info:
                 logger.info(f"Generic HTML link harvester succeeded for {url} (not info). Found {len(harvester_info.get('video_options', []))} options.")

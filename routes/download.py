@@ -146,6 +146,21 @@ def get_download_progress_sse(download_id):
     return response
 
 
+@download_bp.route("/api/download/cancel/<download_id>", methods=["POST"])
+def cancel_download(download_id):
+    with downloads_status_lock:
+        status_info = downloads_status.get(download_id)
+        if not status_info:
+            return jsonify({"status": "error", "message": "Download task not found."}), 404
+        
+        # Mark as cancelled
+        status_info["status"] = "cancelled"
+        status_info["message"] = "Download cancelled by user."
+        
+    logger.info(f"Task {download_id} marked as cancelled by client.")
+    return jsonify({"status": "success", "message": "Cancellation request submitted."})
+
+
 @download_bp.route("/api/download/file/<download_id>", methods=["GET"])
 def get_download_file(download_id):
     with downloads_status_lock:

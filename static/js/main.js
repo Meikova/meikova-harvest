@@ -538,12 +538,16 @@ document.addEventListener("DOMContentLoaded", () => {
     // UI Elements
     const urlInput = document.getElementById("url-input");
     const pasteBtn = document.getElementById("paste-btn");
+    const clearUrlBtn = document.getElementById("clear-url-btn");
     const analyzeBtn = document.getElementById("analyze-btn");
     
     const loaderSection = document.getElementById("loader");
     const loaderText = document.getElementById("loader-text");
+    const cancelAnalyzeBtn = document.getElementById("cancel-analyze-btn");
     const errorCard = document.getElementById("error-card");
     const errorMessage = document.getElementById("error-message");
+    
+    let analysisAbortController = null;
     
     const resultSection = document.getElementById("result-section");
     const videoThumbnail = document.getElementById("video-thumbnail");
@@ -879,6 +883,7 @@ document.addEventListener("DOMContentLoaded", () => {
     // Global state
     let activeUrl = "";
     let pollingInterval = null;
+    let activeDownloadId = null;
     let extractedImages = [];
 
     // Preview state variables
@@ -1055,6 +1060,7 @@ document.addEventListener("DOMContentLoaded", () => {
             const text = await navigator.clipboard.readText();
             if (text) {
                 urlInput.value = text;
+                updateUrlInputButtons();
                 urlInput.focus();
                 triggerGlowEffect();
             }
@@ -1062,6 +1068,147 @@ document.addEventListener("DOMContentLoaded", () => {
             console.log("Unable to read from clipboard via API. Fallback to manual pasting.");
         }
     });
+
+    // Helper to toggle paste/clear button in input box
+    function updateUrlInputButtons() {
+        if (urlInput.value.trim() === "") {
+            pasteBtn.classList.remove("hidden");
+            if (clearUrlBtn) clearUrlBtn.classList.add("hidden");
+        } else {
+            pasteBtn.classList.add("hidden");
+            if (clearUrlBtn) clearUrlBtn.classList.remove("hidden");
+        }
+    }
+
+    urlInput.addEventListener("input", updateUrlInputButtons);
+
+    // Clear URL input and return to welcome mode
+    if (clearUrlBtn) {
+        clearUrlBtn.addEventListener("click", () => {
+            urlInput.value = "";
+            updateUrlInputButtons();
+            urlInput.focus();
+            
+            if (analysisAbortController) {
+                analysisAbortController.abort();
+                analysisAbortController = null;
+            }
+            
+            errorCard.classList.add("hidden");
+            resultSection.classList.add("hidden");
+            loaderSection.classList.add("hidden");
+            analyzeBtn.disabled = false;
+            analyzeBtn.style.opacity = "";
+            
+            setPlatformTheme(null);
+            showWelcomeDashboard();
+        });
+    }
+
+    // Cancel active analysis and return to welcome mode
+    if (cancelAnalyzeBtn) {
+        cancelAnalyzeBtn.addEventListener("click", () => {
+            if (analysisAbortController) {
+                analysisAbortController.abort();
+                analysisAbortController = null;
+            }
+            loaderSection.classList.add("hidden");
+            analyzeBtn.disabled = false;
+            analyzeBtn.style.opacity = "";
+            showWelcomeDashboard();
+        });
+    }
+
+    // Logo click reset (Return to welcome dashboard without page reload)
+    const logoEl = document.querySelector(".logo");
+    if (logoEl) {
+        logoEl.addEventListener("click", () => {
+            // Reset input and update buttons
+            urlInput.value = "";
+            updateUrlInputButtons();
+            
+            // Abort active analysis if any
+            if (analysisAbortController) {
+                analysisAbortController.abort();
+                analysisAbortController = null;
+            }
+            
+            // Abort active download if any
+            if (activeDownloadId) {
+                try {
+                    fetch(`/api/download/cancel/${activeDownloadId}`, { method: "POST" });
+                } catch (e) {
+                    console.error("Failed to cancel download on logo click:", e);
+                }
+                activeDownloadId = null;
+            }
+            
+            if (pollingInterval) {
+                pollingInterval.close();
+                pollingInterval = null;
+            }
+            
+            // Hide all dynamic panels
+            errorCard.classList.add("hidden");
+            resultSection.classList.add("hidden");
+            loaderSection.classList.add("hidden");
+            downloadProgress.classList.add("hidden");
+            downloadProgress.classList.remove("state-complete", "state-error");
+            cookiesSection.classList.add("hidden");
+            
+            // Enable buttons
+            analyzeBtn.disabled = false;
+            analyzeBtn.style.opacity = "";
+            urlInput.disabled = false;
+            
+            // Reset theme
+            setPlatformTheme(null);
+            
+            // Show welcome dashboard
+            showWelcomeDashboard();
+        });
+    }
+
+    // Cancel active download and return to format options
+    const cancelDownloadBtn = document.getElementById("cancel-download-btn");
+    if (cancelDownloadBtn) {
+        cancelDownloadBtn.addEventListener("click", () => {
+            if (activeDownloadId) {
+                try {
+                    fetch(`/api/download/cancel/${activeDownloadId}`, { method: "POST" });
+                } catch (e) {
+                    console.error("Failed to call cancel download API:", e);
+                }
+            }
+            
+            // Close SSE
+            if (pollingInterval) {
+                pollingInterval.close();
+                pollingInterval = null;
+            }
+            
+            // Hide progress panel
+            downloadProgress.classList.add("hidden");
+            downloadProgress.classList.remove("state-complete", "state-error");
+            
+            // Enable inputs & buttons
+            analyzeBtn.disabled = false;
+            urlInput.disabled = false;
+            
+            // Re-enable format buttons
+            const formatRows = document.querySelectorAll(".format-row");
+            formatRows.forEach(row => {
+                row.classList.remove("is-downloading");
+                const btns = row.querySelectorAll("button");
+                btns.forEach(b => b.disabled = false);
+            });
+            
+            const allPrimaryBtns = document.querySelectorAll(".format-btn");
+            allPrimaryBtns.forEach(b => b.disabled = false);
+            
+            activeDownloadId = null;
+        });
+    }
 
     // Style helper for input glow
     function triggerGlowEffect() {
@@ -1380,6 +1527,12 @@ document.addEventListener("DOMContentLoaded", () => {
             return;
         }
 
+        // Initialize AbortController to support cancellation
+        if (analysisAbortController) {
+            analysisAbortController.abort();
+        }
+        analysisAbortController = new AbortController();
+
         // Reset UI States
         setPlatformTheme(null);
         errorCard.classList.add("hidden");
@@ -1421,7 +1574,8 @@ document.addEventListener("DOMContentLoaded", () => {
                 headers: {
                     "Content-Type": "application/json"
                 },
-                body: JSON.stringify({ url: url, client_id: clientId })
+                body: JSON.stringify({ url: url, client_id: clientId }),
+                signal: analysisAbortController.signal
             });
 
             const data = await response.json();
@@ -1453,6 +1607,11 @@ document.addEventListener("DOMContentLoaded", () => {
                 showWelcomeDashboard();
             }
         } catch (err) {
+            if (err.name === 'AbortError') {
+                console.log("Analysis aborted by user.");
+                showWelcomeDashboard();
+                return;
+            }
             console.error(err);
             setPlatformTheme(null);
             showError("Connection lost. Unable to contact local Python downloader server.");
@@ -1461,6 +1620,7 @@ document.addEventListener("DOMContentLoaded", () => {
             loaderSection.classList.add("hidden");
             analyzeBtn.disabled = false;
             analyzeBtn.style.opacity = "";
+            analysisAbortController = null;
         }
     }
 
@@ -2441,6 +2601,7 @@ document.addEventListener("DOMContentLoaded", () => {
             }
 
             const downloadId = data.download_id;
+            activeDownloadId = downloadId;
             console.log(`Download enqueued. ID: ${downloadId}`);
 
             // Step B: Set up Server-Sent Events (SSE) to fetch status progress
@@ -2583,9 +2744,9 @@ document.addEventListener("DOMContentLoaded", () => {
 
         let htmlContent = `<span>${friendlyMessage}</span>`;
         if (errorMessageText) {
-            htmlContent += `<details style="margin-top: 12px; font-size: 0.78rem; color: rgba(255,255,255,0.6); text-align: left; background: rgba(0,0,0,0.25); border: 1px solid rgba(255,255,255,0.08); border-radius: 6px; padding: 6px 10px; cursor: pointer;">
-                <summary style="font-weight: 500; outline: none; list-style: marker; margin-bottom: 4px;">Chi tiết lỗi (Technical details)</summary>
-                <pre style="white-space: pre-wrap; font-family: monospace; font-size: 0.75rem; margin: 4px 0 0 0; color: #ff8080; background: none; border: none; padding: 0;">${escapeHTML(errorMessageText)}</pre>
+            htmlContent += `<details class="error-details">
+                <summary class="error-summary">Chi tiết lỗi (Technical details)</summary>
+                <pre class="error-pre">${escapeHTML(errorMessageText)}</pre>
             </details>`;
         }
         
@@ -2626,9 +2787,9 @@ document.addEventListener("DOMContentLoaded", () => {
 
         let htmlContent = `<span>${friendly}</span>`;
         if (technical && technical !== friendly) {
-            htmlContent += `<details style="margin-top: 10px; font-size: 0.78rem; opacity: 0.8; text-align: left; background: rgba(0,0,0,0.25); border: 1px solid rgba(255,255,255,0.08); border-radius: 6px; padding: 6px 10px; cursor: pointer; color: var(--text);">
-                <summary style="font-weight: 500; outline: none; list-style: marker; margin-bottom: 4px;">Chi tiết lỗi kỹ thuật</summary>
-                <pre style="white-space: pre-wrap; font-family: monospace; font-size: 0.75rem; margin: 4px 0 0 0; color: #ff8080; background: none; border: none; padding: 0;">${escapeHTML(technical)}</pre>
+            htmlContent += `<details class="error-details">
+                <summary class="error-summary">Chi tiết lỗi kỹ thuật</summary>
+                <pre class="error-pre">${escapeHTML(technical)}</pre>
             </details>`;
         }
         

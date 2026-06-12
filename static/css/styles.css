@@ -170,6 +170,11 @@ body.modal-open {
   align-items: center;
   gap: 12px;
   margin-bottom: 6px;
+  cursor: pointer;
+  transition: transform 0.2s ease;
+}
+.logo:hover {
+  transform: translateY(-1px);
 }
 .logo-icon {
   width: 30px;
@@ -761,6 +766,31 @@ body[class*="theme-"] .card {
   border-radius: 50%;
   animation: scanline-sweep 2s ease-in-out infinite alternate;
 }
+
+.btn-cancel-analyze {
+  background: rgba(255, 68, 68, 0.08);
+  border: 1px solid rgba(255, 68, 68, 0.2);
+  color: #ff8080;
+  padding: 8px 20px;
+  border-radius: var(--radius-sm);
+  font-size: 0.82rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+  margin-top: 12px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+.btn-cancel-analyze:hover {
+  background: rgba(255, 68, 68, 0.16);
+  border-color: rgba(255, 68, 68, 0.35);
+  box-shadow: 0 0 12px rgba(255, 68, 68, 0.15);
+  transform: translateY(-1px);
+}
+.btn-cancel-analyze:active {
+  transform: translateY(0);
+}
 @keyframes spin {
   to {
     transform: rotate(360deg);
@@ -829,6 +859,7 @@ body[class*="theme-"] .card {
   color: var(--text-dim);
   font-size: 0.82rem;
   line-height: 1.5;
+  flex: 1;
 }
 
 /* === RESULTS === */
@@ -3706,4 +3737,95 @@ select option {
   color: var(--text);
   border-color: var(--cyan);
 }
+
+/* --- TECHNICAL ERROR DETAILS --- */
+.error-details {
+  margin-top: 10px;
+  font-size: 0.78rem;
+  opacity: 0.85;
+  text-align: left;
+  background: rgba(0, 0, 0, 0.25);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 6px;
+  padding: 8px 12px;
+  cursor: pointer;
+  color: var(--text);
+  transition: all 0.2s ease;
+  width: 100%;
+  box-sizing: border-box;
+}
+.error-details:hover {
+  border-color: rgba(252, 129, 129, 0.25);
+  background: rgba(0, 0, 0, 0.35);
+}
+.error-summary {
+  font-weight: 600;
+  outline: none;
+  margin-bottom: 6px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  list-style: none; /* Hide default marker */
+}
+/* Hide default marker in webkit browsers */
+.error-summary::-webkit-details-marker {
+  display: none;
+}
+/* Add custom modern arrow icon using CSS pseudo-elements */
+.error-summary::before {
+  content: '▶';
+  font-size: 0.65rem;
+  color: var(--red);
+  transition: transform 0.2s ease;
+  display: inline-block;
+}
+details[open] .error-summary::before {
+  transform: rotate(90deg);
+}
+.error-pre {
+  white-space: pre-wrap;
+  font-family: monospace;
+  font-size: 0.75rem;
+  margin: 6px 0 0 0;
+  color: #ff8080;
+  background: none;
+  border: none;
+  padding: 0;
+  cursor: text; /* Allow selecting text */
+}
+
+/* --- DOWNLOAD PROGRESS CANCEL --- */
+.progress-cancel-row {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 6px;
+}
+.btn-cancel-download {
+  background: rgba(255, 68, 68, 0.08);
+  border: 1px solid rgba(255, 68, 68, 0.2);
+  color: #ff8080;
+  padding: 6px 16px;
+  border-radius: var(--radius-sm);
+  font-size: 0.8rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.25s ease;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+.btn-cancel-download:hover {
+  background: rgba(255, 68, 68, 0.16);
+  border-color: rgba(255, 68, 68, 0.35);
+  box-shadow: 0 0 10px rgba(255, 68, 68, 0.12);
+  transform: translateY(-1px);
+}
+.btn-cancel-download:active {
+  transform: translateY(0);
+}
+.state-complete .progress-cancel-row,
+.state-error .progress-cancel-row {
+  display: none;
+}
+
 

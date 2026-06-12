@@ -404,6 +404,11 @@ def bg_download_task(download_id, url, format_id, ext, quality="192", title="med
     finished_count = [0]
 
     def progress_hook(d):
+        with downloads_status_lock:
+            status_info = downloads_status.get(download_id)
+            if status_info and status_info.get("status") == "cancelled":
+                raise Exception("Download cancelled by user.")
+
         if d["status"] == "downloading":
             total = d.get("total_bytes") or d.get("total_bytes_estimate") or 0
             downloaded = d.get("downloaded_bytes") or 0
@@ -597,6 +602,10 @@ def bg_download_task(download_id, url, format_id, ext, quality="192", title="med
                 if ret_code != 0:
                     raise Exception(f"yt-dlp download returned non-zero code {ret_code}")
         except Exception as e:
+            with downloads_status_lock:
+                status_info = downloads_status.get(download_id)
+                if status_info and status_info.get("status") == "cancelled":
+                    raise e
             logger.warning(f"Download with cookies failed: {e}. Retrying without cookies...")
             ydl_opts_no_cookies = ydl_opts.copy()
             ydl_opts_no_cookies.pop("cookiefile", None)
@@ -723,9 +732,10 @@ def bg_download_task(download_id, url, format_id, ext, quality="192", title="med
             pass
         with downloads_status_lock:
             if download_id in downloads_status:
+                is_cancelled = downloads_status[download_id].get("status") == "cancelled"
                 downloads_status[download_id].update({
-                    "status": "error",
+                    "status": "cancelled" if is_cancelled else "error",
                     "progress": 0,
-                    "message": f"Download failed: {str(e)}",
-                    "error": str(e),
+                    "message": "Download cancelled by user." if is_cancelled else f"Download failed: {str(e)}",
+                    "error": "Cancelled" if is_cancelled else str(e),
                 })
