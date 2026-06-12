@@ -111,6 +111,91 @@ def bg_download_task(download_id, url, format_id, ext, quality="192", title="med
     os.makedirs(temp_dir, exist_ok=True)
     logger.info(f"Task {download_id}: Start download {url} (format={format_id}, ext={ext}, quality={quality})")
 
+    # Check for generic fallback webpage download
+    if format_id == "generic_fallback":
+        try:
+            with downloads_status_lock:
+                if download_id in downloads_status:
+                    downloads_status[download_id].update({
+                        "status": "downloading",
+                        "progress": 20,
+                        "message": "Fetching webpage content..."
+                    })
+            
+            headers = {
+                "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+            }
+            response = requests.get(url, headers=headers, verify=False, timeout=15)
+            response.raise_for_status()
+            
+            user_filename = generate_smart_filename(title, ext="html")
+            filepath = os.path.join(temp_dir, user_filename)
+            
+            with open(filepath, 'w', encoding='utf-8', errors='ignore') as f:
+                f.write(response.text)
+                
+            logger.info(f"Task {download_id}: Webpage saved to {filepath}")
+            
+            cloud_destination = kwargs.get("cloud_destination", "local")
+            tg_bot_token = kwargs.get("tg_bot_token")
+            tg_chat_id = kwargs.get("tg_chat_id")
+            
+            if cloud_destination == "telegram" and tg_bot_token and tg_chat_id:
+                with downloads_status_lock:
+                    if download_id in downloads_status:
+                        downloads_status[download_id].update({
+                            "status": "processing",
+                            "progress": 90,
+                            "message": "Uploading file to Telegram Bot..."
+                        })
+                success, msg = upload_to_telegram(filepath, tg_bot_token, tg_chat_id)
+                if success:
+                    try:
+                        if os.path.exists(filepath):
+                            os.remove(filepath)
+                    except Exception as purge_e:
+                        logger.warning(f"Failed to delete file after Telegram upload: {purge_e}")
+                    with downloads_status_lock:
+                        if download_id in downloads_status:
+                            downloads_status[download_id].update({
+                                "status": "complete",
+                                "progress": 100,
+                                "message": "Uploaded successfully to Telegram!",
+                                "filepath": filepath,
+                                "temp_dir": temp_dir,
+                                "filename": user_filename,
+                            })
+                else:
+                    raise Exception(f"Telegram upload failed: {msg}")
+            else:
+                with downloads_status_lock:
+                    if download_id in downloads_status:
+                        downloads_status[download_id].update({
+                            "status": "complete",
+                            "progress": 100,
+                            "message": "Ready!",
+                            "filepath": filepath,
+                            "temp_dir": temp_dir,
+                            "filename": user_filename,
+                        })
+            schedule_cleanup(temp_dir, download_id, delay=300)
+            return
+        except Exception as e:
+            logger.error(f"Task {download_id} failed on generic fallback: {str(e)}")
+            try:
+                shutil.rmtree(temp_dir)
+            except Exception:
+                pass
+            with downloads_status_lock:
+                if download_id in downloads_status:
+                    downloads_status[download_id].update({
+                        "status": "error",
+                        "progress": 0,
+                        "message": f"Download failed: {str(e)}",
+                        "error": str(e),
+                    })
+            return
+
     # Direct CDN stream download bypass (excluding manifest streams)
     if (format_id.startswith("direct_video") or format_id.startswith("direct_photo") or format_id.startswith("direct_audio")) and not any(x in url.lower() for x in [".m3u8", ".mpd", "/player/master/"]):
         try:
@@ -455,7 +540,7 @@ def bg_download_task(download_id, url, format_id, ext, quality="192", title="med
         },
         "extractor_args": {
             "youtube": {
-                "player_client": ["default"],
+                "player_client": ["ios", "android", "web_creator", "mweb", "default"],
             }
         },
     }

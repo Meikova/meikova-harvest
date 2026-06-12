@@ -94,25 +94,68 @@ def resolve_hls_size(m3u8_url, referer=None):
 
 
 def generic_html_link_harvester(url, client_id):
+    from urllib.parse import urlparse
+    parsed_url = urlparse(url)
+    domain = parsed_url.netloc
+    
+    # Get page path segments
+    path_segments = [seg for seg in parsed_url.path.split('/') if seg]
+    last_segment = path_segments[-1] if path_segments else ""
+
+    html = ""
+    fetch_error_msg = ""
     try:
         import requests as req
-        from urllib.parse import urlparse
         headers = {
             "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
         }
         # Fetch raw HTML
         resp = req.get(url, headers=headers, verify=False, timeout=12)
-        if resp.status_code != 200:
-            return None
-        html = resp.text
+        if resp.status_code == 200:
+            html = resp.text
+        else:
+            fetch_error_msg = f"HTTP {resp.status_code}"
+    except Exception as e:
+        fetch_error_msg = str(e)
+
+    if not html:
+        # Construct fallback info even without HTML access
+        title = last_segment or domain
+        description = f"Không thể kết nối hoặc phân tích trực tiếp từ trang web ({fetch_error_msg}). Tùy chọn này cho phép bạn tải trang web gốc về dưới dạng tệp tin HTML."
         
-        parsed_url = urlparse(url)
-        domain = parsed_url.netloc
+        video_options = [{
+            "format_id": "generic_fallback",
+            "resolution": "Webpage Content",
+            "ext": "html",
+            "type": "video",
+            "size": "Unknown Size",
+            "label": "Tải trang web (HTML / Text)",
+            "url": url
+        }]
         
-        # Get page path segments
-        path_segments = [seg for seg in parsed_url.path.split('/') if seg]
-        last_segment = path_segments[-1] if path_segments else ""
-        
+        return {
+            "status": "success",
+            "title": title,
+            "uploader": domain,
+            "duration": "Unknown",
+            "duration_raw": 0,
+            "thumbnail": "",
+            "is_shorts": False,
+            "platform_label": domain.capitalize(),
+            "platform_class": "default",
+            "views": "—",
+            "likes": "—",
+            "upload_date": "—",
+            "description": description,
+            "category": "Web Page",
+            "tags": [],
+            "video_options": video_options,
+            "audio_options": [],
+            "subtitles": {},
+            "images": [],
+        }
+
+    try:
         # Extract Title
         title_match = re.search(r'<title>(.*?)</title>', html, re.IGNORECASE)
         title = title_match.group(1).strip() if title_match else "Web Video"
@@ -130,6 +173,38 @@ def generic_html_link_harvester(url, client_id):
         # Clean up backslashes
         clean_html = html.replace('\\/', '/').replace('\\', '')
         
+        # Check if the page is a movie landing page (not a player page itself)
+        # Landing pages don't have player option components but link to episode pages.
+        has_player = ("dooplay_player_option" in clean_html or 
+                      "streaming-server" in clean_html or 
+                      "chooseStreamingServer" in clean_html or
+                      "data-link=" in clean_html)
+                      
+        if not has_player:
+            # Try to find the first episode link or a watch movie link
+            ep_link_match = re.search(r'href=["\']([^"\']+/tap-1_[^"\']+\.html)["\']', clean_html)
+            if not ep_link_match:
+                ep_link_match = re.search(r'href=["\']([^"\']+/tap-\d+_[^"\']+\.html)["\']', clean_html)
+            if not ep_link_match:
+                ep_link_match = re.search(r'href=["\']([^"\']+/tap-[^"\']+\.html)["\']', clean_html)
+                
+            if ep_link_match:
+                from urllib.parse import urljoin
+                first_ep_url = urljoin(url, ep_link_match.group(1))
+                logger.info(f"Overview page detected. Fetching first episode URL: {first_ep_url}")
+                resp_ep = req.get(first_ep_url, headers=headers, verify=False, timeout=12)
+                if resp_ep.status_code == 200:
+                    html = resp_ep.text
+                    clean_html = html.replace('\\/', '/').replace('\\', '')
+                    url = first_ep_url
+                    parsed_url = urlparse(url)
+                    domain = parsed_url.netloc
+                    path_segments = [seg for seg in parsed_url.path.split('/') if seg]
+                    last_segment = path_segments[-1] if path_segments else ""
+                    # Re-extract Title
+                    title_match = re.search(r'<title>(.*?)</title>', html, re.IGNORECASE)
+                    title = title_match.group(1).strip() if title_match else "Web Video"
+
         # Try to extract current movie's ID to filter out recommended movies in sidebars
         main_movie_id = ""
         movie_match = re.search(r'"movie"\s*:\s*\{\s*"id"\s*:\s*"(\d+)"', clean_html)
@@ -151,7 +226,237 @@ def generic_html_link_harvester(url, client_id):
         video_options = []
         all_parsed_options = []
         seen_urls = set()
-        
+
+        # Check if this is a WordPress DooPlay theme site
+        li_tags = re.findall(r'<li[^>]+class=["\'][^"\']*dooplay_player_option[^"\']*["\'][^>]*>.*?</li>', clean_html, re.IGNORECASE | re.DOTALL)
+        if li_tags:
+            logger.info(f"DooPlay theme detected on {domain}. Found {len(li_tags)} options.")
+            ajax_url = f"{parsed_url.scheme}://{domain}/wp-admin/admin-ajax.php"
+            
+            # Determine episode name dynamically
+            ep_name = "1"
+            ep_match = re.search(r'(?:Tập|Tap|Episode|Ep)\s*(\d+)', title, re.IGNORECASE)
+            if ep_match:
+                ep_name = ep_match.group(1)
+            else:
+                last_seg = path_segments[-1] if path_segments else ""
+                url_ep_match = re.search(r'(?:tap|episode|ep)[-_]?(\d+)', last_seg, re.IGNORECASE)
+                if url_ep_match:
+                    ep_name = url_ep_match.group(1)
+                else:
+                    digit_match = re.search(r'-(\d+)$', last_seg)
+                    if digit_match:
+                        ep_name = digit_match.group(1)
+            
+            for tag in li_tags:
+                try:
+                    post_m = re.search(r'data-post=["\'](\d+)["\']', tag)
+                    nume_m = re.search(r'data-nume=["\'](\d+)["\']', tag)
+                    type_m = re.search(r'data-type=["\']([^"\']+)["\']', tag)
+                    
+                    if post_m and nume_m:
+                        post_id = post_m.group(1)
+                        nume = nume_m.group(1)
+                        dtype = type_m.group(1) if type_m else "tv"
+                        
+                        title_m = re.search(r'<span class=["\']title["\']>(.*?)</span>', tag, re.IGNORECASE)
+                        t_val = title_m.group(1).strip() if title_m else f"Option {nume}"
+                        
+                        # Fetch player source via WordPress AJAX
+                        ajax_headers = {
+                            "User-Agent": headers["User-Agent"],
+                            "Content-Type": "application/x-www-form-urlencoded; charset=UTF-8",
+                            "Referer": url
+                        }
+                        ajax_data = {
+                            "action": "doo_player_ajax",
+                            "post": post_id,
+                            "nume": nume,
+                            "type": dtype
+                        }
+                        
+                        ajax_resp = req.post(ajax_url, headers=ajax_headers, data=ajax_data, verify=False, timeout=8)
+                        if ajax_resp.status_code == 200:
+                            res_json = ajax_resp.json()
+                            embed_url = res_json.get("embed_url")
+                            if embed_url:
+                                stream_url = embed_url
+                                resolved = False
+                                
+                                # 1. Check query parameters
+                                from urllib.parse import parse_qs, urlparse, urljoin
+                                parsed_embed = urlparse(embed_url)
+                                queries = parse_qs(parsed_embed.query)
+                                for val_list in queries.values():
+                                    for val in val_list:
+                                        if val.startswith("http") and (".m3u8" in val or ".mp4" in val):
+                                            stream_url = val
+                                            resolved = True
+                                            break
+                                    if resolved:
+                                        break
+                                
+                                # 2. Fetch embed page to resolve real URL
+                                if not resolved:
+                                    embed_resp = req.get(embed_url, headers={"User-Agent": headers["User-Agent"], "Referer": url}, verify=False, timeout=8)
+                                    if embed_resp.status_code == 200:
+                                        embed_html = embed_resp.text
+                                        
+                                        # Check for base64 obfuscated streamc player
+                                        obf_match = re.search(r'id=["\']player["\'][^>]+data-obf=["\']([^"\']+)["\']', embed_html) or \
+                                                    re.search(r'data-obf=["\']([^"\']+)["\'][^>]+id=["\']player["\']', embed_html)
+                                        if obf_match:
+                                            try:
+                                                import base64
+                                                import json
+                                                decoded_obf = json.loads(base64.b64decode(obf_match.group(1)).decode('utf-8'))
+                                                s_ub_val = decoded_obf.get("sUb")
+                                                if s_ub_val:
+                                                    stream_url = urljoin(embed_url, f"/{s_ub_val}.m3u8")
+                                                    resolved = True
+                                            except Exception:
+                                                pass
+                                                
+                                        if not resolved:
+                                            url_match = re.search(r'const\s+url\s*=\s*["\']([^"\']+)["\']', embed_html)
+                                            if url_match:
+                                                stream_url = urljoin(embed_url, url_match.group(1))
+                                                resolved = True
+                                            else:
+                                                src_match = re.search(r'(?:file|source|url)\s*:\s*["\']([^"\']+\.(?:m3u8|mp4)[^"\']*)["\']', embed_html, re.IGNORECASE)
+                                                if src_match:
+                                                    stream_url = urljoin(embed_url, src_match.group(1))
+                                                    resolved = True
+                                                else:
+                                                    m3u8_matches = re.findall(r'https?://[^\s"\'\\<>#]+\.(?:m3u8|mp4)[^\s"\'\\<>#]*', embed_html)
+                                                    if m3u8_matches:
+                                                        stream_url = m3u8_matches[0]
+                                                        resolved = True
+                                
+                                type_suffix = " [M3U8]" if (".m3u8" in stream_url) else " [EMBED]"
+                                label_name = f"Server: {t_val}{type_suffix}"
+                                if ep_name:
+                                    label_name += f" (Episode {ep_name})"
+                                    
+                                if stream_url not in seen_urls:
+                                    seen_urls.add(stream_url)
+                                    video_options.append({
+                                        "format_id": f"direct_video_{len(video_options)+1}",
+                                        "resolution": "Auto Stream",
+                                        "ext": "mp4",
+                                        "type": "video",
+                                        "size": "Unknown Size",
+                                        "label": label_name,
+                                        "episode": ep_name,
+                                        "server": f"Server: {t_val}{type_suffix}",
+                                        "url": stream_url
+                                    })
+                except Exception as ex:
+                    logger.warning(f"Failed to parse DooPlay option: {ex}")
+
+        # Check for elements containing data-link (common in HalimThemes and other streaming sites)
+        data_link_elements = re.findall(r'<a[^>]+data-link=["\']([^"\']+)["\'][^>]*>(.*?)</a>', clean_html, re.IGNORECASE | re.DOTALL)
+        if data_link_elements:
+            logger.info(f"Found {len(data_link_elements)} data-link player options.")
+            
+            # Determine episode name dynamically
+            ep_name = "1"
+            ep_match = re.search(r'(?:Tập|Tap|Episode|Ep)\s*(\d+)', title, re.IGNORECASE)
+            if ep_match:
+                ep_name = ep_match.group(1)
+            else:
+                last_seg = path_segments[-1] if path_segments else ""
+                url_ep_match = re.search(r'(?:tap|episode|ep)[-_]?(\d+)', last_seg, re.IGNORECASE)
+                if url_ep_match:
+                    ep_name = url_ep_match.group(1)
+                else:
+                    digit_match = re.search(r'-(\d+)$', last_seg)
+                    if digit_match:
+                        ep_name = digit_match.group(1)
+
+            for embed_url, inner_text in data_link_elements:
+                try:
+                    # Clean up inner text (remove HTML tags or whitespace)
+                    t_val = re.sub(r'<[^>]+>', '', inner_text).strip()
+                    t_val = t_val if t_val else "Server"
+                    
+                    stream_url = embed_url
+                    resolved = False
+                    
+                    # 1. Check query parameters
+                    from urllib.parse import parse_qs, urlparse, urljoin
+                    parsed_embed = urlparse(embed_url)
+                    queries = parse_qs(parsed_embed.query)
+                    for val_list in queries.values():
+                        for val in val_list:
+                            if val.startswith("http") and (".m3u8" in val or ".mp4" in val):
+                                stream_url = val
+                                resolved = True
+                                break
+                        if resolved:
+                            break
+                    
+                    # 2. Fetch page and check for direct stream if not resolved
+                    is_direct = (stream_url.endswith('.m3u8') or '.m3u8' in stream_url or 
+                                 stream_url.endswith('.mp4') or '.mp4' in stream_url)
+                                 
+                    if not resolved and not is_direct:
+                        embed_resp = req.get(embed_url, headers={"User-Agent": headers["User-Agent"], "Referer": url}, verify=False, timeout=8)
+                        if embed_resp.status_code == 200:
+                            embed_html = embed_resp.text
+                            
+                            # 2a. Check for base64 obfuscated streamc player
+                            obf_match = re.search(r'id=["\']player["\'][^>]+data-obf=["\']([^"\']+)["\']', embed_html) or \
+                                        re.search(r'data-obf=["\']([^"\']+)["\'][^>]+id=["\']player["\']', embed_html)
+                            if obf_match:
+                                try:
+                                    import base64
+                                    import json
+                                    decoded_obf = json.loads(base64.b64decode(obf_match.group(1)).decode('utf-8'))
+                                    s_ub_val = decoded_obf.get("sUb")
+                                    if s_ub_val:
+                                        stream_url = urljoin(embed_url, f"/{s_ub_val}.m3u8")
+                                        resolved = True
+                                except Exception:
+                                    pass
+                                    
+                            if not resolved:
+                                url_match = re.search(r'const\s+url\s*=\s*["\']([^"\']+)["\']', embed_html)
+                                if url_match:
+                                    stream_url = urljoin(embed_url, url_match.group(1))
+                                    resolved = True
+                                else:
+                                    src_match = re.search(r'(?:file|source|url)\s*:\s*["\']([^"\']+\.(?:m3u8|mp4)[^"\']*)["\']', embed_html, re.IGNORECASE)
+                                    if src_match:
+                                        stream_url = urljoin(embed_url, src_match.group(1))
+                                        resolved = True
+                                    else:
+                                        m3u8_matches = re.findall(r'https?://[^\s"\'\\<>#]+\.(?:m3u8|mp4)[^\s"\'\\<>#]*', embed_html)
+                                        if m3u8_matches:
+                                            stream_url = m3u8_matches[0]
+                                            resolved = True
+                    
+                    type_suffix = " [M3U8]" if (".m3u8" in stream_url) else " [EMBED]"
+                    label_name = f"Server: {t_val}{type_suffix}"
+                    if ep_name:
+                        label_name += f" (Episode {ep_name})"
+                        
+                    if stream_url not in seen_urls:
+                        seen_urls.add(stream_url)
+                        video_options.append({
+                            "format_id": f"direct_video_{len(video_options)+1}",
+                            "resolution": "Auto Stream",
+                            "ext": "mp4",
+                            "type": "video",
+                            "size": "Unknown Size",
+                            "label": label_name,
+                            "episode": ep_name,
+                            "server": f"Server: {t_val}{type_suffix}",
+                            "url": stream_url
+                        })
+                except Exception as ex:
+                    logger.warning(f"Failed to parse data-link option: {ex}")
+
         def get_digits(text):
             digits = "".join(re.findall(r'\d+', text))
             return int(digits) if digits else None
@@ -232,7 +537,41 @@ def generic_html_link_harvester(url, client_id):
                     opt["format_id"] = f"direct_video_{len(video_options)+1}"
                     video_options.append(opt)
                     
-        # 3. Second Fallback: If still no options found, search page for any raw .m3u8 or .mp4 links
+        # 3. HTML5 Video/Source Tags Fallback
+        if not video_options:
+            from urllib.parse import urljoin
+            video_tags = re.findall(r'<video[^>]*>.*?</video>', clean_html, re.IGNORECASE | re.DOTALL)
+            for vtag in video_tags:
+                srcs = re.findall(r'src=["\']([^"\']+)["\']', vtag, re.IGNORECASE)
+                for src in srcs:
+                    src_url = urljoin(url, src)
+                    if src_url not in seen_urls:
+                        seen_urls.add(src_url)
+                        video_options.append({
+                            "format_id": f"direct_video_{len(video_options)+1}",
+                            "resolution": "HTML5 Video",
+                            "ext": "mp4",
+                            "type": "video",
+                            "size": "Unknown Size",
+                            "label": f"HTML5 Stream #{len(video_options)+1}",
+                            "url": src_url
+                        })
+            source_tags = re.findall(r'<source[^>]+src=["\']([^"\']+)["\']', clean_html, re.IGNORECASE)
+            for src in source_tags:
+                src_url = urljoin(url, src)
+                if src_url not in seen_urls:
+                    seen_urls.add(src_url)
+                    video_options.append({
+                        "format_id": f"direct_video_{len(video_options)+1}",
+                        "resolution": "HTML5 Source",
+                        "ext": "mp4",
+                        "type": "video",
+                        "size": "Unknown Size",
+                        "label": f"HTML5 Source #{len(video_options)+1}",
+                        "url": src_url
+                    })
+
+        # 4. Third Fallback: If still no options found, search page for any raw .m3u8 or .mp4 links
         if not video_options:
             raw_m3u8_links = re.findall(r'https?://[^\s"\'\\<>#]+\.(?:m3u8|mp4)[^\s"\'\\<>#]*', clean_html)
             for link in raw_m3u8_links:
@@ -249,8 +588,17 @@ def generic_html_link_harvester(url, client_id):
                         "url": link
                     })
                     
+        # 5. Ultimate Fallback: Add generic fallback webpage download if no options found
         if not video_options:
-            return None
+            video_options.append({
+                "format_id": "generic_fallback",
+                "resolution": "Webpage Content",
+                "ext": "html",
+                "type": "video",
+                "size": "Unknown Size",
+                "label": "Tải trang web (HTML / Text)",
+                "url": url
+            })
             
         # Resolve HLS / Direct CDN stream sizes in parallel
         if video_options:
@@ -867,7 +1215,7 @@ def get_info():
         "ignoreerrors": False,
         "extractor_args": {
             "youtube": {
-                "player_client": ["default"],
+                "player_client": ["ios", "android", "web_creator", "mweb", "default"],
             }
         },
     }

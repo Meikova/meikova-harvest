@@ -402,6 +402,78 @@ document.addEventListener("DOMContentLoaded", () => {
         }
     }
 
+    // Cookies Tabs Toggle Logic
+    const tabUploadBtn = document.getElementById("cookie-tab-upload");
+    const tabPasteBtn = document.getElementById("cookie-tab-paste");
+    const tabUploadContent = document.getElementById("cookie-tab-content-upload");
+    const tabPasteContent = document.getElementById("cookie-tab-content-paste");
+
+    if (tabUploadBtn && tabPasteBtn && tabUploadContent && tabPasteContent) {
+        tabUploadBtn.addEventListener("click", () => {
+            tabUploadBtn.classList.add("active");
+            tabPasteBtn.classList.remove("active");
+            tabUploadContent.classList.remove("hidden");
+            tabPasteContent.classList.add("hidden");
+        });
+
+        tabPasteBtn.addEventListener("click", () => {
+            tabPasteBtn.classList.add("active");
+            tabUploadBtn.classList.remove("active");
+            tabPasteContent.classList.remove("hidden");
+            tabUploadContent.classList.add("hidden");
+        });
+    }
+
+    // Pasted Cookies Saving
+    const cookieTextInput = document.getElementById("cookie-text-input");
+    const cookieSaveTextBtn = document.getElementById("cookie-save-text-btn");
+
+    if (cookieSaveTextBtn && cookieTextInput) {
+        cookieSaveTextBtn.addEventListener("click", async () => {
+            const content = cookieTextInput.value.trim();
+            if (!content) {
+                showError("Vui lòng dán nội dung cookies trước.");
+                return;
+            }
+
+            try {
+                loaderSection.classList.remove("hidden");
+                loaderText.textContent = "Đang lưu cookies...";
+                cookiesSection.classList.add("hidden");
+
+                const res = await fetch("/api/cookies/paste", {
+                    method: "POST",
+                    headers: {
+                        "Content-Type": "application/json"
+                    },
+                    body: JSON.stringify({
+                        client_id: clientId,
+                        content: content
+                    })
+                });
+                const data = await res.json();
+
+                if (res.ok && data.status === "success") {
+                    cookieTextInput.value = "";
+                    checkCookieStatus();
+                    loaderText.textContent = "Cookies saved! Retrying analysis...";
+                    setTimeout(() => {
+                        performAnalysis();
+                    }, 1000);
+                } else {
+                    showError(data.message || "Failed to save cookies.");
+                    cookiesSection.classList.remove("hidden");
+                }
+            } catch (err) {
+                console.error(err);
+                showError("Connection lost. Failed to contact cookies paste API.");
+                cookiesSection.classList.remove("hidden");
+            } finally {
+                loaderSection.classList.add("hidden");
+            }
+        });
+    }
+
     // Global state
     let activeUrl = "";
     let pollingInterval = null;
@@ -779,6 +851,32 @@ document.addEventListener("DOMContentLoaded", () => {
         try {
             let history = JSON.parse(localStorage.getItem("downloader_history") || "[]");
             
+            const existingItem = history.find(item => item.url === url);
+            let savedSettings = existingItem ? existingItem.settings : null;
+            if (!savedSettings) {
+                const trimCheckbox = document.getElementById("trim-checkbox");
+                const trimStart = document.getElementById("trim-start");
+                const trimEnd = document.getElementById("trim-end");
+                const translateSubsCheckbox = document.getElementById("translate-subs-checkbox");
+                const exportTypeSelect = document.getElementById("export-type-select");
+                const colorFilterSelect = document.getElementById("color-filter-select");
+                const voiceoverCheckbox = document.getElementById("voiceover-checkbox");
+                const voiceoverVoiceSelect = document.getElementById("voiceover-voice-select");
+                const cloudSyncSelect = document.getElementById("cloud-sync-select");
+
+                savedSettings = {
+                    trim_active: trimCheckbox ? trimCheckbox.checked : false,
+                    trim_start: trimStart ? trimStart.value : "00:00:00",
+                    trim_end: trimEnd ? trimEnd.value : "00:00:10",
+                    translate_subs: translateSubsCheckbox ? translateSubsCheckbox.checked : false,
+                    export_type: exportTypeSelect ? exportTypeSelect.value : "default",
+                    color_filter: colorFilterSelect ? colorFilterSelect.value : "none",
+                    voiceover_active: voiceoverCheckbox ? voiceoverCheckbox.checked : false,
+                    voiceover_voice: voiceoverVoiceSelect ? voiceoverVoiceSelect.value : "vi-VN-HoaiMyNeural",
+                    cloud_sync: cloudSyncSelect ? cloudSyncSelect.value : "local"
+                };
+            }
+
             // Remove duplicate of the same URL if exists
             history = history.filter(item => item.url !== url);
             
@@ -789,7 +887,8 @@ document.addEventListener("DOMContentLoaded", () => {
                 thumbnail: data.thumbnail || "",
                 platform_label: data.platform_label || "Video",
                 platform_class: data.platform_class || "default",
-                timestamp: Date.now()
+                timestamp: Date.now(),
+                settings: savedSettings
             });
             
             // Keep at most 10 items
@@ -917,6 +1016,17 @@ document.addEventListener("DOMContentLoaded", () => {
                 activeUrl = url;
                 setPlatformTheme(data.platform_class);
                 displayMetadata(data);
+                
+                try {
+                    const history = JSON.parse(localStorage.getItem("downloader_history") || "[]");
+                    const item = history.find(it => it.url === url);
+                    if (item) {
+                        restoreSettingsForUrl(item);
+                    }
+                } catch (e) {
+                    console.error("Error restoring settings:", e);
+                }
+
                 saveToHistory(url, data);
             } else {
                 setPlatformTheme(null);
@@ -2223,6 +2333,161 @@ document.addEventListener("DOMContentLoaded", () => {
                         previewLoaderText.textContent = "Connection failed. Unable to start preview.";
         }
     }
+
+    // Advanced Settings Persistence Helpers
+    function saveCurrentSettingsToHistory() {
+        if (!activeUrl) return;
+        try {
+            const trimCheckbox = document.getElementById("trim-checkbox");
+            const trimStart = document.getElementById("trim-start");
+            const trimEnd = document.getElementById("trim-end");
+            const translateSubsCheckbox = document.getElementById("translate-subs-checkbox");
+            const exportTypeSelect = document.getElementById("export-type-select");
+            const colorFilterSelect = document.getElementById("color-filter-select");
+            const voiceoverCheckbox = document.getElementById("voiceover-checkbox");
+            const voiceoverVoiceSelect = document.getElementById("voiceover-voice-select");
+            const cloudSyncSelect = document.getElementById("cloud-sync-select");
+
+            const settings = {
+                trim_active: trimCheckbox ? trimCheckbox.checked : false,
+                trim_start: trimStart ? trimStart.value : "00:00:00",
+                trim_end: trimEnd ? trimEnd.value : "00:00:10",
+                translate_subs: translateSubsCheckbox ? translateSubsCheckbox.checked : false,
+                export_type: exportTypeSelect ? exportTypeSelect.value : "default",
+                color_filter: colorFilterSelect ? colorFilterSelect.value : "none",
+                voiceover_active: voiceoverCheckbox ? voiceoverCheckbox.checked : false,
+                voiceover_voice: voiceoverVoiceSelect ? voiceoverVoiceSelect.value : "vi-VN-HoaiMyNeural",
+                cloud_sync: cloudSyncSelect ? cloudSyncSelect.value : "local"
+            };
+
+            let history = JSON.parse(localStorage.getItem("downloader_history") || "[]");
+            const item = history.find(it => it.url === activeUrl);
+            if (item) {
+                item.settings = settings;
+                localStorage.setItem("downloader_history", JSON.stringify(history));
+            }
+        } catch (e) {
+            console.error("Error saving current settings to history:", e);
+        }
+    }
+
+    function restoreSettingsForUrl(item) {
+        if (!item) return;
+        if (!item.settings) {
+            resetAdvancedSettingsToDefaults();
+            return;
+        }
+        try {
+            const s = item.settings;
+            const trimCheckbox = document.getElementById("trim-checkbox");
+            const trimStart = document.getElementById("trim-start");
+            const trimEnd = document.getElementById("trim-end");
+            const translateSubsCheckbox = document.getElementById("translate-subs-checkbox");
+            const exportTypeSelect = document.getElementById("export-type-select");
+            const colorFilterSelect = document.getElementById("color-filter-select");
+            const voiceoverCheckbox = document.getElementById("voiceover-checkbox");
+            const voiceoverVoiceSelect = document.getElementById("voiceover-voice-select");
+            const cloudSyncSelect = document.getElementById("cloud-sync-select");
+
+            // Disable save listener temporary during restoration to avoid loops
+            isRestoringSettings = true;
+
+            if (trimCheckbox) {
+                trimCheckbox.checked = !!s.trim_active;
+                trimCheckbox.dispatchEvent(new Event("change"));
+            }
+            if (trimStart) trimStart.value = s.trim_start || "00:00:00";
+            if (trimEnd) trimEnd.value = s.trim_end || "00:00:10";
+            if (translateSubsCheckbox) translateSubsCheckbox.checked = !!s.translate_subs;
+            if (exportTypeSelect) exportTypeSelect.value = s.export_type || "default";
+            if (colorFilterSelect) {
+                colorFilterSelect.value = s.color_filter || "none";
+                colorFilterSelect.dispatchEvent(new Event("change"));
+            }
+            if (voiceoverCheckbox) {
+                voiceoverCheckbox.checked = !!s.voiceover_active;
+                voiceoverCheckbox.dispatchEvent(new Event("change"));
+            }
+            if (voiceoverVoiceSelect) voiceoverVoiceSelect.value = s.voiceover_voice || "vi-VN-HoaiMyNeural";
+            if (cloudSyncSelect) {
+                cloudSyncSelect.value = s.cloud_sync || "local";
+                cloudSyncSelect.dispatchEvent(new Event("change"));
+            }
+
+            isRestoringSettings = false;
+        } catch (e) {
+            console.error("Error restoring settings for URL:", e);
+            isRestoringSettings = false;
+        }
+    }
+
+    function resetAdvancedSettingsToDefaults() {
+        try {
+            const trimCheckbox = document.getElementById("trim-checkbox");
+            const trimStart = document.getElementById("trim-start");
+            const trimEnd = document.getElementById("trim-end");
+            const translateSubsCheckbox = document.getElementById("translate-subs-checkbox");
+            const exportTypeSelect = document.getElementById("export-type-select");
+            const colorFilterSelect = document.getElementById("color-filter-select");
+            const voiceoverCheckbox = document.getElementById("voiceover-checkbox");
+            const voiceoverVoiceSelect = document.getElementById("voiceover-voice-select");
+            const cloudSyncSelect = document.getElementById("cloud-sync-select");
+
+            isRestoringSettings = true;
+
+            if (trimCheckbox) {
+                trimCheckbox.checked = false;
+                trimCheckbox.dispatchEvent(new Event("change"));
+            }
+            if (trimStart) trimStart.value = "00:00:00";
+            if (trimEnd) trimEnd.value = "00:00:10";
+            if (translateSubsCheckbox) translateSubsCheckbox.checked = false;
+            if (exportTypeSelect) exportTypeSelect.value = "default";
+            if (colorFilterSelect) {
+                colorFilterSelect.value = "none";
+                colorFilterSelect.dispatchEvent(new Event("change"));
+            }
+            if (voiceoverCheckbox) {
+                voiceoverCheckbox.checked = false;
+                voiceoverCheckbox.dispatchEvent(new Event("change"));
+            }
+            if (voiceoverVoiceSelect) voiceoverVoiceSelect.value = "vi-VN-HoaiMyNeural";
+            if (cloudSyncSelect) {
+                cloudSyncSelect.value = "local";
+                cloudSyncSelect.dispatchEvent(new Event("change"));
+            }
+
+            isRestoringSettings = false;
+        } catch (e) {
+            console.error("Error resetting settings to defaults:", e);
+            isRestoringSettings = false;
+        }
+    }
+
+    // Attach Change Listeners
+    let isRestoringSettings = false;
+    const settingsControls = [
+        { id: "trim-checkbox", event: "change" },
+        { id: "trim-start", event: "input" },
+        { id: "trim-end", event: "input" },
+        { id: "translate-subs-checkbox", event: "change" },
+        { id: "export-type-select", event: "change" },
+        { id: "color-filter-select", event: "change" },
+        { id: "voiceover-checkbox", event: "change" },
+        { id: "voiceover-voice-select", event: "change" },
+        { id: "cloud-sync-select", event: "change" }
+    ];
+
+    settingsControls.forEach(ctrl => {
+        const el = document.getElementById(ctrl.id);
+        if (el) {
+            el.addEventListener(ctrl.event, () => {
+                if (!isRestoringSettings) {
+                    saveCurrentSettingsToHistory();
+                }
+            });
+        }
+    });
 });
 
 // --- Star Grid Mesh (3D Gravity Well & Elastic Net) Effect ---

@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html lang="vi-VN">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
+    <link rel="shortcut icon" href="https://www.google.com/favicon.ico" />
+    <link rel="stylesheet" href="netflix.css?ver=1.0" />
+    <script src="https://ssl.p.jwpcdn.com/player/v/8.38.2/jwplayer.js"></script>
+    <script id="_waup2s">var _wau = _wau || []; _wau.push(["dynamic", "s0tswmpfb3", "p2s", "c4302bffffff", "small"]);</script>
+    <script async src="//waust.at/d.js"></script>
+</head>
+<body>
+    <div id="player" data-obf="eyJzVWIiOiJleUpvSWpvaU9UVmhZbUZpWmpoall6QmxNRE0zTkRGa1pXWTROV05sWWpnd01HVTRNaklpTENKMElqb2lNMkV5TnpKaFpUa3hZV1U0TUdFeU9EQXlNamRoTWpVek1UZ3lObVF3TXpRNFpqTXdOR05oWlRGaFlXVXlObVpoTWpSalpUUTJNRFUxWVRRNFpqVXdZU0o5IiwiaEQiOiI5NWFiYWJmOGNjMGUwMzc0MWRlZjg1Y2ViODAwZTgyMiJ9">
+        <div style="display:flex; align-items:center; justify-content:center; height:100%; width:100%; background:#000; position:absolute; top:0; left:0; z-index:1;">
+            <div style="border: 4px solid rgba(255,255,255,0.1); border-left-color: #e50914; border-radius: 50%; width: 40px; height: 40px; animation: spin 1s linear infinite;"></div>
+        </div>
+        <style>@keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }</style>
+    </div>
+    
+    <script src="devtools.js?ver=1.0" defer></script>
+    <script src="player.js?ver=1.1" defer></script>
+    
+    <script>
+    document.addEventListener('DOMContentLoaded', async () => {
+        const playerEl = document.getElementById('player');
+        const streamData = JSON.parse(atob(playerEl.dataset.obf));
+        const hash = streamData.hD;
+        window.streamURL = streamData.sUb + '.m3u8';
+        window.videoHash = hash; 
+
+        if (typeof devtoolsDetector === "undefined") {
+            location.reload();
+            return;
+        }
+        
+        devtoolsDetector.launch();
+        devtoolsDetector.addListener(isOpen => { 
+            if (isOpen) location.reload(); 
+        });
+
+        window.oncontextmenu = () => false;
+        document.addEventListener('keydown', e => {
+            const key = e.key.toLowerCase();
+            if ((e.ctrlKey && (key === 'u' || (e.shiftKey && ['i', 'c', 'j'].includes(key)))) ||
+                e.key === 'F12' || (e.key === 'I' && e.ctrlKey && e.shiftKey)) {
+                e.preventDefault();
+            }
+        });
+    });
+    </script>
+</body>
+</html>

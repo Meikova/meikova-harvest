@@ -105,6 +105,53 @@ def get_cookie_status(client_id):
     })
 
 
+@cookies_bp.route("/api/cookies/paste", methods=["POST"])
+def paste_cookies():
+    data = request.get_json() or {}
+    client_id = data.get("client_id")
+    content = data.get("content", "").strip()
+    
+    if not client_id:
+        return jsonify({"status": "error", "message": "Client ID is required."}), 400
+        
+    if not content:
+        return jsonify({"status": "error", "message": "Nội dung cookie trống."}), 400
+        
+    try:
+        new_cookies = parse_cookies_to_dict(content)
+        if not new_cookies:
+            return jsonify({"status": "error", "message": "Nội dung cookie không hợp lệ hoặc không chứa cookie hợp lệ."}), 400
+
+        cookies_dir = os.path.join(TEMP_DOWNLOAD_DIR, "cookies")
+        os.makedirs(cookies_dir, exist_ok=True)
+        
+        filepath = os.path.join(cookies_dir, f"cookies_{client_id}.txt")
+        
+        # Read existing cookies if file exists, then merge
+        merged_cookies = {}
+        if os.path.exists(filepath):
+            try:
+                with open(filepath, "r", encoding="utf-8", errors="ignore") as f:
+                    existing_content = f.read()
+                merged_cookies = parse_cookies_to_dict(existing_content)
+            except Exception as e:
+                logger.warning(f"Could not read existing cookies file for merging: {e}")
+                
+        # Merge new cookies (new overrides existing on conflict)
+        merged_cookies.update(new_cookies)
+        
+        merged_content = serialize_netscape_cookies(merged_cookies)
+        
+        with open(filepath, "w", encoding="utf-8") as f:
+            f.write(merged_content)
+            
+        logger.info(f"Saved pasted merged cookies for client {client_id}")
+        return jsonify({"status": "success", "message": "Lưu cookie thành công!"})
+    except Exception as e:
+        logger.error(f"Failed to save pasted cookies: {e}")
+        return jsonify({"status": "error", "message": f"Lỗi khi lưu cookie: {e}"}), 500
+
+
 @cookies_bp.route("/api/cookies/clear/<client_id>", methods=["POST"])
 def clear_cookies(client_id):
     if not client_id:

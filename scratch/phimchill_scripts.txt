@@ -1,0 +1,250 @@
+
+=================== SCRIPT 0 ===================
+{"@context":"https://schema.org","@type":"WebPage","name":"phimchillhd | Xem Phim Mới | Xem Phim Motchill | Xem Phim Vietsub | Xem Phim Hay | Xem Phim Chill | Xem Phim Thuyết Minh | MotchillTV - VietsubTV","description":"PhimchillHD - Motchill : Xem phim miễn phí. Cập nhật liên tục phim hay , phim mới của các nền điện ảnh hàng đầu như Trung Quốc, Hàn Quốc, Thái Lan, Âu Mỹ, Anh, Pháp... Kho phim khổng lồ đa dạng nội dung, giao diện dễ sử dụng ,tốc độ tải phim nhanh, chúng tôi sẽ đem lại những trải nghiệm giải trí tuyệt vời cho bạn và gia đình.","image":"/motchill.png"}
+
+=================== SCRIPT 1 ===================
+{"@context":"https://schema.org","@type":"Movie","name":"Giáo Dục Chân Chính ( Bài Học Đáng Đời ) (2026) Vietsub HD - Teach You a Lesson | Phimchillhd 2026","description":"Bộ phim lấy bối cảnh giả tưởng khi bạo lực học đường gia tăng nghiêm trọng và quyền lực của giáo viên bị suy giảm nặng nề tại Hàn Quốc. Để giải quyết...","url":"https://phimchillhd.net/phim/giao-duc-chan-chinh_46486.html","image":["https://i.ibb.co/QvxfprdM/MY3-GINDFMZSWCMBZMQYDOYZZMI.avif","https://phimchillhd.net"],"dateCreated":"2026-06-05T08:16:06.000000Z","dateModified":"2026-06-05T08:41:30.000000Z","datePublished":"2026-06-05T08:16:06.000000Z","aggregateRating":{"@type":"AggregateRating","bestRating":"10","worstRating":"1","ratingValue":"8.0","reviewCount":1},"director":[{"@type":"Person","name":"Hong Jong-chan"}],"actor":[{"@type":"Person","name":"Jin Ki-joo"},{"@type":"Person","name":"Lee Sung-min"},{"@type":"Person","name":"Kim Mu-yeol"},{"@type":"Person","name":"Pyo Ji-hoon (P.O)"}]}
+
+=================== SCRIPT 2 ===================
+{"@context":"https://schema.org","@type":"BreadcrumbList","name":"","description":"","image":"/motchill.png","itemListElement":[{"@type":"ListItem","position":1,"name":"Home","item":"https://phimchillhd.net"},{"@type":"ListItem","position":2,"name":"Hàn Quốc","item":"https://phimchillhd.net/quoc-gia/han-quoc.html"},{"@type":"ListItem","position":2,"name":"Tâm Lý","item":"https://phimchillhd.net/the-loai/tam-ly.html"},{"@type":"ListItem","position":2,"name":"Hành Động","item":"https://phimchillhd.net/the-loai/hanh-dong.html"},{"@type":"ListItem","position":2,"name":"Học Đường","item":"https://phimchillhd.net/the-loai/hoc-duong.html"},{"@type":"ListItem","position":2,"name":"Gây Cấn","item":"https://phimchillhd.net/the-loai/gay-can.html"},{"@type":"ListItem","position":3,"name":"Giáo Dục Chân Chính ( Bài Học Đáng Đời )"}]}
+
+=================== SCRIPT 3 ===================
+
+
+=================== SCRIPT 4 ===================
+
+
+=================== SCRIPT 5 ===================
+
+
+=================== SCRIPT 6 ===================
+
+
+=================== SCRIPT 7 ===================
+
+        function detectMob() {
+            const toMatch = [
+                /Android/i,
+                /webOS/i,
+                /iPhone/i,
+                /iPad/i,
+                /iPod/i,
+                /BlackBerry/i,
+                /Windows Phone/i
+            ];
+
+            return toMatch.some((toMatchItem) => {
+                return navigator.userAgent.match(toMatchItem);
+            });
+        }
+    
+
+=================== SCRIPT 8 ===================
+
+(function () {
+  // ✅ Bỏ qua hoàn toàn trong admin Backpack
+  if (window.location.pathname.startsWith('/admin')) return;
+
+  // ✅ Thêm class để CSS chỉ ảnh hưởng frontend
+  document.addEventListener('DOMContentLoaded', function () {
+    document.body.classList.add('no-select');
+  });
+
+  function killCopy(e) { return false; }
+  function reEnable() { return true; }
+
+  // Chặn select (frontend)
+  document.onselectstart = function () { return false; };
+
+  // Tránh lỗi cổ điển window.sidebar, nhưng vẫn giữ behavior của bạn
+  if (window.sidebar) {
+    document.onmousedown = killCopy;
+    document.onclick = reEnable;
+  }
+
+  window.addEventListener('load', function () {
+    // Chặn chuột phải
+    document.addEventListener('contextmenu', function (e) {
+      e.preventDefault();
+    }, false);
+
+    // Chặn phím tắt
+    document.addEventListener('keydown', function (e) {
+      // Ctrl+Shift+I
+      if (e.ctrlKey && e.shiftKey && e.keyCode === 73) return disabledEvent(e);
+      // Ctrl+Shift+J
+      if (e.ctrlKey && e.shiftKey && e.keyCode === 74) return disabledEvent(e);
+      // Ctrl+S (Win) / Cmd+S (Mac)
+      if (e.keyCode === 83 && (navigator.platform.match("Mac") ? e.metaKey : e.ctrlKey)) return disabledEvent(e);
+      // Ctrl+U
+      if (e.ctrlKey && e.keyCode === 85) return disabledEvent(e);
+      // F12
+      if (e.keyCode === 123) return disabledEvent(e);
+    }, false);
+
+    function disabledEvent(e) {
+      if (e.stopPropagation) e.stopPropagation();
+      e.preventDefault();
+      return false;
+    }
+  });
+})();
+
+
+=================== SCRIPT 9 ===================
+
+
+=================== SCRIPT 10 ===================
+
+    var rated = false;
+    $('#star').raty({
+        number: 10,
+        starHalf: '/themes/motchill/rating2/images/star-half.png',
+        starOff: '/themes/motchill/rating2/images/star-off.png',
+        starOn: '/themes/motchill/rating2/images/star-on.png',
+        click: function (score, evt) {
+            if (!rated) {
+                $.ajax({
+                    url: 'https://phimchillhd.net/phim/giao-duc-chan-chinh/rate',
+                    data: JSON.stringify({
+                        rating: score
+                    }),
+                    headers: {
+                        "Content-Type": "application/json",
+                        'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')
+                            .getAttribute('content')
+                    },
+                    type: 'post',
+                    dataType: 'json',
+                    success: function (res) {
+                        alert("Đánh giá của bạn đã được gửi đi!");
+                        console.log(res.avgRate);
+                        $('#average').html(res.avgRate);
+                        $('#rate_count').html(res.total_user_rate);
+                        $('#star').attr('data-score', res.avgRate);
+                        rated = true;
+                    }
+                });
+            }
+        }
+    });
+
+
+=================== SCRIPT 11 ===================
+
+                                    document.getElementById("commit-99011102").dataset.width = $("#commit-99011102").parent().width();
+                                
+
+=================== SCRIPT 12 ===================
+ 
+        var isMobile = {
+            Android: function(){return navigator.userAgent.match(/Android/i);},
+            BlackBerry: function(){return navigator.userAgent.match(/BlackBerry/i);},
+            iOS: function(){return navigator.userAgent.match(/iPhone|iPad|iPod/i);},
+            Opera: function(){return navigator.userAgent.match(/Opera Mini/i);},
+            Windows: function(){return navigator.userAgent.match(/IEMobile/i)  navigator.userAgent.match(/WPDesktop/i);},
+            any: function(){return (isMobile.Android()  isMobile.BlackBerry()  isMobile.iOS()  isMobile.Opera() || isMobile.Windows());}
+        };
+        if(isMobile.any())
+        {
+            $('.mb-catfish').css('display','block');
+            $('.i9betmb').css('display','inline-block');
+            $('.i9betpc').css('display','none');
+            $('.box_odds').css('height','80px');
+            $('.box_odds img').css('height','80px');
+            $('.box_odds .text-1').css('font-size','12px');
+            $('.box_odds .text-2').css('font-size','12px');
+            $('.odds-info a').css('font-size','12px');
+        }
+        else
+        {
+            $('.mb-catfish').css('display','inline-block');
+            $('.i9betpc').css('display','inline-block');
+            $('.i9betmb').css('display','none');
+        }
+     
+
+=================== SCRIPT 13 ===================
+
+
+=================== SCRIPT 14 ===================
+
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+
+  gtag('config', 'G-9E55YD9GJH');
+
+
+=================== SCRIPT 15 ===================
+
+
+=================== SCRIPT 16 ===================
+
+
+=================== SCRIPT 17 ===================
+
+
+=================== SCRIPT 18 ===================
+
+
+=================== SCRIPT 19 ===================
+
+        window.fbAsyncInit = function() {
+            FB.init({
+                appId: '775198880325939',
+                xfbml: true,
+                version: 'v5.0'
+            });
+            FB.AppEvents.logPageView();
+        };
+
+        (function(d, s, id) {
+            var js, fjs = d.getElementsByTagName(s)[0];
+            if (d.getElementById(id)) {
+                return;
+            }
+            js = d.createElement(s);
+            js.id = id;
+            js.src = "https://connect.facebook.net/vi_VN/sdk.js";
+            fjs.parentNode.insertBefore(js, fjs);
+        }(document, 'script', 'facebook-jssdk'));
+    
+
+=================== SCRIPT 20 ===================
+
+        $('body').on('click', '.nav-tabs li a', function() {
+            var tabactive = $(this).attr('href');
+            $(this).closest('.nav-tabs').find('li').removeClass('active');
+            $(this).parent().addClass('active');
+            $('body').find('.myui-panel_bd .tab-pane').removeClass('active');
+            $('body').find(tabactive).addClass('active');
+
+            return false;
+        });
+    
+
+=================== SCRIPT 21 ===================
+
+
+  window.fbAsyncInit = function() {
+
+    FB.init({
+
+      appId            : '775198880325939',
+
+      xfbml            : true,
+
+      version          : 'v18.0'
+
+    });
+
+  };
+
+
+
+=================== SCRIPT 22 ===================
+
+
+=================== SCRIPT 23 ===================
+

@@ -273,12 +273,24 @@
                         </div>
                     </div>
                 </div>
-                <div id="cookie-dropzone" class="cookie-dropzone">
-                    <input type="file" id="cookie-file-input" accept=".txt,.json" class="hidden">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" class="upload-arrow">
-                        <polyline points="16 16 12 12 8 16"/><line x1="12" y1="12" x2="12" y2="21"/><path d="M20.39 18.39A5 5 0 0 0 18 9h-1.26A8 8 0 1 0 3 16.3"/>
-                    </svg>
-                    <p id="dropzone-text">Drag & drop your cookies.txt or cookies.json here or <span>browse file</span></p>
+                <div class="cookies-tabs">
+                    <button class="cookie-tab-btn active" id="cookie-tab-upload">Tải file cookies</button>
+                    <button class="cookie-tab-btn" id="cookie-tab-paste">Dán văn bản cookies</button>
+                </div>
+
+                <div id="cookie-tab-content-upload" class="cookie-tab-content">
+                    <div id="cookie-dropzone" class="cookie-dropzone">
+                        <input type="file" id="cookie-file-input" accept=".txt,.json" class="hidden">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" class="upload-arrow">
+                            <polyline points="16 16 12 12 8 16"/><line x1="12" y1="12" x2="12" y2="21"/><path d="M20.39 18.39A5 5 0 0 0 18 9h-1.26A8 8 0 1 0 3 16.3"/>
+                        </svg>
+                        <p id="dropzone-text">Drag & drop your cookies.txt or cookies.json here or <span>browse file</span></p>
+                    </div>
+                </div>
+
+                <div id="cookie-tab-content-paste" class="cookie-tab-content cookie-textarea-container hidden">
+                    <textarea id="cookie-text-input" class="cookie-textarea" placeholder="Dán nội dung cookies.txt (Netscape) hoặc cookies.json (J2TEAM) tại đây..."></textarea>
+                    <button id="cookie-save-text-btn" class="btn-primary cookie-save-btn">Lưu Cookies</button>
                 </div>
             </div>
 
@@ -369,7 +381,7 @@
                             
                             <!-- Supported Platforms Badges -->
                             <div class="welcome-platforms">
-                                <h4 class="welcome-section-title">Nền tảng hỗ trợ</h4>
+                                <h4 class="welcome-section-title">Nền tảng phổ biến & Web Video</h4>
                                 <div class="platform-badges-grid">
                                     <span class="platform-badge tag-youtube" data-url-hint="https://www.youtube.com/watch?v=aqz-KE-bpKQ">YouTube</span>
                                     <span class="platform-badge tag-facebook" data-url-hint="https://www.facebook.com/watch/?v=3827182910">Facebook</span>
@@ -381,6 +393,7 @@
                                     <span class="platform-badge tag-soundcloud" data-url-hint="https://soundcloud.com/octobersveryown/drake-back-to-back">SoundCloud</span>
                                     <span class="platform-badge tag-pinterest" data-url-hint="https://www.pinterest.com/pin/123456789012/">Pinterest</span>
                                     <span class="platform-badge tag-vimeo" data-url-hint="https://vimeo.com/83928172">Vimeo</span>
+                                    <span class="platform-badge tag-web" data-url-hint="https://motchilltv.lt/episodes/bai-hoc-dang-doi-tap-1/">Web Video / Any Link</span>
                                 </div>
                             </div>
 

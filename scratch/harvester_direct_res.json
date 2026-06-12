@@ -1,0 +1,61 @@
+{
+  "status": "success",
+  "title": "Bài Học Đáng Đời Tập 1 Full Vietsub - Motchill",
+  "uploader": "motchilltv.lt",
+  "duration": "Unknown",
+  "duration_raw": 0,
+  "thumbnail": "https://motchilltv.lt/wp-content/uploads/2025/02/motchill.png",
+  "is_shorts": false,
+  "platform_label": "Motchilltv.lt",
+  "platform_class": "default",
+  "views": "—",
+  "likes": "—",
+  "upload_date": "—",
+  "description": "",
+  "category": "Web Video",
+  "tags": [],
+  "video_options": [
+    {
+      "format_id": "direct_video_1",
+      "resolution": "Auto Stream",
+      "ext": "mp4",
+      "type": "video",
+      "size": "1.2 GB",
+      "label": "Server: Vietsub #1 [M3U8] (Episode 1)",
+      "episode": "1",
+      "server": "Server: Vietsub #1 [M3U8]",
+      "url": "https://vip.opstream90.com/20260605/33879_0038c2d2/index.m3u8?sign=28bcc78f75e01f8e70d4070d205764b0"
+    },
+    {
+      "format_id": "direct_video_2",
+      "resolution": "Auto Stream",
+      "ext": "mp4",
+      "type": "video",
+      "size": "1.1 GB",
+      "label": "Server: Vietsub #2 [M3U8] (Episode 1)",
+      "episode": "1",
+      "server": "Server: Vietsub #2 [M3U8]",
+      "url": "https://v7.kkphimplayer7.com/20260605/mMUnxegG/index.m3u8"
+    },
+    {
+      "format_id": "direct_video_3",
+      "resolution": "Auto Stream",
+      "ext": "mp4",
+      "type": "video",
+      "size": "1.0 GB",
+      "label": "Server: Thuyết Minh #1 [M3U8] (Episode 1)",
+      "episode": "1",
+      "server": "Server: Thuyết Minh #1 [M3U8]",
+      "url": "https://v7.kkphimplayer7.com/20260607/TNMiP8Kc/index.m3u8"
+    }
+  ],
+  "audio_options": [],
+  "subtitles": {},
+  "images": [
+    {
+      "label": "Thumbnail",
+      "url": "https://motchilltv.lt/wp-content/uploads/2025/02/motchill.png",
+      "ext": "jpg"
+    }
+  ]
+}
