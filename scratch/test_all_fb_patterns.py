@@ -11,9 +11,10 @@ from utils.ytdl import create_ydl_instance
 
 # All Facebook URL patterns to test
 test_urls = [
-    # Video URLs -> should go to yt-dlp
+    # Video/Reel URLs -> should go to yt-dlp
     ("share/v", "https://www.facebook.com/share/v/18fgW8Tbvc/"),
     ("reel", "https://www.facebook.com/reel/769241986206453"),
+    ("share/r", "https://www.facebook.com/share/r/1E5vGCgE2Q/"),
     
     # Photo URLs -> should go to custom scraper
     ("share/p", "https://www.facebook.com/share/p/1HuCd4k9ud/"),
@@ -27,7 +28,7 @@ for label, url in test_urls:
     print(f"[{label}] {url}")
     
     # Determine routing
-    is_fb_video_url = any(p in url.lower() for p in ["/share/v/", "/videos/", "/reel/", "/watch", "fb.watch"])
+    is_fb_video_url = any(p in url.lower() for p in ["/share/v/", "/share/r/", "/videos/", "/reel/", "/reels/", "/watch", "fb.watch"])
     route = "yt-dlp" if is_fb_video_url else "custom scraper"
     print(f"  Route: {route}")
     

@@ -3,5 +3,6 @@ from .tiktok import extract_tiktok_slideshow_via_gallery_dl
 from .twitter import extract_twitter_via_gallery_dl, extract_twitter_video_thumbnail_from_html
 from .reddit import extract_reddit_via_gallery_dl, scrape_reddit_fallback
 from .pinterest import extract_pinterest_via_gallery_dl
-from .facebook import scrape_fb_post
+from .facebook import scrape_fb_post, extract_facebook_story, resolve_facebook_sizes
 from .threads import parse_threads_page, extract_shortcode
+from .generic import generic_html_link_harvester, resolve_hls_size

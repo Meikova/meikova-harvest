@@ -7,6 +7,7 @@ import html as html_lib
 import requests
 
 from config import TEMP_DOWNLOAD_DIR
+from utils.helpers import get_url_content_length, format_size
 
 logger = logging.getLogger(__name__)
 
@@ -159,12 +160,12 @@ def scrape_fb_post(url, client_id=None):
                     post_id = story_id_raw
                 continue
         
-        # Fallback: for /share/v/ or /share/p/ URLs, resolve via share token
+        # Fallback: for /share/v/, /share/p/, /share/r/, or raw /share/ URLs, resolve via share token
         if not post_id:
             share_token = None
-            share_match = re.search(r'/share/[vp]/([^/?#]+)', url)
+            share_match = re.search(r'/share/([vpr]/)?([^/?#]+)', url)
             if share_match:
-                share_token = share_match.group(1)
+                share_token = share_match.group(2)
             
             if share_token:
                 script_blocks = re.findall(r'<script[^>]*type=["\']application/json["\'][^>]*>(.*?)</script>', html_content, re.DOTALL)
@@ -258,7 +259,7 @@ def scrape_fb_post(url, client_id=None):
     
     # Check if there is an album/collection ID associated with the post
     # Skip album detection for video-specific URLs
-    is_video_url = any(pattern in url.lower() for pattern in ["/share/v/", "/videos/", "/reel/", "/watch", "fb.watch"])
+    is_video_url = any(pattern in url.lower() for pattern in ["/share/v/", "/share/r/", "/videos/", "/reel/", "/reels/", "/watch", "fb.watch"])
     album_id = None
     if not is_video_url:
         pcb_match = re.search(r'set=pcb\.(\d+)', html)
@@ -312,6 +313,17 @@ def scrape_fb_post(url, client_id=None):
             return os.path.basename(path)
         except:
             return url_str
+
+    def is_valid_photo(uri):
+        if not uri or not isinstance(uri, str):
+            return False
+        # Filter out UI assets, stickers, reactions, emojis, tracking pixels, and profile photos
+        if any(x in uri.lower() for x in ["/rsrc.php/", "/emoji.php/", "/assets/", "pixel", "/emoji/", "/static/", "/t39.30808-1/", "/t39.1997-"]):
+            return False
+        # Filter out small thumbnails or icons
+        if any(x in uri.lower() for x in ["_s.jpg", "_t.jpg", "/p50x50/", "/p100x100/", "/p150x150/"]):
+            return False
+        return True
     
     # Recursive search function for GraphQL data
     def search_graphql(d):
@@ -329,21 +341,22 @@ def scrape_fb_post(url, client_id=None):
                                 if isinstance(viewer_img, dict) and viewer_img.get("uri"):
                                     uri = viewer_img["uri"].replace("\\/", "/").replace("\\u0025", "%")
                                     uri = urllib.parse.unquote(uri)
-                                    filename = extract_filename(uri)
-                                    if filename not in added_image_filenames:
-                                        added_image_filenames.add(filename)
-                                        images.append({
-                                            "label": f"Photo {len(images)+1}",
-                                            "url": uri,
-                                            "ext": "jpg"
-                                        })
+                                    if is_valid_photo(uri):
+                                        filename = extract_filename(uri)
+                                        if filename not in added_image_filenames:
+                                            added_image_filenames.add(filename)
+                                            images.append({
+                                                "label": f"Photo {len(images)+1}",
+                                                "url": uri,
+                                                "ext": "jpg"
+                                            })
             
-            # Check for direct Photo types
-            if d.get("__typename") == "Photo" or "viewer_image" in d:
-                v_img = d.get("viewer_image")
-                if isinstance(v_img, dict) and v_img.get("uri"):
-                    uri = v_img["uri"].replace("\\/", "/").replace("\\u0025", "%")
-                    uri = urllib.parse.unquote(uri)
+            # Check for direct Photo types or generic image nodes
+            v_img = d.get("viewer_image")
+            if isinstance(v_img, dict) and v_img.get("uri"):
+                uri = v_img["uri"].replace("\\/", "/").replace("\\u0025", "%")
+                uri = urllib.parse.unquote(uri)
+                if is_valid_photo(uri):
                     filename = extract_filename(uri)
                     if filename not in added_image_filenames:
                         added_image_filenames.add(filename)
@@ -352,11 +365,13 @@ def scrape_fb_post(url, client_id=None):
                             "url": uri,
                             "ext": "jpg"
                         })
-                else:
-                    img = d.get("image")
-                    if isinstance(img, dict) and img.get("uri"):
-                        uri = img["uri"].replace("\\/", "/").replace("\\u0025", "%")
-                        uri = urllib.parse.unquote(uri)
+            
+            img = d.get("image")
+            if isinstance(img, dict) and img.get("uri"):
+                uri = img["uri"].replace("\\/", "/").replace("\\u0025", "%")
+                uri = urllib.parse.unquote(uri)
+                if any(x in uri.lower() for x in ["fbcdn.net", "scontent"]):
+                    if is_valid_photo(uri):
                         filename = extract_filename(uri)
                         if filename not in added_image_filenames:
                             added_image_filenames.add(filename)
@@ -444,6 +459,50 @@ def scrape_fb_post(url, client_id=None):
         except:
             pass
             
+    # Recursively search for reaction counts (likes)
+    likes_val = None
+    shares_val = None
+    
+    def find_reaction_counts(d, depth=0):
+        nonlocal likes_val, shares_val
+        if depth > 50:
+            return
+        if isinstance(d, dict):
+            # Avoid comment likes (usually comment nodes have body, replies_fields, or author)
+            is_comment = "body" in d or "replies_fields" in d or "author" in d
+            
+            if not is_comment:
+                rc = d.get("reaction_count") or d.get("reactors")
+                if isinstance(rc, dict) and isinstance(rc.get("count"), int):
+                    val = rc["count"]
+                    if val > 0 and (likes_val is None or (isinstance(likes_val, int) and val > likes_val) or isinstance(likes_val, str)):
+                        likes_val = val
+                elif isinstance(rc, int):
+                    val = rc
+                    if val > 0 and (likes_val is None or (isinstance(likes_val, int) and val > likes_val) or isinstance(likes_val, str)):
+                        likes_val = val
+                
+                i18n = d.get("i18n_reaction_count")
+                if i18n and isinstance(i18n, str):
+                    if likes_val is None:
+                        likes_val = i18n
+                        
+                sc = d.get("share_count")
+                if isinstance(sc, dict) and isinstance(sc.get("count"), int):
+                    shares_val = sc["count"]
+                
+            for v in d.values():
+                if isinstance(v, (dict, list)):
+                    find_reaction_counts(v, depth+1)
+        elif isinstance(d, list):
+            for item in d:
+                if isinstance(item, (dict, list)):
+                    find_reaction_counts(item, depth+1)
+
+    # Scan reaction counts globally from all scripts first to ensure deep nodes are traversed
+    for data in parsed_main_scripts:
+        find_reaction_counts(data)
+
     # Try targeted extraction first
     targeted_success = False
     if post_id:
@@ -570,6 +629,24 @@ def scrape_fb_post(url, client_id=None):
             except:
                 pass
  
+    # Fallback to extracting image URLs directly from the HTML if none were found via JSON script blocks
+    if not images:
+        logger.info("No images found in JSON script blocks. Attempting direct HTML regex extraction...")
+        raw_urls = re.findall(r'https://[^\s"\'\\<>]+(?:fbcdn\.net|scontent)[^\s"\'\\<>]+', html)
+        for raw_url in raw_urls:
+            clean_url = raw_url.replace("\\/", "/").replace("\\u0025", "%").replace("\\", "")
+            clean_url = urllib.parse.unquote(clean_url)
+            
+            if is_valid_photo(clean_url):
+                filename = extract_filename(clean_url)
+                if filename and filename not in added_image_filenames:
+                    added_image_filenames.add(filename)
+                    images.append({
+                        "label": f"Photo {len(images)+1}",
+                        "url": clean_url,
+                        "ext": "jpg"
+                    })
+
     # If we found no photos but found og:image, add it
     if not images and thumbnail:
         images.append({
@@ -603,6 +680,13 @@ def scrape_fb_post(url, client_id=None):
     else:
         platform_label = "Facebook Post"
         platform_class = "facebook"
+    likes = "N/A"
+    if likes_val is not None:
+        likes = str(likes_val)
+    elif title:
+        likes_match = re.search(r'\b([\d.,]+[KMB]?)\s*(?:lượt thích|likes|cảm xúc|người thích|reactions)', title, re.IGNORECASE)
+        if likes_match:
+            likes = likes_match.group(1).strip()
 
     return {
         "status": "success",
@@ -611,7 +695,7 @@ def scrape_fb_post(url, client_id=None):
         "uploader": uploader,
         "thumbnail": thumbnail or (images[0]["url"] if images else ""),
         "views": "N/A",
-        "likes": "N/A",
+        "likes": likes,
         "upload_date": "Recent",
         "category": "Facebook Story" if is_story else "Facebook Post",
         "tags": ["Story"] if is_story else ["Post"],
@@ -623,3 +707,323 @@ def scrape_fb_post(url, client_id=None):
         "platform_label": platform_label,
         "platform_class": platform_class
     }
+
+
+def extract_facebook_story(url, client_id=None):
+    client_cookies = os.path.join(TEMP_DOWNLOAD_DIR, "cookies", f"cookies_{client_id}.txt") if client_id else None
+    if not client_cookies or not os.path.exists(client_cookies):
+        raise ValueError("Cookies are required to download Facebook Stories. Please export and upload your cookies first.")
+        
+    try:
+        import subprocess
+        command = [
+            "curl",
+            "-s",
+            "-L",
+            "-b", client_cookies,
+            "-A", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+            "-H", "Accept: text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,image/apng,*/*;q=0.8",
+            "-H", "Accept-Language: vi-VN,vi;q=0.9,en-US;q=0.8,en;q=0.7",
+            "-H", "Sec-Fetch-Mode: navigate",
+            "-H", "Upgrade-Insecure-Requests: 1",
+            url
+        ]
+        
+        result = subprocess.run(command, capture_output=True, text=True, encoding="utf-8", errors="ignore", timeout=15)
+        html = result.stdout
+        
+        if "Sorry, something went wrong" in html or len(html) < 20000:
+            if "login.php" in html or "login_form" in html:
+                raise PermissionError("Unable to authenticate with Facebook. Your uploaded cookies may be expired or invalid. Please re-export and upload them.")
+            raise PermissionError("Facebook returned an error or blocked the request. Please check if your cookies file is valid and active.")
+
+        uploader = "Facebook User"
+        owner_match = re.search(r'"story_bucket_owner"\s*:\s*{[^}]+?"name"\s*:\s*"([^"]+)"', html)
+        if owner_match:
+            uploader = owner_match.group(1)
+        else:
+            owner_match2 = re.search(r'"owner"\s*:\s*{\s*"name"\s*:\s*"([^"]+)"', html)
+            if owner_match2:
+                uploader = owner_match2.group(1)
+
+        title = f"Story by {uploader}" if uploader != "Facebook User" else "Facebook Story"
+
+        bucket_id = None
+        story_id = None
+        url_match = re.search(r'/stories/([^/]+)/([^//?]+)', url)
+        if url_match:
+            bucket_id = url_match.group(1)
+            story_id = url_match.group(2)
+        else:
+            url_match2 = re.search(r'/stories/([^//?]+)', url)
+            if url_match2:
+                bucket_id = url_match2.group(1)
+
+        # Try JSON extraction first
+        parsed_stories = []
+        uploader_from_json = None
+        scripts = re.findall(r'<script[^>]*type=["\']application/json["\'][^>]*>(.*?)</script>', html, re.DOTALL)
+        
+        def search_for_buckets(d):
+            nonlocal uploader_from_json
+            if isinstance(d, dict):
+                for k in ['unified_stories', 'unified_stories_with_notes']:
+                    if k in d and isinstance(d[k], dict) and 'edges' in d[k]:
+                        edges = d[k]['edges']
+                        if edges:
+                            current_bucket_id = d.get('id')
+                            if bucket_id and str(current_bucket_id) != str(bucket_id):
+                                continue
+                                
+                            owner = d.get('story_bucket_owner') or d.get('owner')
+                            if isinstance(owner, dict) and owner.get('name'):
+                                uploader_from_json = owner.get('name')
+                                
+                            for edge in edges:
+                                node = edge.get('node') if isinstance(edge, dict) else None
+                                if not isinstance(node, dict):
+                                    continue
+                                card_id = node.get('id')
+                                if any(s['card_id'] == card_id for s in parsed_stories):
+                                    continue
+                                    
+                                attachments = node.get('attachments') or []
+                                media = None
+                                if attachments and isinstance(attachments, list):
+                                    att = attachments[0]
+                                    if isinstance(att, dict):
+                                        media = att.get('media')
+                                if not media and 'media' in node:
+                                    media = node.get('media')
+                                    
+                                if isinstance(media, dict):
+                                    typename = media.get('__typename')
+                                    media_id = media.get('id')
+                                    playable_url = media.get('playable_url') or media.get('progressive_url')
+                                    if playable_url:
+                                        playable_url = playable_url.replace("\\/", "/").replace("\\u0025", "%")
+                                        playable_url = urllib.parse.unquote(playable_url)
+                                        
+                                    thumbnail_uri = None
+                                    preferred_thumbnail = media.get('preferred_thumbnail')
+                                    if isinstance(preferred_thumbnail, dict):
+                                        img = preferred_thumbnail.get('image')
+                                        if isinstance(img, dict) and img.get('uri'):
+                                            thumbnail_uri = img.get('uri')
+                                    if not thumbnail_uri:
+                                        img_node = media.get('image') or media.get('previewImage')
+                                        if isinstance(img_node, dict) and img_node.get('uri'):
+                                            thumbnail_uri = img_node.get('uri')
+                                    
+                                    if thumbnail_uri:
+                                        thumbnail_uri = thumbnail_uri.replace("\\/", "/").replace("\\u0025", "%")
+                                        thumbnail_uri = urllib.parse.unquote(thumbnail_uri)
+                                        
+                                    parsed_stories.append({
+                                        'card_id': card_id,
+                                        'typename': typename,
+                                        'media_id': media_id,
+                                        'playable_url': playable_url,
+                                        'thumbnail_uri': thumbnail_uri
+                                    })
+                for v in d.values():
+                    search_for_buckets(v)
+            elif isinstance(d, list):
+                for item in d:
+                    search_for_buckets(item)
+
+        for script in scripts:
+            try:
+                data = json.loads(script)
+                search_for_buckets(data)
+            except Exception:
+                pass
+
+        video_options = []
+        unique_video_urls = []
+        unique_photo_urls = []
+        if parsed_stories:
+            if uploader_from_json:
+                uploader = uploader_from_json
+                title = f"Story by {uploader}"
+                
+            # Prioritize active story at the top
+            active_story_idx = -1
+            for idx, s in enumerate(parsed_stories):
+                if story_id and s['card_id'] == story_id:
+                    active_story_idx = idx
+                    break
+            if active_story_idx != -1:
+                active_story = parsed_stories.pop(active_story_idx)
+                parsed_stories.insert(0, active_story)
+                
+            video_count = 0
+            photo_count = 0
+            for idx, s in enumerate(parsed_stories):
+                is_active = (story_id and s['card_id'] == story_id) or (idx == 0 and not story_id)
+                
+                if s['playable_url']:
+                    video_count += 1
+                    label = f"Video Story {video_count} (Current)" if is_active else f"Video Story {video_count}"
+                    video_options.append({
+                        "format_id": f"direct_video_{idx+1}",
+                        "ext": "mp4",
+                        "resolution": "HD" if "quality_hd" in s['playable_url'].lower() else "SD",
+                        "size": "Unknown Size",
+                        "label": label,
+                        "url": s['playable_url']
+                    })
+                    unique_video_urls.append(s['playable_url'])
+                
+                if s['thumbnail_uri']:
+                    unique_photo_urls.append(s['thumbnail_uri'])
+                    if not s['playable_url']:
+                        photo_count += 1
+                        label = f"Photo Story {photo_count} (Current)" if is_active else f"Photo Story {photo_count}"
+                        video_options.append({
+                            "format_id": f"direct_photo_{idx+1}",
+                            "ext": "jpg",
+                            "resolution": "Original",
+                            "size": "Unknown Size",
+                            "label": label,
+                            "url": s['thumbnail_uri']
+                        })
+
+        if not video_options:
+            # Fallback to regex extraction
+            raw_playable = re.findall(r'"playable_url"\s*:\s*"([^"]+)"', html)
+            raw_progressive = re.findall(r'"progressive_url"\s*:\s*"([^"]+)"', html)
+            
+            unique_video_urls = []
+            for u in raw_playable + raw_progressive:
+                clean = u.replace("\\/", "/").replace("\\u0025", "%")
+                clean = urllib.parse.unquote(clean)
+                if clean not in unique_video_urls and "fbcdn.net" in clean:
+                    if "dash_baseline" in clean or "_nc_vs" in clean or "dash_prefetch" in clean:
+                        continue
+                    unique_video_urls.append(clean)
+                    
+            raw_photos = re.findall(r'"preferred_thumbnail"\s*:\s*{\s*"image"\s*:\s*{\s*"uri"\s*:\s*"([^"]+)"', html)
+            raw_photos2 = re.findall(r'"overlay_image_uri"\s*:\s*"([^"]+)"', html)
+            
+            unique_photo_urls = []
+            for u in raw_photos + raw_photos2:
+                clean = u.replace("\\/", "/").replace("\\u0025", "%")
+                clean = urllib.parse.unquote(clean)
+                if clean not in unique_photo_urls and "fbcdn.net" in clean:
+                    unique_photo_urls.append(clean)
+
+            active_video_url = None
+            active_photo_url = None
+            if story_id:
+                pos = html.find(story_id)
+                if pos != -1:
+                    segment = html[pos:pos+150000]
+                    media_match = re.search(r'"media"\s*:\s*{\s*"id"\s*:\s*"(\d+)"', segment)
+                    if media_match:
+                        media_id = media_match.group(1)
+                        video_pos = html.find(f'"video_id":"{media_id}"')
+                        if video_pos != -1:
+                            video_segment = html[max(0, video_pos-3000):video_pos+1000]
+                            url_match = re.search(r'"playable_url"\s*:\s*"([^"]+)"', video_segment) or re.search(r'"progressive_url"\s*:\s*"([^"]+)"', video_segment)
+                            if url_match:
+                                active_video_url = url_match.group(1).replace("\\/", "/").replace("\\u0025", "%")
+                                active_video_url = urllib.parse.unquote(active_video_url)
+                        else:
+                            photo_pos = html.find(media_id)
+                            if photo_pos != -1:
+                                photo_segment = html[photo_pos:photo_pos+5000]
+                                url_match = re.search(r'"uri"\s*:\s*"([^"]+)"', photo_segment)
+                                if url_match:
+                                    active_photo_url = url_match.group(1).replace("\\/", "/").replace("\\u0025", "%")
+                                    active_photo_url = urllib.parse.unquote(active_photo_url)
+
+            if active_video_url and active_video_url in unique_video_urls:
+                unique_video_urls.remove(active_video_url)
+                unique_video_urls.insert(0, active_video_url)
+            if active_photo_url and active_photo_url in unique_photo_urls:
+                unique_photo_urls.remove(active_photo_url)
+                unique_photo_urls.insert(0, active_photo_url)
+
+            for idx, v_url in enumerate(unique_video_urls):
+                is_active = (v_url == active_video_url) or (idx == 0 and not active_video_url)
+                label = f"Video Story {idx+1} (Current)" if is_active else f"Video Story {idx+1}"
+                video_options.append({
+                    "format_id": f"direct_video_{idx+1}",
+                    "ext": "mp4",
+                    "resolution": "HD" if "quality_hd" in v_url.lower() else "SD",
+                    "size": "Unknown Size",
+                    "label": label,
+                    "url": v_url
+                })
+                
+            for idx, p_url in enumerate(unique_photo_urls):
+                is_active = (p_url == active_photo_url) or (idx == 0 and not active_photo_url and not unique_video_urls)
+                label = f"Photo Story {idx+1} (Current)" if is_active else f"Photo Story {idx+1}"
+                video_options.append({
+                    "format_id": f"direct_photo_{idx+1}",
+                    "ext": "jpg",
+                    "resolution": "Original",
+                    "size": "Unknown Size",
+                    "label": label,
+                    "url": p_url
+                })
+
+        if not video_options:
+            raise ValueError("Could not find any video or photo resources in the Story. The story may have expired or been deleted.")
+
+        thumbnail = unique_photo_urls[0] if unique_photo_urls else "https://www.facebook.com/images/assets_files/yoodle/yoodle_default.png"
+        
+        images = []
+        for idx, p_url in enumerate(unique_photo_urls):
+            images.append({
+                "label": f"Story Thumbnail {idx+1}",
+                "url": p_url,
+                "ext": "jpg"
+            })
+
+        resolve_facebook_sizes(video_options, client_id)
+
+        return {
+            "status": "success",
+            "title": title,
+            "duration": "0:15" if unique_video_urls else "0:05",
+            "duration_raw": 15 if unique_video_urls else 5,
+            "uploader": uploader,
+            "thumbnail": thumbnail,
+            "views": "N/A",
+            "likes": "N/A",
+            "upload_date": "Today",
+            "category": "Facebook Story",
+            "tags": ["Story"],
+            "subtitles": [],
+            "video_options": video_options,
+            "audio_options": [],
+            "images": images,
+            "platform": "Facebook Story",
+            "platform_label": "Facebook Story",
+            "platform_class": "facebook-story"
+        }
+    except Exception as e:
+        if isinstance(e, (ValueError, PermissionError)):
+            raise e
+        raise RuntimeError(f"Failed to extract Facebook Story contents: {e}")
+
+
+def resolve_facebook_sizes(video_options, client_id=None):
+    from concurrent.futures import ThreadPoolExecutor
+    
+    cookies_dir = os.path.join(TEMP_DOWNLOAD_DIR, "cookies")
+    cookie_file = os.path.join(cookies_dir, f"cookies_{client_id}.txt") if client_id else None
+    
+    def resolve_fb_size(opt):
+        url_to_check = opt.get("url")
+        if url_to_check:
+            s_bytes = get_url_content_length(url_to_check, cookies_file=cookie_file)
+            if s_bytes:
+                opt["size"] = format_size(s_bytes)
+                
+    if video_options:
+        with ThreadPoolExecutor(max_workers=min(10, len(video_options))) as executor:
+            list(executor.map(resolve_fb_size, video_options))
+
