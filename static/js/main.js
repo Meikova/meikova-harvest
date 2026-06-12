@@ -1,5 +1,19 @@
 // --- JavaScript Logic for EveryThingDownloader ---
 
+// Global settings for Star Grid Canvas & UI Customizer
+window.canvasSettings = {
+    spacing: 54,
+    maxDist: 180,
+    gravityMode: 'pull',
+    gravityDepth: 130,
+    sparkleShape: 'star',
+    springCoeffZ: 0.07,
+    springCoeffXY: 0.06,
+    gridEnabled: true,
+    ripplesEnabled: true,
+    sparklesEnabled: true
+};
+
 document.addEventListener("DOMContentLoaded", () => {
     // Theme Toggle Logic
     const themeToggle = document.getElementById("theme-toggle");
@@ -18,12 +32,19 @@ document.addEventListener("DOMContentLoaded", () => {
         });
     }
 
-    // Settings Dropdown Toggle
+    // Settings & Customizer Dropdown Toggle
     const settingsToggle = document.getElementById("settings-toggle");
     const settingsDropdown = document.getElementById("settings-dropdown");
+    const customizerToggle = document.getElementById("customizer-toggle");
+    const customizerDropdown = document.getElementById("customizer-dropdown");
+
     if (settingsToggle && settingsDropdown) {
         settingsToggle.addEventListener("click", (e) => {
             e.stopPropagation();
+            if (customizerDropdown) {
+                customizerDropdown.classList.add("hidden");
+                customizerToggle.classList.remove("active");
+            }
             const isHidden = settingsDropdown.classList.contains("hidden");
             if (isHidden) {
                 settingsDropdown.classList.remove("hidden");
@@ -33,13 +54,338 @@ document.addEventListener("DOMContentLoaded", () => {
                 settingsToggle.classList.remove("active");
             }
         });
-        // Close on click outside
-        document.addEventListener("click", (e) => {
+    }
+
+    if (customizerToggle && customizerDropdown) {
+        customizerToggle.addEventListener("click", (e) => {
+            e.stopPropagation();
+            if (settingsDropdown) {
+                settingsDropdown.classList.add("hidden");
+                settingsToggle.classList.remove("active");
+            }
+            const isHidden = customizerDropdown.classList.contains("hidden");
+            if (isHidden) {
+                customizerDropdown.classList.remove("hidden");
+                customizerToggle.classList.add("active");
+            } else {
+                customizerDropdown.classList.add("hidden");
+                customizerToggle.classList.remove("active");
+            }
+        });
+    }
+
+    // Close both on click outside
+    document.addEventListener("click", (e) => {
+        if (settingsDropdown && settingsToggle) {
             if (!settingsDropdown.contains(e.target) && !settingsToggle.contains(e.target)) {
                 settingsDropdown.classList.add("hidden");
                 settingsToggle.classList.remove("active");
             }
+        }
+        if (customizerDropdown && customizerToggle) {
+            if (!customizerDropdown.contains(e.target) && !customizerToggle.contains(e.target)) {
+                customizerDropdown.classList.add("hidden");
+                customizerToggle.classList.remove("active");
+            }
+        }
+    });
+
+    // --- UI CUSTOMIZER LOGIC ---
+    const customizerAccent = document.getElementById("customizer-accent");
+    const customizerRadius = document.getElementById("customizer-radius");
+    const customizerBlur = document.getElementById("customizer-blur");
+    const customizerBlurVal = document.getElementById("customizer-blur-val");
+    const customizerFontSize = document.getElementById("customizer-fontsize");
+    
+    const customizerGridEnable = document.getElementById("customizer-grid-enable");
+    const customizerRipplesEnable = document.getElementById("customizer-ripples-enable");
+    const customizerSparklesEnable = document.getElementById("customizer-sparkles-enable");
+    
+    const customizerSpacing = document.getElementById("customizer-spacing");
+    const customizerSpacingVal = document.getElementById("customizer-spacing-val");
+    const customizerGravity = document.getElementById("customizer-gravity");
+    const customizerGravityVal = document.getElementById("customizer-gravity-val");
+    const customizerGravityMode = document.getElementById("customizer-gravity-mode");
+    const customizerGravityDepth = document.getElementById("customizer-gravity-depth");
+    const customizerGravityDepthVal = document.getElementById("customizer-gravity-depth-val");
+    const customizerSparkleShape = document.getElementById("customizer-sparkle-shape");
+    const customizerResetBtn = document.getElementById("customizer-reset-btn");
+
+    function applyAccent(accentVal) {
+        Array.from(document.documentElement.classList).forEach(cls => {
+            if (cls.startsWith("accent-theme-")) {
+                document.documentElement.classList.remove(cls);
+            }
         });
+        if (accentVal !== "default") {
+            document.documentElement.classList.add("accent-theme-" + accentVal);
+        }
+        if (customizerAccent) customizerAccent.value = accentVal;
+        localStorage.setItem("customizer-accent", accentVal);
+    }
+
+    function applyRadius(radiusVal) {
+        let borderVal = "16px";
+        if (radiusVal === "sharp") borderVal = "4px";
+        else if (radiusVal === "rounded") borderVal = "16px";
+        else if (radiusVal === "pill") borderVal = "30px";
+        document.documentElement.style.setProperty("--radius", borderVal);
+        if (customizerRadius) customizerRadius.value = radiusVal;
+        localStorage.setItem("customizer-radius", radiusVal);
+    }
+
+    function applyBlur(blurVal, persist = false) {
+        document.documentElement.style.setProperty("--glass-blur", blurVal + "px");
+        if (customizerBlur) customizerBlur.value = blurVal;
+        if (customizerBlurVal) customizerBlurVal.textContent = blurVal + "px";
+        if (persist) {
+            localStorage.setItem("customizer-blur", blurVal);
+        }
+    }
+
+    function applyFontSize(sizeVal) {
+        let htmlSize = "16px";
+        if (sizeVal === "small") htmlSize = "14.4px";
+        else if (sizeVal === "medium") htmlSize = "16px";
+        else if (sizeVal === "large") htmlSize = "17.6px";
+        document.documentElement.style.fontSize = htmlSize;
+        if (customizerFontSize) customizerFontSize.value = sizeVal;
+        localStorage.setItem("customizer-fontsize", sizeVal);
+    }
+
+    function updateCanvasOption(key, value) {
+        window.canvasSettings[key] = value;
+        localStorage.setItem("customizer-" + key, value);
+    }
+
+    if (customizerAccent) {
+        customizerAccent.addEventListener("change", (e) => applyAccent(e.target.value));
+    }
+    if (customizerRadius) {
+        customizerRadius.addEventListener("change", (e) => applyRadius(e.target.value));
+    }
+    if (customizerBlur) {
+        customizerBlur.addEventListener("input", (e) => applyBlur(e.target.value, false));
+        customizerBlur.addEventListener("change", (e) => applyBlur(e.target.value, true));
+    }
+    if (customizerFontSize) {
+        customizerFontSize.addEventListener("change", (e) => applyFontSize(e.target.value));
+    }
+
+    if (customizerGridEnable) {
+        customizerGridEnable.addEventListener("change", (e) => {
+            updateCanvasOption("gridEnabled", e.target.checked);
+            const gridContainer = document.getElementById("grid-spacing-container");
+            const gravityContainer = document.getElementById("grid-gravity-container");
+            const modeContainer = document.getElementById("customizer-gravity-mode") ? document.getElementById("customizer-gravity-mode").parentElement : null;
+            const depthContainer = document.getElementById("grid-gravity-depth-container");
+            if (e.target.checked) {
+                if (gridContainer) gridContainer.style.display = "block";
+                if (gravityContainer) gravityContainer.style.display = "block";
+                if (modeContainer) modeContainer.style.display = "block";
+                if (depthContainer && window.canvasSettings.gravityMode !== "none") depthContainer.style.display = "block";
+            } else {
+                if (gridContainer) gridContainer.style.display = "none";
+                if (gravityContainer) gravityContainer.style.display = "none";
+                if (modeContainer) modeContainer.style.display = "none";
+                if (depthContainer) depthContainer.style.display = "none";
+            }
+        });
+    }
+    if (customizerRipplesEnable) {
+        customizerRipplesEnable.addEventListener("change", (e) => updateCanvasOption("ripplesEnabled", e.target.checked));
+    }
+    if (customizerSparklesEnable) {
+        customizerSparklesEnable.addEventListener("change", (e) => updateCanvasOption("sparklesEnabled", e.target.checked));
+    }
+
+    if (customizerSpacing) {
+        customizerSpacing.addEventListener("input", (e) => {
+            const val = parseInt(e.target.value);
+            if (customizerSpacingVal) customizerSpacingVal.textContent = val + "px";
+            window.canvasSettings.spacing = val;
+        });
+        customizerSpacing.addEventListener("change", (e) => {
+            const val = parseInt(e.target.value);
+            localStorage.setItem("customizer-spacing", val);
+        });
+    }
+    if (customizerGravity) {
+        customizerGravity.addEventListener("input", (e) => {
+            const val = parseInt(e.target.value);
+            if (customizerGravityVal) customizerGravityVal.textContent = val + "px";
+            window.canvasSettings.maxDist = val;
+        });
+        customizerGravity.addEventListener("change", (e) => {
+            const val = parseInt(e.target.value);
+            localStorage.setItem("customizer-maxDist", val);
+        });
+    }
+    if (customizerGravityMode) {
+        customizerGravityMode.addEventListener("change", (e) => {
+            updateCanvasOption("gravityMode", e.target.value);
+            const depthContainer = document.getElementById("grid-gravity-depth-container");
+            if (e.target.value === "none") {
+                if (depthContainer) depthContainer.style.display = "none";
+            } else {
+                if (depthContainer) depthContainer.style.display = "block";
+            }
+        });
+    }
+    if (customizerGravityDepth) {
+        customizerGravityDepth.addEventListener("input", (e) => {
+            const val = parseInt(e.target.value);
+            if (customizerGravityDepthVal) customizerGravityDepthVal.textContent = val + "px";
+            window.canvasSettings.gravityDepth = val;
+        });
+        customizerGravityDepth.addEventListener("change", (e) => {
+            const val = parseInt(e.target.value);
+            localStorage.setItem("customizer-gravityDepth", val);
+        });
+    }
+    if (customizerSparkleShape) {
+        customizerSparkleShape.addEventListener("change", (e) => {
+            updateCanvasOption("sparkleShape", e.target.value);
+        });
+    }
+
+    if (customizerResetBtn) {
+        customizerResetBtn.addEventListener("click", () => {
+            applyAccent("default");
+            applyRadius("rounded");
+            applyBlur(24);
+            applyFontSize("medium");
+
+            if (customizerGridEnable) {
+                customizerGridEnable.checked = true;
+                updateCanvasOption("gridEnabled", true);
+                const gridContainer = document.getElementById("grid-spacing-container");
+                const gravityContainer = document.getElementById("grid-gravity-container");
+                const modeContainer = document.getElementById("customizer-gravity-mode") ? document.getElementById("customizer-gravity-mode").parentElement : null;
+                const depthContainer = document.getElementById("grid-gravity-depth-container");
+                if (gridContainer) gridContainer.style.display = "block";
+                if (gravityContainer) gravityContainer.style.display = "block";
+                if (modeContainer) modeContainer.style.display = "block";
+                if (depthContainer) depthContainer.style.display = "block";
+            }
+            if (customizerRipplesEnable) {
+                customizerRipplesEnable.checked = true;
+                updateCanvasOption("ripplesEnabled", true);
+            }
+            if (customizerSparklesEnable) {
+                customizerSparklesEnable.checked = true;
+                updateCanvasOption("sparklesEnabled", true);
+            }
+            if (customizerSpacing) {
+                customizerSpacing.value = 54;
+                if (customizerSpacingVal) customizerSpacingVal.textContent = "54px";
+                updateCanvasOption("spacing", 54);
+            }
+            if (customizerGravity) {
+                customizerGravity.value = 180;
+                if (customizerGravityVal) customizerGravityVal.textContent = "180px";
+                updateCanvasOption("maxDist", 180);
+            }
+            if (customizerGravityMode) {
+                customizerGravityMode.value = "pull";
+                updateCanvasOption("gravityMode", "pull");
+            }
+            if (customizerGravityDepth) {
+                customizerGravityDepth.value = 130;
+                if (customizerGravityDepthVal) customizerGravityDepthVal.textContent = "130px";
+                updateCanvasOption("gravityDepth", 130);
+            }
+            if (customizerSparkleShape) {
+                customizerSparkleShape.value = "star";
+                updateCanvasOption("sparkleShape", "star");
+            }
+        });
+    }
+
+    const savedAccent = localStorage.getItem("customizer-accent") || "default";
+    applyAccent(savedAccent);
+
+    const savedRadius = localStorage.getItem("customizer-radius") || "rounded";
+    applyRadius(savedRadius);
+
+    const savedBlur = localStorage.getItem("customizer-blur") !== null ? parseInt(localStorage.getItem("customizer-blur")) : 24;
+    applyBlur(savedBlur);
+
+    const savedFontSize = localStorage.getItem("customizer-fontsize") || "medium";
+    applyFontSize(savedFontSize);
+
+    const savedGrid = localStorage.getItem("customizer-gridEnabled") !== null ? localStorage.getItem("customizer-gridEnabled") === "true" : true;
+    const savedGravityMode = localStorage.getItem("customizer-gravityMode") || "pull";
+
+    if (customizerGridEnable) {
+        customizerGridEnable.checked = savedGrid;
+        window.canvasSettings.gridEnabled = savedGrid;
+        const gridContainer = document.getElementById("grid-spacing-container");
+        const gravityContainer = document.getElementById("grid-gravity-container");
+        const modeContainer = document.getElementById("customizer-gravity-mode") ? document.getElementById("customizer-gravity-mode").parentElement : null;
+        const depthContainer = document.getElementById("grid-gravity-depth-container");
+        if (savedGrid) {
+            if (gridContainer) gridContainer.style.display = "block";
+            if (gravityContainer) gravityContainer.style.display = "block";
+            if (modeContainer) modeContainer.style.display = "block";
+            if (depthContainer && savedGravityMode !== "none") depthContainer.style.display = "block";
+        } else {
+            if (gridContainer) gridContainer.style.display = "none";
+            if (gravityContainer) gravityContainer.style.display = "none";
+            if (modeContainer) modeContainer.style.display = "none";
+            if (depthContainer) depthContainer.style.display = "none";
+        }
+    }
+
+    if (customizerGravityMode) {
+        customizerGravityMode.value = savedGravityMode;
+        window.canvasSettings.gravityMode = savedGravityMode;
+        const depthContainer = document.getElementById("grid-gravity-depth-container");
+        if (savedGrid && savedGravityMode !== "none") {
+            if (depthContainer) depthContainer.style.display = "block";
+        } else {
+            if (depthContainer) depthContainer.style.display = "none";
+        }
+    }
+
+    const savedGravityDepth = localStorage.getItem("customizer-gravityDepth") !== null ? parseInt(localStorage.getItem("customizer-gravityDepth")) : 130;
+    if (customizerGravityDepth) {
+        customizerGravityDepth.value = savedGravityDepth;
+        if (customizerGravityDepthVal) customizerGravityDepthVal.textContent = savedGravityDepth + "px";
+        window.canvasSettings.gravityDepth = savedGravityDepth;
+    }
+
+    const savedSparkleShape = localStorage.getItem("customizer-sparkleShape") || "star";
+    if (customizerSparkleShape) {
+        customizerSparkleShape.value = savedSparkleShape;
+        window.canvasSettings.sparkleShape = savedSparkleShape;
+    }
+
+    const savedRipples = localStorage.getItem("customizer-ripplesEnabled") !== null ? localStorage.getItem("customizer-ripplesEnabled") === "true" : true;
+    if (customizerRipplesEnable) {
+        customizerRipplesEnable.checked = savedRipples;
+        window.canvasSettings.ripplesEnabled = savedRipples;
+    }
+
+    const savedSparkles = localStorage.getItem("customizer-sparklesEnabled") !== null ? localStorage.getItem("customizer-sparklesEnabled") === "true" : true;
+    if (customizerSparklesEnable) {
+        customizerSparklesEnable.checked = savedSparkles;
+        window.canvasSettings.sparklesEnabled = savedSparkles;
+    }
+
+    const savedSpacing = localStorage.getItem("customizer-spacing") !== null ? parseInt(localStorage.getItem("customizer-spacing")) : 54;
+    if (customizerSpacing) {
+        customizerSpacing.value = savedSpacing;
+        if (customizerSpacingVal) customizerSpacingVal.textContent = savedSpacing + "px";
+        window.canvasSettings.spacing = savedSpacing;
+    }
+
+    const savedGravity = localStorage.getItem("customizer-maxDist") !== null ? parseInt(localStorage.getItem("customizer-maxDist")) : 180;
+    if (customizerGravity) {
+        customizerGravity.value = savedGravity;
+        if (customizerGravityVal) customizerGravityVal.textContent = savedGravity + "px";
+        window.canvasSettings.maxDist = savedGravity;
+    }
         // Wire up trim checkbox toggle inside dropdown
         const trimCb = document.getElementById("trim-checkbox");
         const trimContainer = document.getElementById("trim-inputs-container");
@@ -124,7 +470,6 @@ document.addEventListener("DOMContentLoaded", () => {
                 }
             });
         }
-    }
 
     // Unique Client ID Management
     let clientId = localStorage.getItem("client_id");
@@ -2135,6 +2480,15 @@ document.addEventListener("DOMContentLoaded", () => {
         }
     }
 
+    function escapeHTML(str) {
+        if (!str) return "";
+        return str.replace(/&/g, "&amp;")
+                  .replace(/</g, "&lt;")
+                  .replace(/>/g, "&gt;")
+                  .replace(/"/g, "&quot;")
+                  .replace(/'/g, "&#039;");
+    }
+
     function handleDownloadFailure(errorMessageText, activeRow, allButtons) {
         progressBarFill.classList.remove("striped");
         progressBarFill.style.width = "0%";
@@ -2143,20 +2497,37 @@ document.addEventListener("DOMContentLoaded", () => {
         downloadProgress.classList.add("state-error");
         downloadStatusTitle.textContent = "Download failed";
         
-        let friendlyMessage = errorMessageText || "Đã xảy ra lỗi trong quá trình xếp hàng tải xuống.";
-        const lowerErr = friendlyMessage.toLowerCase();
+        let rawError = errorMessageText || "Đã xảy ra lỗi trong quá trình xếp hàng tải xuống.";
+        let friendlyMessage = rawError;
+        const lowerErr = rawError.toLowerCase();
         
         if (lowerErr.includes("fallback download also failed") || lowerErr.includes("returned non-zero code")) {
             friendlyMessage = "Không thể tải về từ nguồn phát này. Nguồn phát có thể đã bị nhà cung cấp mã hóa hoặc chặn lượt tải. Bạn vui lòng chọn Server khác (ví dụ Server #1) hoặc thử lại sau.";
-        } else if (lowerErr.includes("sign in to confirm you're not a bot") || lowerErr.includes("confirm you're not a bot")) {
-            friendlyMessage = "Tải về bị YouTube chặn (yêu cầu xác minh robot). Hãy thử lại hoặc cập nhật cookie trong mục 'Manage Cookies'.";
+        } else if (lowerErr.includes("429") || lowerErr.includes("too many requests") || lowerErr.includes("rate limit") || lowerErr.includes("rate-limit")) {
+            friendlyMessage = "Yêu cầu bị giới hạn tần suất từ IP này (Lỗi 429 - Too Many Requests). Bạn vui lòng đợi vài phút rồi thử lại, hoặc cập nhật Cookie/đổi kết nối mạng.";
+        } else if (lowerErr.includes("403") || lowerErr.includes("forbidden") || lowerErr.includes("access denied")) {
+            friendlyMessage = "Truy cập bị từ chối (Lỗi 403 - Forbidden). Nguồn phát có thể yêu cầu Cookie đăng nhập hợp lệ hoặc đang chặn IP máy chủ.";
+        } else if (lowerErr.includes("404") || lowerErr.includes("not found")) {
+            friendlyMessage = "Không tìm thấy tài nguyên (Lỗi 404 - Not Found). Vui lòng kiểm tra lại đường dẫn xem bài viết/video có còn tồn tại không.";
+        } else if (lowerErr.includes("sign in to confirm you're not a bot") || lowerErr.includes("confirm you're not a bot") || lowerErr.includes("confirm you are not a bot")) {
+            friendlyMessage = "Tải về bị chặn do yêu cầu xác minh robot (Confirm you are not a bot). Hãy thử lại sau hoặc cập nhật Cookie trong mục 'Cài đặt Cookies'.";
+        } else if (lowerErr.includes("login") || lowerErr.includes("logged-in") || lowerErr.includes("cookie") || lowerErr.includes("private")) {
+            friendlyMessage = "Nội dung này yêu cầu đăng nhập hoặc cookie tài khoản để truy cập. Vui lòng đăng nhập trên trình duyệt, xuất cookie và cập nhật trong mục 'Cài đặt Cookies'.";
         } else if (lowerErr.includes("unsupported url")) {
             friendlyMessage = "Đường dẫn không được hỗ trợ tải về trực tiếp. Hãy kiểm tra lại đường dẫn.";
-        } else if (lowerErr.includes("connection refused") || lowerErr.includes("timeout")) {
+        } else if (lowerErr.includes("connection refused") || lowerErr.includes("timeout") || lowerErr.includes("timed out")) {
             friendlyMessage = "Lỗi kết nối tới máy chủ nguồn. Vui lòng kiểm tra kết nối mạng hoặc thử lại sau.";
         }
+
+        let htmlContent = `<span>${friendlyMessage}</span>`;
+        if (errorMessageText) {
+            htmlContent += `<details style="margin-top: 12px; font-size: 0.78rem; color: rgba(255,255,255,0.6); text-align: left; background: rgba(0,0,0,0.25); border: 1px solid rgba(255,255,255,0.08); border-radius: 6px; padding: 6px 10px; cursor: pointer;">
+                <summary style="font-weight: 500; outline: none; list-style: marker; margin-bottom: 4px;">Chi tiết lỗi (Technical details)</summary>
+                <pre style="white-space: pre-wrap; font-family: monospace; font-size: 0.75rem; margin: 4px 0 0 0; color: #ff8080; background: none; border: none; padding: 0;">${escapeHTML(errorMessageText)}</pre>
+            </details>`;
+        }
         
-        downloadStatusMessage.textContent = friendlyMessage;
+        downloadStatusMessage.innerHTML = htmlContent;
         
         analyzeBtn.disabled = false;
         urlInput.disabled = false;
@@ -2168,7 +2539,37 @@ document.addEventListener("DOMContentLoaded", () => {
 
     // Error helper for analysis
     function showError(message) {
-        errorMessage.textContent = message;
+        const lowerMsg = (message || "").toLowerCase();
+        let friendly = message;
+        let technical = "";
+        
+        if (message.startsWith("Unable to extract media metadata: ")) {
+            const rawErr = message.replace("Unable to extract media metadata: ", "");
+            friendly = "Không thể trích xuất thông tin media từ đường dẫn này. Nguồn phát có thể đang chặn kết nối hoặc yêu cầu Cookie.";
+            
+            const rawLower = rawErr.toLowerCase();
+            if (rawLower.includes("429") || rawLower.includes("too many requests") || rawLower.includes("rate limit") || rawLower.includes("rate-limit")) {
+                friendly = "Yêu cầu trích xuất thông tin bị chặn do tần suất quá cao (Lỗi 429 - Too Many Requests). Vui lòng đổi kết nối mạng (Wifi/4G/VPN) hoặc thử lại sau ít phút.";
+            } else if (rawLower.includes("403") || rawLower.includes("forbidden") || rawLower.includes("access denied")) {
+                friendly = "Truy cập bị từ chối (Lỗi 403 - Forbidden). Nguồn phát có thể chặn kết nối hoặc cần Cookie hợp lệ.";
+            } else if (rawLower.includes("404") || rawLower.includes("not found")) {
+                friendly = "Không tìm thấy nội dung (Lỗi 404 - Not Found). Vui lòng kiểm tra lại đường dẫn bài viết/video.";
+            }
+            technical = rawErr;
+        } else if (lowerMsg.includes("unable to extract media metadata")) {
+            friendly = "Không thể trích xuất thông tin media. Nguồn phát có thể đang chặn kết nối hoặc cần Cookie đăng nhập.";
+            technical = message;
+        }
+        
+        let htmlContent = `<span>${friendly}</span>`;
+        if (technical) {
+            htmlContent += `<details style="margin-top: 10px; font-size: 0.78rem; opacity: 0.8; text-align: left; background: rgba(0,0,0,0.25); border: 1px solid rgba(255,255,255,0.08); border-radius: 6px; padding: 6px 10px; cursor: pointer; color: var(--text);">
+                <summary style="font-weight: 500; outline: none; list-style: marker; margin-bottom: 4px;">Chi tiết lỗi kỹ thuật</summary>
+                <pre style="white-space: pre-wrap; font-family: monospace; font-size: 0.75rem; margin: 4px 0 0 0; color: #ff8080; background: none; border: none; padding: 0;">${escapeHTML(technical)}</pre>
+            </details>`;
+        }
+        
+        errorMessage.innerHTML = htmlContent;
         errorCard.classList.remove("hidden");
         errorCard.scrollIntoView({ behavior: "smooth", block: "nearest" });
     }
@@ -2579,11 +2980,10 @@ document.addEventListener("DOMContentLoaded", () => {
     let rippleBuffer2 = [];
     let cols = 0;
     let rows = 0;
-    let spacing = 54; // Optimal distance between grid nodes
+    let currentSpacing = 54; // Dynamically bound to window.canvasSettings.spacing
     
     let mouse = { x: 0, y: 0, active: false, inactivityTimeout: null };
     let lastMouse = { x: window.innerWidth / 2, y: window.innerHeight / 2 };
-    const maxDist = 180; // Gravity well interaction radius
 
     // Resize canvas and recreate the grid mesh
     function resizeCanvas() {
@@ -2613,9 +3013,9 @@ document.addEventListener("DOMContentLoaded", () => {
         lastMouse.y = y;
 
         // Disturb the ripple buffer at the grid node nearest to the mouse
-        if (cols > 0 && rows > 0) {
-            let col = Math.round((x + 0.5 * spacing) / spacing);
-            let row = Math.round((y + 0.5 * spacing) / spacing);
+        if (window.canvasSettings.ripplesEnabled && cols > 0 && rows > 0) {
+            let col = Math.round((x + 0.5 * currentSpacing) / currentSpacing);
+            let row = Math.round((y + 0.5 * currentSpacing) / currentSpacing);
             
             // Disturb a small 3x3 region around the mouse
             for (let c = col - 1; c <= col + 1; c++) {
@@ -2628,9 +3028,17 @@ document.addEventListener("DOMContentLoaded", () => {
             }
         }
 
-        // Spawn tiny sparkling stardust at the mouse tip
-        if (Math.random() < 0.6) {
-            sparkles.push(new Sparkle(x, y));
+        // Spawn glowing stardust vortex particles at the mouse tip
+        if (window.canvasSettings.sparklesEnabled) {
+            const currentMaxDist = window.canvasSettings.maxDist || 180;
+            let spawnCount = Math.floor(Math.random() * (currentMaxDist / 80)) + 1;
+            spawnCount = Math.min(5, spawnCount); // Cap per tick
+
+            if (sparkles.length < 250) {
+                for (let i = 0; i < spawnCount; i++) {
+                    sparkles.push(new Sparkle(x, y));
+                }
+            }
         }
 
         clearTimeout(mouse.inactivityTimeout);
@@ -2661,11 +3069,12 @@ document.addEventListener("DOMContentLoaded", () => {
     });
 
     window.addEventListener("click", (e) => {
+        if (!window.canvasSettings.ripplesEnabled) return;
         let x = e.clientX;
         let y = e.clientY;
         if (cols > 0 && rows > 0) {
-            let col = Math.round((x + 0.5 * spacing) / spacing);
-            let row = Math.round((y + 0.5 * spacing) / spacing);
+            let col = Math.round((x + 0.5 * currentSpacing) / currentSpacing);
+            let row = Math.round((y + 0.5 * currentSpacing) / currentSpacing);
             
             // Inject a much larger force field in a 5x5 region to propagate a big mechanical wave
             for (let c = col - 2; c <= col + 2; c++) {
@@ -2716,18 +3125,25 @@ document.addEventListener("DOMContentLoaded", () => {
 
     class Sparkle {
         constructor(x, y) {
-            this.x = x;
-            this.y = y;
+            const currentMaxDist = window.canvasSettings.maxDist || 180;
+            const scaleFactor = currentMaxDist / 180.0;
+
+            // Scatter the spawn origin slightly based on gravity radius
+            let startRadius = Math.random() * 6 * scaleFactor;
+            let startAngle = Math.random() * Math.PI * 2;
+            this.x = x + Math.cos(startAngle) * startRadius;
+            this.y = y + Math.sin(startAngle) * startRadius;
+
             let angle = Math.random() * Math.PI * 2;
-            let speed = Math.random() * 2 + 1;
+            let speed = (Math.random() * 2.5 + 1.5) * scaleFactor;
             this.vx = Math.cos(angle) * speed;
-            this.vy = Math.sin(angle) * speed - 0.4; // slight upward drift
-            this.size = Math.random() * 2.5 + 1.5;
-            this.life = Math.random() * 20 + 20;
+            this.vy = Math.sin(angle) * speed - 0.4 * scaleFactor; // slight upward drift
+            this.size = (Math.random() * 4.0 + 2.5) * scaleFactor; // scales with gravity radius
+            this.life = Math.random() * 25 + 25;
             this.maxLife = this.life;
             this.color = activeColors[Math.floor(Math.random() * 2)];
             this.rotation = Math.random() * Math.PI;
-            this.rotSpeed = (Math.random() - 0.5) * 0.08;
+            this.rotSpeed = (Math.random() - 0.5) * 0.1;
         }
         update() {
             // Gravitational pull & spiral vortex towards mouse
@@ -2735,8 +3151,9 @@ document.addEventListener("DOMContentLoaded", () => {
                 let dx = mouse.x - this.x;
                 let dy = mouse.y - this.y;
                 let dist = Math.sqrt(dx*dx + dy*dy);
-                if (dist > 8 && dist < maxDist) {
-                    let force = (1 - dist / maxDist); // stronger pull closer to mouse
+                const currentMaxDist = window.canvasSettings.maxDist || 180;
+                if (dist > 8 && dist < currentMaxDist) {
+                    let force = (1 - dist / currentMaxDist); // stronger pull closer to mouse
                     // Pull strength (gravitational attraction)
                     let pull = force * force * 0.28;
                     this.vx += (dx / dist) * pull;
@@ -2759,20 +3176,36 @@ document.addEventListener("DOMContentLoaded", () => {
         draw(ctx) {
             let alpha = this.life / this.maxLife;
             let size = this.size * alpha;
-            let inner = size * 0.35;
             ctx.save();
             ctx.translate(this.x, this.y);
             ctx.rotate(this.rotation);
             ctx.beginPath();
             
-            // Draw tiny 4-pointed sparkle star
-            ctx.moveTo(0, -size);
-            for (let i = 0; i < 4; i++) {
-                let rot = -Math.PI / 2 + (Math.PI / 2) * i;
-                ctx.lineTo(Math.cos(rot) * size, Math.sin(rot) * size);
-                rot += Math.PI / 4;
-                ctx.lineTo(Math.cos(rot) * inner, Math.sin(rot) * inner);
+            const shape = window.canvasSettings.sparkleShape || 'star';
+            if (shape === 'star') {
+                let inner = size * 0.35;
+                ctx.moveTo(0, -size);
+                for (let i = 0; i < 4; i++) {
+                    let rot = -Math.PI / 2 + (Math.PI / 2) * i;
+                    ctx.lineTo(Math.cos(rot) * size, Math.sin(rot) * size);
+                    rot += Math.PI / 4;
+                    ctx.lineTo(Math.cos(rot) * inner, Math.sin(rot) * inner);
+                }
+            } else if (shape === 'circle') {
+                ctx.arc(0, 0, size * 0.8, 0, Math.PI * 2);
+            } else if (shape === 'diamond') {
+                ctx.moveTo(0, -size);
+                ctx.lineTo(size * 0.8, 0);
+                ctx.lineTo(0, size * 0.8);
+                ctx.lineTo(-size * 0.8, 0);
+            } else if (shape === 'square') {
+                ctx.rect(-size * 0.7, -size * 0.7, size * 1.4, size * 1.4);
+            } else if (shape === 'heart') {
+                ctx.moveTo(0, size * 0.7);
+                ctx.bezierCurveTo(-size * 0.8, size * 0.2, -size * 0.8, -size * 0.6, 0, -size * 0.3);
+                ctx.bezierCurveTo(size * 0.8, -size * 0.6, size * 0.8, size * 0.2, 0, size * 0.7);
             }
+            
             ctx.closePath();
             ctx.fillStyle = this.color;
             ctx.globalAlpha = alpha;
@@ -2816,7 +3249,7 @@ document.addEventListener("DOMContentLoaded", () => {
             this.anchorFactor = Math.min(1.0, distCol / 2.0) * Math.min(1.0, distRow / 2.0);
         }
 
-        update(mouse, maxDist) {
+        update(mouse) {
             this.rotation += this.rotationSpeed;
 
             // 1. Slow wave movement for the floating effect (superimposed organic wave)
@@ -2830,7 +3263,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
             // Fetch wave height from the 2D ripple buffer
             let targetZ = 0;
-            if (rippleBuffer1[this.col] && rippleBuffer1[this.col][this.row] !== undefined) {
+            if (window.canvasSettings.ripplesEnabled && rippleBuffer1[this.col] && rippleBuffer1[this.col][this.row] !== undefined) {
                 targetZ = rippleBuffer1[this.col][this.row] * this.anchorFactor;
             }
 
@@ -2840,14 +3273,20 @@ document.addEventListener("DOMContentLoaded", () => {
             let dist = Math.sqrt(dx*dx + dy*dy);
             let indentZ = 0;
 
-            if (mouse.active && dist < maxDist) {
-                // Cubic smoothstep for smooth gravity well
-                let t = dist / maxDist;
-                let force = 1 - (3 * t * t - 2 * t * t * t);
+            const currentMaxDist = window.canvasSettings.maxDist || 180;
 
-                // Push Z back (negative value pulls away looking like a funnel)
-                // Maximum funnel displacement: -130px, scaled by anchorFactor
-                indentZ = -130 * force * this.anchorFactor;
+            if (mouse.active && dist < currentMaxDist) {
+                const gravityMode = window.canvasSettings.gravityMode || 'pull';
+                if (gravityMode !== 'none') {
+                    // Cubic smoothstep for smooth gravity well
+                    let t = dist / currentMaxDist;
+                    let force = 1 - (3 * t * t - 2 * t * t * t);
+                    const depth = window.canvasSettings.gravityDepth !== undefined ? window.canvasSettings.gravityDepth : 130;
+                    const sign = gravityMode === 'push' ? 1 : -1;
+
+                    // Push or pull Z based on gravity mode, scaled by anchorFactor
+                    indentZ = sign * depth * force * this.anchorFactor;
+                }
             }
 
             // 2. Spring physics for Z depth (combine ripple height and funnel indentation)
@@ -2937,13 +3376,15 @@ document.addEventListener("DOMContentLoaded", () => {
     }
 
     function initGrid() {
+        // Read spacing from global settings
+        currentSpacing = window.canvasSettings.spacing || 54;
         grid = [];
         particles = [];
         rippleBuffer1 = [];
         rippleBuffer2 = [];
         
-        cols = Math.ceil(window.innerWidth / spacing) + 2;
-        rows = Math.ceil(window.innerHeight / spacing) + 2;
+        cols = Math.ceil(window.innerWidth / currentSpacing) + 2;
+        rows = Math.ceil(window.innerHeight / currentSpacing) + 2;
 
         for (let c = 0; c < cols; c++) {
             grid[c] = [];
@@ -2951,8 +3392,8 @@ document.addEventListener("DOMContentLoaded", () => {
             rippleBuffer2[c] = new Float32Array(rows);
             for (let r = 0; r < rows; r++) {
                 // Symmetrical grid offset
-                let baseX = (c - 0.5) * spacing;
-                let baseY = (r - 0.5) * spacing;
+                let baseX = (c - 0.5) * currentSpacing;
+                let baseY = (r - 0.5) * currentSpacing;
 
                 let p = new Particle(baseX, baseY, c, r);
                 grid[c][r] = p;
@@ -2975,14 +3416,21 @@ document.addEventListener("DOMContentLoaded", () => {
 
         ctx.clearRect(0, 0, canvas.width, canvas.height);
 
+        // Check if spacing has changed and re-initialize grid if needed
+        if (window.canvasSettings.spacing !== currentSpacing) {
+            initGrid();
+        }
+
+        const currentMaxDist = window.canvasSettings.maxDist || 180;
+
         // Center projection relative to active or last mouse coordinates
         let projX = mouse.active ? mouse.x : lastMouse.x;
         let projY = mouse.active ? mouse.y : lastMouse.y;
         let fov = 400; // perspective focal length
 
         // 0. Radial Gravity Well Glow (under the grid lines for layered depth)
-        if (mouse.active) {
-            let glowGrad = ctx.createRadialGradient(projX, projY, 0, projX, projY, maxDist * 1.2);
+        if (window.canvasSettings.gridEnabled && mouse.active) {
+            let glowGrad = ctx.createRadialGradient(projX, projY, 0, projX, projY, currentMaxDist * 1.2);
             glowGrad.addColorStop(0, blendColors(activeColors[0], activeColors[1], 0.5));
             glowGrad.addColorStop(0.2, activeColors[0]);
             glowGrad.addColorStop(0.5, activeColors[1]);
@@ -2993,13 +3441,13 @@ document.addEventListener("DOMContentLoaded", () => {
             ctx.globalAlpha = isLightTheme ? 0.14 : 0.08;
             ctx.fillStyle = glowGrad;
             ctx.beginPath();
-            ctx.arc(projX, projY, maxDist * 1.2, 0, Math.PI * 2);
+            ctx.arc(projX, projY, currentMaxDist * 1.2, 0, Math.PI * 2);
             ctx.fill();
             ctx.restore();
         }
 
         // 1. 2D Discrete Wave Equation Simulation (Water Ripple Propagation)
-        if (cols > 0 && rows > 0 && rippleBuffer1.length > 0 && rippleBuffer2.length > 0) {
+        if (window.canvasSettings.ripplesEnabled && cols > 0 && rows > 0 && rippleBuffer1.length > 0 && rippleBuffer2.length > 0) {
             for (let c = 1; c < cols - 1; c++) {
                 for (let r = 1; r < rows - 1; r++) {
                     rippleBuffer2[c][r] = (
@@ -3021,94 +3469,100 @@ document.addEventListener("DOMContentLoaded", () => {
 
         // 2. Update and Project all grid nodes
         particles.forEach(p => {
-            p.update(mouse, maxDist);
+            p.update(mouse);
             p.project(projX, projY, fov);
         });
 
         // 3. Draw connecting grid lines (mesh structure)
-        for (let c = 0; c < cols; c++) {
-            for (let r = 0; r < rows; r++) {
-                let p1 = grid[c][r];
-                if (!p1) continue;
+        if (window.canvasSettings.gridEnabled) {
+            for (let c = 0; c < cols; c++) {
+                for (let r = 0; r < rows; r++) {
+                    let p1 = grid[c][r];
+                    if (!p1) continue;
 
-                // Draw line to right neighbor
-                if (c + 1 < cols && grid[c + 1][r]) {
-                    let p2 = grid[c + 1][r];
-                    let baseAlpha = isLightTheme ? 0.32 : 0.08;
-                    let lineAlpha = baseAlpha * ((p1.scale + p2.scale) / 2); // baseline alpha
-                    
-                    // Tension displacement calculation
-                    let displacement = Math.max(Math.abs(p1.z), Math.abs(p2.z));
-                    lineAlpha += (displacement / 150) * 0.22;
+                    // Draw line to right neighbor
+                    if (c + 1 < cols && grid[c + 1][r]) {
+                        let p2 = grid[c + 1][r];
+                        let baseAlpha = isLightTheme ? 0.32 : 0.08;
+                        let lineAlpha = baseAlpha * ((p1.scale + p2.scale) / 2); // baseline alpha
+                        
+                        // Tension displacement calculation
+                        let displacement = Math.max(Math.abs(p1.z), Math.abs(p2.z));
+                        lineAlpha += (displacement / 150) * 0.22;
 
-                    // Blend horizontal color: from cyan (rest) to purple (stressed)
-                    let strokeColor = blendColors(activeColors[0], activeColors[1], displacement / 140);
+                        // Blend horizontal color: from cyan (rest) to purple (stressed)
+                        let strokeColor = blendColors(activeColors[0], activeColors[1], displacement / 140);
 
-                    // Outer Glow Envelope (double-drawn glow filament - reduced for delicate look)
-                    ctx.strokeStyle = strokeColor;
-                    ctx.globalAlpha = lineAlpha * 0.35;
-                    ctx.lineWidth = 1.6;
-                    ctx.beginPath();
-                    ctx.moveTo(p1.px, p1.py);
-                    ctx.lineTo(p2.px, p2.py);
-                    ctx.stroke();
+                        // Outer Glow Envelope
+                        ctx.strokeStyle = strokeColor;
+                        ctx.globalAlpha = lineAlpha * 0.35;
+                        ctx.lineWidth = 1.6;
+                        ctx.beginPath();
+                        ctx.moveTo(p1.px, p1.py);
+                        ctx.lineTo(p2.px, p2.py);
+                        ctx.stroke();
 
-                    // Core Filament (solid bright center)
-                    ctx.globalAlpha = lineAlpha;
-                    ctx.lineWidth = 0.6;
-                    ctx.beginPath();
-                    ctx.moveTo(p1.px, p1.py);
-                    ctx.lineTo(p2.px, p2.py);
-                    ctx.stroke();
-                }
+                        // Core Filament
+                        ctx.globalAlpha = lineAlpha;
+                        ctx.lineWidth = 0.6;
+                        ctx.beginPath();
+                        ctx.moveTo(p1.px, p1.py);
+                        ctx.lineTo(p2.px, p2.py);
+                        ctx.stroke();
+                    }
 
-                // Draw line to bottom neighbor
-                if (r + 1 < rows && grid[c][r + 1]) {
-                    let p2 = grid[c][r + 1];
-                    let baseAlpha = isLightTheme ? 0.32 : 0.08;
-                    let lineAlpha = baseAlpha * ((p1.scale + p2.scale) / 2);
-                    
-                    // Tension displacement calculation
-                    let displacement = Math.max(Math.abs(p1.z), Math.abs(p2.z));
-                    lineAlpha += (displacement / 150) * 0.22;
+                    // Draw line to bottom neighbor
+                    if (r + 1 < rows && grid[c][r + 1]) {
+                        let p2 = grid[c][r + 1];
+                        let baseAlpha = isLightTheme ? 0.32 : 0.08;
+                        let lineAlpha = baseAlpha * ((p1.scale + p2.scale) / 2);
+                        
+                        // Tension displacement calculation
+                        let displacement = Math.max(Math.abs(p1.z), Math.abs(p2.z));
+                        lineAlpha += (displacement / 150) * 0.22;
 
-                    // Blend vertical color: from purple (rest) to cyan (stressed)
-                    let strokeColor = blendColors(activeColors[1], activeColors[0], displacement / 140);
+                        // Blend vertical color: from purple (rest) to cyan (stressed)
+                        let strokeColor = blendColors(activeColors[1], activeColors[0], displacement / 140);
 
-                    // Outer Glow Envelope (double-drawn glow filament - reduced for delicate look)
-                    ctx.strokeStyle = strokeColor;
-                    ctx.globalAlpha = lineAlpha * 0.35;
-                    ctx.lineWidth = 1.6;
-                    ctx.beginPath();
-                    ctx.moveTo(p1.px, p1.py);
-                    ctx.lineTo(p2.px, p2.py);
-                    ctx.stroke();
+                        // Outer Glow Envelope
+                        ctx.strokeStyle = strokeColor;
+                        ctx.globalAlpha = lineAlpha * 0.35;
+                        ctx.lineWidth = 1.6;
+                        ctx.beginPath();
+                        ctx.moveTo(p1.px, p1.py);
+                        ctx.lineTo(p2.px, p2.py);
+                        ctx.stroke();
 
-                    // Core Filament (solid bright center)
-                    ctx.globalAlpha = lineAlpha;
-                    ctx.lineWidth = 0.6;
-                    ctx.beginPath();
-                    ctx.moveTo(p1.px, p1.py);
-                    ctx.lineTo(p2.px, p2.py);
-                    ctx.stroke();
+                        // Core Filament
+                        ctx.globalAlpha = lineAlpha;
+                        ctx.lineWidth = 0.6;
+                        ctx.beginPath();
+                        ctx.moveTo(p1.px, p1.py);
+                        ctx.lineTo(p2.px, p2.py);
+                        ctx.stroke();
+                    }
                 }
             }
+
+            // 4. Draw grid stars (knots)
+            particles.forEach(p => {
+                p.draw(ctx);
+            });
         }
 
-        // 4. Draw grid stars (knots)
-        particles.forEach(p => {
-            p.draw(ctx);
-        });
-
         // 5. Update and Draw active sparkler particles (stardust vortex)
-        for (let i = sparkles.length - 1; i >= 0; i--) {
-            let s = sparkles[i];
-            s.update();
-            if (s.life <= 0) {
-                sparkles.splice(i, 1);
-            } else {
-                s.draw(ctx);
+        if (window.canvasSettings.sparklesEnabled) {
+            for (let i = sparkles.length - 1; i >= 0; i--) {
+                let s = sparkles[i];
+                s.update();
+                if (s.life <= 0) {
+                    sparkles.splice(i, 1);
+                } else {
+                    s.draw(ctx);
+                }
             }
+        } else {
+            sparkles = [];
         }
 
         requestAnimationFrame(animate);

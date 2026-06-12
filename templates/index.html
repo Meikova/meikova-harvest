@@ -85,6 +85,14 @@
                         <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>
                     </svg>
                 </button>
+                <button id="customizer-toggle" class="header-action-btn" title="Cá nhân hóa (UI Customizer)">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M12 22C17.5228 22 22 17.5228 22 12C22 11.5 21.5 11 21 11H18C16.8954 11 16 10.1046 16 9C16 8.35 16.3 7.8 16.7 7.4L18.7 5.4C19.1 5 19.1 4.3 18.7 3.9C17.1 2.5 14.9 1.8 12.6 2C7.3 2.5 3 6.9 2.1 12.2C1 18.5 5.8 24 12 24"/>
+                        <circle cx="7.5" cy="10.5" r="1.5" fill="currentColor"/>
+                        <circle cx="11.5" cy="7.5" r="1.5" fill="currentColor"/>
+                        <circle cx="16.5" cy="9.5" r="1.5" fill="currentColor"/>
+                    </svg>
+                </button>
 
                 <!-- Settings Dropdown Panel -->
                 <div id="settings-dropdown" class="settings-dropdown hidden">
@@ -178,6 +186,157 @@
                             <input type="text" id="tg-bot-token" placeholder="Telegram Bot Token" style="width: 100%; padding: 8px 12px; background: rgba(0,0,0,0.3); border: 1px solid var(--glass-border); border-radius: 8px; color: var(--text); font-family: var(--font); font-size: 0.85rem;">
                             <input type="text" id="tg-chat-id" placeholder="Telegram Chat/Group ID" style="width: 100%; padding: 8px 12px; background: rgba(0,0,0,0.3); border: 1px solid var(--glass-border); border-radius: 8px; color: var(--text); font-family: var(--font); font-size: 0.85rem;">
                         </div>
+                    </div>
+                </div>
+
+                <!-- UI Customizer Dropdown Panel -->
+                <div id="customizer-dropdown" class="settings-dropdown hidden" style="right: 10px; width: 330px;">
+                    <div class="settings-dropdown-header">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="width: 18px; height: 18px;">
+                            <path d="M12 22C17.5228 22 22 17.5228 22 12C22 11.5 21.5 11 21 11H18C16.8954 11 16 10.1046 16 9C16 8.35 16.3 7.8 16.7 7.4L18.7 5.4C19.1 5 19.1 4.3 18.7 3.9C17.1 2.5 14.9 1.8 12.6 2C7.3 2.5 3 6.9 2.1 12.2C1 18.5 5.8 24 12 24"/>
+                            <circle cx="7.5" cy="10.5" r="1.5" fill="currentColor"/>
+                            <circle cx="11.5" cy="7.5" r="1.5" fill="currentColor"/>
+                            <circle cx="16.5" cy="9.5" r="1.5" fill="currentColor"/>
+                        </svg>
+                        <span>Cá nhân hóa giao diện</span>
+                    </div>
+
+                    <div class="customizer-scroll">
+                        <!-- Accent color preset -->
+                        <div>
+                            <label class="advanced-label" style="font-size: 0.85rem; font-weight: 500; margin-bottom: 5px; display: block;">
+                                <span>Màu sắc chủ đạo (Accent Theme):</span>
+                            </label>
+                             <select id="customizer-accent" class="customizer-select">
+                                <option value="default">Neon Cyan (Mặc định)</option>
+                                <option value="emerald">Emerald Green (Xanh lục)</option>
+                                <option value="orchid">Orchid Pink (Hồng tím)</option>
+                                <option value="amber">Amber Gold (Hổ phách)</option>
+                                <option value="purple">Royal Purple (Tím hoàng gia)</option>
+                                <option value="rose">Ruby Red (Đỏ hồng)</option>
+                                <option value="orange">Electric Orange (Cam điện)</option>
+                                <option value="blue">Sapphire Blue (Xanh lam)</option>
+                                <option value="peach">Sunset Peach (Màu đào)</option>
+                                <option value="lime">Acid Lime (Xanh chanh)</option>
+                            </select>
+                        </div>
+
+                        <!-- Border Radius Option -->
+                        <div>
+                            <label class="advanced-label" style="font-size: 0.85rem; font-weight: 500; margin-bottom: 5px; display: block;">
+                                <span>Độ bo góc (Corner Radii):</span>
+                            </label>
+                            <select id="customizer-radius" class="customizer-select">
+                                <option value="sharp">Sharp (Góc vuông - 4px)</option>
+                                <option value="rounded">Rounded (Bo tròn - 12px)</option>
+                                <option value="pill">Pill (Kén tròn - 24px)</option>
+                            </select>
+                        </div>
+
+                        <!-- Glassmorphism Blur Strength -->
+                        <div>
+                            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 5px;">
+                                <label class="advanced-label" style="font-size: 0.85rem; font-weight: 500; margin: 0;">Độ mờ kính (Glass Blur):</label>
+                                <span id="customizer-blur-val" style="font-size: 0.8rem; color: var(--cyan);">24px</span>
+                            </div>
+                            <input type="range" id="customizer-blur" min="0" max="40" value="24" style="width: 100%; accent-color: var(--cyan); cursor: pointer;">
+                        </div>
+
+                        <!-- Font Size Option -->
+                        <div>
+                            <label class="advanced-label" style="font-size: 0.85rem; font-weight: 500; margin-bottom: 5px; display: block;">
+                                <span>Kích thước chữ (Typography Scale):</span>
+                            </label>
+                            <select id="customizer-fontsize" class="customizer-select">
+                                <option value="small">Nhỏ (90% - Compact)</option>
+                                <option value="medium">Vừa (100% - Default)</option>
+                                <option value="large">Lớn (110% - Standard)</option>
+                            </select>
+                        </div>
+
+                        <!-- Divider -->
+                        <div style="border-top: 1px solid rgba(255, 255, 255, 0.08); margin: 5px 0;"></div>
+
+                        <!-- Grid Mesh Toggle -->
+                        <div style="display: flex; flex-direction: column; gap: 10px;">
+                            <label class="toggle-switch-container">
+                                <input type="checkbox" id="customizer-grid-enable" checked>
+                                <span class="toggle-switch-slider"></span>
+                                <span>Hiển thị mạng lưới sao (Star Grid)</span>
+                            </label>
+                            <label class="toggle-switch-container">
+                                <input type="checkbox" id="customizer-ripples-enable" checked>
+                                <span class="toggle-switch-slider"></span>
+                                <span>Sóng nước tương tác (Ripples)</span>
+                            </label>
+                            <label class="toggle-switch-container">
+                                <input type="checkbox" id="customizer-sparkles-enable" checked>
+                                <span class="toggle-switch-slider"></span>
+                                <span>Bụi sáng lấp lánh (Sparkles)</span>
+                            </label>
+                        </div>
+
+                        <!-- Grid Spacing slider -->
+                        <div id="grid-spacing-container">
+                            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 5px;">
+                                <label class="advanced-label" style="font-size: 0.85rem; font-weight: 500; margin: 0; pointer-events: none;">
+                                    <span>Khoảng cách lưới (Node Spacing):</span>
+                                </label>
+                                <span id="customizer-spacing-val" style="font-size: 0.8rem; color: var(--cyan);">54px</span>
+                            </div>
+                            <input type="range" id="customizer-spacing" min="30" max="90" value="54" style="width: 100%; accent-color: var(--cyan); cursor: pointer;">
+                        </div>
+
+                        <!-- Gravity radius slider -->
+                        <div id="grid-gravity-container">
+                            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 5px;">
+                                <label class="advanced-label" style="font-size: 0.85rem; font-weight: 500; margin: 0; pointer-events: none;">
+                                    <span>Bán kính trọng lực (Well Radius):</span>
+                                </label>
+                                <span id="customizer-gravity-val" style="font-size: 0.8rem; color: var(--cyan);">180px</span>
+                            </div>
+                            <input type="range" id="customizer-gravity" min="100" max="300" value="180" style="width: 100%; accent-color: var(--cyan); cursor: pointer;">
+                        </div>
+
+                        <!-- Gravity Mode dropdown -->
+                        <div>
+                             <label class="advanced-label" style="font-size: 0.85rem; font-weight: 500; margin-bottom: 5px; display: block;">
+                                 <span>Chế độ tương tác trọng lực (Gravity Mode):</span>
+                             </label>
+                             <select id="customizer-gravity-mode" class="customizer-select">
+                                 <option value="pull">Lực hút / Hố đen (Mặc định)</option>
+                                 <option value="push">Lực đẩy / Lồi lưới</option>
+                                 <option value="none">Không uốn cong lưới</option>
+                             </select>
+                         </div>
+
+                         <!-- Gravity Depth slider -->
+                         <div id="grid-gravity-depth-container">
+                             <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 5px;">
+                                 <label class="advanced-label" style="font-size: 0.85rem; font-weight: 500; margin: 0; pointer-events: none;">
+                                     <span>Độ sâu uốn lưới (Gravity Depth):</span>
+                                 </label>
+                                 <span id="customizer-gravity-depth-val" style="font-size: 0.8rem; color: var(--cyan);">130px</span>
+                             </div>
+                             <input type="range" id="customizer-gravity-depth" min="50" max="250" value="130" style="width: 100%; accent-color: var(--cyan); cursor: pointer;">
+                         </div>
+
+                         <!-- Sparkle Shape dropdown -->
+                         <div>
+                             <label class="advanced-label" style="font-size: 0.85rem; font-weight: 500; margin-bottom: 5px; display: block;">
+                                 <span>Hình dạng bụi sáng (Stardust Shape):</span>
+                             </label>
+                             <select id="customizer-sparkle-shape" class="customizer-select">
+                                 <option value="star">Ngôi sao 4 cánh (Mặc định)</option>
+                                 <option value="circle">Hạt ngọc tròn (Circle)</option>
+                                 <option value="diamond">Đốm kim cương (Diamond)</option>
+                             </select>
+                         </div>
+
+                        <!-- Reset to defaults button -->
+                        <button id="customizer-reset-btn" class="secondary-btn">
+                            Đặt lại giao diện mặc định
+                        </button>
                     </div>
                 </div>
             </div>
