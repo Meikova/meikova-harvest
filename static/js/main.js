@@ -25,10 +25,67 @@ document.addEventListener("DOMContentLoaded", () => {
     }
 
     if (themeToggle) {
-        themeToggle.addEventListener("click", () => {
-            const isLight = document.body.classList.toggle("light-theme");
-            document.documentElement.classList.toggle("light-theme", isLight);
-            localStorage.setItem("theme", isLight ? "light" : "dark");
+        themeToggle.addEventListener("click", (e) => {
+            const changeTheme = () => {
+                document.documentElement.classList.add("no-transitions");
+                const isLight = document.body.classList.toggle("light-theme");
+                document.documentElement.classList.toggle("light-theme", isLight);
+                localStorage.setItem("theme", isLight ? "light" : "dark");
+                
+                // Force layout reflow to apply the theme immediately
+                document.documentElement.offsetHeight;
+                document.documentElement.classList.remove("no-transitions");
+
+                // Update background canvas colors instantly
+                if (window.updateCanvasColors) {
+                    window.updateCanvasColors();
+                }
+            };
+
+            // Fallback for browsers that do not support the View Transitions API
+            if (!document.startViewTransition) {
+                changeTheme();
+                return;
+            }
+
+            // Get click coordinates, fallback to center of the button if not triggered by cursor
+            let x = window.innerWidth / 2;
+            let y = window.innerHeight / 2;
+            if (e && typeof e.clientX === "number" && typeof e.clientY === "number") {
+                x = e.clientX;
+                y = e.clientY;
+            } else {
+                const rect = themeToggle.getBoundingClientRect();
+                x = rect.left + rect.width / 2;
+                y = rect.top + rect.height / 2;
+            }
+
+            // Calculate distance to the furthest corner to set the final radius
+            const endRadius = Math.hypot(
+                Math.max(x, window.innerWidth - x),
+                Math.max(y, window.innerHeight - y)
+            );
+
+            // Trigger circular clip-path transition
+            const transition = document.startViewTransition(() => {
+                changeTheme();
+            });
+
+            transition.ready.then(() => {
+                document.documentElement.animate(
+                    {
+                        clipPath: [
+                            `circle(0px at ${x}px ${y}px)`,
+                            `circle(${endRadius}px at ${x}px ${y}px)`
+                        ]
+                    },
+                    {
+                        duration: 450,
+                        easing: "ease-out",
+                        pseudoElement: "::view-transition-new(root)"
+                    }
+                );
+            });
         });
     }
 
@@ -2540,29 +2597,30 @@ document.addEventListener("DOMContentLoaded", () => {
     // Error helper for analysis
     function showError(message) {
         const lowerMsg = (message || "").toLowerCase();
-        let friendly = message;
-        let technical = "";
+        let friendly = "Không thể trích xuất thông tin media từ đường dẫn này. Nguồn phát có thể đang chặn kết nối hoặc yêu cầu Cookie.";
+        let technical = message;
         
-        if (message.startsWith("Unable to extract media metadata: ")) {
+        if (lowerMsg.includes("429") || lowerMsg.includes("too many requests") || lowerMsg.includes("rate limit") || lowerMsg.includes("rate-limit")) {
+            friendly = "Yêu cầu trích xuất thông tin bị chặn do tần suất quá cao (Lỗi 429 - Too Many Requests). Vui lòng đổi kết nối mạng (Wifi/4G/VPN) hoặc thử lại sau ít phút.";
+        } else if (lowerMsg.includes("403") || lowerMsg.includes("forbidden") || lowerMsg.includes("access denied")) {
+            friendly = "Truy cập bị từ chối (Lỗi 403 - Forbidden). Nguồn phát có thể chặn kết nối hoặc cần Cookie đăng nhập hợp lệ.";
+        } else if (lowerMsg.includes("404") || lowerMsg.includes("not found")) {
+            friendly = "Không tìm thấy nội dung (Lỗi 404 - Not Found). Vui lòng kiểm tra lại đường dẫn bài viết/video.";
+        } else if (lowerMsg.includes("sign in to confirm you're not a bot") || lowerMsg.includes("confirm you're not a bot") || lowerMsg.includes("confirm you are not a bot")) {
+            friendly = "Trích xuất bị chặn do yêu cầu xác minh robot (Confirm you are not a bot). Hãy thử lại sau hoặc cập nhật Cookie trong mục 'Cài đặt Cookies'.";
+        } else if (lowerMsg.includes("login") || lowerMsg.includes("logged-in") || lowerMsg.includes("cookie") || lowerMsg.includes("private") || lowerMsg.includes("sign in")) {
+            friendly = "Nội dung này yêu cầu đăng nhập hoặc cookie tài khoản để truy cập. Vui lòng đăng nhập trên trình duyệt, xuất và tải lên file cookie J2TEAM (Netscape/JSON) trong mục 'Cài đặt Cookies'.";
+        } else if (lowerMsg.includes("unsupported url")) {
+            friendly = "Đường dẫn không được hỗ trợ tải về trực tiếp. Hãy kiểm tra lại đường dẫn.";
+        } else if (lowerMsg.includes("connection refused") || lowerMsg.includes("timeout") || lowerMsg.includes("timed out")) {
+            friendly = "Lỗi kết nối tới máy chủ nguồn. Vui lòng kiểm tra kết nối mạng hoặc thử lại sau.";
+        } else if (message.startsWith("Unable to extract media metadata: ")) {
             const rawErr = message.replace("Unable to extract media metadata: ", "");
-            friendly = "Không thể trích xuất thông tin media từ đường dẫn này. Nguồn phát có thể đang chặn kết nối hoặc yêu cầu Cookie.";
-            
-            const rawLower = rawErr.toLowerCase();
-            if (rawLower.includes("429") || rawLower.includes("too many requests") || rawLower.includes("rate limit") || rawLower.includes("rate-limit")) {
-                friendly = "Yêu cầu trích xuất thông tin bị chặn do tần suất quá cao (Lỗi 429 - Too Many Requests). Vui lòng đổi kết nối mạng (Wifi/4G/VPN) hoặc thử lại sau ít phút.";
-            } else if (rawLower.includes("403") || rawLower.includes("forbidden") || rawLower.includes("access denied")) {
-                friendly = "Truy cập bị từ chối (Lỗi 403 - Forbidden). Nguồn phát có thể chặn kết nối hoặc cần Cookie hợp lệ.";
-            } else if (rawLower.includes("404") || rawLower.includes("not found")) {
-                friendly = "Không tìm thấy nội dung (Lỗi 404 - Not Found). Vui lòng kiểm tra lại đường dẫn bài viết/video.";
-            }
-            technical = rawErr;
-        } else if (lowerMsg.includes("unable to extract media metadata")) {
-            friendly = "Không thể trích xuất thông tin media. Nguồn phát có thể đang chặn kết nối hoặc cần Cookie đăng nhập.";
-            technical = message;
+            friendly = "Không thể trích xuất thông tin media từ đường dẫn này. Chi tiết: " + rawErr;
         }
-        
+
         let htmlContent = `<span>${friendly}</span>`;
-        if (technical) {
+        if (technical && technical !== friendly) {
             htmlContent += `<details style="margin-top: 10px; font-size: 0.78rem; opacity: 0.8; text-align: left; background: rgba(0,0,0,0.25); border: 1px solid rgba(255,255,255,0.08); border-radius: 6px; padding: 6px 10px; cursor: pointer; color: var(--text);">
                 <summary style="font-weight: 500; outline: none; list-style: marker; margin-bottom: 4px;">Chi tiết lỗi kỹ thuật</summary>
                 <pre style="white-space: pre-wrap; font-family: monospace; font-size: 0.75rem; margin: 4px 0 0 0; color: #ff8080; background: none; border: none; padding: 0;">${escapeHTML(technical)}</pre>
@@ -3102,6 +3160,7 @@ document.addEventListener("DOMContentLoaded", () => {
         activeColors = [cyan, purple];
     }
     updateColors();
+    window.updateCanvasColors = updateColors;
 
     // Helper to blend two colors dynamically based on tension/displacement ratio
     function blendColors(c1, c2, ratio) {
