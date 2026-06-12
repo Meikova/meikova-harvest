@@ -901,7 +901,7 @@ def get_info():
                 url
             ]
             
-            result = subprocess.run(command, capture_output=True, text=True, encoding="utf-8", errors="ignore")
+            result = subprocess.run(command, capture_output=True, text=True, encoding="utf-8", errors="ignore", timeout=15)
             html = result.stdout
             
             if "Sorry, something went wrong" in html or len(html) < 20000:
@@ -1668,7 +1668,7 @@ def get_info():
                                     "-H", "Accept-Language: vi-VN,vi;q=0.9,en-US;q=0.8,en;q=0.7",
                                     curl_url
                                 ]
-                                res = subprocess.run(command, capture_output=True, text=True, encoding="utf-8", errors="ignore")
+                                res = subprocess.run(command, capture_output=True, text=True, encoding="utf-8", errors="ignore", timeout=15)
                                 curl_html = res.stdout
                                 
                                 # Search for "reaction_count":{"count":XXXX}

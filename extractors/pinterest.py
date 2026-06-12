@@ -33,7 +33,7 @@ def extract_pinterest_via_gallery_dl(url, client_id=None):
 
     try:
         logger.info(f"Invoking gallery-dl for Pinterest: {' '.join(command)}")
-        result = subprocess.run(command, capture_output=True, text=True, encoding="utf-8", errors="ignore")
+        result = subprocess.run(command, capture_output=True, text=True, encoding="utf-8", errors="ignore", timeout=15)
 
         stdout = result.stdout.strip()
         if not stdout:

@@ -37,7 +37,7 @@ def extract_tiktok_slideshow_via_gallery_dl(url, client_id):
     
     try:
         logger.info(f"Invoking gallery-dl for TikTok: {' '.join(command)}")
-        result = subprocess.run(command, capture_output=True, text=True, encoding="utf-8", errors="ignore")
+        result = subprocess.run(command, capture_output=True, text=True, encoding="utf-8", errors="ignore", timeout=15)
         
         stdout = result.stdout.strip()
         stderr = result.stderr.strip()
@@ -52,7 +52,7 @@ def extract_tiktok_slideshow_via_gallery_dl(url, client_id):
         if should_retry and has_cookies:
             logger.info("gallery-dl TikTok extraction failed with cookies. Retrying WITHOUT cookies...")
             fallback_command = [gallery_dl_path, "--dump-json", url]
-            result = subprocess.run(fallback_command, capture_output=True, text=True, encoding="utf-8", errors="ignore")
+            result = subprocess.run(fallback_command, capture_output=True, text=True, encoding="utf-8", errors="ignore", timeout=15)
             stdout = result.stdout.strip()
             stderr = result.stderr.strip()
             
