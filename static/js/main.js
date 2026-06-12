@@ -487,21 +487,28 @@ document.addEventListener("DOMContentLoaded", () => {
     let previewActiveExt = "";
     let previewActiveFilename = "";
 
+    // Helper to stop all preview playbacks and destroy Hls instances
+    function stopAllPreviewPlaybacks() {
+        if (previewVideoPlayer) {
+            previewVideoPlayer.pause();
+            if (previewVideoPlayer.hlsInstance) {
+                previewVideoPlayer.hlsInstance.destroy();
+                delete previewVideoPlayer.hlsInstance;
+            }
+            previewVideoPlayer.src = "";
+        }
+        if (previewAudioPlayer) {
+            previewAudioPlayer.pause();
+            previewAudioPlayer.src = "";
+        }
+    }
+
     // Close preview modal behavior
     if (previewModal && previewModalCloseBtn) {
         const closePreviewModal = () => {
             previewModal.classList.add("hidden");
             document.body.classList.remove("modal-open");
-            
-            // Stop player playback on close
-            if (previewVideoPlayer) {
-                previewVideoPlayer.pause();
-                previewVideoPlayer.src = "";
-            }
-            if (previewAudioPlayer) {
-                previewAudioPlayer.pause();
-                previewAudioPlayer.src = "";
-            }
+            stopAllPreviewPlaybacks();
         };
 
         previewModalCloseBtn.onclick = closePreviewModal;
@@ -2135,7 +2142,21 @@ document.addEventListener("DOMContentLoaded", () => {
         
         downloadProgress.classList.add("state-error");
         downloadStatusTitle.textContent = "Download failed";
-        downloadStatusMessage.textContent = errorMessageText || "An error occurred while initializing download queue.";
+        
+        let friendlyMessage = errorMessageText || "Đã xảy ra lỗi trong quá trình xếp hàng tải xuống.";
+        const lowerErr = friendlyMessage.toLowerCase();
+        
+        if (lowerErr.includes("fallback download also failed") || lowerErr.includes("returned non-zero code")) {
+            friendlyMessage = "Không thể tải về từ nguồn phát này. Nguồn phát có thể đã bị nhà cung cấp mã hóa hoặc chặn lượt tải. Bạn vui lòng chọn Server khác (ví dụ Server #1) hoặc thử lại sau.";
+        } else if (lowerErr.includes("sign in to confirm you're not a bot") || lowerErr.includes("confirm you're not a bot")) {
+            friendlyMessage = "Tải về bị YouTube chặn (yêu cầu xác minh robot). Hãy thử lại hoặc cập nhật cookie trong mục 'Manage Cookies'.";
+        } else if (lowerErr.includes("unsupported url")) {
+            friendlyMessage = "Đường dẫn không được hỗ trợ tải về trực tiếp. Hãy kiểm tra lại đường dẫn.";
+        } else if (lowerErr.includes("connection refused") || lowerErr.includes("timeout")) {
+            friendlyMessage = "Lỗi kết nối tới máy chủ nguồn. Vui lòng kiểm tra kết nối mạng hoặc thử lại sau.";
+        }
+        
+        downloadStatusMessage.textContent = friendlyMessage;
         
         analyzeBtn.disabled = false;
         urlInput.disabled = false;
@@ -2181,14 +2202,7 @@ document.addEventListener("DOMContentLoaded", () => {
         previewMetaInfo.textContent = `Type: ${ext.toUpperCase()} ${quality ? `| Quality: ${quality}` : ""}`;
 
         // Stop current playbacks
-        if (previewVideoPlayer) {
-            previewVideoPlayer.pause();
-            previewVideoPlayer.src = "";
-        }
-        if (previewAudioPlayer) {
-            previewAudioPlayer.pause();
-            previewAudioPlayer.src = "";
-        }
+        stopAllPreviewPlaybacks();
 
         // Image Preview Flow
         if (ext === "jpg" || ext === "png" || ext === "jpeg" || formatId === "image_preview") {
@@ -2210,6 +2224,68 @@ document.addEventListener("DOMContentLoaded", () => {
                 previewImageElement.onerror = () => {
                     previewLoaderText.textContent = "Failed to load image preview.";
                 };
+            }
+            return;
+        }
+
+        // Direct stream preview (stream-on-demand)
+        if (formatId.startsWith("direct_")) {
+            const streamUrl = customUrl || activeUrl;
+            previewActiveUrl = streamUrl;
+            previewActiveDownloadId = null;
+            const cleanTitle = getSafeTitle(videoTitle.textContent, "video");
+            previewActiveFilename = `${cleanTitle}_Episode_${episode || 1}_${server || "Server"}.${ext}`;
+
+            const proxyStreamUrl = `/api/proxy/stream?url=${encodeURIComponent(streamUrl)}`;
+
+            previewLoader.classList.add("hidden");
+            
+            if (ext === "mp3" || ext === "m4a") {
+                if (previewAudioPlayer) {
+                    previewAudioPlayer.src = proxyStreamUrl;
+                    previewAudioPlayer.load();
+                    previewAudioContainer.classList.remove("hidden");
+                    previewAudioPlayer.play().catch(e => console.log("Playback blocked"));
+                }
+            } else {
+                if (previewVideoPlayer) {
+                    previewVideoContainer.classList.remove("hidden");
+                    const isM3u8 = ext === "m3u8" || streamUrl.includes(".m3u8");
+                    
+                    previewVideoPlayer.onerror = () => {
+                        console.warn("HTML5 Video Error");
+                        previewLoaderText.textContent = "Không thể phát nguồn này trực tiếp. Vui lòng chọn Server khác (như Server #1) hoặc bấm nút Tải về bên dưới.";
+                        previewLoader.classList.remove("hidden");
+                        previewVideoContainer.classList.add("hidden");
+                        stopAllPreviewPlaybacks();
+                    };
+                    
+                    if (isM3u8 && typeof Hls !== "undefined" && Hls.isSupported()) {
+                        const hls = new Hls({
+                            maxBufferSize: 30 * 1024 * 1024, // 30MB buffer max
+                            maxBufferLength: 30 // 30 seconds max buffer ahead
+                        });
+                        hls.loadSource(proxyStreamUrl);
+                        hls.attachMedia(previewVideoPlayer);
+                        hls.on(Hls.Events.MANIFEST_PARSED, () => {
+                            previewVideoPlayer.play().catch(e => console.log("Playback blocked"));
+                        });
+                        hls.on(Hls.Events.ERROR, function(event, data) {
+                            if (data.fatal) {
+                                console.warn("HLS fatal error:", data.type);
+                                previewLoaderText.textContent = "Server này bị nhà cung cấp mã hóa nguồn phát, không thể xem trước trực tiếp. Bạn vui lòng chọn Server khác (ví dụ Server #1) hoặc bấm nút Tải về bên dưới.";
+                                previewLoader.classList.remove("hidden");
+                                previewVideoContainer.classList.add("hidden");
+                                stopAllPreviewPlaybacks();
+                            }
+                        });
+                        previewVideoPlayer.hlsInstance = hls;
+                    } else {
+                        previewVideoPlayer.src = proxyStreamUrl;
+                        previewVideoPlayer.load();
+                        previewVideoPlayer.play().catch(e => console.log("Playback blocked"));
+                    }
+                }
             }
             return;
         }

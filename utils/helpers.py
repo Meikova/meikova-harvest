@@ -93,13 +93,13 @@ def get_url_content_length(url, cookies_file=None):
 
     try:
         if use_session:
-            response = session.head(url, headers=req_headers, timeout=3, allow_redirects=True)
+            response = session.head(url, headers=req_headers, timeout=8, allow_redirects=True)
             if response.status_code not in [200, 206]:
-                response = session.get(url, headers=req_headers, stream=True, timeout=3, allow_redirects=True)
+                response = session.get(url, headers=req_headers, stream=True, timeout=8, allow_redirects=True)
         else:
-            response = requests.head(url, headers=req_headers, timeout=3, allow_redirects=True)
+            response = requests.head(url, headers=req_headers, timeout=8, allow_redirects=True)
             if response.status_code not in [200, 206]:
-                response = requests.get(url, headers=req_headers, stream=True, timeout=3, allow_redirects=True)
+                response = requests.get(url, headers=req_headers, stream=True, timeout=8, allow_redirects=True)
             
         if response.status_code in [200, 206]:
             length = response.headers.get('content-length')

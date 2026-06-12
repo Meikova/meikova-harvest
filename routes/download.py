@@ -352,3 +352,71 @@ def download_images_zip():
         )
     except Exception as e:
         return jsonify({"status": "error", "message": f"Failed to create ZIP: {e}"}), 500
+
+
+@download_bp.route("/api/proxy/stream")
+def proxy_stream():
+    url = request.args.get("url")
+    if not url:
+        return "Missing url parameter", 400
+        
+    referer = get_referer_by_url(url)
+    headers = {
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
+    }
+    if referer:
+        headers["Referer"] = referer
+        
+    # Forward Range headers to support partial content requests
+    range_header = request.headers.get("Range")
+    if range_header:
+        headers["Range"] = range_header
+        
+    try:
+        resp = requests.get(url, headers=headers, stream=True, verify=False, timeout=12)
+        
+        content_type = resp.headers.get("Content-Type", "")
+        is_hls = ("mpegurl" in content_type.lower() or 
+                  "application/vnd.apple.mpegurl" in content_type.lower() or 
+                  url.endswith(".m3u8") or 
+                  ".m3u8" in url)
+                  
+        if is_hls:
+            manifest_text = resp.text
+            from urllib.parse import urljoin
+            lines = []
+            for line in manifest_text.splitlines():
+                line = line.strip()
+                if line and not line.startswith("#"):
+                    absolute_url = urljoin(url, line)
+                    lines.append(f"/api/proxy/stream?url={quote(absolute_url)}")
+                else:
+                    lines.append(line)
+                    
+            resp_headers = {
+                "Content-Type": "application/x-mpegURL",
+                "Access-Control-Allow-Origin": "*"
+            }
+            return "\n".join(lines), 200, resp_headers
+            
+        # For HLS segments or binary video streams
+        def generate():
+            try:
+                for chunk in resp.iter_content(chunk_size=65536):
+                    yield chunk
+            except Exception as stream_err:
+                logger.warning(f"Error streaming content: {stream_err}")
+                
+        resp_headers = {
+            "Content-Type": resp.headers.get("Content-Type", "video/mp4"),
+            "Access-Control-Allow-Origin": "*"
+        }
+        
+        # Forward range-request specific headers
+        for h in ["Content-Range", "Accept-Ranges", "Content-Length"]:
+            if h in resp.headers:
+                resp_headers[h] = resp.headers[h]
+                
+        return Response(generate(), status=resp.status_code, headers=resp_headers)
+    except Exception as e:
+        return f"Proxy error: {e}", 500
