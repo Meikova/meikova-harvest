@@ -153,6 +153,11 @@ def generic_html_link_harvester(url, client_id):
                 ep_link_match = re.search(r'href=["\']([^"\']+/tap-\d+_[^"\']+\.html)["\']', clean_html)
             if not ep_link_match:
                 ep_link_match = re.search(r'href=["\']([^"\']+/tap-[^"\']+\.html)["\']', clean_html)
+            if not ep_link_match:
+                # Support WordPress DooPlay episodes and other clean URL structures
+                ep_link_match = re.search(r'href=["\']([^"\']*(?:/episodes/|/tap-|/episode-|/ep-|[-_]tap-)[^"\']*(?:tap|tập|episode|ep)[-_\s]?0*1/?["\']*)["\']', clean_html, re.IGNORECASE)
+            if not ep_link_match:
+                ep_link_match = re.search(r'href=["\']([^"\']*(?:/episodes/|/tap-|/episode-|/ep-|[-_]tap-)[^"\']*)["\']', clean_html, re.IGNORECASE)
                 
             if ep_link_match:
                 headers = {
@@ -536,19 +541,21 @@ def generic_html_link_harvester(url, client_id):
             return list(best_opts.values())
 
         # Find all other episode links on the page (overview page / playlist detection)
+        def get_episode_num(ep_url):
+            match = re.search(r'(?:tap|episode|ep)[-_\s]?(\d+)', ep_url, re.IGNORECASE)
+            return int(match.group(1)) if match else 999999
+
         all_ep_urls = []
         seen_ep_urls = set()
         
         # Regex to find links that look like tap-1, tap-2, tap-10, episode-1, ep-1, etc.
-        for match in re.findall(r'href=["\']([^"\']+(?:/tap-|/episode-|/ep-)[^"\']+)["\']', clean_html):
+        for match in re.findall(r'href=["\']([^"\']*(?:/episodes/|/tap-|/episode-|/ep-|[-_]tap-)[^"\']*)["\']', clean_html, re.IGNORECASE):
             full_ep_url = urljoin(url, match)
             if full_ep_url not in seen_ep_urls:
-                seen_ep_urls.add(full_ep_url)
-                all_ep_urls.append(full_ep_url)
-                
-        def get_episode_num(ep_url):
-            match = re.search(r'(?:tap|episode|ep)[-_\s]?(\d+)', ep_url, re.IGNORECASE)
-            return int(match.group(1)) if match else 999999
+                ep_num = get_episode_num(full_ep_url)
+                if ep_num != 999999:
+                    seen_ep_urls.add(full_ep_url)
+                    all_ep_urls.append(full_ep_url)
             
         all_ep_urls.sort(key=get_episode_num)
 

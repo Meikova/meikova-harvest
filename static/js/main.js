@@ -888,9 +888,14 @@ document.addEventListener("DOMContentLoaded", () => {
     let previewActiveUrl = "";
     let previewActiveExt = "";
     let previewActiveFilename = "";
+    let previewActivePollInterval = null;
 
     // Helper to stop all preview playbacks and destroy Hls instances
     function stopAllPreviewPlaybacks() {
+        if (previewActivePollInterval) {
+            previewActivePollInterval.close();
+            previewActivePollInterval = null;
+        }
         if (previewVideoPlayer) {
             previewVideoPlayer.pause();
             if (previewVideoPlayer.hlsInstance) {
@@ -2688,14 +2693,18 @@ document.addEventListener("DOMContentLoaded", () => {
         }
 
         // Direct stream preview (stream-on-demand)
-        if (formatId.startsWith("direct_")) {
+        const isYouTube = activeUrl.includes("youtube.com") || activeUrl.includes("youtu.be") || activeUrl.includes("googlevideo.com");
+        const isDirectStream = formatId.startsWith("direct_") || 
+                               (customUrl && customUrl.startsWith("http") && !isYouTube);
+        
+        if (isDirectStream) {
             const streamUrl = customUrl || activeUrl;
             previewActiveUrl = streamUrl;
             previewActiveDownloadId = null;
             const cleanTitle = getSafeTitle(videoTitle.textContent, "video");
             previewActiveFilename = `${cleanTitle}_Episode_${episode || 1}_${server || "Server"}.${ext}`;
 
-            const proxyStreamUrl = `/api/proxy/stream?url=${encodeURIComponent(streamUrl)}`;
+            const proxyStreamUrl = `/api/proxy/stream?url=${encodeURIComponent(streamUrl)}&client_id=${encodeURIComponent(clientId)}`;
 
             previewLoader.classList.add("hidden");
             
@@ -2781,13 +2790,14 @@ document.addEventListener("DOMContentLoaded", () => {
 
             // Step B: Set up Server-Sent Events (SSE) to fetch status progress
             let pollInterval = new EventSource(`/api/download/progress/${downloadId}`);
+            previewActivePollInterval = pollInterval;
             
             // Periodically check if preview modal was closed
             const modalCheckTimer = setInterval(() => {
                 if (previewModal.classList.contains("hidden")) {
-                    if (pollInterval) {
-                        pollInterval.close();
-                        pollInterval = null;
+                    if (previewActivePollInterval) {
+                        previewActivePollInterval.close();
+                        previewActivePollInterval = null;
                     }
                     clearInterval(modalCheckTimer);
                 }
@@ -2798,9 +2808,9 @@ document.addEventListener("DOMContentLoaded", () => {
                     const statusData = JSON.parse(event.data);
 
                     if (statusData.status === "complete") {
-                        if (pollInterval) {
-                            pollInterval.close();
-                            pollInterval = null;
+                        if (previewActivePollInterval) {
+                            previewActivePollInterval.close();
+                            previewActivePollInterval = null;
                         }
                         clearInterval(modalCheckTimer);
                         previewLoader.classList.add("hidden");
@@ -2833,9 +2843,9 @@ document.addEventListener("DOMContentLoaded", () => {
                             }
                         }
                     } else if (statusData.status === "error") {
-                        if (pollInterval) {
-                            pollInterval.close();
-                            pollInterval = null;
+                        if (previewActivePollInterval) {
+                            previewActivePollInterval.close();
+                            previewActivePollInterval = null;
                         }
                         clearInterval(modalCheckTimer);
                         previewLoaderText.textContent = `Preview failed: ${statusData.error || "Unknown server error."}`;
@@ -2855,9 +2865,9 @@ document.addEventListener("DOMContentLoaded", () => {
             };
 
             pollInterval.onerror = (err) => {
-                if (pollInterval) {
-                    pollInterval.close();
-                    pollInterval = null;
+                if (previewActivePollInterval) {
+                    previewActivePollInterval.close();
+                    previewActivePollInterval = null;
                 }
                 clearInterval(modalCheckTimer);
                 previewLoaderText.textContent = "Connection to preview progress server lost.";

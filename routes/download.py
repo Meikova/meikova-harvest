@@ -360,6 +360,7 @@ def proxy_stream():
     if not url:
         return "Missing url parameter", 400
         
+    client_id = request.args.get("client_id")
     referer = get_referer_by_url(url)
     headers = {
         "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
@@ -372,14 +373,33 @@ def proxy_stream():
     if range_header:
         headers["Range"] = range_header
         
+    cookies_dict = {}
+    if client_id:
+        client_cookies = os.path.join(TEMP_DOWNLOAD_DIR, "cookies", f"cookies_{client_id}.txt")
+        if os.path.exists(client_cookies):
+            try:
+                with open(client_cookies, 'r', encoding='utf-8', errors='ignore') as f:
+                    for line in f:
+                        line = line.strip()
+                        if not line or line.startswith('#'):
+                            continue
+                        parts = line.split('\t')
+                        if len(parts) >= 7:
+                            name = parts[5]
+                            value = parts[6]
+                            cookies_dict[name] = value
+            except Exception as cookie_err:
+                logger.warning(f"Failed to parse cookies for proxy stream: {cookie_err}")
+                
     try:
-        resp = requests.get(url, headers=headers, stream=True, verify=False, timeout=12)
+        resp = requests.get(url, headers=headers, cookies=cookies_dict, stream=True, verify=False, timeout=12)
         
         content_type = resp.headers.get("Content-Type", "")
+        from urllib.parse import urlparse
+        url_path = urlparse(url).path
         is_hls = ("mpegurl" in content_type.lower() or 
                   "application/vnd.apple.mpegurl" in content_type.lower() or 
-                  url.endswith(".m3u8") or 
-                  ".m3u8" in url)
+                  url_path.endswith(".m3u8"))
                   
         if is_hls:
             manifest_text = resp.text
@@ -389,7 +409,8 @@ def proxy_stream():
                 line = line.strip()
                 if line and not line.startswith("#"):
                     absolute_url = urljoin(url, line)
-                    lines.append(f"/api/proxy/stream?url={quote(absolute_url)}")
+                    client_suffix = f"&client_id={quote(client_id)}" if client_id else ""
+                    lines.append(f"/api/proxy/stream?url={quote(absolute_url)}{client_suffix}")
                 else:
                     lines.append(line)
                     

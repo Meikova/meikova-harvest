@@ -927,10 +927,19 @@ def get_info():
                             v_size = f.get("filesize") or f.get("filesize_approx") or 0
                             if not v_size and duration_sec and f.get("tbr"):
                                 v_size = int(duration_sec * f.get("tbr") * 1000 / 8)
-                            total_size = v_size if is_tiktok else ((v_size + best_audio_size) if v_size else 0)
+                                
+                            acodec = f.get("acodec")
+                            has_audio = acodec and acodec != "none" and acodec != "unknown"
+                            
+                            if is_tiktok or has_audio:
+                                total_size = v_size
+                                fmt_id = f.get("format_id")
+                            else:
+                                total_size = (v_size + best_audio_size) if v_size else 0
+                                fmt_id = f"bestvideo[height={height}]+bestaudio[ext=m4a]/bestvideo[height={height}]+bestaudio/best[height={height}]"
 
                             opt_dict = {
-                                "format_id": f.get("format_id") if is_tiktok else f"bestvideo[height={height}]+bestaudio[ext=m4a]/bestvideo[height={height}]+bestaudio/best[height={height}]",
+                                "format_id": fmt_id,
                                 "resolution": res_label,
                                 "ext": "mp4",
                                 "type": "video",
