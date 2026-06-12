@@ -39,6 +39,278 @@ def strip_ansi_codes(text):
     return ansi_escape.sub('', text)
 
 
+def resolve_hls_size(m3u8_url, referer=None):
+    try:
+        import requests
+        from urllib.parse import urljoin
+        
+        headers = {
+            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
+        }
+        if referer:
+            headers["Referer"] = referer
+            
+        resp = requests.get(m3u8_url, headers=headers, verify=False, timeout=5)
+        if resp.status_code != 200:
+            return None
+            
+        content = resp.text
+        if "#EXT-X-STREAM-INF" in content:
+            # Variant redirect
+            variants = [line.strip() for line in content.splitlines() if line.strip() and not line.strip().startswith("#")]
+            if variants:
+                variant_url = variants[0]
+                if not variant_url.startswith("http"):
+                    variant_url = urljoin(m3u8_url, variant_url)
+                return resolve_hls_size(variant_url, referer)
+                
+        segments = []
+        for line in content.splitlines():
+            line = line.strip()
+            if line and not line.startswith("#"):
+                segments.append(line)
+                
+        if not segments:
+            return None
+            
+        total_segments = len(segments)
+        mid_idx = total_segments // 2
+        target_segment = segments[mid_idx]
+        if not target_segment.startswith("http"):
+            target_segment = urljoin(m3u8_url, target_segment)
+            
+        seg_resp = requests.head(target_segment, headers=headers, verify=False, timeout=5)
+        content_len = seg_resp.headers.get("Content-Length")
+        # If HEAD returned no Content-Length or a dummy/tiny content length (e.g. < 1000 bytes), fall back to GET
+        if not content_len or int(content_len) < 1000:
+            seg_resp = requests.get(target_segment, headers=headers, verify=False, stream=True, timeout=5)
+            content_len = seg_resp.headers.get("Content-Length")
+            
+        if content_len:
+            return int(content_len) * total_segments
+    except Exception:
+        pass
+    return None
+
+
+def generic_html_link_harvester(url, client_id):
+    try:
+        import requests as req
+        from urllib.parse import urlparse
+        headers = {
+            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
+        }
+        # Fetch raw HTML
+        resp = req.get(url, headers=headers, verify=False, timeout=12)
+        if resp.status_code != 200:
+            return None
+        html = resp.text
+        
+        parsed_url = urlparse(url)
+        domain = parsed_url.netloc
+        
+        # Get page path segments
+        path_segments = [seg for seg in parsed_url.path.split('/') if seg]
+        last_segment = path_segments[-1] if path_segments else ""
+        
+        # Extract Title
+        title_match = re.search(r'<title>(.*?)</title>', html, re.IGNORECASE)
+        title = title_match.group(1).strip() if title_match else "Web Video"
+        
+        # Extract Thumbnail
+        thumb_match = re.search(r'<meta[^>]+property=["\']og:image["\'][^>]+content=["\']([^"\']+)["\']', html, re.IGNORECASE) or \
+                      re.search(r'<meta[^>]+content=["\']([^"\']+)["\'][^>]+property=["\']og:image["\']', html, re.IGNORECASE)
+        thumbnail = thumb_match.group(1).strip() if thumb_match else ""
+        
+        # Extract Description
+        desc_match = re.search(r'<meta[^>]+property=["\']og:description["\'][^>]+content=["\']([^"\']+)["\']', html, re.IGNORECASE) or \
+                     re.search(r'<meta[^>]+name=["\']description["\'][^>]+content=["\']([^"\']+)["\']', html, re.IGNORECASE)
+        description = desc_match.group(1).strip() if desc_match else ""
+        
+        # Clean up backslashes
+        clean_html = html.replace('\\/', '/').replace('\\', '')
+        
+        # Try to extract current movie's ID to filter out recommended movies in sidebars
+        main_movie_id = ""
+        movie_match = re.search(r'"movie"\s*:\s*\{\s*"id"\s*:\s*"(\d+)"', clean_html)
+        if movie_match:
+            main_movie_id = movie_match.group(1)
+        if not main_movie_id:
+            movie_match = re.search(r'"movieId"\s*:\s*"([a-zA-Z0-9_-]+)"', clean_html)
+            if movie_match:
+                main_movie_id = movie_match.group(1)
+        if not main_movie_id:
+            movie_match = re.search(r'"postId"\s*:\s*(\d+)', clean_html)
+            if movie_match:
+                main_movie_id = movie_match.group(1)
+
+        # Find all episodes / links via JSON structures
+        episode_pattern = r'\{[^{}]*"server"[^{}]*"name"[^{}]*"slug"[^{}]*"link"[^{}]*\}'
+        ep_matches = re.findall(episode_pattern, clean_html)
+        
+        video_options = []
+        all_parsed_options = []
+        seen_urls = set()
+        
+        def get_digits(text):
+            digits = "".join(re.findall(r'\d+', text))
+            return int(digits) if digits else None
+            
+        last_val = get_digits(last_segment)
+        
+        # 1. Match against episode list objects
+        for ep_str in ep_matches:
+            try:
+                if not ep_str.startswith('{'): ep_str = '{' + ep_str
+                if not ep_str.endswith('}'): ep_str = ep_str + '}'
+                
+                # Filter by movie_id if we have parsed the main movie ID
+                movie_id_match = re.search(r'"movie_id"\s*:\s*"([^"]+)"', ep_str)
+                if movie_id_match and main_movie_id:
+                    if movie_id_match.group(1) != main_movie_id:
+                        continue
+                
+                server = re.search(r'"server"\s*:\s*"([^"]+)"', ep_str)
+                name = re.search(r'"name"\s*:\s*"([^"]+)"', ep_str)
+                slug = re.search(r'"slug"\s*:\s*"([^"]+)"', ep_str)
+                link = re.search(r'"link"\s*:\s*"([^"]+)"', ep_str)
+                type_match = re.search(r'"type"\s*:\s*"([^"]+)"', ep_str)
+                
+                if link:
+                    media_url = link.group(1)
+                    if media_url.startswith('/'):
+                        if 'fcloud.live' in clean_html:
+                            media_url = 'https://fcloud.live' + media_url
+                        else:
+                            media_url = f"https://{domain}" + media_url
+
+                    slug_val = slug.group(1) if slug else ""
+                    name_val = name.group(1) if name else ""
+                    server_val = server.group(1) if server else "Server"
+                    
+                    is_match = False
+                    if last_segment:
+                        if last_segment.lower() == slug_val.lower():
+                            is_match = True
+                        else:
+                            name_val_digits = get_digits(name_val)
+                            slug_val_digits = get_digits(slug_val)
+                            if last_val is not None:
+                                if last_val == name_val_digits or last_val == slug_val_digits:
+                                    is_match = True
+                                    
+                    is_stream = (media_url.endswith('.m3u8') or '.m3u8' in media_url or 
+                                 media_url.endswith('.mp4') or '/player/master/' in media_url)
+                    if is_stream:
+                        type_val = type_match.group(1) if type_match else ""
+                        type_suffix = f" [{type_val.upper()}]" if type_val else ""
+                        option_obj = {
+                            "format_id": "",
+                            "resolution": "Auto Stream",
+                            "ext": "mp4",
+                            "type": "video",
+                            "size": "Unknown Size",
+                            "label": f"Server: {server_val}{type_suffix} (Episode {name_val})",
+                            "episode": name_val,
+                            "server": f"Server: {server_val}{type_suffix}",
+                            "url": media_url
+                        }
+                        if is_match:
+                            seen_urls.add(media_url)
+                            option_obj["format_id"] = f"direct_video_{len(video_options)+1}"
+                            video_options.append(option_obj)
+                        else:
+                            all_parsed_options.append(option_obj)
+            except Exception:
+                pass
+                
+        # 2. Fallback: If no matched episodes found, but we did find some parsed options (e.g. overview page)
+        if not video_options and all_parsed_options:
+            for opt in all_parsed_options:
+                if opt["url"] not in seen_urls:
+                    seen_urls.add(opt["url"])
+                    opt["format_id"] = f"direct_video_{len(video_options)+1}"
+                    video_options.append(opt)
+                    
+        # 3. Second Fallback: If still no options found, search page for any raw .m3u8 or .mp4 links
+        if not video_options:
+            raw_m3u8_links = re.findall(r'https?://[^\s"\'\\<>#]+\.(?:m3u8|mp4)[^\s"\'\\<>#]*', clean_html)
+            for link in raw_m3u8_links:
+                link = link.rstrip('\\').rstrip('"').rstrip("'")
+                if link not in seen_urls:
+                    seen_urls.add(link)
+                    video_options.append({
+                        "format_id": f"direct_video_{len(video_options)+1}",
+                        "resolution": "Auto Stream",
+                        "ext": "mp4",
+                        "type": "video",
+                        "size": "Unknown Size",
+                        "label": f"Direct Link #{len(video_options)+1}",
+                        "url": link
+                    })
+                    
+        if not video_options:
+            return None
+            
+        # Resolve HLS / Direct CDN stream sizes in parallel
+        if video_options:
+            from concurrent.futures import ThreadPoolExecutor
+            
+            def resolve_opt_size(opt):
+                opt_url = opt.get("url")
+                if not opt_url:
+                    return
+                try:
+                    # Resolve direct media URL inside embed player parameters if any
+                    actual_url = opt_url
+                    from urllib.parse import parse_qs, urlparse
+                    parsed = urlparse(opt_url)
+                    queries = parse_qs(parsed.query)
+                    for val_list in queries.values():
+                        for val in val_list:
+                            if val.startswith("http") and (".m3u8" in val or ".mp4" in val):
+                                actual_url = val
+                                break
+
+                    if actual_url.endswith('.m3u8') or '.m3u8' in actual_url or '/player/master/' in actual_url:
+                        size_bytes = resolve_hls_size(actual_url, url)
+                    else:
+                        size_bytes = get_url_content_length(actual_url)
+                        
+                    if size_bytes and size_bytes >= 1024 * 1024:  # Ignore sizes < 1MB (e.g. ad trackers or tiny placeholders)
+                        opt["size"] = format_size(size_bytes)
+                except Exception:
+                    pass
+                    
+            with ThreadPoolExecutor(max_workers=min(15, len(video_options))) as executor:
+                list(executor.map(resolve_opt_size, video_options))
+            
+        return {
+            "status": "success",
+            "title": title,
+            "uploader": domain,
+            "duration": "Unknown",
+            "duration_raw": 0,
+            "thumbnail": thumbnail,
+            "is_shorts": False,
+            "platform_label": domain.capitalize(),
+            "platform_class": "default",
+            "views": "—",
+            "likes": "—",
+            "upload_date": "—",
+            "description": description,
+            "category": "Web Video",
+            "tags": [],
+            "video_options": video_options,
+            "audio_options": [],
+            "subtitles": {},
+            "images": [{"label": "Thumbnail", "url": thumbnail, "ext": "jpg"}] if thumbnail else [],
+        }
+    except Exception as err:
+        logger.warning(f"generic_html_link_harvester failed: {err}")
+        return None
+
+
 @info_bp.route("/api/info", methods=["POST"])
 def get_info():
     data = request.get_json() or {}
@@ -821,6 +1093,10 @@ def get_info():
                 if is_pinterest and pinterest_gallery_fallback:
                     logger.info("yt-dlp failed for Pinterest video. Falling back to pre-extracted gallery-dl info.")
                     return jsonify(pinterest_gallery_fallback)
+                harvester_info = generic_html_link_harvester(url, client_id)
+                if harvester_info:
+                    logger.info(f"Generic HTML link harvester succeeded for {url} (nocookie_e). Found {len(harvester_info.get('video_options', []))} options.")
+                    return jsonify(harvester_info)
                 return jsonify({
                     "status": "error",
                     "message": f"Unable to extract media metadata: {strip_ansi_codes(str(nocookie_e))}"
@@ -852,6 +1128,10 @@ def get_info():
             if is_pinterest and pinterest_gallery_fallback:
                 logger.info("yt-dlp returned no info for Pinterest video. Falling back to pre-extracted gallery-dl info.")
                 return jsonify(pinterest_gallery_fallback)
+            harvester_info = generic_html_link_harvester(url, client_id)
+            if harvester_info:
+                logger.info(f"Generic HTML link harvester succeeded for {url} (not info). Found {len(harvester_info.get('video_options', []))} options.")
+                return jsonify(harvester_info)
             return jsonify({
                 "status": "error",
                 "message": "Failed to extract media metadata."

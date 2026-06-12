@@ -169,6 +169,23 @@ document.addEventListener("DOMContentLoaded", () => {
     const videoDuration = document.getElementById("video-duration-badge");
     const mediaBadge = document.getElementById("media-badge");
     const optionsContainer = document.getElementById("options-container");
+    if (optionsContainer) {
+        optionsContainer.addEventListener("mouseover", (e) => {
+            const formatLeft = e.target.closest(".format-left");
+            if (formatLeft && !formatLeft.hasAttribute("title")) {
+                formatLeft.setAttribute("title", "Click to expand/collapse full name");
+            }
+        });
+        optionsContainer.addEventListener("click", (e) => {
+            const formatLeft = e.target.closest(".format-left");
+            if (formatLeft) {
+                const row = formatLeft.closest(".format-row");
+                if (row) {
+                    row.classList.toggle("expanded");
+                }
+            }
+        });
+    }
     
     const downloadProgress = document.getElementById("download-progress");
     const progressPercent = document.getElementById("progress-percent");
@@ -224,8 +241,18 @@ document.addEventListener("DOMContentLoaded", () => {
 
     function getSafeTitle(title, defaultVal = "image") {
         if (!title) return defaultVal;
-        const cleaned = String(title).replace(/[\\/*?:"<>|]/g, "");
-        return [...cleaned].slice(0, 50).join("").trim() || defaultVal;
+        let clean = String(title);
+        // Remove common branding/suffixes
+        const brandingPatterns = [
+            /-?\s*Motchill\s*$/i, /-?\s*Motchilli\s*$/i, /-?\s*PhimMoi\s*$/i,
+            /Vietsub\s*$/i, /Thuyết Minh\s*$/i, /Lồng Tiếng\s*$/i,
+            /\(\d{4}\)/i, /Full\s*$/i
+        ];
+        brandingPatterns.forEach(pattern => {
+            clean = clean.replace(pattern, "");
+        });
+        const cleaned = clean.replace(/[\\/*?:"<>|#]/g, "").replace(/\s+/g, " ").trim();
+        return [...cleaned].slice(0, 80).join("").trim() || defaultVal;
     }
 
     // Cookies UI Elements
@@ -587,26 +614,12 @@ document.addEventListener("DOMContentLoaded", () => {
     });
 
     function isValidUrl(url) {
-        const youtubeRegex = /^(https?:\/\/)?([a-z0-9-]+\.)?(youtube\.com|youtu\.be|youtubekids\.com|youtube-nocookie\.com)/i;
-        const facebookRegex = /^(https?:\/\/)?([a-z0-9-]+\.)?(facebook\.com|fb\.com|fb\.watch|fb\.gg|messenger\.com)/i;
-        const instagramRegex = /^(https?:\/\/)?([a-z0-9-]+\.)?(instagram\.com|instagr\.am)/i;
-        const threadsRegex = /^(https?:\/\/)?([a-z0-9-]+\.)?(threads\.net|threads\.com)/i;
-        const tiktokRegex = /^(https?:\/\/)?([a-z0-9-]+\.)?(tiktok\.com)/i;
-        const twitterRegex = /^(https?:\/\/)?([a-z0-9-]+\.)?(twitter\.com|x\.com)/i;
-        const redditRegex = /^(https?:\/\/)?([a-z0-9-]+\.)?(reddit\.com|redd\.it)/i;
-        const soundcloudRegex = /^(https?:\/\/)?([a-z0-9-]+\.)?(soundcloud\.com)/i;
-        const pinterestRegex = /^(https?:\/\/)?([a-z0-9-]+\.)?(pinterest\.com|pin\.it)/i;
-        const vimeoRegex = /^(https?:\/\/)?([a-z0-9-]+\.)?(vimeo\.com)/i;
-        return youtubeRegex.test(url) || 
-               facebookRegex.test(url) || 
-               instagramRegex.test(url) || 
-               threadsRegex.test(url) || 
-               tiktokRegex.test(url) ||
-               twitterRegex.test(url) ||
-               redditRegex.test(url) ||
-               soundcloudRegex.test(url) ||
-               pinterestRegex.test(url) ||
-               vimeoRegex.test(url);
+        try {
+            const parsed = new URL(url);
+            return parsed.protocol === "http:" || parsed.protocol === "https:";
+        } catch (_) {
+            return false;
+        }
     }
 
     const themeColors = {
@@ -850,7 +863,7 @@ document.addEventListener("DOMContentLoaded", () => {
         }
 
         if (!isValidUrl(url)) {
-            showError("Invalid URL. Please make sure it is a valid YouTube, Facebook, Instagram, Threads, or TikTok link.");
+            showError("Invalid URL. Please enter a valid HTTP or HTTPS link.");
             return;
         }
 
@@ -1281,39 +1294,121 @@ document.addEventListener("DOMContentLoaded", () => {
             const photos = data.video_options.filter(opt => opt.ext === "jpg");
 
             if (videos.length > 0) {
-                const videoGroupLabel = document.createElement("div");
-                videoGroupLabel.className = "format-group-label";
-                videoGroupLabel.innerHTML = `
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M23 7l-7 5 7 5V7z"/><rect x="1" y="5" width="15" height="14" rx="2" ry="2"/></svg>
-                    <span>Video Options</span>
-                `;
-                optionsContainer.appendChild(videoGroupLabel);
+                // Group videos by server
+                const serverOrder = [];
+                const grouped = {};
+                const noGroup = [];
 
                 videos.forEach(option => {
-                    const row = document.createElement("div");
-                    row.className = "format-row video-row";
-                    
-                    const sizeBadge = option.size ? `<span class="format-size">${option.size}</span>` : '';
-                    row.innerHTML = `
-                        <div class="format-left">
-                            ${videoSvg}
-                            <span class="format-name">${option.label}</span>
-                            ${sizeBadge}
-                        </div>
-                        <div class="format-actions">
-                            <button class="btn-preview" data-id="${option.format_id}" data-ext="${option.ext}" data-label="${option.label}" data-quality="${option.quality || ''}" data-url="${option.url || ''}">
-                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
-                                <span>Preview</span>
-                            </button>
-                            <button class="btn-get" data-id="${option.format_id}" data-ext="${option.ext}" data-label="${option.label}" data-quality="${option.quality || ''}" data-url="${option.url || ''}">
-                                ${downloadSvg}
-                                <span>Get</span>
-                            </button>
-                        </div>
+                    const server = option.server || "";
+                    if (server) {
+                        if (!grouped[server]) {
+                            grouped[server] = [];
+                            serverOrder.push(server);
+                        }
+                        grouped[server].push(option);
+                    } else {
+                        noGroup.push(option);
+                    }
+                });
+
+                // Sort options inside each server group by episode name/number naturally
+                serverOrder.forEach(server => {
+                    grouped[server].sort((a, b) => {
+                        const epA = a.episode || "";
+                        const epB = b.episode || "";
+                        return epA.localeCompare(epB, undefined, { numeric: true, sensitivity: 'base' });
+                    });
+                });
+
+                // Render ungrouped videos first (if any)
+                if (noGroup.length > 0) {
+                    const videoGroupLabel = document.createElement("div");
+                    videoGroupLabel.className = "format-group-label";
+                    videoGroupLabel.innerHTML = `
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M23 7l-7 5 7 5V7z"/><rect x="1" y="5" width="15" height="14" rx="2" ry="2"/></svg>
+                        <span>Video Options</span>
                     `;
-                    optionsContainer.appendChild(row);
+                    optionsContainer.appendChild(videoGroupLabel);
+
+                    noGroup.forEach(option => {
+                        const row = document.createElement("div");
+                        row.className = "format-row video-row";
+                        const sizeBadge = option.size ? `<span class="format-size">${option.size}</span>` : '';
+                        row.innerHTML = `
+                            <div class="format-left">
+                                ${videoSvg}
+                                <span class="format-name">${option.label}</span>
+                                ${sizeBadge}
+                            </div>
+                            <div class="format-actions">
+                                <button class="btn-preview" data-id="${option.format_id}" data-ext="${option.ext}" data-label="${option.label}" data-quality="${option.quality || ''}" data-url="${option.url || ''}">
+                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+                                    <span>Preview</span>
+                                </button>
+                                <button class="btn-get" data-id="${option.format_id}" data-ext="${option.ext}" data-label="${option.label}" data-quality="${option.quality || ''}" data-url="${option.url || ''}">
+                                    ${downloadSvg}
+                                    <span>Get</span>
+                                </button>
+                            </div>
+                        `;
+                        optionsContainer.appendChild(row);
+                    });
+                }
+
+                // Render grouped videos by server
+                serverOrder.forEach(server => {
+                    const serverGroupLabel = document.createElement("div");
+                    serverGroupLabel.className = "format-group-label server-group-label";
+                    
+                    serverGroupLabel.innerHTML = `
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M23 7l-7 5 7 5V7z"/><rect x="1" y="5" width="15" height="14" rx="2" ry="2"/></svg>
+                        <span>${server}</span>
+                    `;
+                    optionsContainer.appendChild(serverGroupLabel);
+
+                    grouped[server].forEach(option => {
+                        const row = document.createElement("div");
+                        row.className = "format-row video-row";
+                        const sizeBadge = option.size ? `<span class="format-size">${option.size}</span>` : '';
+                        
+                        // Formulate the display label using episode, fall back to option.label
+                        let displayLabel = option.label;
+                        if (option.episode) {
+                            const ep = option.episode;
+                            if (ep.toLowerCase().startsWith("episode") || ep.toLowerCase().startsWith("ep") || ep.toLowerCase().startsWith("tập") || ep.toLowerCase().startsWith("tap")) {
+                                displayLabel = ep;
+                            } else {
+                                displayLabel = `Episode ${ep}`;
+                            }
+                        } else {
+                            if (displayLabel.includes("(Episode ")) {
+                                displayLabel = displayLabel.replace(/\s*\(Episode\s+[^)]+\)/g, "");
+                            }
+                        }
+                        
+                        row.innerHTML = `
+                            <div class="format-left">
+                                ${videoSvg}
+                                <span class="format-name">${displayLabel}</span>
+                                ${sizeBadge}
+                            </div>
+                            <div class="format-actions">
+                                <button class="btn-preview" data-id="${option.format_id}" data-ext="${option.ext}" data-label="${option.label}" data-quality="${option.quality || ''}" data-url="${option.url || ''}" data-episode="${option.episode || ''}" data-server="${option.server || ''}">
+                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+                                    <span>Preview</span>
+                                </button>
+                                <button class="btn-get" data-id="${option.format_id}" data-ext="${option.ext}" data-label="${option.label}" data-quality="${option.quality || ''}" data-url="${option.url || ''}" data-episode="${option.episode || ''}" data-server="${option.server || ''}">
+                                    ${downloadSvg}
+                                    <span>Get</span>
+                                </button>
+                            </div>
+                        `;
+                        optionsContainer.appendChild(row);
+                    });
                 });
             }
+            
 
             if (photos.length > 0) {
                 const photoGroupLabel = document.createElement("div");
@@ -1487,11 +1582,13 @@ document.addEventListener("DOMContentLoaded", () => {
                 const label = btn.getAttribute("data-label");
                 const quality = btn.getAttribute("data-quality");
                 const customUrl = btn.getAttribute("data-url");
+                const episode = btn.getAttribute("data-episode") || "";
+                const server = btn.getAttribute("data-server") || "";
                 if (formatId === "image_download") {
                     window.open(customUrl, "_blank");
                     return;
                 }
-                triggerDownload(btn, formatId, ext, label, quality, customUrl);
+                triggerDownload(btn, formatId, ext, label, quality, customUrl, episode, server);
             });
         });
 
@@ -1504,7 +1601,9 @@ document.addEventListener("DOMContentLoaded", () => {
                 const label = btn.getAttribute("data-label");
                 const quality = btn.getAttribute("data-quality");
                 const customUrl = btn.getAttribute("data-url");
-                triggerPreview(btn, formatId, ext, label, quality, customUrl);
+                const episode = btn.getAttribute("data-episode") || "";
+                const server = btn.getAttribute("data-server") || "";
+                triggerPreview(btn, formatId, ext, label, quality, customUrl, episode, server);
             });
         });
 
@@ -1706,7 +1805,7 @@ document.addEventListener("DOMContentLoaded", () => {
     }
 
     // 3. Download Execution via Asynchronous Server Task & Polling
-    async function triggerDownload(btn, formatId, ext, label, quality, customUrl) {
+    async function triggerDownload(btn, formatId, ext, label, quality, customUrl, episode = "", server = "") {
         // Reset previous polling if running
         if (pollingInterval) {
             clearInterval(pollingInterval);
@@ -1749,6 +1848,8 @@ document.addEventListener("DOMContentLoaded", () => {
                 ext: ext,
                 quality: quality,
                 title: videoTitle.textContent,
+                episode: episode,
+                server: server,
                 client_id: clientId
             };
 
@@ -1942,7 +2043,7 @@ document.addEventListener("DOMContentLoaded", () => {
     }
 
     // Dynamic Media Preview Orchestrator
-    async function triggerPreview(btn, formatId, ext, label, quality, customUrl) {
+    async function triggerPreview(btn, formatId, ext, label, quality, customUrl, episode = "", server = "") {
         if (!previewModal) return;
 
         // Reset zoom & rotations
@@ -1986,7 +2087,9 @@ document.addEventListener("DOMContentLoaded", () => {
                 : customUrl;
             
             previewActiveUrl = finalUrl;
-            previewActiveFilename = label;
+            const cleanTitle = getSafeTitle(videoTitle.textContent, "image");
+            const cleanLabel = label.replace(/\s*\(\d+x\d+\)/, "");
+            previewActiveFilename = `${cleanTitle}_${cleanLabel.replace(/\s+/g, "_")}.${ext}`;
             
             if (previewImageElement) {
                 previewImageElement.src = finalUrl;
@@ -2008,7 +2111,9 @@ document.addEventListener("DOMContentLoaded", () => {
                 format_id: formatId,
                 ext: ext,
                 quality: quality || "192",
-                title: label,
+                title: videoTitle.textContent,
+                episode: episode,
+                server: server,
                 client_id: clientId
             };
 

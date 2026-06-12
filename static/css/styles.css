@@ -849,12 +849,23 @@ body[class*="theme-"] .card {
 .format-row.audio-row .format-icon { color: var(--green); }
 .format-row.photo-row .format-icon { color: var(--cyan); }
 
+.format-left {
+    cursor: pointer;
+}
+.format-left:hover .format-name {
+    color: var(--cyan);
+}
+.format-row.expanded .format-name {
+    white-space: normal;
+    word-break: break-all;
+}
 .format-name {
     font-size: 0.9rem;
     font-weight: 400;
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
+    transition: color 0.2s ease;
 }
 .format-size {
     font-size: 0.75rem;

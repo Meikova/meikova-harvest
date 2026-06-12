@@ -1,0 +1,53 @@
+{
+  "status": "success",
+  "title": "Xem phim Bài Học Đáng Đời Tập 1 Vietsub - Motchill",
+  "uploader": "motchilli.ac",
+  "thumbnail": "https://motchilli.ac/storage/images/bai-hoc-dang-doi/bai-hoc-dang-doi-poster.webp",
+  "video_options": [
+    {
+      "format_id": "direct_video_1",
+      "resolution": "Auto Stream",
+      "ext": "mp4",
+      "type": "video",
+      "size": "Unknown Size",
+      "label": "Server: Vietsub #1 (Episode 1)",
+      "url": "https://vip.opstream90.com/20260605/33879_0038c2d2/index.m3u8"
+    },
+    {
+      "format_id": "direct_video_2",
+      "resolution": "Auto Stream",
+      "ext": "mp4",
+      "type": "video",
+      "size": "Unknown Size",
+      "label": "Server: S - #Hà Nội (Vietsub) (Episode Tập 01)",
+      "url": "https://v7.kkphimplayer7.com/20260605/mMUnxegG/index.m3u8"
+    },
+    {
+      "format_id": "direct_video_3",
+      "resolution": "Auto Stream",
+      "ext": "mp4",
+      "type": "video",
+      "size": "Unknown Size",
+      "label": "Server: S - #Hà Nội (Vietsub) (Episode Tập 01)",
+      "url": "https://player.phimapi.com/player/?url=https://v7.kkphimplayer7.com/20260605/mMUnxegG/index.m3u8"
+    },
+    {
+      "format_id": "direct_video_4",
+      "resolution": "Auto Stream",
+      "ext": "mp4",
+      "type": "video",
+      "size": "Unknown Size",
+      "label": "Server: T Vietsub #1 (Episode 1)",
+      "url": "https://fcloud.live/player/master/1780659758220_ep135015_episode_135015"
+    }
+  ],
+  "audio_options": [],
+  "subtitles": {},
+  "images": [
+    {
+      "label": "Thumbnail",
+      "url": "https://motchilli.ac/storage/images/bai-hoc-dang-doi/bai-hoc-dang-doi-poster.webp",
+      "ext": "jpg"
+    }
+  ]
+}

@@ -31,6 +31,8 @@ def start_download():
     quality = (data.get("quality") or "192").strip()
     title = (data.get("title") or "media").strip()
     client_id = data.get("client_id")
+    episode = (data.get("episode") or "").strip()
+    server = (data.get("server") or "").strip()
 
     trim_start = data.get("trim_start")
     trim_end = data.get("trim_end")
@@ -79,6 +81,8 @@ def start_download():
             "cloud_destination": cloud_destination,
             "tg_bot_token": tg_bot_token,
             "tg_chat_id": tg_chat_id,
+            "episode": episode,
+            "server": server,
         }
     )
     thread.start()

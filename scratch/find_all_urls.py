@@ -1,38 +1,19 @@
-import yt_dlp
-import os
+import requests
+import re
 import json
 
-url = "https://www.tiktok.com/@mi3k_18dp/video/7649036378268781842"
-cookie_file = "downloads/cookies/cookies_client_537ngrlf0hnuty574auzds.txt"
-
-ydl_opts = {
-    "cookiefile": cookie_file if os.path.exists(cookie_file) else None,
-    "nocheckcertificate": True,
+url = "https://motchilli.ac/phim/bai-hoc-dang-doi-1780648256/tap-1"
+headers = {
+    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
 }
+resp = requests.get(url, headers=headers, verify=False, timeout=15)
+html = resp.text
 
-print("Running recursive search on info dictionary...")
+# Extract all absolute URLs
+urls = re.findall(r'https?://[a-zA-Z0-9./?=&_-]+', html)
+unique_urls = sorted(list(set(urls)))
 
-def find_urls(data, path=""):
-    found = []
-    if isinstance(data, dict):
-        for k, v in data.items():
-            found.extend(find_urls(v, f"{path}.{k}" if path else k))
-    elif isinstance(data, list):
-        for idx, item in enumerate(data):
-            found.extend(find_urls(item, f"{path}[{idx}]"))
-    elif isinstance(data, str):
-        if "tiktokcdn.com" in data or "byteimg.com" in data or "ibyteimg.com" in data:
-            found.append((path, data))
-    return found
+with open("scratch/all_urls.json", "w", encoding="utf-8") as f:
+    json.dump(unique_urls, f, indent=2)
 
-with yt_dlp.YoutubeDL(ydl_opts) as ydl:
-    try:
-        info = ydl.extract_info(url, download=False)
-        print("Extract succeeded!")
-        all_urls = find_urls(info)
-        print(f"Found {len(all_urls)} CDN URLs:")
-        for path, val in all_urls:
-            print(f" - Path: {path}")
-            print(f"   URL: {val[:120]}...")
-    except Exception as e:
-        print("Extract failed:", e)
+print(f"Dumped {len(unique_urls)} unique URLs to scratch/all_urls.json")

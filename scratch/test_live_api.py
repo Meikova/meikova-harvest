@@ -1,22 +1,27 @@
 import sys
 import os
-sys.path.append(os.path.abspath('.'))
-
-from app import app
 import json
 
-client_id = "client_537ngrlf0hnuty574auzds"
-url = "https://www.facebook.com/stories/729012027223830/UzpfSVNDOjE1MzIxMzM0MDE4MzY2Mzc=/?bucket_count=9&source=story_tray"
+sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-# Create a test client
-with app.test_client() as client:
-    print("Testing /api/info endpoint...")
-    response = client.post('/api/info', json={
-        'url': url,
-        'client_id': client_id
-    })
-    
-    print(f"Status Code: {response.status_code}")
-    data = response.get_json()
-    print("Response JSON:")
-    print(json.dumps(data, indent=2, ensure_ascii=False))
+from app import app
+
+client = app.test_client()
+
+url = "https://motchilli.ac/phim/bai-hoc-dang-doi-1780648256"
+client_id = "test_client_api"
+
+print(f"Testing /api/info with URL: {url}")
+response = client.post(
+    "/api/info",
+    data=json.dumps({"url": url, "client_id": client_id}),
+    content_type="application/json"
+)
+
+print(f"Status Code: {response.status_code}")
+data = json.loads(response.data.decode("utf-8"))
+
+with open("scratch/api_output.json", "w", encoding="utf-8") as f:
+    json.dump(data, f, indent=2, ensure_ascii=False)
+
+print("Output written to scratch/api_output.json")

@@ -1,0 +1,35 @@
+--- Search for elements with data-post or data-nump ---
+<link rel='stylesheet' id='fontawesome-pro-css' href='https://motchilltv.lt/wp-content/themes/dooplay/assets/fontawesome/css/all.min.css?ver=5.15.1' type='text/css' media='all' />
+<link rel='stylesheet' id='owl-carousel-css' href='https://motchilltv.lt/wp-content/themes/dooplay/assets/css/front.owl.min.css?ver=2.5.5' type='text/css' media='all' />
+<link rel='stylesheet' id='scrollbar-css' href='https://motchilltv.lt/wp-content/themes/dooplay/assets/css/front.crollbar.min.css?ver=2.5.5' type='text/css' media='all' />
+<link rel='stylesheet' id='dooplay-css' href='https://motchilltv.lt/wp-content/themes/dooplay/assets/css/front.style.min.css?ver=2.5.5' type='text/css' media='all' />
+<link rel='stylesheet' id='dooplay-color-scheme-css' href='https://motchilltv.lt/wp-content/themes/dooplay/assets/css/colors.dark.min.css?ver=2.5.5' type='text/css' media='all' />
+<link rel='stylesheet' id='dooplay-responsive-css' href='https://motchilltv.lt/wp-content/themes/dooplay/assets/css/front.mobile.min.css?ver=2.5.5' type='text/css' media='all' />
+<link rel='stylesheet' id='blueimp-gallery-css' href='https://motchilltv.lt/wp-content/themes/dooplay/assets/css/front.gallery.min.css?ver=2.5.5' type='text/css' media='all' />
+<script type="text/javascript" src="https://motchilltv.lt/wp-content/themes/dooplay/assets/js/lib/lazyload.js?ver=2.5.5" id="lazyload-js">
+<script type="text/javascript" src="https://motchilltv.lt/wp-content/themes/dooplay/assets/js/lib/pwsscrollbar.js?ver=2.5.5" id="scrollbar-js">
+<script type="text/javascript" src="https://motchilltv.lt/wp-content/themes/dooplay/assets/js/lib/owlcarousel.js?ver=2.5.5" id="owl-carousel-js">
+<script type="text/javascript" src="https://motchilltv.lt/wp-content/themes/dooplay/assets/js/lib/idtabs.js?ver=2.5.5" id="idTabs-js">
+<script type="text/javascript" src="https://motchilltv.lt/wp-content/themes/dooplay/assets/js/lib/isrepeater.js?ver=2.5.5" id="dtRepeat-js">
+<![CDATA[ */var dtAjax = {"url":"/wp-admin/admin-ajax.php","player_api":"https://motchilltv.lt/wp-json/dooplayer/v2/","play_ajaxmd":"1","play_method":"admin_ajax","googlercptc":null,"classitem":"5","loading":"Loading..","afavorites":"Add to favorites","rfavorites":"Remove of favorites","views":"L\u01b0\u1ee3t xem","remove":"Remove","isawit":"I saw it","send":"Data send..","updating":"Updating data..","error":"Error","pending":"Pending review","ltipe":"Download","sending":"Sending data","enabled":"Enable","disabled":"Disable","trash":"Delete","lshared":"Links Shared","ladmin":"Manage pending links","sendingrep":"Please wait, sending data..","ready":"Ready","deletelin":"Do you really want to delete this link?"};//# sourceURL=dt_main_ajax-js-extra
+/* ]]>
+<script type="text/javascript" src="https://motchilltv.lt/wp-content/themes/dooplay/assets/js/front.ajax.min.js?ver=2.5.5" id="dt_main_ajax-js">
+<script type="text/javascript" src="https://motchilltv.lt/wp-content/themes/dooplay/assets/js/lib/blueimp.js?ver=2.5.5" id="blueimp-gallery-js">
+<script type="text/javascript" src="https://motchilltv.lt/wp-content/themes/dooplay/assets/js/lib/starstruck.raty.js?ver=2.5.5" id="jquery-raty-js">
+<script type="text/javascript" src="https://motchilltv.lt/wp-content/themes/dooplay/assets/js/lib/starstruck.js?ver=2.5.5" id="starstruck-js-js">
+<body class="wp-singular episodes-template-default single single-episodes postid-32782 wp-theme-dooplay">
+<form method="post" id="dooplay_login_user">
+<input id="dooplay_login_btn" data-btntext="Log in" type="submit" value="Log in">
+<input type="hidden" name="action" value="dooplay_login">
+<div class="dooplay-report-form">
+<form id="dooplay-report-form">
+<div class='dooplay_player'>
+<div id='dooplay_player_response'>
+<li id='player-option-1' class='dooplay_player_option' data-type='tv' data-post='32782' data-nume='1'>
+<img src='https://motchilltv.lt/wp-content/themes/dooplay/assets/img/flags/vn.png'>
+<li id='player-option-2' class='dooplay_player_option' data-type='tv' data-post='32782' data-nume='2'>
+<img src='https://motchilltv.lt/wp-content/themes/dooplay/assets/img/flags/vn.png'>
+<li id='player-option-3' class='dooplay_player_option' data-type='tv' data-post='32782' data-nume='3'>
+
+--- Search for post/episode IDs in HTML metadata ---
+[('', ''), ('', ''), ('', ''), ('', ''), ('', ''), ('', ''), ('', ''), ('', ''), ('', ''), ('', '')]

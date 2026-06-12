@@ -19,6 +19,36 @@ from utils.ytdl import create_ydl_instance
 logger = logging.getLogger(__name__)
 
 
+def generate_smart_filename(title, episode=None, server=None, ext="mp4"):
+    # Clean main title: strip common site branding
+    clean_title = title
+    branding_patterns = [
+        r'-?\s*Motchill\s*$', r'-?\s*Motchilli\s*$', r'-?\s*PhimMoi\s*$',
+        r'Vietsub\s*$', r'Thuyết Minh\s*$', r'Lồng Tiếng\s*$',
+        r'\(\d{4}\)', r'Full\s*$'
+    ]
+    for pattern in branding_patterns:
+        clean_title = re.sub(pattern, "", clean_title, flags=re.IGNORECASE).strip()
+    
+    parts = [clean_title]
+    if episode:
+        parts.append(episode)
+    if server:
+        clean_server = server
+        if clean_server.lower().startswith("server:"):
+            clean_server = clean_server[7:].strip()
+        clean_server = re.sub(r'\[[^\]]+\]', "", clean_server).strip()
+        clean_server = re.sub(r'\([^\)]+\)', "", clean_server).strip()
+        if clean_server:
+            parts.append(clean_server)
+            
+    combined_name = " - ".join([p.strip() for p in parts if p.strip()])
+    sanitized = re.sub(r'[\\/*?:"<>|#]', "", combined_name)
+    sanitized = re.sub(r'\s+', " ", sanitized).strip()
+    
+    return f"{sanitized[:120].strip()}.{ext}"
+
+
 def schedule_cleanup(temp_dir, download_id, delay=300):
     """Schedules a delayed cleanup of the downloaded files to allow browser retries/fallback downloads."""
     def cleanup():
@@ -65,12 +95,24 @@ def upload_to_telegram(filepath, bot_token, chat_id):
 
 def bg_download_task(download_id, url, format_id, ext, quality="192", title="media", client_id=None, trim_start=None, trim_end=None, translate_subs=None, **kwargs):
     """Background thread task to download media via yt-dlp."""
+    # Extract real stream URL from embed player URL if present
+    if "embed" in url.lower() or "player" in url.lower() or "/embed/" in url.lower():
+        from urllib.parse import urlparse, parse_qs
+        try:
+            parsed_embed = urlparse(url)
+            query_params = parse_qs(parsed_embed.query)
+            url_val = query_params.get("url", [None])[0]
+            if url_val:
+                url = url_val
+        except Exception as e:
+            logger.warning(f"Failed to parse embed url: {e}")
+
     temp_dir = os.path.join(TEMP_DOWNLOAD_DIR, f"temp_{download_id}")
     os.makedirs(temp_dir, exist_ok=True)
     logger.info(f"Task {download_id}: Start download {url} (format={format_id}, ext={ext}, quality={quality})")
 
-    # Direct CDN stream download bypass
-    if format_id.startswith("direct_video") or format_id.startswith("direct_photo") or format_id.startswith("direct_audio"):
+    # Direct CDN stream download bypass (excluding manifest streams)
+    if (format_id.startswith("direct_video") or format_id.startswith("direct_photo") or format_id.startswith("direct_audio")) and not any(x in url.lower() for x in [".m3u8", ".mpd", "/player/master/"]):
         try:
             with downloads_status_lock:
                 if download_id in downloads_status:
@@ -203,12 +245,9 @@ def bg_download_task(download_id, url, format_id, ext, quality="192", title="med
             except Exception as pp_err:
                 logger.error(f"Post-processing failed: {pp_err}")
             
-            def sanitize_filename(name):
-                cleaned = re.sub(r'[\\/*?:"<>|]', "", name)
-                return cleaned[:80].strip() or "media"
-
-            safe_title = sanitize_filename(title)
-            user_filename = f"{safe_title}.{ext}"
+            episode_val = kwargs.get("episode")
+            server_val = kwargs.get("server")
+            user_filename = generate_smart_filename(title, episode=episode_val, server=server_val, ext=ext)
 
             cloud_destination = kwargs.get("cloud_destination", "local")
             tg_bot_token = kwargs.get("tg_bot_token")
@@ -404,13 +443,16 @@ def bg_download_task(download_id, url, format_id, ext, quality="192", title="med
         "outtmpl": os.path.join(temp_dir, "media.%(ext)s"),
         "nocheckcertificate": True,
         "verbose": is_youtube,
-        "quiet": not is_youtube,
-        "no_warnings": not is_youtube,
+        "quiet": False,
+        "no_warnings": False,
         "noplaylist": True,
         "progress_hooks": [progress_hook],
         "js_runtimes": {"deno": {}, "node": {}, "bun": {}, "quickjs": {}},
         "cookiesfrombrowser": "auto",
         "ignoreerrors": True,
+        "external_downloader_args": {
+            "ffmpeg": ["-protocol_whitelist", "file,http,https,tcp,tls,crypto,data"]
+        },
         "extractor_args": {
             "youtube": {
                 "player_client": ["default"],
@@ -450,7 +492,8 @@ def bg_download_task(download_id, url, format_id, ext, quality="192", title="med
         })
     else:
         # For direct HLS/DASH stream manifests, tell yt-dlp to download the best available muxed stream
-        target_format = "bestvideo+bestaudio/best" if format_id.startswith("direct_") else format_id
+        is_direct_stream = format_id.startswith("direct_") or ".m3u8" in url.lower() or ".mp4" in url.lower()
+        target_format = "best" if is_direct_stream else format_id
         ydl_opts.update({
             "format": target_format,
             "merge_output_format": "mp4",
@@ -529,16 +572,13 @@ def bg_download_task(download_id, url, format_id, ext, quality="192", title="med
         except Exception as pp_err:
             logger.error(f"Post-processing failed: {pp_err}")
 
-        def sanitize_filename(name):
-            cleaned = re.sub(r'[\\/*?:"<>|]', "", name)
-            return cleaned[:80].strip() or "media"
-
-        safe_title = sanitize_filename(title)
+        episode_val = kwargs.get("episode")
+        server_val = kwargs.get("server")
         if ext == "vtt":
             lang = "vi" if translate_subs == "vi" else format_id
-            user_filename = f"{safe_title}.{lang}.vtt"
+            user_filename = generate_smart_filename(title, episode=episode_val, server=server_val, ext=f"{lang}.vtt")
         else:
-            user_filename = f"{safe_title}.{ext}"
+            user_filename = generate_smart_filename(title, episode=episode_val, server=server_val, ext=ext)
 
         cloud_destination = kwargs.get("cloud_destination", "local")
         tg_bot_token = kwargs.get("tg_bot_token")

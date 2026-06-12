@@ -1,0 +1,45 @@
+
+--- Match 1 (Pos: 97822) ---
+(1.05);z-index:10}}.badge-top,.badge-vip{background-color:#00dc5a;color:black;font-size:10px;padding:1px 4px;border-radius:2px;font-weight:700}.badge-episodes{background-color:rgba(0,0,0,.7);color:white;font-size:8px;padding:1px 4px;border-radius:2px}@media (min-width:640px){.badge-episodes,.badge-top,.badge-vip{font-size:10px;padding:2px 6px}}</style><link rel="preload" as="script" fetchPriority="low" hr
+
+--- Match 2 (Pos: 97955) ---
+eight:700}.badge-episodes{background-color:rgba(0,0,0,.7);color:white;font-size:8px;padding:1px 4px;border-radius:2px}@media (min-width:640px){.badge-episodes,.badge-top,.badge-vip{font-size:10px;padding:2px 6px}}</style><link rel="preload" as="script" fetchPriority="low" href="/_next/static/chunks/webpack-61de8fb8742342ce.js"/><script src="/_next/static/chunks/4bd1b696-c50ee0029f5d558b.js" async=""></scr
+
+--- Match 3 (Pos: 283859) ---
+(1.05);z-index:10}}.badge-top,.badge-vip{background-color:#00dc5a;color:black;font-size:10px;padding:1px 4px;border-radius:2px;font-weight:700}.badge-episodes{background-color:rgba(0,0,0,.7);color:white;font-size:8px;padding:1px 4px;border-radius:2px}@media (min-width:640px){.badge-episodes,.badge-top,.badge-vip{font-size:10px;padding:2px 6px}}"])</script><script>self.__next_f.push([1,"0:{\"P\":null,\"b\"
+
+--- Match 4 (Pos: 283992) ---
+eight:700}.badge-episodes{background-color:rgba(0,0,0,.7);color:white;font-size:8px;padding:1px 4px;border-radius:2px}@media (min-width:640px){.badge-episodes,.badge-top,.badge-vip{font-size:10px;padding:2px 6px}}"])</script><script>self.__next_f.push([1,"0:{\"P\":null,\"b\":\"yl3mdrlHKdAN3o1rLaneO\",\"p\":\"\",\"c\":[\"\",\"phim\",\"bai-hoc-dang-doi-1780648256\"],\"i\":false,\"f\":[[[\"\",{\"children\":[
+
+--- Match 5 (Pos: 339097) ---
+":\"mb-4\",\"children\":[[\"$\",\"span\",null,{\"className\":\"text-lg font-bold mb-4\",\"children\":\"Danh sách tập phim\"}],[\"$\",\"$L2e\",null,{\"episodes\":[{\"id\":\"514024475\",\"movie_id\":\"81640\",\"server\":\"Vietsub #1\",\"name\":\"1\",\"slug\":\"tap-1\",\"type\":\"m3u8\",\"link\":\"https://vip.opstream90.com/20260605/33879_0038c2d2/index.m3u8\",\"has_report\":false,\"report_message\":null,\"c
+
+--- Match 6 (Pos: 357997) ---
+\"count_rewrite\":\"1\",\"user_id\":null,\"user_name\":null,\"created_at\":\"2026-06-11T17:01:02.000Z\",\"updated_at\":\"2026-06-11T17:30:11.000Z\",\"episodes\":[{\"id\":\"518093456\",\"movie_id\":\"81706\",\"server\":\"T Vietsub #1\",\"name\":\"6\",\"slug\":\"t-tap-6\",\"type\":\"m3u8\",\"link\":\"/player/master/1781199519780_ep136020_episode_136020\",\"has_report\":false,\"report_message\":null,\"create
+
+--- Match 7 (Pos: 360912) ---
+\"count_rewrite\":\"2\",\"user_id\":null,\"user_name\":null,\"created_at\":\"2025-04-23T00:30:29.000Z\",\"updated_at\":\"2026-06-11T17:00:19.000Z\",\"episodes\":[{\"id\":\"518094993\",\"movie_id\":\"73927\",\"server\":\"T Vietsub #1\",\"name\":\"35\",\"slug\":\"t-tap-35\",\"type\":\"m3u8\",\"link\":\"/player/master/1781197656680_ep136010_episode_136010\",\"has_report\":false,\"report_message\":null,\"crea
+
+--- Match 8 (Pos: 363178) ---
+\"count_rewrite\":\"1\",\"user_id\":null,\"user_name\":null,\"created_at\":\"2026-06-11T07:30:12.000Z\",\"updated_at\":\"2026-06-11T08:00:00.000Z\",\"episodes\":[{\"id\":\"518097222\",\"movie_id\":\"81702\",\"server\":\"T Vietsub #1\",\"name\":\"6\",\"slug\":\"t-tap-6\",\"type\":\"m3u8\",\"link\":\"/player/master/1781168787349_ep135912_episode_135912\",\"has_report\":false,\"report_message\":null,\"create
+
+--- Match 9 (Pos: 365987) ---
+\"count_rewrite\":\"1\",\"user_id\":null,\"user_name\":null,\"created_at\":\"2026-06-11T06:30:09.000Z\",\"updated_at\":\"2026-06-11T06:30:09.000Z\",\"episodes\":[]},{\"id\":\"81697\",\"name\":\"Tiêu Nhân (Phần 2)\",\"origin_name\":\"Blades of the Guardians Season 2\",\"slug\":\"tieu-nhan-phan-2-1781148782\",\"content\":\"$3b\",\"content2\":\"\u003cp\u003eĐại Nghiệp năm thứ 3 (năm 607 sau Công Nguyên), vươ
+
+--- Match 10 (Pos: 367875) ---
+\"count_rewrite\":\"1\",\"user_id\":null,\"user_name\":null,\"created_at\":\"2026-06-11T03:33:02.000Z\",\"updated_at\":\"2026-06-11T04:01:39.000Z\",\"episodes\":[{\"id\":\"518100368\",\"movie_id\":\"81697\",\"server\":\"T Vietsub #1\",\"name\":\"2\",\"slug\":\"t-tap-2\",\"type\":\"m3u8\",\"link\":\"/player/master/1781150908353_ep135876_episode_135876\",\"has_report\":false,\"report_message\":null,\"create
+
+--- Match 11 (Pos: 370042) ---
+\"count_rewrite\":\"1\",\"user_id\":null,\"user_name\":null,\"created_at\":\"2023-12-24T09:23:47.000Z\",\"updated_at\":\"2026-06-11T04:01:33.000Z\",\"episodes\":[{\"id\":\"517943143\",\"movie_id\":\"20887\",\"server\":\"S - #Hà Nội (Vietsub)\",\"name\":\"Tập 273\",\"slug\":\"k-tap-273\",\"type\":\"embed\",\"link\":\"https://player.phimapi.com/player/?url=https://v7.kkphimplayer7.com/20260611/nWkEr9a4/inde
+
+--- Match 12 (Pos: 372776) ---
+\"count_rewrite\":\"1\",\"user_id\":null,\"user_name\":null,\"created_at\":\"2026-05-25T06:01:10.000Z\",\"updated_at\":\"2026-06-11T04:01:28.000Z\",\"episodes\":[{\"id\":\"518100219\",\"movie_id\":\"81521\",\"server\":\"T Vietsub #1\",\"name\":\"3\",\"slug\":\"t-tap-3\",\"type\":\"m3u8\",\"link\":\"/player/master/1781151658955_ep135864_episode_135864\",\"has_report\":false,\"report_message\":null,\"create
+
+--- Match 13 (Pos: 375447) ---
+\"count_rewrite\":\"1\",\"user_id\":null,\"user_name\":null,\"created_at\":\"2026-06-11T04:01:22.000Z\",\"updated_at\":\"2026-06-11T04:01:22.000Z\",\"episodes\":[]},{\"id\":\"80960\",\"name\":\"Vị vua mạnh nhất làm gì ở kiếp thứ hai? (Phần 2)\",\"origin_name\":\"The Beginning After the End (Season 2)\",\"slug\":\"vi-vua-manh-nhat-lam-gi-o-kiep-thu-hai-phan-2-1775106060\",\"content\":\"$3f\",\"content2\":\
+
+--- Match 14 (Pos: 377056) ---
+\"count_rewrite\":\"1\",\"user_id\":null,\"user_name\":null,\"created_at\":\"2026-04-02T05:01:00.000Z\",\"updated_at\":\"2026-06-11T03:33:17.000Z\",\"episodes\":[{\"id\":\"518100658\",\"movie_id\":\"80960\",\"server\":\"T Vietsub #1\",\"name\":\"11\",\"slug\":\"t-tap-11\",\"type\":\"m3u8\",\"link\":\"/player/master/1781149200019_ep135863_episode_135863\",\"has_report\":false,\"report_message\":null,\"crea
+
+--- Match 15 (Pos: 379364) ---
+\"count_rewrite\":\"1\",\"user_id\":null,\"user_name\":null,\"created_at\":\"2026-06-11T02:06:54.000Z\",\"updated_at\":\"2026-06-11T02:06:54.000Z\",\"episodes\":[{\"id\":\"517401815\",\"movie_id\":\"81696\",\"server\":\"S - #Hà Nội (Vietsub)\",\"name\":\"Full\",\"slug\":\"k-full\",\"type\":\"embed\",\"link\":\"https://player.phimapi.com/player/?url=https://v7.kkphimplayer7.com/20260608/zhjbO1mi/index.m3u8
