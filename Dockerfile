@@ -8,15 +8,13 @@ ENV PYTHONUNBUFFERED=1
 # Set the working directory inside the container
 WORKDIR /app
 
-# Install system dependencies:
-# - ffmpeg (required by yt-dlp to merge audio/video tracks)
-# - curl (required by custom Facebook Story scraper)
-# - nodejs (required by yt-dlp-ejs to decipher signature throttling)
 RUN apt-get update && apt-get install -y --no-install-recommends \
     ffmpeg \
     curl \
-    nodejs \
     && rm -rf /var/lib/apt/lists/*
+
+# Install Deno (official recommended JS engine for yt-dlp signature decryption)
+COPY --from=denoland/deno:bin /deno /usr/local/bin/deno
 
 # Copy requirements file first to take advantage of Docker cache layering
 COPY requirements.txt /app/
