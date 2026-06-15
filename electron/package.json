@@ -34,9 +34,14 @@
     ],
     "extraResources": [
       {
-        "from": "resources/server.exe",
-        "to": "server.exe",
-        "filter": ["**/*"]
+        "from": "resources",
+        "to": ".",
+        "filter": [
+          "server.exe",
+          "server",
+          "license.txt",
+          "icon.png"
+        ]
       },
       {
         "from": "../downloads",
@@ -57,6 +62,13 @@
       ],
       "icon": "resources/icon.ico",
       "requestedExecutionLevel": "asInvoker"
+    },
+    "mac": {
+      "target": [
+        "dmg",
+        "zip"
+      ],
+      "icon": "resources/icon.png"
     },
     "nsis": {
       "oneClick": false,

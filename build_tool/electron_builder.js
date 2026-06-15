@@ -47,14 +47,16 @@ function checkNpm() {
   }
 }
 
-function checkServerExe() {
-  const serverExe = path.join(ELECTRON_DIR, 'resources', 'server.exe');
-  if (fs.existsSync(serverExe)) {
-    const size = (fs.statSync(serverExe).size / 1024 / 1024).toFixed(1);
-    ok(`server.exe found (${size} MB)`);
+function checkServerBinary() {
+  const isWindows = process.platform === 'win32';
+  const binaryName = isWindows ? 'server.exe' : 'server';
+  const serverBinary = path.join(ELECTRON_DIR, 'resources', binaryName);
+  if (fs.existsSync(serverBinary)) {
+    const size = (fs.statSync(serverBinary).size / 1024 / 1024).toFixed(1);
+    ok(`${binaryName} found (${size} MB)`);
     return true;
   }
-  warn('server.exe not found. Run the web exe build first:');
+  warn(`${binaryName} not found. Run the web binary build first:`);
   warn('  python build_tool/builder_cli.py --target web');
   return false;
 }
@@ -70,15 +72,20 @@ function installDeps() {
 }
 
 function buildElectron(args = []) {
-  let cmd = 'npx electron-builder --win';
-  if (args.includes('--portable')) {
-    cmd += ' --win portable';
-    log('Mode: Portable EXE');
-  } else if (args.includes('--installer')) {
-    cmd += ' --win nsis';
-    log('Mode: NSIS Installer');
+  const isWindows = process.platform === 'win32';
+  let cmd = isWindows ? 'npx electron-builder --win' : 'npx electron-builder --mac';
+  if (isWindows) {
+    if (args.includes('--portable')) {
+      cmd += ' --win portable';
+      log('Mode: Portable EXE');
+    } else if (args.includes('--installer')) {
+      cmd += ' --win nsis';
+      log('Mode: NSIS Installer');
+    } else {
+      log('Mode: Both NSIS Installer + Portable');
+    }
   } else {
-    log('Mode: Both NSIS Installer + Portable');
+    log('Mode: macOS DMG / ZIP');
   }
 
   run(cmd);
@@ -87,8 +94,10 @@ function buildElectron(args = []) {
 function printOutputs() {
   const distDir = path.join(ROOT_DIR, 'dist_electron');
   if (!fs.existsSync(distDir)) return;
+  const isWindows = process.platform === 'win32';
+  const extensions = isWindows ? ['.exe', '.msi'] : ['.dmg', '.zip'];
   const files = fs.readdirSync(distDir)
-    .filter(f => f.endsWith('.exe') || f.endsWith('.msi'))
+    .filter(f => extensions.some(ext => f.endsWith(ext)))
     .map(f => {
       const fp   = path.join(distDir, f);
       const size = (fs.statSync(fp).size / 1024 / 1024).toFixed(1);
@@ -126,10 +135,12 @@ Default: builds both Installer and Portable.
 
   if (!checkNode() || !checkNpm()) process.exit(1);
 
-  log('Checking server.exe...');
-  const hasServer = checkServerExe();
+  log('Checking server binary...');
+  const hasServer = checkServerBinary();
   if (!hasServer && !args.includes('--no-server-check')) {
-    err('Stopping: server.exe is required to build. Add --no-server-check to skip.');
+    const isWindows = process.platform === 'win32';
+    const binaryName = isWindows ? 'server.exe' : 'server';
+    err(`Stopping: ${binaryName} is required to build. Add --no-server-check to skip.`);
     process.exit(1);
   }
 

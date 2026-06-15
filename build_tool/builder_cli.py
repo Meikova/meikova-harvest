@@ -62,27 +62,50 @@ def execute_build(obf_cfg: ObfuscationConfig, build_cfg: BuildConfig, target: st
     packager = Packager(build_cfg)
 
     if target in ('web', 'both'):
-        info('Building Web EXE…')
+        info('Building Web Binary…')
         try:
             exe = packager.build_web_exe(progress_cb=info)
-            ok(f'Web EXE: {exe}')
+            ok(f'Web Binary: {exe}')
         except Exception as e:
-            error(f'Build Web EXE failed: {e}')
+            error(f'Build Web Binary failed: {e}')
             sys.exit(1)
 
     if target in ('desktop', 'both'):
-        info('Building Desktop EXE…')
+        info('Building Desktop App…')
         try:
             exe = packager.build_desktop_exe(progress_cb=info)
-            ok(f'Desktop EXE: {exe}')
+            ok(f'Desktop App: {exe}')
         except Exception as e:
-            error(f'Build Desktop EXE failed: {e}')
+            error(f'Build Desktop App failed: {e}')
             sys.exit(1)
 
     ok('Completed!')
 
 
 def run_build(args: argparse.Namespace):
+    # Validate platform
+    import platform as plt
+    host_sys = plt.system().lower()
+    if host_sys == 'darwin':
+        host_platform = 'macos'
+    elif host_sys == 'windows':
+        host_platform = 'windows'
+    else:
+        host_platform = host_sys
+
+    target_platform = getattr(args, 'platform', 'auto')
+    if target_platform == 'auto':
+        target_platform = host_platform
+
+    if target_platform != host_platform:
+        error(
+            f"Cross-compilation is not supported by PyInstaller.\n"
+            f"  Requested target platform: '{target_platform}'\n"
+            f"  Current host platform:     '{host_platform}'\n"
+            f"  Please run the build tool on a native {target_platform.upper()} machine to package for {target_platform.upper()}."
+        )
+        sys.exit(1)
+
     # ── Obfuscation config ────────────────────────────────────────────────
     obf_cfg = ObfuscationConfig()
     obf_cfg.use_pyarmor      = args.pyarmor
@@ -140,9 +163,9 @@ def select_target_menu(current_target: str) -> str:
         print("\n" + "-" * 50)
         print(_color("  Select Build Target", "1;35"))
         print("-" * 50)
-        print("1. Web EXE (Standalone Backend for browser-based UI)")
-        print("2. Desktop EXE (Backend + Electron Installer/Portable)")
-        print("3. Both Targets (Web and Desktop EXEs)")
+        print("1. Web Binary (Standalone Backend for browser-based UI)")
+        print("2. Desktop App (Backend + Electron Installer/App)")
+        print("3. Both Targets (Web Binary and Desktop App)")
         print("0. Back to Main Menu")
         print(f"Current target: {_color(current_target.upper(), '1;32')}")
         
@@ -288,14 +311,14 @@ def configure_licensing_menu(obf_cfg: ObfuscationConfig) -> ObfuscationConfig:
 def configure_metadata_menu(build_cfg: BuildConfig) -> BuildConfig:
     while True:
         print("\n" + "-" * 50)
-        print(_color("  Package & Windows File Metadata Settings", "1;35"))
+        print(_color("  Package & Binary Metadata Settings", "1;35"))
         print("-" * 50)
         print(f"1. App Name:            [{_color(build_cfg.app_name, '32')}]")
         print(f"2. Version:             [{_color(build_cfg.version, '32')}]")
         print(f"3. Icon Path:           [{_color(build_cfg.icon_path or 'Default', '32')}]")
         print(f"4. Show Console Window: [{_color('YES' if build_cfg.console else 'NO', '32' if build_cfg.console else '30')}]")
         print(f"5. Use UPX Compression:  [{_color('YES' if build_cfg.use_upx else 'NO', '32' if build_cfg.use_upx else '30')}]")
-        print(f"6. Company Name:        [{_color(build_cfg.company or 'None', '32')}]")
+        print(f"6. Company/Developer:   [{_color(build_cfg.company or 'None', '32')}]")
         print(f"7. Description:         [{_color(build_cfg.description or 'None', '32')}]")
         print(f"8. Copyright:           [{_color(build_cfg.copyright or 'None', '32')}]")
         print("0. Back to Main Menu")
@@ -316,13 +339,17 @@ def configure_metadata_menu(build_cfg: BuildConfig) -> BuildConfig:
             if version:
                 build_cfg.version = version
         elif choice == '3':
-            path_str = input(f"Enter path to .ico file [current: {build_cfg.icon_path}]: ").strip()
+            import platform
+            is_win = (platform.system() == 'Windows')
+            expected_ext = '.ico' if is_win else '.png or .icns'
+            path_str = input(f"Enter path to icon file ({expected_ext}) [current: {build_cfg.icon_path}]: ").strip()
             if path_str:
                 path = Path(path_str)
-                if path.exists() and path.suffix.lower() == '.ico':
+                valid_extensions = ['.ico'] if is_win else ['.png', '.icns', '.ico']
+                if path.exists() and path.suffix.lower() in valid_extensions:
                     build_cfg.icon_path = str(path.resolve())
                 else:
-                    print(_color("File does not exist or is not a .ico file.", "31"))
+                    print(_color(f"File does not exist or is not a valid {expected_ext} file.", "31"))
         elif choice == '4':
             build_cfg.console = not build_cfg.console
         elif choice == '5':
@@ -405,6 +432,10 @@ def run_interactive_menu():
         print("=" * 65)
         
         # Display current configs
+        import platform as plt
+        host_sys = plt.system().lower()
+        host_platform = 'macOS' if host_sys == 'darwin' else ('Windows' if host_sys == 'windows' else host_sys.capitalize())
+        print(f"Target OS Platform:     {_color(host_platform, '1;32')} (Natively Compiled)")
         print(f"[{_color('1', '33')}] Target Output:        {_color(target.upper(), '1;32')}")
         
         obf_status = _color("ENABLED", "1;32") if obfuscate else _color("DISABLED", "1;30")
@@ -501,7 +532,7 @@ def main():
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog='''
 Examples:
-  # Simple web exe build
+  # Simple web binary build
   python builder_cli.py --target web
 
   # Build with full protection
@@ -517,6 +548,8 @@ Examples:
 
     parser.add_argument('--target', choices=['web', 'desktop', 'both'],
                         default='web', help='Output type to build')
+    parser.add_argument('--platform', choices=['windows', 'macos', 'auto'],
+                        default='auto', help='Target platform to build for')
 
     # Obfuscation options
     obf = parser.add_argument_group('Source Code Protection')
@@ -557,12 +590,12 @@ Examples:
     build.add_argument('--name', default='EveryThingDownloader',
                        help='Output application name')
     build.add_argument('--version', default='1.0.0', help='Application version')
-    build.add_argument('--icon', help='Path to icon file (.ico)')
+    build.add_argument('--icon', help='Path to icon file (.ico on Windows, .png/.icns on macOS)')
     build.add_argument('--upx', action='store_true',
                        help='Use UPX compression (reduces size, slower startup)')
     build.add_argument('--console', action='store_true',
                        help='Show console window on launch')
-    build.add_argument('--company', help='Company name metadata')
+    build.add_argument('--company', help='Company/Developer name metadata')
     build.add_argument('--description', help='File description metadata')
     build.add_argument('--copyright', help='Copyright string metadata')
 

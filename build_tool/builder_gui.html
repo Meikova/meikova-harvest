@@ -1264,7 +1264,7 @@
               <div>
                 <div class="card-title">Application Info</div>
                 <div class="card-subtitle">
-                  Metadata embedded into the EXE file
+                  Metadata embedded into the output files
                 </div>
               </div>
             </div>
@@ -1447,7 +1447,7 @@
               <div class="toggle-info">
                 <div class="toggle-label">UPX Compression</div>
                 <div class="toggle-desc">
-                  Compress EXE using UPX (reduces size by ~30% but slows down
+                  Compress binary using UPX (reduces size by ~30% but slows down
                   initial startup)
                 </div>
               </div>
@@ -1483,7 +1483,7 @@
               id="row-singleFile"
             >
               <div class="toggle-info">
-                <div class="toggle-label">Single File EXE</div>
+                <div class="toggle-label">Single File Binary</div>
                 <div class="toggle-desc">
                   Package into a single file (slower on first startup)
                 </div>
@@ -2012,8 +2012,8 @@
               <div class="toggle-info">
                 <div class="toggle-label">Enable Machine ID Lock</div>
                 <div class="toggle-desc">
-                  Calculated from MAC address, hostname, CPU ID, and Windows
-                  UUID
+                  Calculated from MAC address, hostname, CPU ID, and OS-specific
+                  hardware UUIDs
                 </div>
               </div>
               <label class="toggle">
@@ -2111,6 +2111,27 @@
           <div class="page-title">Build &amp; Export</div>
           <div class="page-desc">Select output type and start packaging.</div>
 
+          <!-- Target Platform selection -->
+          <div class="section-title">Target Platform</div>
+          <div class="card" style="margin-bottom: 24px">
+            <div class="card-body" style="padding: 16px 20px;">
+              <div class="form-group" style="margin-bottom: 0;">
+                <label class="form-label" style="margin-bottom: 8px;">Compile for Operating System</label>
+                <div style="display: flex; gap: 12px; align-items: center; flex-wrap: wrap;">
+                  <select id="buildPlatform" style="width: 250px; background: var(--bg-card); border: 2px solid var(--border); border-radius: var(--radius); padding: 8px 12px; color: var(--text); font-family: inherit; font-size: 14px; outline: none; transition: border-color 0.2s;" onchange="checkPlatformWarning()">
+                    <option value="auto">Auto-detect (Host OS)</option>
+                    <option value="windows">Windows (.exe / NSIS)</option>
+                    <option value="macos">macOS (Unix / DMG / ZIP)</option>
+                  </select>
+                  <div id="platform-warning" style="display: none; color: #f59e0b; font-size: 12px; align-items: center; gap: 6px;">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width: 16px; height: 16px; flex-shrink: 0;"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+                    <span id="platform-warning-text">Cross-compilation is not supported.</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
           <!-- Target selector -->
           <div class="section-title">Select Build Type</div>
           <div class="target-cards">
@@ -2148,7 +2169,7 @@
                   />
                 </svg>
               </div>
-              <div class="tc-name">Web Server EXE</div>
+              <div class="tc-name">Web Server Binary</div>
               <div class="tc-desc">
                 Standalone Flask server, running via browser. Lightweight
                 (~80MB).
@@ -2174,7 +2195,7 @@
                   <line x1="12" y1="17" x2="12" y2="21" />
                 </svg>
               </div>
-              <div class="tc-name">Desktop App EXE</div>
+              <div class="tc-name">Desktop App</div>
               <div class="tc-desc">
                 Full Electron desktop app, native window. Best experience
                 (~250MB).
@@ -2203,7 +2224,7 @@
               </div>
               <div class="tc-name">Both</div>
               <div class="tc-desc">
-                Build both Web EXE and Desktop Installer concurrently.
+                Build both Web Binary and Desktop Installer concurrently.
               </div>
             </div>
           </div>
@@ -2473,7 +2494,7 @@
               <div><div class="card-title">CLI Alternative</div></div>
             </div>
             <div class="build-log" style="height: auto; min-height: 80px">
-              <span class="log-ok"># Build simple web EXE</span>
+              <span class="log-ok"># Build simple web binary</span>
               <span class="log-info"
                 >python build_tool/builder_cli.py --target web</span
               >
@@ -2706,6 +2727,44 @@
           .forEach((l) => l.classList.remove("sel"));
         el.classList.add("sel");
         document.getElementById("pyarmorLevel").value = el.dataset.level;
+      }      /* ═══════════════════════════════════════════════════════════════════════════
+   PLATFORM SELECTOR & WARNINGS
+═══════════════════════════════════════════════════════════════════════════ */
+      let _hostPlatform = "windows"; // fallback
+
+      async function detectHostPlatform() {
+        try {
+          const resp = await fetch("/api/platform");
+          if (resp.ok) {
+            const data = await resp.json();
+            _hostPlatform = data.platform.toLowerCase();
+            if (_hostPlatform === "darwin") {
+              _hostPlatform = "macos";
+            }
+            const select = document.getElementById("buildPlatform");
+            if (select) {
+              select.value = _hostPlatform;
+            }
+            checkPlatformWarning();
+          }
+        } catch (e) {
+          console.error("Failed to detect host platform:", e);
+        }
+      }
+
+      function checkPlatformWarning() {
+        const select = document.getElementById("buildPlatform");
+        const warningDiv = document.getElementById("platform-warning");
+        const warningText = document.getElementById("platform-warning-text");
+        if (!select || !warningDiv) return;
+
+        const selectedVal = select.value;
+        if (selectedVal !== "auto" && selectedVal !== _hostPlatform) {
+          warningText.textContent = `Cross-compilation not supported by PyInstaller. Building for ${selectedVal.toUpperCase()} is only possible when running this tool on a native ${selectedVal.toUpperCase()} machine.`;
+          warningDiv.style.display = "flex";
+        } else {
+          warningDiv.style.display = "none";
+        }
       }
 
       /* ═══════════════════════════════════════════════════════════════════════════
@@ -2840,6 +2899,7 @@
             allowed_machine_ids: [...tagStore.midTags],
           },
           target: document.getElementById("buildTarget").value,
+          platform: document.getElementById("buildPlatform").value,
           enable_obfuscate: document.getElementById("enableObfuscate").checked,
         };
       }
@@ -2984,6 +3044,9 @@
         const o = cfg.obfuscation;
         const b = cfg.build;
         let cmd = `python build_tool/builder_cli.py --target ${cfg.target}`;
+        if (cfg.platform && cfg.platform !== 'auto') {
+          cmd += ` --platform ${cfg.platform}`;
+        }
         cmd += ` --name "${b.app_name}" --version ${b.version}`;
         if (cfg.enable_obfuscate) cmd += " --obfuscate";
         if (!o.use_pyarmor) cmd += " --no-pyarmor";
@@ -3047,6 +3110,9 @@
         document.getElementById("expiryDate").value = next
           .toISOString()
           .split("T")[0];
+
+        // Detect host platform and set default selection
+        detectHostPlatform();
       });
     </script>
   </body>

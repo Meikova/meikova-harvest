@@ -83,8 +83,8 @@ exe = EXE(
     target_arch=None,
     codesign_identity=None,
     entitlements_file=None,
-    icon='{icon_path}',
-    version='{version_file}',
+    {icon_line}
+    {version_line}
 )
 '''
 
@@ -188,14 +188,21 @@ class Packager:
         icon = Path(self.cfg.icon_path) if self.cfg.icon_path else Path('')
         src_root = entry_point.parent
 
+        if platform.system() == 'Windows':
+            icon_line = f"icon='{str(icon).replace('\\\\', '/')}'," if icon else "icon=None,"
+            version_line = f"version='{str(version_file).replace('\\\\', '/')}',"
+        else:
+            icon_line = "icon=None,"
+            version_line = ""
+
         spec_content = PYINSTALLER_SPEC.format(
             entry_point=str(entry_point).replace('\\', '/'),
             root_dir=str(src_root).replace('\\', '/'),
             app_name=self.cfg.app_name,
             use_upx=str(self.cfg.use_upx),
             console=str(self.cfg.console),
-            icon_path=str(icon).replace('\\', '/'),
-            version_file=str(version_file).replace('\\', '/'),
+            icon_line=icon_line,
+            version_line=version_line,
         )
         spec_file = build_dir / f'{self.cfg.app_name}.spec'
         spec_file.write_text(spec_content, encoding='utf-8')
@@ -255,7 +262,7 @@ class Packager:
 
         DIST_DIR.mkdir(exist_ok=True)
 
-        self._progress('[BUILD] Building Web EXE (this may take a few minutes)…', progress_cb)
+        self._progress('[BUILD] Building Web Binary (this may take a few minutes)…', progress_cb)
         result = subprocess.run(
             [
                 sys.executable, '-m', 'PyInstaller',
@@ -270,41 +277,55 @@ class Packager:
         if result.returncode != 0:
             raise RuntimeError(f'PyInstaller failed:\n{result.stdout[-2000:]}\n{result.stderr[-2000:]}')
 
-        exe_path = DIST_DIR / f'{self.cfg.app_name}.exe'
+        suffix = '.exe' if platform.system() == 'Windows' else ''
+        exe_path = DIST_DIR / f'{self.cfg.app_name}{suffix}'
         if not exe_path.exists():
             raise FileNotFoundError(f'Expected output not found: {exe_path}')
 
-        self._progress(f'[OK] Web EXE: {exe_path}', progress_cb)
+        self._progress(f'[OK] Web Binary: {exe_path}', progress_cb)
         return exe_path
 
     # ── Desktop EXE build ────────────────────────────────────────────────────
 
     def build_desktop_exe(self, progress_cb=None) -> Path:
         """
-        1. Build Web EXE (Flask server)
-        2. Copy to electron/resources/server.exe
+        1. Build Web Binary (Flask server)
+        2. Copy to electron/resources/server(.exe)
         3. Run npm install in electron/
-        4. Run electron-builder to create Windows installer
-        Returns path to the installer exe.
+        4. Run electron-builder to create installer/app
+        Returns path to the output.
         """
         if not self.check_node():
             raise EnvironmentError(
                 'Node.js not found. Please install Node.js before building the Desktop App.'
             )
 
-        # Step 1: Build server exe
-        self._progress('[STEP 1/4] Build server EXE…', progress_cb)
+        is_windows = (platform.system() == 'Windows')
+        binary_name = 'server.exe' if is_windows else 'server'
+
+        # Step 1: Build server binary
+        self._progress(f'[STEP 1/4] Build server Binary…', progress_cb)
         # Temporarily enable console=False for production server
         old_console = self.cfg.console
         self.cfg.console = False
-        server_exe = self.build_web_exe(progress_cb)
+        server_binary = self.build_web_exe(progress_cb)
         self.cfg.console = old_console
 
-        # Step 2: Copy server exe into Electron resources
-        self._progress('[STEP 2/4] Copying server.exe to Electron…', progress_cb)
+        # Step 2: Copy server binary into Electron resources
+        self._progress(f'[STEP 2/4] Copying {binary_name} to Electron…', progress_cb)
         RESOURCES_DIR.mkdir(parents=True, exist_ok=True)
-        dest = RESOURCES_DIR / 'server.exe'
-        shutil.copy2(server_exe, dest)
+        dest = RESOURCES_DIR / binary_name
+
+        # Clean up the other platform binary if it exists in the resources folder
+        other_binary = 'server' if is_windows else 'server.exe'
+        other_path = RESOURCES_DIR / other_binary
+        if other_path.exists():
+            try:
+                other_path.unlink()
+            except Exception:
+                pass
+
+        shutil.copy2(server_binary, dest)
         self._progress(f'   → {dest}', progress_cb)
 
         # Step 3: npm install
@@ -313,7 +334,7 @@ class Packager:
             ['npm', 'install', '--prefer-offline'],
             cwd=str(ELECTRON_DIR), capture_output=True, text=True,
             encoding='utf-8', errors='replace',
-            shell=(platform.system() == 'Windows'),
+            shell=is_windows,
         )
         if result.returncode != 0:
             raise RuntimeError(f'npm install failed:\n{result.stderr[:2000]}')
@@ -321,23 +342,31 @@ class Packager:
         # Step 4: electron-builder
         self._progress('[STEP 4/4] Building Electron Desktop App…', progress_cb)
         DIST_ELECTRON.mkdir(exist_ok=True)
+        
+        builder_flag = '--win' if is_windows else '--mac'
+        
         result = subprocess.run(
-            ['npx', 'electron-builder', '--win'],
+            ['npx', 'electron-builder', builder_flag],
             cwd=str(ELECTRON_DIR), capture_output=True, text=True,
             encoding='utf-8', errors='replace',
-            shell=(platform.system() == 'Windows'),
+            shell=is_windows,
             env={**os.environ, 'CSC_IDENTITY_AUTO_DISCOVERY': 'false'},
         )
         if result.returncode != 0:
             raise RuntimeError(f'electron-builder failed:\n{result.stdout[-2000:]}\n{result.stderr[-2000:]}')
 
         # Find output installer
-        candidates = list(DIST_ELECTRON.glob('*.exe'))
-        if not candidates:
-            raise FileNotFoundError('electron-builder output .exe not found in dist_electron/')
+        if is_windows:
+            candidates = list(DIST_ELECTRON.glob('*.exe'))
+            if not candidates:
+                raise FileNotFoundError('electron-builder output .exe not found in dist_electron/')
+        else:
+            candidates = list(DIST_ELECTRON.glob('*.dmg')) + list(DIST_ELECTRON.glob('*.zip'))
+            if not candidates:
+                raise FileNotFoundError('electron-builder output .dmg or .zip not found in dist_electron/')
 
         installer = max(candidates, key=lambda p: p.stat().st_mtime)
-        self._progress(f'[OK] Desktop EXE: {installer}', progress_cb)
+        self._progress(f'[OK] Desktop App: {installer}', progress_cb)
         return installer
 
 
@@ -358,9 +387,9 @@ if __name__ == '__main__':
     p = Packager(cfg)
 
     if args.target in ('web', 'both'):
-        print('\n=== Building Web EXE ===')
+        print('\n=== Building Web Binary ===')
         p.build_web_exe()
 
     if args.target in ('desktop', 'both'):
-        print('\n=== Building Desktop EXE ===')
+        print('\n=== Building Desktop App ===')
         p.build_desktop_exe()

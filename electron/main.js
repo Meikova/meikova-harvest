@@ -86,8 +86,9 @@ function waitForServer(port, timeoutMs = SERVER_TIMEOUT) {
 /** Resolve the path to the Flask server entry-point. */
 function resolveServerPath() {
   if (app.isPackaged) {
-    // In production, server.exe is in resources/
-    return path.join(process.resourcesPath, 'server.exe');
+    const isWindows = process.platform === 'win32';
+    const binaryName = isWindows ? 'server.exe' : 'server';
+    return path.join(process.resourcesPath, binaryName);
   }
   // In development, run app.py with the active Python / venv
   return null; // signals "use Python"
@@ -95,7 +96,10 @@ function resolveServerPath() {
 
 /** Resolve the Python executable path (dev mode). */
 function resolvePythonPath() {
-  const venvPy = path.join(__dirname, '..', 'venv', 'Scripts', 'python.exe');
+  const isWindows = process.platform === 'win32';
+  const venvPy = isWindows
+    ? path.join(__dirname, '..', 'venv', 'Scripts', 'python.exe')
+    : path.join(__dirname, '..', 'venv', 'bin', 'python');
   try {
     require('fs').accessSync(venvPy);
     return venvPy;

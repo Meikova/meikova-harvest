@@ -42,6 +42,16 @@ def get_machine_id():
     return jsonify({'machine_id': mid})
 
 
+@build_bp.route('/api/platform', methods=['GET'])
+def get_platform():
+    import platform
+    return jsonify({
+        'platform': platform.system(),
+        'node': platform.node(),
+        'release': platform.release()
+    })
+
+
 # ─────────────────────────────────────────────────────────────────────────────
 # Start build
 # ─────────────────────────────────────────────────────────────────────────────
@@ -89,6 +99,10 @@ def _run_build(build_id: str, cfg: dict, log_q: queue.Queue, state: dict):
         cmd += ['--target', target]
         cmd += ['--name',    build.get('app_name', 'EveryThingDownloader')]
         cmd += ['--version', build.get('version', '1.0.0')]
+
+        platform_choice = cfg.get('platform', 'auto')
+        if platform_choice:
+            cmd += ['--platform', platform_choice]
 
         if build.get('company'):
             cmd += ['--company', build['company']]
@@ -167,12 +181,29 @@ def _run_build(build_id: str, cfg: dict, log_q: queue.Queue, state: dict):
         if target in ('desktop', 'both'):
             dirs_to_scan.append('dist_electron')
 
+        import platform
+        is_windows = (platform.system() == 'Windows')
+
         for d in dirs_to_scan:
             dist_dir = ROOT_DIR / d
             if dist_dir.exists():
-                for f in dist_dir.glob('*.exe'):
-                    size_mb = f.stat().st_size / 1024 / 1024
-                    outputs.append({'path': str(f), 'size': f'{size_mb:.1f} MB'})
+                for f in dist_dir.iterdir():
+                    if f.is_dir():
+                        continue
+                    if is_windows:
+                        if f.suffix.lower() == '.exe':
+                            size_mb = f.stat().st_size / 1024 / 1024
+                            outputs.append({'path': str(f), 'size': f'{size_mb:.1f} MB'})
+                    else:
+                        if d == 'dist':
+                            app_name = cfg.get('build', {}).get('app_name', 'EveryThingDownloader')
+                            if f.name == app_name:
+                                size_mb = f.stat().st_size / 1024 / 1024
+                                outputs.append({'path': str(f), 'size': f'{size_mb:.1f} MB'})
+                        elif d == 'dist_electron':
+                            if f.suffix.lower() in ('.dmg', '.zip'):
+                                size_mb = f.stat().st_size / 1024 / 1024
+                                outputs.append({'path': str(f), 'size': f'{size_mb:.1f} MB'})
 
         if success:
             push('[SUCCESS] Build completed!', 'ok', done=True, success=True, outputs=outputs)
