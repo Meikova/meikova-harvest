@@ -2855,9 +2855,8 @@ document.addEventListener("DOMContentLoaded", () => {
         }
 
         // Direct stream preview (stream-on-demand)
-        const isYouTube = activeUrl.includes("youtube.com") || activeUrl.includes("youtu.be") || activeUrl.includes("googlevideo.com");
         const isDirectStream = formatId.startsWith("direct_") ||
-            (customUrl && customUrl.startsWith("http") && !isYouTube);
+            (customUrl && customUrl.startsWith("http") && !formatId.includes("+"));
 
         if (isDirectStream) {
             const streamUrl = customUrl || activeUrl;
