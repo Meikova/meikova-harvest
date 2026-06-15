@@ -14,7 +14,7 @@ except ImportError:
 from config import TEMP_DOWNLOAD_DIR, downloads_status, downloads_status_lock
 from utils.helpers import get_referer_by_url
 from utils.ffmpeg import trim_file_if_needed, apply_post_processing
-from utils.ytdl import create_ydl_instance
+from utils.ytdl import create_ydl_instance, should_use_impersonate
 
 logger = logging.getLogger(__name__)
 
@@ -461,7 +461,7 @@ def bg_download_task(download_id, url, format_id, ext, quality="192", title="med
                     s = int(eta_seconds % 60)
                     eta_str = f"{m}m {s}s"
                 else:
-                    eta_str = f"{eta_seconds}s"
+                    eta_str = f"{int(eta_seconds)}s"
 
             with downloads_status_lock:
                 if download_id in downloads_status:
@@ -540,6 +540,7 @@ def bg_download_task(download_id, url, format_id, ext, quality="192", title="med
         "js_runtimes": {"deno": {}, "node": {}, "bun": {}, "quickjs": {}},
         "cookiesfrombrowser": "auto",
         "ignoreerrors": True,
+        "compat_opts": {"prefer-legacy-http-handler"},
         "external_downloader_args": {
             "ffmpeg": ["-protocol_whitelist", "file,http,https,tcp,tls,crypto,data"]
         },
@@ -549,7 +550,7 @@ def bg_download_task(download_id, url, format_id, ext, quality="192", title="med
             }
         },
     }
-    if ImpersonateTarget:
+    if should_use_impersonate():
         try:
             ydl_opts["impersonate"] = ImpersonateTarget.from_str("chrome")
         except Exception as e:

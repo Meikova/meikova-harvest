@@ -7,4 +7,6 @@ gallery-dl
 curl-cffi
 edge-tts
 quickjs
-
+requests
+pyinstaller
+pyarmor

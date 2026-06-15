@@ -87,7 +87,7 @@ def generic_html_link_harvester(url, client_id):
     if not html:
         # Construct fallback info even without HTML access
         title = last_segment or domain
-        description = f"Không thể kết nối hoặc phân tích trực tiếp từ trang web ({fetch_error_msg}). Tùy chọn này cho phép bạn tải trang web gốc về dưới dạng tệp tin HTML."
+        description = f"Unable to connect or analyze directly from the website ({fetch_error_msg}). This option allows you to download the raw webpage as an HTML file."
         
         video_options = [{
             "format_id": "generic_fallback",
@@ -95,7 +95,7 @@ def generic_html_link_harvester(url, client_id):
             "ext": "html",
             "type": "video",
             "size": "Unknown Size",
-            "label": "Tải trang web (HTML / Text)",
+            "label": "Download Webpage (HTML / Text)",
             "url": url
         }]
         
@@ -618,7 +618,7 @@ def generic_html_link_harvester(url, client_id):
                 "ext": "html",
                 "type": "video",
                 "size": "Unknown Size",
-                "label": "Tải trang web (HTML / Text)",
+                "label": "Download Webpage (HTML / Text)",
                 "url": url
             })
             

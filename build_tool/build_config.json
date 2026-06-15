@@ -1,0 +1,30 @@
+{
+  "app_name": "EveryThingDownloader",
+  "version": "1.0.0",
+  "company": "EveryThingDownloader",
+  "description": "EveryThingDownloader",
+  "copyright": "© 2026 EveryThingDownloader",
+  "icon_path": "electron/resources/icon.ico",
+  "output_dir": "dist/",
+  "use_upx": false,
+  "show_console": false,
+  "single_file": true,
+  "target": "web",
+  "enable_obfuscate": false,
+  "obfuscation": {
+    "use_pyarmor": true,
+    "pyarmor_obf_code": 1,
+    "pyarmor_mix_str": true,
+    "scramble_names": true,
+    "encode_strings": true,
+    "inject_dead_code": true,
+    "dead_code_count": 15,
+    "antidebug": true,
+    "ip_lock": false,
+    "allowed_ips": [],
+    "date_expiry": false,
+    "expiry_date": "",
+    "machine_id_lock": false,
+    "allowed_machine_ids": []
+  }
+}

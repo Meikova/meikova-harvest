@@ -18,7 +18,7 @@ document.addEventListener("DOMContentLoaded", () => {
     // Theme Toggle Logic
     const themeToggle = document.getElementById("theme-toggle");
     const currentTheme = localStorage.getItem("theme");
-    
+
     if (currentTheme === "light") {
         document.body.classList.add("light-theme");
         document.documentElement.classList.add("light-theme");
@@ -31,7 +31,7 @@ document.addEventListener("DOMContentLoaded", () => {
                 const isLight = document.body.classList.toggle("light-theme");
                 document.documentElement.classList.toggle("light-theme", isLight);
                 localStorage.setItem("theme", isLight ? "light" : "dark");
-                
+
                 // Force layout reflow to apply the theme immediately
                 document.documentElement.offsetHeight;
                 document.documentElement.classList.remove("no-transitions");
@@ -153,11 +153,11 @@ document.addEventListener("DOMContentLoaded", () => {
     const customizerBlur = document.getElementById("customizer-blur");
     const customizerBlurVal = document.getElementById("customizer-blur-val");
     const customizerFontSize = document.getElementById("customizer-fontsize");
-    
+
     const customizerGridEnable = document.getElementById("customizer-grid-enable");
     const customizerRipplesEnable = document.getElementById("customizer-ripples-enable");
     const customizerSparklesEnable = document.getElementById("customizer-sparkles-enable");
-    
+
     const customizerSpacing = document.getElementById("customizer-spacing");
     const customizerSpacingVal = document.getElementById("customizer-spacing-val");
     const customizerGravity = document.getElementById("customizer-gravity");
@@ -443,90 +443,90 @@ document.addEventListener("DOMContentLoaded", () => {
         if (customizerGravityVal) customizerGravityVal.textContent = savedGravity + "px";
         window.canvasSettings.maxDist = savedGravity;
     }
-        // Wire up trim checkbox toggle inside dropdown
-        const trimCb = document.getElementById("trim-checkbox");
-        const trimContainer = document.getElementById("trim-inputs-container");
-        const trimSliderContainer = document.getElementById("trim-slider-container");
-        const trimPreviewPlayer = document.getElementById("trim-preview-player");
-        if (trimCb && trimContainer) {
-            trimCb.addEventListener("change", () => {
-                if (trimCb.checked) {
-                    trimContainer.classList.remove("hidden");
-                    if (trimSliderContainer) {
-                        trimSliderContainer.classList.remove("hidden");
-                    }
+    // Wire up trim checkbox toggle inside dropdown
+    const trimCb = document.getElementById("trim-checkbox");
+    const trimContainer = document.getElementById("trim-inputs-container");
+    const trimSliderContainer = document.getElementById("trim-slider-container");
+    const trimPreviewPlayer = document.getElementById("trim-preview-player");
+    if (trimCb && trimContainer) {
+        trimCb.addEventListener("change", () => {
+            if (trimCb.checked) {
+                trimContainer.classList.remove("hidden");
+                if (trimSliderContainer) {
+                    trimSliderContainer.classList.remove("hidden");
+                }
+            } else {
+                trimContainer.classList.add("hidden");
+                if (trimSliderContainer) {
+                    trimSliderContainer.classList.add("hidden");
+                }
+            }
+        });
+    }
+
+    // Voiceover checkbox toggle
+    const voiceoverCb = document.getElementById("voiceover-checkbox");
+    const voiceoverSelectContainer = document.getElementById("voiceover-select-container");
+    if (voiceoverCb && voiceoverSelectContainer) {
+        voiceoverCb.addEventListener("change", () => {
+            if (voiceoverCb.checked) {
+                voiceoverSelectContainer.classList.remove("hidden");
+            } else {
+                voiceoverSelectContainer.classList.add("hidden");
+            }
+        });
+    }
+
+    // Cloud sync select change
+    const cloudSyncSelect = document.getElementById("cloud-sync-select");
+    const telegramConfigInputs = document.getElementById("telegram-config-inputs");
+    const tgBotTokenInput = document.getElementById("tg-bot-token");
+    const tgChatIdInput = document.getElementById("tg-chat-id");
+
+    // Load saved Telegram credentials if any
+    if (tgBotTokenInput && tgChatIdInput) {
+        tgBotTokenInput.value = localStorage.getItem("tg_bot_token") || "";
+        tgChatIdInput.value = localStorage.getItem("tg_chat_id") || "";
+
+        // Save on change
+        tgBotTokenInput.addEventListener("input", () => {
+            localStorage.setItem("tg_bot_token", tgBotTokenInput.value.trim());
+        });
+        tgChatIdInput.addEventListener("input", () => {
+            localStorage.setItem("tg_chat_id", tgChatIdInput.value.trim());
+        });
+    }
+
+    if (cloudSyncSelect && telegramConfigInputs) {
+        cloudSyncSelect.addEventListener("change", () => {
+            if (cloudSyncSelect.value === "telegram") {
+                telegramConfigInputs.classList.remove("hidden");
+            } else {
+                telegramConfigInputs.classList.add("hidden");
+            }
+        });
+    }
+
+    // Color filter preview application
+    const colorFilterSelect = document.getElementById("color-filter-select");
+    if (colorFilterSelect) {
+        colorFilterSelect.addEventListener("change", () => {
+            const filterVal = colorFilterSelect.value;
+            if (trimPreviewPlayer) {
+                if (filterVal === "cyberpunk") {
+                    trimPreviewPlayer.style.filter = "hue-rotate(-10deg) saturate(1.5) contrast(1.1) brightness(0.95)";
+                } else if (filterVal === "vintage") {
+                    trimPreviewPlayer.style.filter = "sepia(0.4) saturate(1.2) contrast(0.9) hue-rotate(5deg)";
+                } else if (filterVal === "noir") {
+                    trimPreviewPlayer.style.filter = "grayscale(1) contrast(1.4) brightness(0.9)";
+                } else if (filterVal === "enhance") {
+                    trimPreviewPlayer.style.filter = "contrast(1.05) saturate(1.1)";
                 } else {
-                    trimContainer.classList.add("hidden");
-                    if (trimSliderContainer) {
-                        trimSliderContainer.classList.add("hidden");
-                    }
+                    trimPreviewPlayer.style.filter = "none";
                 }
-            });
-        }
-
-        // Voiceover checkbox toggle
-        const voiceoverCb = document.getElementById("voiceover-checkbox");
-        const voiceoverSelectContainer = document.getElementById("voiceover-select-container");
-        if (voiceoverCb && voiceoverSelectContainer) {
-            voiceoverCb.addEventListener("change", () => {
-                if (voiceoverCb.checked) {
-                    voiceoverSelectContainer.classList.remove("hidden");
-                } else {
-                    voiceoverSelectContainer.classList.add("hidden");
-                }
-            });
-        }
-
-        // Cloud sync select change
-        const cloudSyncSelect = document.getElementById("cloud-sync-select");
-        const telegramConfigInputs = document.getElementById("telegram-config-inputs");
-        const tgBotTokenInput = document.getElementById("tg-bot-token");
-        const tgChatIdInput = document.getElementById("tg-chat-id");
-
-        // Load saved Telegram credentials if any
-        if (tgBotTokenInput && tgChatIdInput) {
-            tgBotTokenInput.value = localStorage.getItem("tg_bot_token") || "";
-            tgChatIdInput.value = localStorage.getItem("tg_chat_id") || "";
-            
-            // Save on change
-            tgBotTokenInput.addEventListener("input", () => {
-                localStorage.setItem("tg_bot_token", tgBotTokenInput.value.trim());
-            });
-            tgChatIdInput.addEventListener("input", () => {
-                localStorage.setItem("tg_chat_id", tgChatIdInput.value.trim());
-            });
-        }
-
-        if (cloudSyncSelect && telegramConfigInputs) {
-            cloudSyncSelect.addEventListener("change", () => {
-                if (cloudSyncSelect.value === "telegram") {
-                    telegramConfigInputs.classList.remove("hidden");
-                } else {
-                    telegramConfigInputs.classList.add("hidden");
-                }
-            });
-        }
-
-        // Color filter preview application
-        const colorFilterSelect = document.getElementById("color-filter-select");
-        if (colorFilterSelect) {
-            colorFilterSelect.addEventListener("change", () => {
-                const filterVal = colorFilterSelect.value;
-                if (trimPreviewPlayer) {
-                    if (filterVal === "cyberpunk") {
-                        trimPreviewPlayer.style.filter = "hue-rotate(-10deg) saturate(1.5) contrast(1.1) brightness(0.95)";
-                    } else if (filterVal === "vintage") {
-                        trimPreviewPlayer.style.filter = "sepia(0.4) saturate(1.2) contrast(0.9) hue-rotate(5deg)";
-                    } else if (filterVal === "noir") {
-                        trimPreviewPlayer.style.filter = "grayscale(1) contrast(1.4) brightness(0.9)";
-                    } else if (filterVal === "enhance") {
-                        trimPreviewPlayer.style.filter = "contrast(1.05) saturate(1.1)";
-                    } else {
-                        trimPreviewPlayer.style.filter = "none";
-                    }
-                }
-            });
-        }
+            }
+        });
+    }
 
     // Unique Client ID Management
     let clientId = localStorage.getItem("client_id");
@@ -540,22 +540,22 @@ document.addEventListener("DOMContentLoaded", () => {
     const pasteBtn = document.getElementById("paste-btn");
     const clearUrlBtn = document.getElementById("clear-url-btn");
     const analyzeBtn = document.getElementById("analyze-btn");
-    
+
     const loaderSection = document.getElementById("loader");
     const loaderText = document.getElementById("loader-text");
     const cancelAnalyzeBtn = document.getElementById("cancel-analyze-btn");
     const errorCard = document.getElementById("error-card");
     const errorMessage = document.getElementById("error-message");
-    
+
     let analysisAbortController = null;
-    
+
     const resultSection = document.getElementById("result-section");
     const videoThumbnail = document.getElementById("video-thumbnail");
     if (videoThumbnail) {
-        videoThumbnail.addEventListener("load", function() {
+        videoThumbnail.addEventListener("load", function () {
             videoThumbnail.style.opacity = "1";
         });
-        videoThumbnail.addEventListener("error", function() {
+        videoThumbnail.addEventListener("error", function () {
             // If the proxied URL failed, try loading the original direct URL as fallback
             const currentSrc = videoThumbnail.src || "";
             const originalUrl = videoThumbnail.getAttribute("data-original-url");
@@ -592,7 +592,7 @@ document.addEventListener("DOMContentLoaded", () => {
             }
         });
     }
-    
+
     const downloadProgress = document.getElementById("download-progress");
     const progressPercent = document.getElementById("progress-percent");
     const progressBarFill = document.getElementById("progress-fill");
@@ -838,13 +838,13 @@ document.addEventListener("DOMContentLoaded", () => {
         cookieSaveTextBtn.addEventListener("click", async () => {
             const content = cookieTextInput.value.trim();
             if (!content) {
-                showError("Vui lòng dán nội dung cookies trước.");
+                showError("Please paste cookies content first.");
                 return;
             }
 
             try {
                 loaderSection.classList.remove("hidden");
-                loaderText.textContent = "Đang lưu cookies...";
+                loaderText.textContent = "Saving cookies...";
                 cookiesSection.classList.add("hidden");
 
                 const res = await fetch("/api/cookies/paste", {
@@ -941,10 +941,10 @@ document.addEventListener("DOMContentLoaded", () => {
     // Confirm Modal Behavior
     function showConfirm(options = {}) {
         if (!confirmModal) return;
-        confirmModalTitle.textContent = options.title || "Xác nhận";
-        confirmModalMessage.textContent = options.message || "Bạn có chắc chắn?";
-        confirmModalBtnYes.textContent = options.yesText || "Đồng ý";
-        confirmModalBtnNo.textContent = options.noText || "Hủy";
+        confirmModalTitle.textContent = options.title || "Confirm";
+        confirmModalMessage.textContent = options.message || "Are you sure?";
+        confirmModalBtnYes.textContent = options.yesText || "Yes";
+        confirmModalBtnNo.textContent = options.noText || "No";
 
         confirmYesCallback = options.onYes || null;
         confirmNoCallback = options.onNo || null;
@@ -1088,18 +1088,18 @@ document.addEventListener("DOMContentLoaded", () => {
             urlInput.value = "";
             updateUrlInputButtons();
             urlInput.focus();
-            
+
             if (analysisAbortController) {
                 analysisAbortController.abort();
                 analysisAbortController = null;
             }
-            
+
             errorCard.classList.add("hidden");
             resultSection.classList.add("hidden");
             loaderSection.classList.add("hidden");
             analyzeBtn.disabled = false;
             analyzeBtn.style.opacity = "";
-            
+
             setPlatformTheme(null);
             showWelcomeDashboard();
         });
@@ -1126,13 +1126,13 @@ document.addEventListener("DOMContentLoaded", () => {
             // Reset input and update buttons
             urlInput.value = "";
             updateUrlInputButtons();
-            
+
             // Abort active analysis if any
             if (analysisAbortController) {
                 analysisAbortController.abort();
                 analysisAbortController = null;
             }
-            
+
             // Abort active download if any
             if (activeDownloadId) {
                 try {
@@ -1142,12 +1142,12 @@ document.addEventListener("DOMContentLoaded", () => {
                 }
                 activeDownloadId = null;
             }
-            
+
             if (pollingInterval) {
                 pollingInterval.close();
                 pollingInterval = null;
             }
-            
+
             // Hide all dynamic panels
             errorCard.classList.add("hidden");
             resultSection.classList.add("hidden");
@@ -1155,15 +1155,15 @@ document.addEventListener("DOMContentLoaded", () => {
             downloadProgress.classList.add("hidden");
             downloadProgress.classList.remove("state-complete", "state-error");
             cookiesSection.classList.add("hidden");
-            
+
             // Enable buttons
             analyzeBtn.disabled = false;
             analyzeBtn.style.opacity = "";
             urlInput.disabled = false;
-            
+
             // Reset theme
             setPlatformTheme(null);
-            
+
             // Show welcome dashboard
             showWelcomeDashboard();
         });
@@ -1180,21 +1180,21 @@ document.addEventListener("DOMContentLoaded", () => {
                     console.error("Failed to call cancel download API:", e);
                 }
             }
-            
+
             // Close SSE
             if (pollingInterval) {
                 pollingInterval.close();
                 pollingInterval = null;
             }
-            
+
             // Hide progress panel
             downloadProgress.classList.add("hidden");
             downloadProgress.classList.remove("state-complete", "state-error");
-            
+
             // Enable inputs & buttons
             analyzeBtn.disabled = false;
             urlInput.disabled = false;
-            
+
             // Re-enable format buttons
             const formatRows = document.querySelectorAll(".format-row");
             formatRows.forEach(row => {
@@ -1202,10 +1202,10 @@ document.addEventListener("DOMContentLoaded", () => {
                 const btns = row.querySelectorAll("button");
                 btns.forEach(b => b.disabled = false);
             });
-            
+
             const allPrimaryBtns = document.querySelectorAll(".format-btn");
             allPrimaryBtns.forEach(b => b.disabled = false);
-            
+
             activeDownloadId = null;
         });
     }
@@ -1223,15 +1223,15 @@ document.addEventListener("DOMContentLoaded", () => {
 
     // 2. Link Analysis
     analyzeBtn.addEventListener("click", performAnalysis);
-    
+
     const clearHistoryBtn = document.getElementById("clear-history-btn");
     if (clearHistoryBtn) {
         clearHistoryBtn.addEventListener("click", () => {
             showConfirm({
-                title: "Xác nhận xóa lịch sử",
-                message: "Bạn có chắc chắn muốn xóa toàn bộ lịch sử phân tích không?",
-                yesText: "Đồng ý",
-                noText: "Hủy",
+                title: "Clear History",
+                message: "Are you sure you want to clear all analysis history?",
+                yesText: "Confirm",
+                noText: "Cancel",
                 onYes: () => {
                     localStorage.removeItem("downloader_history");
                     renderHistory();
@@ -1378,11 +1378,11 @@ document.addEventListener("DOMContentLoaded", () => {
                 document.body.classList.remove(c);
             }
         });
-        
+
         // Add new theme class and dynamic styles if present
         if (platformClass) {
             document.body.classList.add(`theme-${platformClass}`);
-            
+
             const colors = themeColors[platformClass];
             if (colors) {
                 document.documentElement.style.setProperty('--cyan', colors.cyan);
@@ -1411,7 +1411,7 @@ document.addEventListener("DOMContentLoaded", () => {
     function saveToHistory(url, data) {
         try {
             let history = JSON.parse(localStorage.getItem("downloader_history") || "[]");
-            
+
             const existingItem = history.find(item => item.url === url);
             let savedSettings = existingItem ? existingItem.settings : null;
             if (!savedSettings) {
@@ -1440,7 +1440,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
             // Remove duplicate of the same URL if exists
             history = history.filter(item => item.url !== url);
-            
+
             // Add to the beginning
             history.unshift({
                 url: url,
@@ -1451,12 +1451,12 @@ document.addEventListener("DOMContentLoaded", () => {
                 timestamp: Date.now(),
                 settings: savedSettings
             });
-            
+
             // Keep at most 10 items
             if (history.length > 10) {
                 history.pop();
             }
-            
+
             localStorage.setItem("downloader_history", JSON.stringify(history));
         } catch (e) {
             console.error("Error saving history:", e);
@@ -1467,24 +1467,24 @@ document.addEventListener("DOMContentLoaded", () => {
         const historyList = document.getElementById("history-list");
         const historySection = document.getElementById("welcome-history-section");
         if (!historyList || !historySection) return;
-        
+
         try {
             const history = JSON.parse(localStorage.getItem("downloader_history") || "[]");
             if (history.length === 0) {
                 historySection.classList.add("hidden");
                 return;
             }
-            
+
             historySection.classList.remove("hidden");
             historyList.innerHTML = "";
-            
+
             history.forEach(item => {
                 const row = document.createElement("div");
                 row.className = "history-item";
                 row.setAttribute("data-url", item.url);
-                
+
                 const thumbUrl = getProxiedImageUrl(item.thumbnail) || "https://images.unsplash.com/photo-1611162617213-7d7a39e9b1d7?q=80&w=120";
-                
+
                 row.innerHTML = `
                     <div class="history-item-left">
                         <img class="history-thumb" src="${thumbUrl}" alt="Thumb">
@@ -1501,12 +1501,12 @@ document.addEventListener("DOMContentLoaded", () => {
                         <polyline points="12 5 19 12 12 19"></polyline>
                     </svg>
                 `;
-                
+
                 row.addEventListener("click", () => {
                     urlInput.value = item.url;
                     performAnalysis();
                 });
-                
+
                 historyList.appendChild(row);
             });
         } catch (e) {
@@ -1516,7 +1516,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
     async function performAnalysis() {
         const url = urlInput.value.trim();
-        
+
         if (!url) {
             showError("Please enter a link first.");
             return;
@@ -1544,7 +1544,7 @@ document.addEventListener("DOMContentLoaded", () => {
         videoThumbnail.src = "";
         videoThumbnail.style.opacity = "0";
         videoThumbnail.alt = "Thumbnail";
-        videoTitle.textContent = "Đang phân tích...";
+        videoTitle.textContent = "Analyzing...";
         videoUploader.textContent = "";
         videoDuration.textContent = "0:00";
         videoDuration.style.display = "none";
@@ -1561,7 +1561,7 @@ document.addEventListener("DOMContentLoaded", () => {
         const tagsReset = document.getElementById("video-tags-container");
         if (tagsReset) tagsReset.innerHTML = "";
         optionsContainer.innerHTML = "";
-        
+
         // Show Loading
         loaderSection.classList.remove("hidden");
         loaderText.textContent = "Connecting to interface & extracting stream protocols...";
@@ -1584,7 +1584,7 @@ document.addEventListener("DOMContentLoaded", () => {
                 activeUrl = url;
                 setPlatformTheme(data.platform_class);
                 displayMetadata(data);
-                
+
                 try {
                     const history = JSON.parse(localStorage.getItem("downloader_history") || "[]");
                     const item = history.find(it => it.url === url);
@@ -1630,7 +1630,7 @@ document.addEventListener("DOMContentLoaded", () => {
         if (resultGrid) {
             resultGrid.classList.remove("welcome-mode");
         }
-        
+
         // Thumbnail & Title
         videoThumbnail.style.opacity = "0";
         // Store original URL for fallback if proxy fails
@@ -1659,7 +1659,7 @@ document.addEventListener("DOMContentLoaded", () => {
         const likesEl = document.getElementById("video-likes");
         const dateEl = document.getElementById("video-date");
         const categoryEl = document.getElementById("video-category");
-        
+
         if (viewsEl) viewsEl.textContent = data.views || "Unknown";
         if (likesEl) likesEl.textContent = data.likes || "Unknown";
         if (dateEl) dateEl.textContent = data.upload_date || "Unknown";
@@ -1694,7 +1694,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
         if (descToggleBtn && descModal && modalDescContent && modalCloseBtn) {
             modalDescContent.textContent = data.description || "No description available.";
-            
+
             descToggleBtn.onclick = () => {
                 descModal.classList.remove("hidden");
                 document.body.classList.add("modal-open");
@@ -1776,11 +1776,11 @@ document.addEventListener("DOMContentLoaded", () => {
                 selectAllCheckbox.checked = false;
                 selectAllCheckbox.indeterminate = false;
             }
-            
+
             extractedImages.forEach((img, idx) => {
                 const card = document.createElement("div");
                 card.className = "image-card";
-                
+
                 let imgLabel, imgUrl, imgExt;
                 if (typeof img === "string") {
                     imgUrl = img;
@@ -1793,21 +1793,21 @@ document.addEventListener("DOMContentLoaded", () => {
                 } else {
                     return; // Skip invalid entries
                 }
-                
+
                 // Extract resolution label from name if present
                 const resMatch = imgLabel.match(/\((\d+x\d+)\)/);
                 const resLabel = resMatch ? resMatch[1] : (imgExt ? imgExt.toUpperCase() : "Image");
                 const cleanLabel = imgLabel.replace(/\s*\(\d+x\d+\)/, "");
-                
+
                 const cleanTitle = getSafeTitle(data.title, "image");
                 const filename = `${cleanTitle}_${cleanLabel.replace(/\s+/g, "_")}.${imgExt}`;
                 const proxyDownloadUrl = `/api/download/image?url=${encodeURIComponent(imgUrl)}&filename=${encodeURIComponent(filename)}&client_id=${encodeURIComponent(clientId)}`;
 
                 card.innerHTML = `
-                    <div class="image-checkbox-container">
-                        <input type="checkbox" class="image-select-check custom-checkbox" data-url="${imgUrl}" data-label="${cleanLabel}" data-ext="${imgExt}" data-filename="${filename}">
-                    </div>
                     <div class="image-preview-wrap">
+                        <div class="image-checkbox-container" style="position: absolute; top: 8px; right: 8px; width: 18px; height: 18px; z-index: 5; display: block;">
+                            <input type="checkbox" class="image-select-check custom-checkbox" data-url="${imgUrl}" data-label="${cleanLabel}" data-ext="${imgExt}" data-filename="${filename}">
+                        </div>
                         <img src="${getProxiedImageUrl(imgUrl)}" alt="${imgLabel}" loading="lazy" onerror="this.src='https://images.unsplash.com/photo-1611162617213-7d7a39e9b1d7?q=80&w=600'">
                     </div>
                     <div class="image-info-bar">
@@ -1827,19 +1827,19 @@ document.addEventListener("DOMContentLoaded", () => {
                         </div>
                     </div>
                 `;
-                
+
                 // Bind preview button click
                 const prevBtn = card.querySelector(".image-card-preview-btn");
                 prevBtn.onclick = (e) => {
                     e.stopPropagation(); // Prevent toggling checkbox
                     triggerPreview(prevBtn, "image_preview", "jpg", cleanLabel, "", img.url);
                 };
-                
+
                 // Add click listener on preview to toggle checkbox
                 const preview = card.querySelector(".image-preview-wrap");
                 const checkbox = card.querySelector(".image-select-check");
                 preview.onclick = (e) => {
-                    if (e.target !== checkbox) {
+                    if (e.target !== checkbox && !e.target.closest(".image-checkbox-container")) {
                         checkbox.checked = !checkbox.checked;
                         updateSelectAllState();
                     }
@@ -1856,7 +1856,7 @@ document.addEventListener("DOMContentLoaded", () => {
             if (!selectAllCheckbox) return;
             const checkboxes = modalImagesGrid.querySelectorAll(".image-select-check");
             const checked = modalImagesGrid.querySelectorAll(".image-select-check:checked");
-            
+
             if (checkboxes.length > 0 && checked.length === checkboxes.length) {
                 selectAllCheckbox.checked = true;
                 selectAllCheckbox.indeterminate = false;
@@ -1885,7 +1885,7 @@ document.addEventListener("DOMContentLoaded", () => {
                     alert("Please select at least one image to download.");
                     return;
                 }
-                
+
                 const selectedItems = [];
                 checkedCheckboxes.forEach(cb => {
                     selectedItems.push({
@@ -1895,18 +1895,18 @@ document.addEventListener("DOMContentLoaded", () => {
                         filename: cb.getAttribute("data-filename")
                     });
                 });
-                
+
                 const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
-                
+
                 if (isMobile) {
                     // Mobile flow: Download sequentially with a delay to prevent browser block
                     downloadSelectedBtn.disabled = true;
                     const originalText = downloadSelectedBtn.innerHTML;
-                    
+
                     for (let i = 0; i < selectedItems.length; i++) {
                         const item = selectedItems[i];
-                        downloadSelectedBtn.innerHTML = `<span>Downloading ${i+1}/${selectedItems.length}...</span>`;
-                        
+                        downloadSelectedBtn.innerHTML = `<span>Downloading ${i + 1}/${selectedItems.length}...</span>`;
+
                         const proxyUrl = `/api/download/image?url=${encodeURIComponent(item.url)}&filename=${encodeURIComponent(item.filename)}&client_id=${encodeURIComponent(clientId)}`;
                         const link = document.createElement("a");
                         link.href = proxyUrl;
@@ -1914,11 +1914,11 @@ document.addEventListener("DOMContentLoaded", () => {
                         document.body.appendChild(link);
                         link.click();
                         document.body.removeChild(link);
-                        
+
                         // Wait 600ms before next download
                         await new Promise(resolve => setTimeout(resolve, 600));
                     }
-                    
+
                     downloadSelectedBtn.disabled = false;
                     downloadSelectedBtn.innerHTML = originalText;
                 } else {
@@ -1927,7 +1927,7 @@ document.addEventListener("DOMContentLoaded", () => {
                         downloadSelectedBtn.disabled = true;
                         const originalText = downloadSelectedBtn.innerHTML;
                         downloadSelectedBtn.innerHTML = `<span>Creating ZIP...</span>`;
-                        
+
                         const response = await fetch("/api/download/images/zip", {
                             method: "POST",
                             headers: {
@@ -1939,11 +1939,11 @@ document.addEventListener("DOMContentLoaded", () => {
                                 client_id: clientId
                             })
                         });
-                        
+
                         if (!response.ok) {
                             throw new Error("Server error creating ZIP file.");
                         }
-                        
+
                         const blob = await response.blob();
                         const blobUrl = URL.createObjectURL(blob);
                         const downloadAnchor = document.createElement("a");
@@ -1953,7 +1953,7 @@ document.addEventListener("DOMContentLoaded", () => {
                         downloadAnchor.click();
                         document.body.removeChild(downloadAnchor);
                         URL.revokeObjectURL(blobUrl);
-                        
+
                         downloadSelectedBtn.disabled = false;
                         downloadSelectedBtn.innerHTML = originalText;
                     } catch (err) {
@@ -1967,7 +1967,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
         // Render options list
         optionsContainer.innerHTML = "";
-        
+
         const videoSvg = `<svg class="format-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M23 7l-7 5 7 5V7z"/><rect x="1" y="5" width="15" height="14" rx="2" ry="2"/></svg>`;
         const audioSvg = `<svg class="format-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/></svg>`;
         const downloadSvg = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>`;
@@ -2044,7 +2044,7 @@ document.addEventListener("DOMContentLoaded", () => {
                 serverOrder.forEach(server => {
                     const serverGroupLabel = document.createElement("div");
                     serverGroupLabel.className = "format-group-label server-group-label";
-                    
+
                     serverGroupLabel.innerHTML = `
                         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M23 7l-7 5 7 5V7z"/><rect x="1" y="5" width="15" height="14" rx="2" ry="2"/></svg>
                         <span>${server}</span>
@@ -2055,7 +2055,7 @@ document.addEventListener("DOMContentLoaded", () => {
                         const row = document.createElement("div");
                         row.className = "format-row video-row";
                         const sizeBadge = option.size ? `<span class="format-size">${option.size}</span>` : '';
-                        
+
                         // Formulate the display label using episode, fall back to option.label
                         let displayLabel = option.label;
                         if (option.episode) {
@@ -2070,7 +2070,7 @@ document.addEventListener("DOMContentLoaded", () => {
                                 displayLabel = displayLabel.replace(/\s*\(Episode\s+[^)]+\)/g, "");
                             }
                         }
-                        
+
                         row.innerHTML = `
                             <div class="format-left">
                                 ${videoSvg}
@@ -2092,7 +2092,7 @@ document.addEventListener("DOMContentLoaded", () => {
                     });
                 });
             }
-            
+
 
             if (photos.length > 0) {
                 const photoGroupLabel = document.createElement("div");
@@ -2106,7 +2106,7 @@ document.addEventListener("DOMContentLoaded", () => {
                 photos.forEach(option => {
                     const row = document.createElement("div");
                     row.className = "format-row photo-row";
-                    
+
                     const sizeBadge = option.size ? `<span class="format-size">${option.size}</span>` : '';
                     row.innerHTML = `
                         <div class="format-left">
@@ -2143,7 +2143,7 @@ document.addEventListener("DOMContentLoaded", () => {
             data.audio_options.forEach(option => {
                 const row = document.createElement("div");
                 row.className = "format-row audio-row";
-                
+
                 const sizeBadge = option.size ? `<span class="format-size">${option.size}</span>` : '';
                 row.innerHTML = `
                     <div class="format-left">
@@ -2179,7 +2179,7 @@ document.addEventListener("DOMContentLoaded", () => {
             data.subtitles.forEach(option => {
                 const row = document.createElement("div");
                 row.className = "format-row subtitle-row";
-                
+
                 const sizeBadge = option.size ? `<span class="format-size">${option.size}</span>` : '';
                 row.innerHTML = `
                     <div class="format-left">
@@ -2205,7 +2205,7 @@ document.addEventListener("DOMContentLoaded", () => {
         // Render photo options from data.images if no video or audio options are available at all
         const hasVideoOptions = data.video_options && data.video_options.length > 0;
         const hasAudioOptions = data.audio_options && data.audio_options.length > 0;
-        
+
         if (!hasVideoOptions && !hasAudioOptions && data.images && data.images.length > 0) {
             const photoGroupLabel = document.createElement("div");
             photoGroupLabel.className = "format-group-label";
@@ -2218,7 +2218,7 @@ document.addEventListener("DOMContentLoaded", () => {
             data.images.forEach((img, idx) => {
                 const row = document.createElement("div");
                 row.className = "format-row photo-row";
-                
+
                 let imgLabel, imgUrl, imgExt;
                 if (typeof img === "string") {
                     imgUrl = img;
@@ -2231,7 +2231,7 @@ document.addEventListener("DOMContentLoaded", () => {
                 } else {
                     return; // Skip invalid entries
                 }
-                
+
                 const cleanLabel = imgLabel.replace(/\s*\(\d+x\d+\)/, "");
                 const cleanTitle = getSafeTitle(data.title, "image");
                 const filename = `${cleanTitle}_${cleanLabel.replace(/\s+/g, "_")}.${imgExt}`;
@@ -2326,12 +2326,12 @@ document.addEventListener("DOMContentLoaded", () => {
             // Visual trimmer logic: setup noUiSlider
             const durationSeconds = parseFloat(data.duration_raw) || 0;
             const hasVideo = data.video_options && data.video_options.some(opt => opt.ext !== "jpg");
-            
+
             if (durationSeconds > 0 && hasVideo && trimRangeSlider) {
                 // Determine a valid video format URL to load in background preview
                 const previewVideoOption = data.video_options.find(opt => opt.ext !== "jpg" && opt.url);
                 const previewVideoUrl = previewVideoOption ? previewVideoOption.url : null;
-                
+
                 if (previewVideoUrl && trimPreviewPlayer) {
                     trimPreviewPlayer.src = previewVideoUrl;
                     trimPreviewPlayer.load();
@@ -2431,10 +2431,10 @@ document.addEventListener("DOMContentLoaded", () => {
                 function renderSceneMarkers(scenes, totalDuration, sliderElement) {
                     const noUiBase = sliderElement.querySelector('.noUi-base');
                     if (!noUiBase) return;
-                    
+
                     // Remove existing scene markers if any
                     noUiBase.querySelectorAll('.scene-marker').forEach(el => el.remove());
-                    
+
                     scenes.forEach(timeSec => {
                         const pct = (timeSec / totalDuration) * 100;
                         if (pct > 0 && pct < 100) {
@@ -2442,7 +2442,7 @@ document.addEventListener("DOMContentLoaded", () => {
                             marker.className = 'scene-marker';
                             marker.style.left = `${pct}%`;
                             marker.title = `Scene change at ${formatSecsToTime(timeSec)}`;
-                            
+
                             // On click seek player and snap slider handle
                             marker.onclick = (e) => {
                                 e.stopPropagation();
@@ -2498,15 +2498,15 @@ document.addEventListener("DOMContentLoaded", () => {
         // Clear status states in progress panel
         downloadProgress.className = "progress-panel";
         downloadProgress.classList.remove("hidden");
-        
+
         progressBarFill.classList.add("striped");
         progressBarFill.style.width = "5%";
         progressPercent.textContent = "0%";
-        
+
         downloadStatusTitle.textContent = "Initializing queue...";
         downloadStatusMessage.textContent = "Adding download request to local Python server...";
         downloadFormatLabel.textContent = label;
-        
+
         downloadProgress.scrollIntoView({ behavior: "smooth", block: "nearest" });
 
         // Disable input panel to prevent interruptions
@@ -2519,7 +2519,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
         const allRows = optionsContainer.querySelectorAll(".format-row");
         allRows.forEach(r => r.classList.remove("is-downloading"));
-        
+
         const activeRow = btn.closest(".format-row");
         if (activeRow) {
             activeRow.classList.add("is-downloading");
@@ -2606,11 +2606,11 @@ document.addEventListener("DOMContentLoaded", () => {
 
             // Step B: Set up Server-Sent Events (SSE) to fetch status progress
             pollingInterval = new EventSource(`/api/download/progress/${downloadId}`);
-            
+
             pollingInterval.onmessage = (event) => {
                 try {
                     const statusData = JSON.parse(event.data);
-                    
+
                     if (statusData.status === "pending") {
                         progressBarFill.classList.add("striped");
                         progressBarFill.style.width = "5%";
@@ -2624,7 +2624,7 @@ document.addEventListener("DOMContentLoaded", () => {
                         progressPercent.textContent = `${statusData.progress}%`;
                         const platform = mediaBadge ? mediaBadge.textContent : "YouTube";
                         downloadStatusTitle.textContent = `Downloading from ${platform}...`;
-                        
+
                         let msg = statusData.message;
                         if (statusData.speed && statusData.eta) {
                             msg += ` | Speed: ${statusData.speed} | ETA: ${statusData.eta}`;
@@ -2634,24 +2634,24 @@ document.addEventListener("DOMContentLoaded", () => {
                             msg += ` | ETA: ${statusData.eta}`;
                         }
                         downloadStatusMessage.textContent = msg;
-                    } 
+                    }
                     else if (statusData.status === "merging" || statusData.status === "processing") {
                         progressBarFill.classList.add("striped");
                         progressBarFill.style.width = `${statusData.progress}%`;
                         progressPercent.textContent = `${statusData.progress}%`;
                         downloadStatusTitle.textContent = statusData.status === "merging" ? "Merging streams..." : "Processing audio...";
                         downloadStatusMessage.textContent = statusData.message;
-                    } 
+                    }
                     else if (statusData.status === "complete") {
                         if (pollingInterval) {
                             pollingInterval.close();
                             pollingInterval = null;
                         }
-                        
+
                         progressBarFill.classList.remove("striped");
                         progressBarFill.style.width = "100%";
                         progressPercent.textContent = "Done!";
-                        
+
                         downloadProgress.classList.add("state-complete");
                         downloadStatusTitle.textContent = "Download complete!";
                         downloadStatusMessage.innerHTML = `File downloaded successfully. <a href="/api/download/file/${downloadId}" class="download-again-btn" target="_blank" style="color: var(--cyan); text-decoration: underline; font-weight: 500; margin-left: 5px;">Click here</a> if the download did not start automatically.`;
@@ -2677,7 +2677,7 @@ document.addEventListener("DOMContentLoaded", () => {
                             downloadAnchor.click();
                             downloadAnchor.remove();
                         }
-                    } 
+                    }
                     else if (statusData.status === "error") {
                         throw new Error(statusData.error || statusData.message || "An error occurred on the downloader backend.");
                     }
@@ -2706,52 +2706,54 @@ document.addEventListener("DOMContentLoaded", () => {
     function escapeHTML(str) {
         if (!str) return "";
         return str.replace(/&/g, "&amp;")
-                  .replace(/</g, "&lt;")
-                  .replace(/>/g, "&gt;")
-                  .replace(/"/g, "&quot;")
-                  .replace(/'/g, "&#039;");
+            .replace(/</g, "&lt;")
+            .replace(/>/g, "&gt;")
+            .replace(/"/g, "&quot;")
+            .replace(/'/g, "&#039;");
     }
 
     function handleDownloadFailure(errorMessageText, activeRow, allButtons) {
         progressBarFill.classList.remove("striped");
         progressBarFill.style.width = "0%";
         progressPercent.textContent = "Error";
-        
+
         downloadProgress.classList.add("state-error");
         downloadStatusTitle.textContent = "Download failed";
-        
-        let rawError = errorMessageText || "Đã xảy ra lỗi trong quá trình xếp hàng tải xuống.";
-        let friendlyMessage = rawError;
+
+        let rawError = errorMessageText || "An error occurred while queuing the download.";
+        let friendlyMessage = "Download failed. Please check your connection or view technical details below.";
         const lowerErr = rawError.toLowerCase();
-        
+
         if (lowerErr.includes("fallback download also failed") || lowerErr.includes("returned non-zero code")) {
-            friendlyMessage = "Không thể tải về từ nguồn phát này. Nguồn phát có thể đã bị nhà cung cấp mã hóa hoặc chặn lượt tải. Bạn vui lòng chọn Server khác (ví dụ Server #1) hoặc thử lại sau.";
+            friendlyMessage = "Cannot download from this source. The media might be encrypted or downloading is blocked. Please select another server (e.g. Server #1) or try again later.";
         } else if (lowerErr.includes("429") || lowerErr.includes("too many requests") || lowerErr.includes("rate limit") || lowerErr.includes("rate-limit")) {
-            friendlyMessage = "Yêu cầu bị giới hạn tần suất từ IP này (Lỗi 429 - Too Many Requests). Bạn vui lòng đợi vài phút rồi thử lại, hoặc cập nhật Cookie/đổi kết nối mạng.";
+            friendlyMessage = "Rate limit exceeded for this IP (Error 429 - Too Many Requests). Please wait a few minutes and try again, or update your Cookie/change network connection.";
         } else if (lowerErr.includes("403") || lowerErr.includes("forbidden") || lowerErr.includes("access denied")) {
-            friendlyMessage = "Truy cập bị từ chối (Lỗi 403 - Forbidden). Nguồn phát có thể yêu cầu Cookie đăng nhập hợp lệ hoặc đang chặn IP máy chủ.";
+            friendlyMessage = "Access denied (Error 403 - Forbidden). The source may require a valid login Cookie or is blocking the server IP.";
         } else if (lowerErr.includes("404") || lowerErr.includes("not found")) {
-            friendlyMessage = "Không tìm thấy tài nguyên (Lỗi 404 - Not Found). Vui lòng kiểm tra lại đường dẫn xem bài viết/video có còn tồn tại không.";
+            friendlyMessage = "Resource not found (Error 404 - Not Found). Please check the URL and verify if the post/video still exists.";
         } else if (lowerErr.includes("sign in to confirm you're not a bot") || lowerErr.includes("confirm you're not a bot") || lowerErr.includes("confirm you are not a bot")) {
-            friendlyMessage = "Tải về bị chặn do yêu cầu xác minh robot (Confirm you are not a bot). Hãy thử lại sau hoặc cập nhật Cookie trong mục 'Cài đặt Cookies'.";
+            friendlyMessage = "Download blocked due to bot verification requirement (Confirm you are not a bot). Please try again later or update your Cookie in 'Cookie Settings'.";
         } else if (lowerErr.includes("login") || lowerErr.includes("logged-in") || lowerErr.includes("cookie") || lowerErr.includes("private")) {
-            friendlyMessage = "Nội dung này yêu cầu đăng nhập hoặc cookie tài khoản để truy cập. Vui lòng đăng nhập trên trình duyệt, xuất cookie và cập nhật trong mục 'Cài đặt Cookies'.";
+            friendlyMessage = "This content requires a login or account cookie. Please log in using your browser, export cookies, and update them in 'Cookie Settings'.";
         } else if (lowerErr.includes("unsupported url")) {
-            friendlyMessage = "Đường dẫn không được hỗ trợ tải về trực tiếp. Hãy kiểm tra lại đường dẫn.";
+            friendlyMessage = "This URL is not supported for direct download. Please check the URL.";
         } else if (lowerErr.includes("connection refused") || lowerErr.includes("timeout") || lowerErr.includes("timed out")) {
-            friendlyMessage = "Lỗi kết nối tới máy chủ nguồn. Vui lòng kiểm tra kết nối mạng hoặc thử lại sau.";
+            friendlyMessage = "Connection error to the source server. Please check your network connection or try again later.";
+        } else if (lowerErr.includes("could not resolve host") || lowerErr.includes("name or service not known")) {
+            friendlyMessage = "Cannot connect to the source server (DNS resolution error). Please check your system's network connection.";
         }
 
         let htmlContent = `<span>${friendlyMessage}</span>`;
         if (errorMessageText) {
             htmlContent += `<details class="error-details">
-                <summary class="error-summary">Chi tiết lỗi (Technical details)</summary>
+                <summary class="error-summary">Technical details</summary>
                 <pre class="error-pre">${escapeHTML(errorMessageText)}</pre>
             </details>`;
         }
-        
+
         downloadStatusMessage.innerHTML = htmlContent;
-        
+
         analyzeBtn.disabled = false;
         urlInput.disabled = false;
         allButtons.forEach(b => b.disabled = false);
@@ -2763,36 +2765,35 @@ document.addEventListener("DOMContentLoaded", () => {
     // Error helper for analysis
     function showError(message) {
         const lowerMsg = (message || "").toLowerCase();
-        let friendly = "Không thể trích xuất thông tin media từ đường dẫn này. Nguồn phát có thể đang chặn kết nối hoặc yêu cầu Cookie.";
+        let friendly = "Unable to extract media information from this URL. Please verify the link or check the details below.";
         let technical = message;
-        
+
         if (lowerMsg.includes("429") || lowerMsg.includes("too many requests") || lowerMsg.includes("rate limit") || lowerMsg.includes("rate-limit")) {
-            friendly = "Yêu cầu trích xuất thông tin bị chặn do tần suất quá cao (Lỗi 429 - Too Many Requests). Vui lòng đổi kết nối mạng (Wifi/4G/VPN) hoặc thử lại sau ít phút.";
+            friendly = "Extraction request blocked due to rate limits (Error 429 - Too Many Requests). Please change your network connection (Wi-Fi/4G/VPN) or try again in a few minutes.";
         } else if (lowerMsg.includes("403") || lowerMsg.includes("forbidden") || lowerMsg.includes("access denied")) {
-            friendly = "Truy cập bị từ chối (Lỗi 403 - Forbidden). Nguồn phát có thể chặn kết nối hoặc cần Cookie đăng nhập hợp lệ.";
+            friendly = "Access denied (Error 403 - Forbidden). The source may block connections or requires a valid login Cookie.";
         } else if (lowerMsg.includes("404") || lowerMsg.includes("not found")) {
-            friendly = "Không tìm thấy nội dung (Lỗi 404 - Not Found). Vui lòng kiểm tra lại đường dẫn bài viết/video.";
+            friendly = "Content not found (Error 404 - Not Found). Please check the post/video link.";
         } else if (lowerMsg.includes("sign in to confirm you're not a bot") || lowerMsg.includes("confirm you're not a bot") || lowerMsg.includes("confirm you are not a bot")) {
-            friendly = "Trích xuất bị chặn do yêu cầu xác minh robot (Confirm you are not a bot). Hãy thử lại sau hoặc cập nhật Cookie trong mục 'Cài đặt Cookies'.";
+            friendly = "Extraction blocked due to bot verification requirement (Confirm you are not a bot). Please try again later or update your Cookie in 'Cookie Settings'.";
         } else if (lowerMsg.includes("login") || lowerMsg.includes("logged-in") || lowerMsg.includes("cookie") || lowerMsg.includes("private") || lowerMsg.includes("sign in")) {
-            friendly = "Nội dung này yêu cầu đăng nhập hoặc cookie tài khoản để truy cập. Vui lòng đăng nhập trên trình duyệt, xuất và tải lên file cookie J2TEAM (Netscape/JSON) trong mục 'Cài đặt Cookies'.";
+            friendly = "This content requires login or account cookies. Please log in using your browser, export and upload netscape/JSON cookie file in 'Cookie Settings'.";
         } else if (lowerMsg.includes("unsupported url")) {
-            friendly = "Đường dẫn không được hỗ trợ tải về trực tiếp. Hãy kiểm tra lại đường dẫn.";
+            friendly = "This URL is not supported for direct download. Please check the URL.";
         } else if (lowerMsg.includes("connection refused") || lowerMsg.includes("timeout") || lowerMsg.includes("timed out")) {
-            friendly = "Lỗi kết nối tới máy chủ nguồn. Vui lòng kiểm tra kết nối mạng hoặc thử lại sau.";
-        } else if (message.startsWith("Unable to extract media metadata: ")) {
-            const rawErr = message.replace("Unable to extract media metadata: ", "");
-            friendly = "Không thể trích xuất thông tin media từ đường dẫn này. Chi tiết: " + rawErr;
+            friendly = "Connection error to source server. Please check your network connection or try again later.";
+        } else if (lowerMsg.includes("could not resolve host") || lowerMsg.includes("name or service not known")) {
+            friendly = "Cannot connect to the source server (DNS resolution error). Please check your system's network connection.";
         }
 
         let htmlContent = `<span>${friendly}</span>`;
         if (technical && technical !== friendly) {
             htmlContent += `<details class="error-details">
-                <summary class="error-summary">Chi tiết lỗi kỹ thuật</summary>
+                <summary class="error-summary">Technical details</summary>
                 <pre class="error-pre">${escapeHTML(technical)}</pre>
             </details>`;
         }
-        
+
         errorMessage.innerHTML = htmlContent;
         errorCard.classList.remove("hidden");
         errorCard.scrollIntoView({ behavior: "smooth", block: "nearest" });
@@ -2822,7 +2823,7 @@ document.addEventListener("DOMContentLoaded", () => {
         previewSubtitleContainer.classList.add("hidden");
         previewLoader.classList.remove("hidden");
         previewLoaderText.textContent = "Connecting to source & preparing stream...";
-        
+
         previewTitle.textContent = label;
         previewMetaInfo.textContent = `Type: ${ext.toUpperCase()} ${quality ? `| Quality: ${quality}` : ""}`;
 
@@ -2831,15 +2832,15 @@ document.addEventListener("DOMContentLoaded", () => {
 
         // Image Preview Flow
         if (ext === "jpg" || ext === "png" || ext === "jpeg" || formatId === "image_preview") {
-            const finalUrl = formatId === "image_preview" 
-                ? `/api/download/image?url=${encodeURIComponent(customUrl)}&client_id=${encodeURIComponent(clientId)}` 
+            const finalUrl = formatId === "image_preview"
+                ? `/api/download/image?url=${encodeURIComponent(customUrl)}&client_id=${encodeURIComponent(clientId)}`
                 : customUrl;
-            
+
             previewActiveUrl = finalUrl;
             const cleanTitle = getSafeTitle(videoTitle.textContent, "image");
             const cleanLabel = label.replace(/\s*\(\d+x\d+\)/, "");
             previewActiveFilename = `${cleanTitle}_${cleanLabel.replace(/\s+/g, "_")}.${ext}`;
-            
+
             if (previewImageElement) {
                 previewImageElement.src = finalUrl;
                 previewImageElement.onload = () => {
@@ -2855,9 +2856,9 @@ document.addEventListener("DOMContentLoaded", () => {
 
         // Direct stream preview (stream-on-demand)
         const isYouTube = activeUrl.includes("youtube.com") || activeUrl.includes("youtu.be") || activeUrl.includes("googlevideo.com");
-        const isDirectStream = formatId.startsWith("direct_") || 
-                               (customUrl && customUrl.startsWith("http") && !isYouTube);
-        
+        const isDirectStream = formatId.startsWith("direct_") ||
+            (customUrl && customUrl.startsWith("http") && !isYouTube);
+
         if (isDirectStream) {
             const streamUrl = customUrl || activeUrl;
             previewActiveUrl = streamUrl;
@@ -2868,7 +2869,7 @@ document.addEventListener("DOMContentLoaded", () => {
             const proxyStreamUrl = `/api/proxy/stream?url=${encodeURIComponent(streamUrl)}&client_id=${encodeURIComponent(clientId)}`;
 
             previewLoader.classList.add("hidden");
-            
+
             if (ext === "mp3" || ext === "m4a") {
                 if (previewAudioPlayer) {
                     previewAudioPlayer.src = proxyStreamUrl;
@@ -2880,15 +2881,15 @@ document.addEventListener("DOMContentLoaded", () => {
                 if (previewVideoPlayer) {
                     previewVideoContainer.classList.remove("hidden");
                     const isM3u8 = ext === "m3u8" || streamUrl.includes(".m3u8");
-                    
+
                     previewVideoPlayer.onerror = () => {
                         console.warn("HTML5 Video Error");
-                        previewLoaderText.textContent = "Không thể phát nguồn này trực tiếp. Vui lòng chọn Server khác (như Server #1) hoặc bấm nút Tải về bên dưới.";
+                        previewLoaderText.textContent = "Cannot play this source directly. Please select another Server (e.g. Server #1) or click the Download button below.";
                         previewLoader.classList.remove("hidden");
                         previewVideoContainer.classList.add("hidden");
                         stopAllPreviewPlaybacks();
                     };
-                    
+
                     if (isM3u8 && typeof Hls !== "undefined" && Hls.isSupported()) {
                         const hls = new Hls({
                             maxBufferSize: 30 * 1024 * 1024, // 30MB buffer max
@@ -2899,10 +2900,10 @@ document.addEventListener("DOMContentLoaded", () => {
                         hls.on(Hls.Events.MANIFEST_PARSED, () => {
                             previewVideoPlayer.play().catch(e => console.log("Playback blocked"));
                         });
-                        hls.on(Hls.Events.ERROR, function(event, data) {
+                        hls.on(Hls.Events.ERROR, function (event, data) {
                             if (data.fatal) {
                                 console.warn("HLS fatal error:", data.type);
-                                previewLoaderText.textContent = "Server này bị nhà cung cấp mã hóa nguồn phát, không thể xem trước trực tiếp. Bạn vui lòng chọn Server khác (ví dụ Server #1) hoặc bấm nút Tải về bên dưới.";
+                                previewLoaderText.textContent = "This server's source is encrypted by the provider and cannot be previewed directly. Please select another Server (e.g. Server #1) or click the Download button below.";
                                 previewLoader.classList.remove("hidden");
                                 previewVideoContainer.classList.add("hidden");
                                 stopAllPreviewPlaybacks();
@@ -2952,7 +2953,7 @@ document.addEventListener("DOMContentLoaded", () => {
             // Step B: Set up Server-Sent Events (SSE) to fetch status progress
             let pollInterval = new EventSource(`/api/download/progress/${downloadId}`);
             previewActivePollInterval = pollInterval;
-            
+
             // Periodically check if preview modal was closed
             const modalCheckTimer = setInterval(() => {
                 if (previewModal.classList.contains("hidden")) {
@@ -2990,7 +2991,7 @@ document.addEventListener("DOMContentLoaded", () => {
                                 previewSubLang.textContent = label;
                                 previewSubtitleContainer.classList.remove("hidden");
                                 previewSubText.textContent = "Loading subtitle text...";
-                                
+
                                 const textRes = await fetch(previewStreamUrl);
                                 const text = await textRes.text();
                                 previewSubText.textContent = text || "No content found in subtitle file.";
@@ -3036,7 +3037,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
         } catch (err) {
             console.error(err);
-                        previewLoaderText.textContent = "Connection failed. Unable to start preview.";
+            previewLoaderText.textContent = "Connection failed. Unable to start preview.";
         }
     }
 
@@ -3210,7 +3211,7 @@ document.addEventListener("DOMContentLoaded", () => {
     let cols = 0;
     let rows = 0;
     let currentSpacing = 54; // Dynamically bound to window.canvasSettings.spacing
-    
+
     let mouse = { x: 0, y: 0, active: false, inactivityTimeout: null };
     let lastMouse = { x: window.innerWidth / 2, y: window.innerHeight / 2 };
 
@@ -3230,14 +3231,14 @@ document.addEventListener("DOMContentLoaded", () => {
     function handleMouseMove(x, y) {
         let dx = x - prevMouseX;
         let dy = y - prevMouseY;
-        mouseSpeed = Math.sqrt(dx*dx + dy*dy);
+        mouseSpeed = Math.sqrt(dx * dx + dy * dy);
         prevMouseX = x;
         prevMouseY = y;
 
         mouse.x = x;
         mouse.y = y;
         mouse.active = true;
-        
+
         lastMouse.x = x;
         lastMouse.y = y;
 
@@ -3245,7 +3246,7 @@ document.addEventListener("DOMContentLoaded", () => {
         if (window.canvasSettings.ripplesEnabled && cols > 0 && rows > 0) {
             let col = Math.round((x + 0.5 * currentSpacing) / currentSpacing);
             let row = Math.round((y + 0.5 * currentSpacing) / currentSpacing);
-            
+
             // Disturb a small 3x3 region around the mouse
             for (let c = col - 1; c <= col + 1; c++) {
                 for (let r = row - 1; r <= row + 1; r++) {
@@ -3304,7 +3305,7 @@ document.addEventListener("DOMContentLoaded", () => {
         if (cols > 0 && rows > 0) {
             let col = Math.round((x + 0.5 * currentSpacing) / currentSpacing);
             let row = Math.round((y + 0.5 * currentSpacing) / currentSpacing);
-            
+
             // Inject a much larger force field in a 5x5 region to propagate a big mechanical wave
             for (let c = col - 2; c <= col + 2; c++) {
                 for (let r = row - 2; r <= row + 2; r++) {
@@ -3337,19 +3338,19 @@ document.addEventListener("DOMContentLoaded", () => {
     function blendColors(c1, c2, ratio) {
         if (ratio <= 0) return c1;
         if (ratio >= 1) return c2;
-        
+
         let r1 = parseInt(c1.substring(1, 3), 16);
         let g1 = parseInt(c1.substring(3, 5), 16);
         let b1 = parseInt(c1.substring(5, 7), 16);
-        
+
         let r2 = parseInt(c2.substring(1, 3), 16);
         let g2 = parseInt(c2.substring(3, 5), 16);
         let b2 = parseInt(c2.substring(5, 7), 16);
-        
+
         let r = Math.round(r1 + (r2 - r1) * ratio);
         let g = Math.round(g1 + (g2 - g1) * ratio);
         let b = Math.round(b1 + (b2 - b1) * ratio);
-        
+
         return `rgb(${r}, ${g}, ${b})`;
     }
 
@@ -3380,7 +3381,7 @@ document.addEventListener("DOMContentLoaded", () => {
             if (mouse.active) {
                 let dx = mouse.x - this.x;
                 let dy = mouse.y - this.y;
-                let dist = Math.sqrt(dx*dx + dy*dy);
+                let dist = Math.sqrt(dx * dx + dy * dy);
                 const currentMaxDist = window.canvasSettings.maxDist || 180;
                 if (dist > 8 && dist < currentMaxDist) {
                     let force = (1 - dist / currentMaxDist); // stronger pull closer to mouse
@@ -3410,7 +3411,7 @@ document.addEventListener("DOMContentLoaded", () => {
             ctx.translate(this.x, this.y);
             ctx.rotate(this.rotation);
             ctx.beginPath();
-            
+
             const shape = window.canvasSettings.sparkleShape || 'star';
             if (shape === 'star') {
                 let inner = size * 0.35;
@@ -3435,7 +3436,7 @@ document.addEventListener("DOMContentLoaded", () => {
                 ctx.bezierCurveTo(-size * 0.8, size * 0.2, -size * 0.8, -size * 0.6, 0, -size * 0.3);
                 ctx.bezierCurveTo(size * 0.8, -size * 0.6, size * 0.8, size * 0.2, 0, size * 0.7);
             }
-            
+
             ctx.closePath();
             ctx.fillStyle = this.color;
             ctx.globalAlpha = alpha;
@@ -3464,10 +3465,10 @@ document.addEventListener("DOMContentLoaded", () => {
             this.baseSize = Math.random() * 2 + 2.5; // Elegant star size
             this.spikes = 4;
             this.colorIndex = (col + row) % 2; // checkerboard theme coloring
-            
+
             this.rotation = Math.random() * Math.PI;
             this.rotationSpeed = (Math.random() - 0.5) * 0.02;
-            
+
             // Screen projected positions
             this.px = this.x;
             this.py = this.y;
@@ -3500,7 +3501,7 @@ document.addEventListener("DOMContentLoaded", () => {
             // Calculate constant mouse indentation (funnel effect) centered under the cursor
             let dx = mouse.x - this.x;
             let dy = mouse.y - this.y;
-            let dist = Math.sqrt(dx*dx + dy*dy);
+            let dist = Math.sqrt(dx * dx + dy * dy);
             let indentZ = 0;
 
             const currentMaxDist = window.canvasSettings.maxDist || 180;
@@ -3552,7 +3553,7 @@ document.addEventListener("DOMContentLoaded", () => {
             // Breathing size oscillation + high-frequency twinkle for a lifelike organic pulse
             let twinkle = Math.sin(Date.now() * 0.016 + this.col * 1.7 + this.row * 1.3) * 0.4;
             let breathe = Math.sin(Date.now() * 0.0025 + this.col * 0.5 + this.row * 0.3) * 0.55 + twinkle;
-            
+
             // Tension increases brightness and size of the knot
             let tension = Math.min(1.5, Math.abs(this.z) / 80);
             let size = (this.baseSize + (isLightTheme ? 0.5 : 0) + breathe + tension * 1.5) * this.scale;
@@ -3612,7 +3613,7 @@ document.addEventListener("DOMContentLoaded", () => {
         particles = [];
         rippleBuffer1 = [];
         rippleBuffer2 = [];
-        
+
         cols = Math.ceil(window.innerWidth / currentSpacing) + 2;
         rows = Math.ceil(window.innerHeight / currentSpacing) + 2;
 
@@ -3715,7 +3716,7 @@ document.addEventListener("DOMContentLoaded", () => {
                         let p2 = grid[c + 1][r];
                         let baseAlpha = isLightTheme ? 0.32 : 0.08;
                         let lineAlpha = baseAlpha * ((p1.scale + p2.scale) / 2); // baseline alpha
-                        
+
                         // Tension displacement calculation
                         let displacement = Math.max(Math.abs(p1.z), Math.abs(p2.z));
                         lineAlpha += (displacement / 150) * 0.22;
@@ -3746,7 +3747,7 @@ document.addEventListener("DOMContentLoaded", () => {
                         let p2 = grid[c][r + 1];
                         let baseAlpha = isLightTheme ? 0.32 : 0.08;
                         let lineAlpha = baseAlpha * ((p1.scale + p2.scale) / 2);
-                        
+
                         // Tension displacement calculation
                         let displacement = Math.max(Math.abs(p1.z), Math.abs(p2.z));
                         lineAlpha += (displacement / 150) * 0.22;

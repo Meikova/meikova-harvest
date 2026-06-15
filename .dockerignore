@@ -22,3 +22,11 @@ docs/
 *.log.*
 .agents/
 .tempmediaStorage/
+.gemini/
+node_modules/
+electron/
+build_tool/
+dist/
+dist_electron/
+build/
+*.exe

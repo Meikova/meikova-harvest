@@ -1,12 +1,25 @@
 import os
 import shutil
 import logging
+import sys
+import subprocess
+
+# Suppress console window popups for subprocesses on Windows
+if sys.platform.startswith("win"):
+    _original_popen = subprocess.Popen
+    class PopenNoWindow(_original_popen):
+        def __init__(self, *args, **kwargs):
+            if 'creationflags' not in kwargs:
+                kwargs['creationflags'] = subprocess.CREATE_NO_WINDOW
+            super().__init__(*args, **kwargs)
+    subprocess.Popen = PopenNoWindow
+
 from flask import Flask
 from flask_cors import CORS
 import static_ffmpeg
 
 from config import TEMP_DOWNLOAD_DIR
-from routes import pages_bp, cookies_bp, info_bp, download_bp
+from routes import pages_bp, cookies_bp, info_bp, download_bp, build_bp
 
 # Setup logging
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
@@ -45,6 +58,7 @@ app.register_blueprint(pages_bp)
 app.register_blueprint(cookies_bp)
 app.register_blueprint(info_bp)
 app.register_blueprint(download_bp)
+app.register_blueprint(build_bp)
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=5000, debug=True)

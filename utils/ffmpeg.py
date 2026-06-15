@@ -97,7 +97,7 @@ def trim_file_if_needed(filepath, trim_start, trim_end):
     ])
     
     logger.info(f"Running FFmpeg transcode trim command: {' '.join(cmd)}")
-    result = subprocess.run(cmd, capture_output=True, text=True)
+    result = subprocess.run(cmd, capture_output=True, text=True, encoding='utf-8', errors='ignore')
     if result.returncode == 0 and os.path.exists(output_filepath) and os.path.getsize(output_filepath) > 0:
         logger.info("Trimming successful. Replacing original file.")
         try:
@@ -116,7 +116,7 @@ def trim_file_if_needed(filepath, trim_start, trim_end):
             cmd_transcode.extend(["-to", end])
         cmd_transcode.extend(["-i", filepath, output_filepath])
         logger.info(f"Running FFmpeg transcode trim fallback: {' '.join(cmd_transcode)}")
-        res_trans = subprocess.run(cmd_transcode, capture_output=True, text=True)
+        res_trans = subprocess.run(cmd_transcode, capture_output=True, text=True, encoding='utf-8', errors='ignore')
         if res_trans.returncode == 0 and os.path.exists(output_filepath) and os.path.getsize(output_filepath) > 0:
             logger.info("Transcode trim fallback successful. Replacing original file.")
             try:

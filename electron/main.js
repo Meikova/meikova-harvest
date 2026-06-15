@@ -1,0 +1,600 @@
+/**
+ * Electron Main Process — EveryThingDownloader
+ *
+ * Responsibilities:
+ *  1. Find a free TCP port
+ *  2. Spawn the Flask Python server (or bundled server.exe)
+ *  3. Poll until Flask is ready, then show the BrowserWindow
+ *  4. Manage system tray icon
+ *  5. Kill the Flask process cleanly on exit
+ */
+
+const {
+  app,
+  BrowserWindow,
+  Menu,
+  Tray,
+  ipcMain,
+  shell,
+  dialog,
+  nativeImage,
+  globalShortcut,
+} = require('electron');
+
+const path  = require('path');
+const http  = require('http');
+const net   = require('net');
+const { spawn, execSync } = require('child_process');
+
+// ─── Configuration ────────────────────────────────────────────────────────────
+const APP_NAME    = 'EveryThingDownloader';
+const DEFAULT_PORT = 5000;
+const SPLASH_WAIT  = 600;   // ms before showing splash
+const SERVER_TIMEOUT = 60000; // ms to wait for Flask (60 s)
+const isDev = process.argv.includes('--dev') || !app.isPackaged;
+
+// ─── Global state ─────────────────────────────────────────────────────────────
+let mainWindow   = null;
+let splashWindow = null;
+let tray         = null;
+let flaskProcess = null;
+let serverPort   = DEFAULT_PORT;
+let serverReady  = false;
+
+// ─── Logging ──────────────────────────────────────────────────────────────────
+const log = {
+  info:  (...a) => console.log( '[INFO ]', ...a),
+  warn:  (...a) => console.warn( '[WARN ]', ...a),
+  error: (...a) => console.error('[ERROR]', ...a),
+};
+
+// ─── Helpers ──────────────────────────────────────────────────────────────────
+
+/** Find a free TCP port starting from `start`. */
+function findFreePort(start = DEFAULT_PORT) {
+  return new Promise((resolve, reject) => {
+    const server = net.createServer();
+    server.listen(start, '127.0.0.1', () => {
+      const { port } = server.address();
+      server.close(() => resolve(port));
+    });
+    server.on('error', () => findFreePort(start + 1).then(resolve).catch(reject));
+  });
+}
+
+/** Poll GET http://127.0.0.1:<port>/ until 200 or timeout. */
+function waitForServer(port, timeoutMs = SERVER_TIMEOUT) {
+  return new Promise((resolve, reject) => {
+    const start    = Date.now();
+    const interval = setInterval(() => {
+      if (Date.now() - start > timeoutMs) {
+        clearInterval(interval);
+        return reject(new Error(`Server did not start within ${timeoutMs / 1000}s`));
+      }
+      const req = http.get(`http://127.0.0.1:${port}/`, (res) => {
+        if (res.statusCode < 500) {
+          clearInterval(interval);
+          resolve();
+        }
+      });
+      req.on('error', () => {}); // ignore ECONNREFUSED while server is starting
+      req.setTimeout(1000, () => req.destroy());
+    }, 500);
+  });
+}
+
+/** Resolve the path to the Flask server entry-point. */
+function resolveServerPath() {
+  if (app.isPackaged) {
+    // In production, server.exe is in resources/
+    return path.join(process.resourcesPath, 'server.exe');
+  }
+  // In development, run app.py with the active Python / venv
+  return null; // signals "use Python"
+}
+
+/** Resolve the Python executable path (dev mode). */
+function resolvePythonPath() {
+  const venvPy = path.join(__dirname, '..', 'venv', 'Scripts', 'python.exe');
+  try {
+    require('fs').accessSync(venvPy);
+    return venvPy;
+  } catch {
+    return 'python'; // fall back to system Python
+  }
+}
+
+// ─── Flask server launch ──────────────────────────────────────────────────────
+
+async function startFlaskServer() {
+  serverPort = await findFreePort(DEFAULT_PORT);
+  log.info(`Starting Flask on port ${serverPort}`);
+
+  const env = {
+    ...process.env,
+    FLASK_PORT: String(serverPort),
+    FLASK_ENV:  isDev ? 'development' : 'production',
+    PYTHONUNBUFFERED: '1',
+  };
+
+  const serverExe = resolveServerPath();
+
+  if (serverExe) {
+    // Production: run bundled server.exe
+    flaskProcess = spawn(serverExe, ['--port', String(serverPort)], {
+      env,
+      windowsHide: true,
+    });
+  } else {
+    // Development: run app.py via Python
+    const pythonExe = resolvePythonPath();
+    const appPy     = path.join(__dirname, '..', 'app.py');
+    flaskProcess    = spawn(pythonExe, [appPy, '--port', String(serverPort)], {
+      env,
+      cwd: path.join(__dirname, '..'),
+      windowsHide: true,
+    });
+  }
+
+  flaskProcess.stdout?.on('data', (d) => log.info('[Flask]', d.toString().trimEnd()));
+  flaskProcess.stderr?.on('data', (d) => log.warn('[Flask]', d.toString().trimEnd()));
+  flaskProcess.on('error', (err) => log.error('Flask process error:', err));
+  flaskProcess.on('exit', (code) => {
+    log.info(`Flask exited with code ${code}`);
+    flaskProcess = null;
+    if (mainWindow && !app.isQuitting) {
+      dialog.showErrorBox(APP_NAME, 'The internal server stopped unexpectedly.\nPlease restart the application.');
+    }
+  });
+}
+
+function killFlaskServer() {
+  if (flaskProcess) {
+    log.info('Killing Flask server…');
+    try {
+      // On Windows, taskkill kills the whole process tree
+      if (process.platform === 'win32') {
+        execSync(`taskkill /pid ${flaskProcess.pid} /f /t`);
+      } else {
+        flaskProcess.kill('SIGTERM');
+      }
+    } catch (e) {
+      log.warn('Failed to kill Flask process:', e.message);
+    }
+    flaskProcess = null;
+  }
+}
+
+// ─── Window creation ──────────────────────────────────────────────────────────
+
+function createSplashWindow() {
+  splashWindow = new BrowserWindow({
+    width:  480,
+    height: 320,
+    frame:  false,
+    transparent: true,
+    resizable: false,
+    alwaysOnTop: true,
+    skipTaskbar: true,
+    webPreferences: {
+      preload:         path.join(__dirname, 'preload.js'),
+      contextIsolation: true,
+      nodeIntegration: false,
+    },
+    icon: getAppIcon(),
+  });
+
+  splashWindow.loadFile(path.join(__dirname, 'splash.html'));
+  splashWindow.center();
+}
+
+function createMainWindow() {
+  mainWindow = new BrowserWindow({
+    width:  1366,
+    height: 900,
+    minWidth:  1024,
+    minHeight: 720,
+    show: false,
+    frame: false,            // Frameless — custom SVG controls injected via JS
+    titleBarStyle: 'hidden',
+    backgroundColor: '#0a0a0f',
+    webPreferences: {
+      preload:          path.join(__dirname, 'preload.js'),
+      contextIsolation: true,
+      nodeIntegration:  false,
+    },
+    icon:  getAppIcon(),
+    title: APP_NAME,
+  });
+
+  mainWindow.loadURL(`http://127.0.0.1:${serverPort}/`);
+
+  mainWindow.webContents.on('did-finish-load', () => {
+    // ── Inject drag-region CSS ──
+    mainWindow.webContents.insertCSS(`
+      /* ── Global: no text selection except inputs ── */
+      *, *::before, *::after {
+        -webkit-user-select: none;
+        user-select: none;
+      }
+      input, textarea, [contenteditable="true"] {
+        -webkit-user-select: text;
+        user-select: text;
+      }
+
+      /* ── Dedicated drag strip at top of window ── */
+      #electron-drag-strip {
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 138px;      /* leave 138px on right for the 3 win-control buttons */
+        height: 30px;
+        z-index: 99998;
+        -webkit-app-region: drag;
+        cursor: grab;
+      }
+      #electron-drag-strip:active {
+        cursor: grabbing;
+      }
+
+      /* ── Window control buttons ── */
+      #electron-wincontrols {
+        position: fixed;
+        top: 0;
+        right: 0;
+        z-index: 99999;
+        display: flex;
+        align-items: center;
+        height: 30px;
+        padding: 0;
+        -webkit-app-region: no-drag;
+      }
+      #electron-wincontrols .wc-btn {
+        width: 46px;
+        height: 30px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        cursor: pointer;
+        background: transparent;
+        border: none;
+        outline: none;
+        opacity: 0.45;
+        transition: opacity 0.15s, background 0.15s;
+      }
+      #electron-wincontrols .wc-btn:hover {
+        opacity: 1;
+        background: rgba(255, 255, 255, 0.08);
+      }
+      #electron-wincontrols .wc-btn.close-btn:hover {
+        background: rgba(232, 17, 35, 0.85);
+        opacity: 1;
+      }
+      #electron-wincontrols .wc-btn svg {
+        width: 10px;
+        height: 10px;
+        stroke: #b0b0c0;
+        fill: none;
+        stroke-width: 1.4;
+        stroke-linecap: round;
+        stroke-linejoin: round;
+        pointer-events: none;
+      }
+      #electron-wincontrols .wc-btn.close-btn:hover svg {
+        stroke: #fff;
+      }
+    `).catch(() => {});
+
+    // ── Inject custom SVG window control buttons ──
+    mainWindow.webContents.executeJavaScript(`
+      (function() {
+        if (document.getElementById('electron-wincontrols')) return;
+
+        const bar = document.createElement('div');
+        bar.id = 'electron-wincontrols';
+
+        // Minimize — horizontal line
+        bar.innerHTML += \`
+          <button class="wc-btn min-btn" title="Minimize" onclick="window.electronAPI?.minimizeWindow()">
+            <svg viewBox="0 0 11 11">
+              <line x1="1" y1="5.5" x2="10" y2="5.5"/>
+            </svg>
+          </button>
+        \`;
+
+        // Maximize / Restore — square
+        bar.innerHTML += \`
+          <button class="wc-btn max-btn" title="Maximize" onclick="window.electronAPI?.maximizeWindow()">
+            <svg viewBox="0 0 11 11">
+              <rect x="1.5" y="1.5" width="8" height="8" rx="0.8"/>
+            </svg>
+          </button>
+        \`;
+
+        // Close — × cross
+        bar.innerHTML += \`
+          <button class="wc-btn close-btn" title="Close" onclick="window.electronAPI?.closeWindow()">
+            <svg viewBox="0 0 11 11">
+              <line x1="1.5" y1="1.5" x2="9.5" y2="9.5"/>
+              <line x1="9.5" y1="1.5" x2="1.5" y2="9.5"/>
+            </svg>
+          </button>
+        \`;
+
+        document.body.appendChild(bar);
+
+        // ── Drag strip (transparent bar at top for dragging the window) ──
+        if (!document.getElementById('electron-drag-strip')) {
+          const strip = document.createElement('div');
+          strip.id = 'electron-drag-strip';
+          document.body.appendChild(strip);
+        }
+      })();
+    `).catch(() => {});
+
+    if (!serverReady) return;
+    showMainWindow();
+  });
+
+  // Intercept navigation — keep all links inside the app
+  mainWindow.webContents.setWindowOpenHandler(({ url }) => {
+    shell.openExternal(url);
+    return { action: 'deny' };
+  });
+
+  mainWindow.on('close', (e) => {
+    if (!app.isQuitting) {
+      e.preventDefault();
+      mainWindow.hide();
+    }
+  });
+
+  mainWindow.on('closed', () => { mainWindow = null; });
+
+  // Open DevTools in dev mode
+  if (isDev) {
+    mainWindow.webContents.openDevTools({ mode: 'detach' });
+  }
+}
+
+function showMainWindow() {
+  if (splashWindow && !splashWindow.isDestroyed()) {
+    splashWindow.destroy();
+    splashWindow = null;
+  }
+  if (mainWindow) {
+    mainWindow.show();
+    mainWindow.focus();
+  }
+}
+
+function getAppIcon() {
+  const fs = require('fs');
+
+  // Candidate paths, preferred order: .ico for Windows, .png as fallback
+  const isWin = process.platform === 'win32';
+  const ext   = isWin ? ['icon.ico', 'icon.png'] : ['icon.png', 'icon.ico'];
+
+  const searchDirs = app.isPackaged
+    ? [
+        path.join(process.resourcesPath, '..', 'resources'),
+        path.join(process.resourcesPath),
+      ]
+    : [
+        path.join(__dirname, 'resources'),
+        path.join(__dirname, '..', 'static'),
+      ];
+
+  for (const dir of searchDirs) {
+    for (const filename of ext) {
+      const full = path.join(dir, filename);
+      if (fs.existsSync(full)) {
+        const img = nativeImage.createFromPath(full);
+        if (!img.isEmpty()) return img;
+      }
+    }
+  }
+
+  // Final fallback: use app logo.png from static/
+  const fallback = path.join(__dirname, '..', 'static', 'logo.png');
+  if (fs.existsSync(fallback)) {
+    const img = nativeImage.createFromPath(fallback);
+    if (!img.isEmpty()) return img;
+  }
+
+  return nativeImage.createEmpty();
+}
+
+// ─── System Tray ─────────────────────────────────────────────────────────────
+
+function createTray() {
+  const icon = getAppIcon();
+  tray = new Tray(icon.isEmpty() ? nativeImage.createEmpty() : icon);
+  tray.setToolTip(APP_NAME);
+
+  const contextMenu = Menu.buildFromTemplate([
+    {
+      label: `${APP_NAME}`,
+      enabled: false,
+    },
+    { type: 'separator' },
+    {
+      label: 'Open Application',
+      click: () => {
+        if (mainWindow) {
+          mainWindow.show();
+          mainWindow.focus();
+        }
+      },
+    },
+    {
+      label: 'Open Downloads Folder',
+      click: () => {
+        const downloadsDir = app.isPackaged
+          ? path.join(process.resourcesPath, 'downloads')
+          : path.join(__dirname, '..', 'downloads');
+        shell.openPath(downloadsDir);
+      },
+    },
+    { type: 'separator' },
+    {
+      label: 'Quit',
+      click: () => {
+        app.isQuitting = true;
+        app.quit();
+      },
+    },
+  ]);
+
+  tray.setContextMenu(contextMenu);
+  tray.on('double-click', () => {
+    if (mainWindow) {
+      mainWindow.show();
+      mainWindow.focus();
+    }
+  });
+}
+
+// ─── IPC Handlers ─────────────────────────────────────────────────────────────
+
+ipcMain.handle('get-app-version', () => app.getVersion());
+ipcMain.handle('get-server-port', () => serverPort);
+
+ipcMain.on('window-minimize', () => mainWindow?.minimize());
+ipcMain.on('window-maximize', () => {
+  if (mainWindow?.isMaximized()) mainWindow.unmaximize();
+  else mainWindow?.maximize();
+});
+ipcMain.on('window-close', () => {
+  app.isQuitting = false;
+  mainWindow?.close();
+});
+
+ipcMain.on('open-downloads-folder', () => {
+  const downloadsDir = app.isPackaged
+    ? path.join(process.resourcesPath, 'downloads')
+    : path.join(__dirname, '..', 'downloads');
+  shell.openPath(downloadsDir);
+});
+
+// ─── Remove native menu bar + register keyboard shortcuts ────────────────────
+// Native menus clash with the dark web UI and don't support SVG.
+// All actions remain accessible via tray right-click and shortcuts below.
+
+function buildAppMenu() {
+  // Wipe the native menu bar entirely
+  Menu.setApplicationMenu(null);
+}
+
+function setupKeyboardShortcuts() {
+  // Reload page
+  globalShortcut.register('CmdOrCtrl+R', () => mainWindow?.reload());
+
+  // Navigate home
+  globalShortcut.register('CmdOrCtrl+H', () =>
+    mainWindow?.loadURL(`http://127.0.0.1:${serverPort}/`)
+  );
+
+  // Open downloads folder
+  globalShortcut.register('CmdOrCtrl+Shift+D', () => {
+    const dir = app.isPackaged
+      ? path.join(process.resourcesPath, 'downloads')
+      : path.join(__dirname, '..', 'downloads');
+    shell.openPath(dir);
+  });
+
+  // Zoom controls
+  globalShortcut.register('CmdOrCtrl+=', () => {
+    const cur = mainWindow?.webContents.getZoomLevel() ?? 0;
+    mainWindow?.webContents.setZoomLevel(cur + 0.5);
+  });
+  globalShortcut.register('CmdOrCtrl+-', () => {
+    const cur = mainWindow?.webContents.getZoomLevel() ?? 0;
+    mainWindow?.webContents.setZoomLevel(cur - 0.5);
+  });
+  globalShortcut.register('CmdOrCtrl+0', () =>
+    mainWindow?.webContents.setZoomLevel(0)
+  );
+
+  // DevTools (dev mode only)
+  if (isDev) {
+    globalShortcut.register('F12', () =>
+      mainWindow?.webContents.toggleDevTools()
+    );
+  }
+}
+
+// ─── App lifecycle ────────────────────────────────────────────────────────────
+
+app.whenReady().then(async () => {
+  // Prevent multiple instances
+  if (!app.requestSingleInstanceLock()) {
+    app.quit();
+    return;
+  }
+
+  // Remove native menu bar
+  buildAppMenu();
+  // Register keyboard shortcuts
+  setupKeyboardShortcuts();
+
+  app.on('second-instance', () => {
+    if (mainWindow) {
+      if (mainWindow.isMinimized()) mainWindow.restore();
+      mainWindow.focus();
+    }
+  });
+
+  // Show splash immediately
+  setTimeout(createSplashWindow, SPLASH_WAIT);
+
+  try {
+    await startFlaskServer();
+    log.info('Waiting for Flask to be ready…');
+    await waitForServer(serverPort);
+    serverReady = true;
+    log.info(`Flask is ready at http://127.0.0.1:${serverPort}`);
+
+    createMainWindow();
+    createTray();
+
+    // If main window already loaded before server was marked ready
+    if (mainWindow?.webContents.getURL().includes('127.0.0.1')) {
+      showMainWindow();
+    }
+  } catch (err) {
+    log.error('Failed to start:', err);
+    if (splashWindow && !splashWindow.isDestroyed()) splashWindow.destroy();
+    dialog.showErrorBox(
+      APP_NAME + ' – Startup Error',
+      `Failed to start the internal server.\n\n${err.message}`
+    );
+    app.quit();
+  }
+});
+
+app.on('activate', () => {
+  // macOS: re-create window if dock icon clicked
+  if (BrowserWindow.getAllWindows().length === 0) createMainWindow();
+  else mainWindow?.show();
+});
+
+app.on('before-quit', () => {
+  app.isQuitting = true;
+  killFlaskServer();
+});
+
+app.on('will-quit', () => {
+  globalShortcut.unregisterAll();
+  killFlaskServer();
+});
+
+// Disable navigation to external URLs in the main window
+app.on('web-contents-created', (_, contents) => {
+  contents.on('will-navigate', (event, url) => {
+    if (!url.startsWith(`http://127.0.0.1:${serverPort}`)) {
+      event.preventDefault();
+      shell.openExternal(url);
+    }
+  });
+});

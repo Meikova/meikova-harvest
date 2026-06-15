@@ -1,87 +1,118 @@
-# Hướng dẫn vận hành và sử dụng (Operating Guide) - EveryThingDownloader
+# Operating and Usage Guide (Operating Guide) - EveryThingDownloader
 
-Tài liệu này hướng dẫn chi tiết cách cài đặt, khởi chạy, sử dụng và bảo trì hệ thống EveryThingDownloader chạy trên môi trường Windows cục bộ (local).
-
----
-
-## 1. Yêu cầu hệ thống trước khi cài đặt
-- **Hệ điều hành**: Windows 10/11
-- **Python**: Phiên bản 3.12 trở lên (Đã cài đặt và thêm vào biến môi trường PATH)
-- **Kết nối Internet**: Cần để tải các thư viện Python, tải tệp tin ffmpeg tự động lần đầu và để tải các video từ YouTube.
+This guide provides exhaustive operational, development, packaging, and troubleshooting instructions for the EveryThingDownloader system on a Windows 10/11 environment.
 
 ---
 
-## 2. Các bước cài đặt và khởi chạy (Local Setup)
+## 1. Local Workspace & Developer Setup
 
-### Bước 2.1: Tạo môi trường ảo (venv)
-Môi trường ảo giúp cô lập các thư viện của dự án để tránh xung đột hệ thống. Chạy lệnh sau tại thư mục gốc của dự án:
-```powershell
-python -m venv venv
-```
+### 1.1 Python Virtual Environment
+1. Open a PowerShell terminal at the root of the project (`D:\JOB\DEV\EveryThingDownloader`).
+2. Create the virtual environment:
+   ```powershell
+   python -m venv venv
+   ```
+3. Activate the virtual environment:
+   ```powershell
+   .\venv\Scripts\Activate.ps1
+   ```
+4. Install all packages and dependencies:
+   ```powershell
+   pip install -r requirements.txt
+   ```
+   *Note: This installs Flask, flask-cors, yt-dlp, static-ffmpeg, requests, and other necessary libraries.*
 
-### Bước 2.2: Kích hoạt venv và cài đặt thư viện
-Kích hoạt môi trường ảo bằng Powershell và cài đặt các thư viện trong file `requirements.txt`:
-```powershell
-.\venv\Scripts\Activate.ps1
-.\venv\Scripts\pip install -r requirements.txt
-```
+### 1.2 Electron Development Environment
+1. Install Node.js (v20+ recommended) on your machine.
+2. Navigate to the `electron/` directory:
+   ```powershell
+   cd electron
+   ```
+3. Install the Node packages:
+   ```powershell
+   npm install
+   ```
 
-### Bước 2.3: Khởi chạy ứng dụng
-Chạy trực tiếp file `app.py` bằng Python của môi trường ảo:
+### 1.3 Muxer Initialization
+When you start the backend for the first time, `static-ffmpeg` automatically pulls down static FFmpeg and FFprobe binaries and registers them in the virtual environment. 
+- You can manually test if FFmpeg is configured correctly by running:
+  ```powershell
+  .\venv\Scripts\python -c "import static_ffmpeg; static_ffmpeg.add_paths(); import subprocess; print(subprocess.check_output(['ffmpeg', '-version']).decode('utf-8'))"
+  ```
+
+---
+
+## 2. Launch Procedures
+
+### 2.1 Developer Web Server
+To launch only the Flask backend server for web-based access:
 ```powershell
 .\venv\Scripts\python.exe app.py
 ```
-**Lưu ý quan trọng ở lần chạy đầu tiên**:
-Thư viện `static-ffmpeg` sẽ tự động tải các tệp nhị phân của FFmpeg (khoảng 50-70MB) về máy và cấu hình biến môi trường tự động. Tiến trình khởi chạy lần đầu có thể mất từ 10-30 giây tùy tốc độ mạng. Ở các lần chạy sau, server sẽ khởi động ngay lập tức.
+Open a browser and navigate to `http://localhost:5000`.
 
-Khi màn hình Console hiện thông báo:
-`* Running on http://127.0.0.1:5000` (hoặc `http://localhost:5000`), hệ thống đã sẵn sàng.
+### 2.2 Electron Desktop Shell (Developer Mode)
+To run the desktop application window mapping to your active Python code:
+1. Make sure the Flask server is running in a terminal (step 2.1).
+2. Open a separate terminal, navigate to `electron/`, and run:
+   ```powershell
+   npm run dev
+   ```
 
----
-
-## 3. Hướng dẫn sử dụng chi tiết (User Guide)
-
-### Bước 1: Truy cập giao diện
-Mở trình duyệt Web (Chrome, Edge, Firefox, Brave...) và truy cập đường dẫn:
-[http://localhost:5000](http://localhost:5000)
-
-### Bước 2: Dán đường dẫn (URL) cần tải
-- Copy link video YouTube hoặc YouTube Shorts (Ví dụ: `https://www.youtube.com/watch?v=...` hoặc `https://www.youtube.com/shorts/...`).
-- Nhấp vào nút **Paste** trên giao diện (nếu trình duyệt cấp quyền clipboard) hoặc dán thủ công (`Ctrl + V`) vào ô nhập liệu.
-- Nhấn nút **ANALYZE LINK** (hoặc gõ Enter).
-
-### Bước 3: Chọn định dạng và tải xuống
-- Chờ vài giây để backend phân tích thông tin video. Giao diện sẽ hiển thị:
-  - Ảnh đại diện video (thumbnail).
-  - Tiêu đề video, tên kênh và thời lượng.
-  - Phân loại: Badge **YouTube Shorts** (màu xanh cyan) hoặc **YouTube Video** (màu tím).
-  - Danh sách các tùy chọn tải xuống khả dụng (Ví dụ: Video 1080p, Video 720p, Video 480p, Âm thanh MP3 chất lượng cao).
-- Click nút **Get** bên cạnh định dạng mong muốn.
-- Hệ thống sẽ bắt đầu tải video từ YouTube về máy chủ trung gian, tự động ghép âm thanh & hình ảnh (đối với video 1080p+), sau đó truyền trực tiếp xuống trình duyệt của bạn với thanh tiến trình đo lường chính xác dung lượng thực tế.
-- Trình duyệt sẽ hiển thị hộp thoại lưu tệp (Save File) khi hoàn tất.
+### 2.3 Packaged Desktop Mode (Production)
+Once you compile the application using the GUI Builder, you can launch the standalone app:
+1. Double-click the installer `EveryThingDownloader Setup 1.0.0.exe` to install it, or run `EveryThingDownloader-Portable-1.0.0.exe`.
+2. The app will open a splash screen saying *"Starting server..."* while starting the hidden backend server (`server.exe`) on port 5000, then display the main UI.
 
 ---
 
-## 4. Cơ chế dọn dẹp bộ nhớ đệm (Temporary Files Storage)
-- Khi người dùng tải xuống, backend sẽ tạo ra một thư mục tạm thời có tên dạng `downloads/temp_<uuid>/`.
-- Tệp tin video/âm thanh sẽ được lưu tại đây trong quá trình tải và ghép nối.
-- Ngay sau khi truyền tải tệp tin thành công tới trình duyệt (hoặc khi người dùng hủy tải giữa chừng), Python sẽ tự động xóa sạch thư mục `temp_<uuid>` này.
-- **Lợi ích**: Đảm bảo không gây tràn ổ đĩa cứng của máy chủ sau một thời gian dài sử dụng.
+## 3. Advanced Downloader Features & Operations
+
+### 3.1 Session Cookie Management (Bypassing Bot Blocks)
+Some platforms (like Twitter/X, Instagram, or age-restricted YouTube videos) require active session cookies to bypass guest-access restrictions.
+1. Install a browser extension that exports cookies (e.g. **Get cookies.txt LOCALLY**).
+2. Log in to the target platform on your browser.
+3. Open the extension, click export, and save the cookies as a text file (Netscape format).
+4. In the EveryThingDownloader UI, click **Manage Cookies**.
+5. Upload the cookie text file into the designated box for the platform.
+6. The backend will automatically apply these cookies to all yt-dlp queries for that platform.
+
+### 3.2 Media Trimming
+1. Paste a link and click **ANALYZE LINK**.
+2. Click the **Get** button next to your desired video or audio format.
+3. In the pop-up modal, adjust the visual range slider handles to define your custom **Start Time** and **End Time**.
+4. Click **Download**. The server clips the media on the fly and sends the trimmed file to your browser.
 
 ---
 
-## 5. Hướng dẫn bảo trì và khắc phục lỗi (Troubleshooting)
+## 4. Packing the App (GUI Builder Operations)
 
-### Lỗi 1: YouTube chặn tải hoặc báo lỗi "Sign in to confirm you are not a bot" / HTTP Error 403
-- **Nguyên nhân**: YouTube thường xuyên thay đổi thuật toán hoặc chặn các IP gửi quá nhiều yêu cầu tải.
-- **Khắc phục**: 
-  1. Cập nhật thư viện `yt-dlp` lên phiên bản mới nhất. `yt-dlp` được cộng đồng cập nhật liên tục để vượt qua các rào cản của YouTube.
-  2. Mở cửa sổ dòng lệnh và chạy lệnh:
-     ```powershell
-     .\venv\Scripts\pip install --upgrade yt-dlp
-     ```
-  3. Khởi động lại server `app.py`.
+Navigate to `http://localhost:5000/builder` in your browser to access the GUI compiler.
 
-### Lỗi 2: Không thể ghép hình ảnh với âm thanh ở độ phân giải 1080p trở lên
-- **Nguyên nhân**: Thư viện `static-ffmpeg` chưa được tải về hoặc bị lỗi quyền ghi file.
-- **Khắc phục**: Kiểm tra xem tiến trình Python có bị chặn bởi Antivirus/Windows Defender hay không. Bạn cũng có thể cài đặt FFmpeg thủ công trên hệ điều hành và thêm nó vào PATH hệ thống nếu muốn.
+### 4.1 Metadata Properties
+- **Application Name**: Name of the final executable file (e.g., `EveryThingDownloader`).
+- **Version**: Version string compiled into the file resources (e.g., `1.0.0`).
+- **Company Name / Copyright / Description**: Compiled directly into the PE header. These properties determine how the application's process is named and grouped inside the **Windows Task Manager**.
+
+### 4.2 Code Protection Options
+- **AST Scrambling**: Scrambles local variable/function identifiers in python source files.
+- **String Encryption**: Encrypts string literals in python source code.
+- **PyArmor Protection**: Packages files with binary shields to prevent reverse engineering.
+
+### 4.3 Execution Licensing Restrictions
+- **IP Lock**: Restricts execution. Add your authorized public IP address list (retrieved by clicking **Add current IP**).
+- **Date Expiry**: Select an expiration date. The packaged application will verify the date and exit if it has expired.
+- **Machine ID Lock**: Click **Get Current Machine ID** to fetch your hardware fingerprint. Whitelist this ID to restrict execution to that specific computer.
+
+---
+
+## 5. Maintenance & Troubleshooting
+
+| Error / Log Pattern | Root Cause | Resolution Step |
+| :--- | :--- | :--- |
+| `TLS connect error / OPENSSL_internal` | Conflict between `curl-cffi` OpenSSL DLLs on Windows and other system libraries. | The backend automatically forces `yt-dlp` to bypass `curl-cffi` and fall back to the python native `urllib` legacy handler on Windows platforms. |
+| `PyArmor not found` | The `pyarmor` library is missing from the active virtual environment. | Run: `.\venv\Scripts\pip install pyinstaller pyarmor` to restore the packaging libraries. |
+| `â€¦` instead of `…` in build logs | The subprocess logs are decoded in system CP1252 instead of UTF-8. | Resolved. The log streamer now explicitly decodes subprocess stdout using `encoding='utf-8'` and strips ANSI color escape codes before sending lines to the client. |
+| Installer build failed: `cannot find specified resource "resources/license.txt"` | The Electron packaging script is missing a license document. | Resolved. We have created a standard license file at `electron/resources/license.txt` to enable NSIS builds. |
+| `server.exe` file not found during Electron packaging | Incorrect relative path inside `electron/package.json`. | Resolved. Changed the resource mapping from `../resources/server.exe` to `resources/server.exe`. |
+| Black CMD windows flashing on desktop during analysis or download | Subprocess commands (like curl or gallery-dl) executed on Windows spawn a console window by default. | Resolved. Injected a global monkey-patch in `app.py` that intercepts all `subprocess.Popen` calls and sets `creationflags=subprocess.CREATE_NO_WINDOW` automatically on Windows. |

@@ -1,4 +1,5 @@
 import os
+import sys
 import logging
 import yt_dlp
 from config import TEMP_DOWNLOAD_DIR
@@ -7,6 +8,12 @@ try:
     from yt_dlp.networking.impersonate import ImpersonateTarget
 except ImportError:
     ImpersonateTarget = None
+
+def should_use_impersonate():
+    # Disable on Windows due to curl-cffi / OpenSSL DLL conflict causing TLS connect errors
+    if sys.platform.startswith("win"):
+        return False
+    return ImpersonateTarget is not None
 
 logger = logging.getLogger(__name__)
 
@@ -51,7 +58,15 @@ def create_ydl_instance(ydl_opts, url=None, client_id=None):
     If all fail, it will fall back to using no cookies.
     """
     logger.info(f"create_ydl_instance: client_id='{client_id}', url='{url}'")
-    if ImpersonateTarget:
+    
+    # Force legacy HTTP handler (urllib) to avoid curl-cffi TLS / OpenSSL DLL conflict on Windows
+    if "compat_opts" not in ydl_opts:
+        ydl_opts["compat_opts"] = set()
+    elif isinstance(ydl_opts["compat_opts"], list):
+        ydl_opts["compat_opts"] = set(ydl_opts["compat_opts"])
+    ydl_opts["compat_opts"].add("prefer-legacy-http-handler")
+
+    if should_use_impersonate():
         try:
             ydl_opts["impersonate"] = ImpersonateTarget.from_str("chrome")
             logger.info("Automatically added 'chrome' impersonate option to ydl_opts in create_ydl_instance.")

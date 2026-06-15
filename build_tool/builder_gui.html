@@ -1,0 +1,3053 @@
+<!doctype html>
+<html lang="vi">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>EveryThingDownloader — Build Tool</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap"
+      rel="stylesheet"
+    />
+    <style>
+      /* ═══════════════════════════════════════════════════════════════════════════
+   DESIGN TOKENS
+═══════════════════════════════════════════════════════════════════════════ */
+      :root {
+        --bg: #080b12;
+        --surface: #0f1322;
+        --surface2: #161c30;
+        --border: rgba(255, 255, 255, 0.07);
+        --border-act: rgba(99, 102, 241, 0.5);
+        --text: #e2e8f0;
+        --text-muted: #64748b;
+        --text-dim: #94a3b8;
+        --accent: #6366f1;
+        --accent2: #8b5cf6;
+        --accent3: #a78bfa;
+        --green: #10b981;
+        --yellow: #f59e0b;
+        --red: #ef4444;
+        --cyan: #06b6d4;
+        --radius: 12px;
+        --radius-sm: 8px;
+        --shadow: 0 4px 32px rgba(0, 0, 0, 0.5);
+        --glow: 0 0 24px rgba(99, 102, 241, 0.3);
+      }
+
+      /* ═══════════════════════════════════════════════════════════════════════════
+   BASE
+═══════════════════════════════════════════════════════════════════════════ */
+      *,
+      *::before,
+      *::after {
+        box-sizing: border-box;
+        margin: 0;
+        padding: 0;
+      }
+
+      html,
+      body {
+        height: 100%;
+        font-family: "Inter", sans-serif;
+        background: var(--bg);
+        color: var(--text);
+        font-size: 14px;
+        line-height: 1.6;
+        overflow-x: hidden;
+      }
+
+      body::before {
+        content: "";
+        position: fixed;
+        inset: 0;
+        z-index: -2;
+        background:
+          radial-gradient(
+            ellipse 70% 50% at 10% 10%,
+            rgba(99, 102, 241, 0.12) 0%,
+            transparent 60%
+          ),
+          radial-gradient(
+            ellipse 50% 60% at 90% 90%,
+            rgba(139, 92, 246, 0.1) 0%,
+            transparent 60%
+          );
+      }
+
+      body::after {
+        content: "";
+        position: fixed;
+        inset: 0;
+        z-index: -1;
+        background-image:
+          linear-gradient(rgba(99, 102, 241, 0.03) 1px, transparent 1px),
+          linear-gradient(90deg, rgba(99, 102, 241, 0.03) 1px, transparent 1px);
+        background-size: 48px 48px;
+      }
+
+      /* ═══════════════════════════════════════════════════════════════════════════
+   SCROLLBAR
+═══════════════════════════════════════════════════════════════════════════ */
+      ::-webkit-scrollbar {
+        width: 6px;
+        height: 6px;
+      }
+      ::-webkit-scrollbar-track {
+        background: transparent;
+      }
+      ::-webkit-scrollbar-thumb {
+        background: rgba(99, 102, 241, 0.4);
+        border-radius: 99px;
+      }
+
+      /* ═══════════════════════════════════════════════════════════════════════════
+   LAYOUT
+═══════════════════════════════════════════════════════════════════════════ */
+      .app {
+        display: grid;
+        grid-template-rows: 64px 1fr;
+        grid-template-columns: 220px 1fr;
+        height: 100vh;
+      }
+
+      /* ═══════════════════════════════════════════════════════════════════════════
+   HEADER
+═══════════════════════════════════════════════════════════════════════════ */
+      .header {
+        grid-column: 1 / -1;
+        display: flex;
+        align-items: center;
+        gap: 14px;
+        padding: 0 24px;
+        background: rgba(15, 19, 34, 0.9);
+        border-bottom: 1px solid var(--border);
+        backdrop-filter: blur(12px);
+        position: relative;
+        z-index: 10;
+      }
+
+      .header-logo {
+        width: 36px;
+        height: 36px;
+        border-radius: 10px;
+        background: linear-gradient(135deg, var(--accent), var(--accent2));
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 18px;
+        box-shadow: 0 0 16px rgba(99, 102, 241, 0.5);
+        flex-shrink: 0;
+      }
+
+      .header-title {
+        font-size: 16px;
+        font-weight: 700;
+        background: linear-gradient(135deg, #a5b4fc, #c4b5fd);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+      }
+
+      .header-subtitle {
+        font-size: 11px;
+        color: var(--text-muted);
+        letter-spacing: 0.5px;
+        text-transform: uppercase;
+        margin-left: 2px;
+      }
+
+      .header-spacer {
+        flex: 1;
+      }
+
+      .header-badge {
+        font-size: 11px;
+        font-weight: 600;
+        padding: 4px 10px;
+        border-radius: 99px;
+        background: rgba(99, 102, 241, 0.15);
+        border: 1px solid rgba(99, 102, 241, 0.3);
+        color: var(--accent3);
+        letter-spacing: 0.5px;
+      }
+
+      /* ═══════════════════════════════════════════════════════════════════════════
+   SIDEBAR NAV
+═══════════════════════════════════════════════════════════════════════════ */
+      .sidebar {
+        background: rgba(15, 19, 34, 0.6);
+        border-right: 1px solid var(--border);
+        padding: 20px 12px;
+        display: flex;
+        flex-direction: column;
+        gap: 4px;
+        overflow-y: auto;
+        min-height: 0;
+      }
+
+      .nav-section-label {
+        font-size: 10px;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 1px;
+        color: var(--text-muted);
+        padding: 12px 8px 4px;
+      }
+
+      .nav-item {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        padding: 9px 12px;
+        border-radius: var(--radius-sm);
+        cursor: pointer;
+        transition: all 0.2s;
+        color: var(--text-muted);
+        font-weight: 500;
+        border: 1px solid transparent;
+        font-size: 13px;
+        user-select: none;
+      }
+
+      .nav-item:hover {
+        background: rgba(99, 102, 241, 0.08);
+        color: var(--text);
+      }
+
+      .nav-item.active {
+        background: rgba(99, 102, 241, 0.15);
+        border-color: var(--border-act);
+        color: var(--accent3);
+      }
+
+      .nav-item .icon {
+        font-size: 16px;
+        width: 20px;
+        text-align: center;
+        flex-shrink: 0;
+      }
+
+      .nav-item .badge {
+        margin-left: auto;
+        font-size: 10px;
+        padding: 2px 7px;
+        border-radius: 99px;
+        background: rgba(99, 102, 241, 0.2);
+        color: var(--accent3);
+        font-weight: 600;
+      }
+
+      .sidebar-footer {
+        margin-top: auto;
+        padding-top: 12px;
+        border-top: 1px solid var(--border);
+      }
+
+      /* ═══════════════════════════════════════════════════════════════════════════
+   MAIN CONTENT
+═══════════════════════════════════════════════════════════════════════════ */
+      .main {
+        overflow-y: auto;
+        padding: 28px 32px;
+        min-height: 0;
+      }
+
+      .tab-panel {
+        display: none;
+      }
+      .tab-panel.active {
+        display: block;
+      }
+
+      .page-title {
+        font-size: 22px;
+        font-weight: 700;
+        margin-bottom: 6px;
+        background: linear-gradient(135deg, #e2e8f0, #a5b4fc);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+      }
+
+      .page-desc {
+        color: var(--text-muted);
+        margin-bottom: 28px;
+        font-size: 13px;
+      }
+
+      /* ═══════════════════════════════════════════════════════════════════════════
+   CARD
+═══════════════════════════════════════════════════════════════════════════ */
+      .card {
+        background: rgba(15, 19, 34, 0.8);
+        border: 1px solid var(--border);
+        border-radius: var(--radius);
+        padding: 20px 24px;
+        margin-bottom: 20px;
+        backdrop-filter: blur(8px);
+        transition: border-color 0.2s;
+      }
+
+      .card:hover {
+        border-color: rgba(99, 102, 241, 0.2);
+      }
+
+      .card-header {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        margin-bottom: 18px;
+        padding-bottom: 14px;
+        border-bottom: 1px solid var(--border);
+      }
+
+      .card-icon {
+        width: 34px;
+        height: 34px;
+        border-radius: 9px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 17px;
+        flex-shrink: 0;
+      }
+
+      .card-icon.purple {
+        background: rgba(99, 102, 241, 0.15);
+      }
+      .card-icon.green {
+        background: rgba(16, 185, 129, 0.15);
+      }
+      .card-icon.yellow {
+        background: rgba(245, 158, 11, 0.15);
+      }
+      .card-icon.red {
+        background: rgba(239, 68, 68, 0.15);
+      }
+      .card-icon.cyan {
+        background: rgba(6, 182, 212, 0.15);
+      }
+
+      .card-title {
+        font-size: 15px;
+        font-weight: 600;
+      }
+      .card-subtitle {
+        font-size: 12px;
+        color: var(--text-muted);
+        margin-top: 1px;
+      }
+
+      /* ═══════════════════════════════════════════════════════════════════════════
+   FORM ELEMENTS
+═══════════════════════════════════════════════════════════════════════════ */
+      .form-grid {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 16px;
+      }
+      .form-grid.single {
+        grid-template-columns: 1fr;
+      }
+      .form-grid.triple {
+        grid-template-columns: 1fr 1fr 1fr;
+      }
+
+      .form-group {
+        display: flex;
+        flex-direction: column;
+        gap: 6px;
+      }
+      .form-group.span2 {
+        grid-column: span 2;
+      }
+
+      .form-label {
+        font-size: 12px;
+        font-weight: 600;
+        color: var(--text-dim);
+        letter-spacing: 0.3px;
+        display: flex;
+        align-items: center;
+        gap: 6px;
+      }
+
+      .form-label .tip {
+        font-size: 11px;
+        color: var(--text-muted);
+        font-weight: 400;
+      }
+
+      input[type="text"],
+      input[type="number"],
+      input[type="date"],
+      textarea,
+      select {
+        width: 100%;
+        background: rgba(8, 11, 18, 0.6);
+        border: 1px solid var(--border);
+        border-radius: var(--radius-sm);
+        padding: 9px 12px;
+        color: var(--text);
+        font-family: inherit;
+        font-size: 13px;
+        transition:
+          border-color 0.2s,
+          box-shadow 0.2s;
+        outline: none;
+      }
+
+      input[type="text"]:focus,
+      input[type="number"]:focus,
+      input[type="date"]:focus,
+      textarea:focus,
+      select:focus {
+        border-color: rgba(99, 102, 241, 0.6);
+        box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.12);
+      }
+
+      input:disabled,
+      textarea:disabled,
+      select:disabled {
+        opacity: 0.4;
+        cursor: not-allowed;
+      }
+
+      textarea {
+        resize: vertical;
+        min-height: 80px;
+        font-family: "JetBrains Mono", monospace;
+        font-size: 12px;
+      }
+
+      select option {
+        background: #0f1322;
+      }
+
+      /* Toggle switch */
+      .toggle-row {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 10px 14px;
+        border-radius: var(--radius-sm);
+        border: 1px solid var(--border);
+        background: rgba(8, 11, 18, 0.4);
+        cursor: pointer;
+        transition: all 0.2s;
+        user-select: none;
+        margin-bottom: 8px;
+      }
+
+      .toggle-row:hover {
+        border-color: rgba(99, 102, 241, 0.25);
+        background: rgba(99, 102, 241, 0.05);
+      }
+      .toggle-row.enabled {
+        border-color: rgba(99, 102, 241, 0.3);
+      }
+
+      .toggle-info {
+        display: flex;
+        flex-direction: column;
+        gap: 2px;
+      }
+      .toggle-label {
+        font-weight: 600;
+        font-size: 13px;
+      }
+      .toggle-desc {
+        font-size: 11px;
+        color: var(--text-muted);
+      }
+
+      .toggle {
+        position: relative;
+        width: 42px;
+        height: 24px;
+        flex-shrink: 0;
+      }
+
+      .toggle input {
+        display: none;
+      }
+
+      .toggle-track {
+        position: absolute;
+        inset: 0;
+        background: rgba(255, 255, 255, 0.1);
+        border-radius: 99px;
+        transition: background 0.2s;
+      }
+
+      .toggle input:checked + .toggle-track {
+        background: var(--accent);
+      }
+
+      .toggle-thumb {
+        position: absolute;
+        width: 18px;
+        height: 18px;
+        background: white;
+        border-radius: 50%;
+        top: 3px;
+        left: 3px;
+        transition: transform 0.2s;
+        box-shadow: 0 1px 4px rgba(0, 0, 0, 0.4);
+      }
+
+      .toggle input:checked ~ .toggle-thumb {
+        transform: translateX(18px);
+      }
+
+      /* ═══════════════════════════════════════════════════════════════════════════
+   BUTTONS
+═══════════════════════════════════════════════════════════════════════════ */
+      .btn {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: 8px;
+        padding: 10px 20px;
+        border-radius: var(--radius-sm);
+        font-family: inherit;
+        font-size: 13px;
+        font-weight: 600;
+        cursor: pointer;
+        border: none;
+        transition: all 0.2s;
+        letter-spacing: 0.2px;
+        text-decoration: none;
+        position: relative;
+        overflow: hidden;
+      }
+
+      .btn::after {
+        content: "";
+        position: absolute;
+        inset: 0;
+        background: rgba(255, 255, 255, 0);
+        transition: background 0.2s;
+      }
+      .btn:hover::after {
+        background: rgba(255, 255, 255, 0.06);
+      }
+
+      .btn-primary {
+        background: linear-gradient(135deg, var(--accent), var(--accent2));
+        color: white;
+        box-shadow: 0 4px 16px rgba(99, 102, 241, 0.4);
+      }
+      .btn-primary:hover {
+        box-shadow: 0 6px 24px rgba(99, 102, 241, 0.6);
+        transform: translateY(-1px);
+      }
+
+      .btn-secondary {
+        background: rgba(255, 255, 255, 0.06);
+        border: 1px solid var(--border);
+        color: var(--text-dim);
+      }
+      .btn-secondary:hover {
+        border-color: rgba(99, 102, 241, 0.3);
+        color: var(--text);
+      }
+
+      .btn-success {
+        background: linear-gradient(135deg, #10b981, #059669);
+        color: white;
+        box-shadow: 0 4px 16px rgba(16, 185, 129, 0.35);
+      }
+      .btn-success:hover {
+        box-shadow: 0 6px 24px rgba(16, 185, 129, 0.5);
+        transform: translateY(-1px);
+      }
+
+      .btn-danger {
+        background: rgba(239, 68, 68, 0.1);
+        border: 1px solid rgba(239, 68, 68, 0.3);
+        color: #fca5a5;
+      }
+      .btn-danger:hover {
+        background: rgba(239, 68, 68, 0.2);
+      }
+
+      .btn-lg {
+        padding: 13px 28px;
+        font-size: 15px;
+      }
+      .btn-sm {
+        padding: 6px 14px;
+        font-size: 12px;
+      }
+
+      .btn:disabled {
+        opacity: 0.5;
+        cursor: not-allowed;
+        pointer-events: none;
+      }
+
+      .btn-row {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        flex-wrap: wrap;
+        margin-top: 4px;
+      }
+
+      /* ═══════════════════════════════════════════════════════════════════════════
+   LEVEL SELECTOR (obfuscation level)
+═══════════════════════════════════════════════════════════════════════════ */
+      .level-selector {
+        display: flex;
+        gap: 8px;
+      }
+
+      .level-opt {
+        flex: 1;
+        padding: 10px;
+        border: 1px solid var(--border);
+        border-radius: var(--radius-sm);
+        text-align: center;
+        cursor: pointer;
+        transition: all 0.2s;
+        user-select: none;
+      }
+
+      .level-opt:hover {
+        border-color: rgba(99, 102, 241, 0.3);
+        background: rgba(99, 102, 241, 0.06);
+      }
+      .level-opt.sel {
+        border-color: var(--accent);
+        background: rgba(99, 102, 241, 0.15);
+        color: var(--accent3);
+      }
+
+      .level-opt .lv-name {
+        font-weight: 700;
+        font-size: 15px;
+        margin-bottom: 2px;
+      }
+      .level-opt .lv-desc {
+        font-size: 11px;
+        color: var(--text-muted);
+      }
+      .level-opt.sel .lv-desc {
+        color: var(--accent3);
+        opacity: 0.8;
+      }
+
+      /* ═══════════════════════════════════════════════════════════════════════════
+   TAGS INPUT
+═══════════════════════════════════════════════════════════════════════════ */
+      .tags-wrap {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 6px;
+        padding: 8px 10px;
+        background: rgba(8, 11, 18, 0.6);
+        border: 1px solid var(--border);
+        border-radius: var(--radius-sm);
+        min-height: 44px;
+        cursor: text;
+        transition: border-color 0.2s;
+      }
+
+      .tags-wrap:focus-within {
+        border-color: rgba(99, 102, 241, 0.6);
+        box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.12);
+      }
+
+      .tag {
+        display: inline-flex;
+        align-items: center;
+        gap: 4px;
+        padding: 3px 10px 3px 10px;
+        background: rgba(99, 102, 241, 0.2);
+        border: 1px solid rgba(99, 102, 241, 0.3);
+        border-radius: 99px;
+        color: var(--accent3);
+        font-size: 12px;
+        font-weight: 500;
+        font-family: "JetBrains Mono", monospace;
+      }
+
+      .tag-remove {
+        cursor: pointer;
+        opacity: 0.6;
+        font-size: 14px;
+        line-height: 1;
+        padding: 0 2px;
+      }
+      .tag-remove:hover {
+        opacity: 1;
+        color: var(--red);
+      }
+
+      .tags-input {
+        border: none !important;
+        background: transparent !important;
+        padding: 2px 4px !important;
+        min-width: 120px;
+        flex: 1;
+        font-size: 13px !important;
+        box-shadow: none !important;
+      }
+
+      /* ═══════════════════════════════════════════════════════════════════════════
+   TARGET CARDS (build target selector)
+═══════════════════════════════════════════════════════════════════════════ */
+      .target-cards {
+        display: grid;
+        grid-template-columns: 1fr 1fr 1fr;
+        gap: 14px;
+        margin-bottom: 24px;
+      }
+
+      .target-card {
+        padding: 18px;
+        border: 2px solid var(--border);
+        border-radius: var(--radius);
+        cursor: pointer;
+        transition: all 0.2s;
+        position: relative;
+        overflow: hidden;
+        user-select: none;
+      }
+
+      .target-card::before {
+        content: "";
+        position: absolute;
+        inset: 0;
+        opacity: 0;
+        transition: opacity 0.2s;
+      }
+
+      .target-card.web::before {
+        background: linear-gradient(
+          135deg,
+          rgba(6, 182, 212, 0.1),
+          transparent
+        );
+      }
+      .target-card.desktop::before {
+        background: linear-gradient(
+          135deg,
+          rgba(99, 102, 241, 0.1),
+          transparent
+        );
+      }
+      .target-card.both::before {
+        background: linear-gradient(
+          135deg,
+          rgba(16, 185, 129, 0.1),
+          transparent
+        );
+      }
+
+      .target-card:hover {
+        border-color: rgba(99, 102, 241, 0.3);
+      }
+      .target-card:hover::before {
+        opacity: 1;
+      }
+      .target-card.sel.web {
+        border-color: var(--cyan);
+      }
+      .target-card.sel.desktop {
+        border-color: var(--accent);
+      }
+      .target-card.sel.both {
+        border-color: var(--green);
+      }
+      .target-card.sel::before {
+        opacity: 1;
+      }
+
+      .target-card .tc-icon {
+        font-size: 28px;
+        margin-bottom: 10px;
+      }
+      .target-card .tc-name {
+        font-weight: 700;
+        font-size: 14px;
+        margin-bottom: 4px;
+      }
+      .target-card .tc-desc {
+        font-size: 11px;
+        color: var(--text-muted);
+        line-height: 1.5;
+      }
+      .target-card .tc-check {
+        position: absolute;
+        top: 12px;
+        right: 12px;
+        width: 22px;
+        height: 22px;
+        border-radius: 50%;
+        border: 2px solid var(--border);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 12px;
+        transition: all 0.2s;
+      }
+      .target-card.sel .tc-check {
+        background: var(--accent);
+        border-color: var(--accent);
+        color: white;
+      }
+
+      /* ═══════════════════════════════════════════════════════════════════════════
+   BUILD LOG
+═══════════════════════════════════════════════════════════════════════════ */
+      .build-log {
+        background: rgba(4, 7, 14, 0.8);
+        border: 1px solid var(--border);
+        border-radius: var(--radius);
+        padding: 16px;
+        font-family: "JetBrains Mono", monospace;
+        font-size: 12px;
+        line-height: 1.7;
+        height: 320px;
+        overflow-y: auto;
+        white-space: pre-wrap;
+        word-break: break-all;
+      }
+
+      .log-line {
+        display: block;
+      }
+      .log-info {
+        color: #60a5fa;
+      }
+      .log-ok {
+        color: #34d399;
+      }
+      .log-warn {
+        color: #fbbf24;
+      }
+      .log-error {
+        color: #f87171;
+      }
+      .log-dim {
+        color: var(--text-muted);
+      }
+      .log-bold {
+        font-weight: 700;
+      }
+
+      /* ═══════════════════════════════════════════════════════════════════════════
+   PROGRESS
+═══════════════════════════════════════════════════════════════════════════ */
+      .progress-wrap {
+        height: 6px;
+        background: rgba(255, 255, 255, 0.06);
+        border-radius: 99px;
+        overflow: hidden;
+        margin-bottom: 8px;
+      }
+
+      .progress-bar {
+        height: 100%;
+        border-radius: 99px;
+        background: linear-gradient(90deg, var(--accent), var(--accent2));
+        width: 0%;
+        transition: width 0.4s ease;
+        box-shadow: 0 0 12px rgba(99, 102, 241, 0.6);
+      }
+
+      .progress-bar.indeterminate {
+        width: 30%;
+        animation: indeterminate 1.4s ease-in-out infinite;
+      }
+
+      @keyframes indeterminate {
+        0% {
+          margin-left: -30%;
+        }
+        100% {
+          margin-left: 100%;
+        }
+      }
+
+      /* ═══════════════════════════════════════════════════════════════════════════
+   STATUS INDICATOR
+═══════════════════════════════════════════════════════════════════════════ */
+      .status-dot {
+        display: inline-block;
+        width: 8px;
+        height: 8px;
+        border-radius: 50%;
+        background: var(--text-muted);
+        margin-right: 6px;
+      }
+      .status-dot.running {
+        background: var(--accent);
+        box-shadow: 0 0 8px var(--accent);
+        animation: pulse 1.5s infinite;
+      }
+      .status-dot.success {
+        background: var(--green);
+        box-shadow: 0 0 8px var(--green);
+      }
+      .status-dot.error {
+        background: var(--red);
+        box-shadow: 0 0 8px var(--red);
+      }
+
+      @keyframes pulse {
+        0%,
+        100% {
+          opacity: 1;
+        }
+        50% {
+          opacity: 0.4;
+        }
+      }
+
+      /* ═══════════════════════════════════════════════════════════════════════════
+   MACHINE ID DISPLAY
+═══════════════════════════════════════════════════════════════════════════ */
+      .machine-id-box {
+        font-family: "JetBrains Mono", monospace;
+        font-size: 13px;
+        background: rgba(4, 7, 14, 0.8);
+        border: 1px solid rgba(6, 182, 212, 0.3);
+        border-radius: var(--radius-sm);
+        padding: 12px 16px;
+        color: var(--cyan);
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        word-break: break-all;
+        margin-top: 8px;
+      }
+
+      .machine-id-box .copy-btn {
+        flex-shrink: 0;
+        cursor: pointer;
+        opacity: 0.6;
+        font-size: 16px;
+        transition: opacity 0.2s;
+        background: none;
+        border: none;
+        color: var(--cyan);
+      }
+      .machine-id-box .copy-btn:hover {
+        opacity: 1;
+      }
+
+      /* ═══════════════════════════════════════════════════════════════════════════
+   ALERTS
+═══════════════════════════════════════════════════════════════════════════ */
+      .alert {
+        display: flex;
+        gap: 12px;
+        align-items: flex-start;
+        padding: 12px 16px;
+        border-radius: var(--radius-sm);
+        margin-bottom: 16px;
+        font-size: 13px;
+      }
+
+      .alert-icon {
+        font-size: 18px;
+        flex-shrink: 0;
+        margin-top: 1px;
+      }
+      .alert-info {
+        background: rgba(99, 102, 241, 0.1);
+        border: 1px solid rgba(99, 102, 241, 0.2);
+      }
+      .alert-warning {
+        background: rgba(245, 158, 11, 0.1);
+        border: 1px solid rgba(245, 158, 11, 0.2);
+      }
+      .alert-success {
+        background: rgba(16, 185, 129, 0.1);
+        border: 1px solid rgba(16, 185, 129, 0.2);
+      }
+
+      /* ═══════════════════════════════════════════════════════════════════════════
+   DIVIDER
+═══════════════════════════════════════════════════════════════════════════ */
+      .divider {
+        height: 1px;
+        background: var(--border);
+        margin: 20px 0;
+      }
+
+      /* ═══════════════════════════════════════════════════════════════════════════
+   SECTION TITLE
+═══════════════════════════════════════════════════════════════════════════ */
+      .section-title {
+        font-size: 13px;
+        font-weight: 600;
+        color: var(--text-muted);
+        text-transform: uppercase;
+        letter-spacing: 0.8px;
+        margin-bottom: 12px;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+      }
+      .section-title::after {
+        content: "";
+        flex: 1;
+        height: 1px;
+        background: var(--border);
+      }
+
+      /* ═══════════════════════════════════════════════════════════════════════════
+   TOOLTIP
+═══════════════════════════════════════════════════════════════════════════ */
+      .tooltip {
+        position: relative;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 16px;
+        height: 16px;
+        border-radius: 50%;
+        background: rgba(255, 255, 255, 0.1);
+        color: var(--text-muted);
+        font-size: 10px;
+        cursor: default;
+        flex-shrink: 0;
+      }
+      .tooltip::after {
+        content: attr(data-tip);
+        position: absolute;
+        bottom: calc(100% + 6px);
+        left: 50%;
+        transform: translateX(-50%);
+        background: #1e293b;
+        border: 1px solid var(--border);
+        border-radius: 6px;
+        padding: 6px 10px;
+        font-size: 11px;
+        color: var(--text-dim);
+        white-space: nowrap;
+        max-width: 220px;
+        white-space: normal;
+        text-align: center;
+        opacity: 0;
+        pointer-events: none;
+        transition: opacity 0.2s;
+        z-index: 100;
+      }
+      .tooltip:hover::after {
+        opacity: 1;
+      }
+
+      /* ═══════════════════════════════════════════════════════════════════════════
+   OUTPUT FILES LIST
+═══════════════════════════════════════════════════════════════════════════ */
+      .output-file {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        padding: 12px 16px;
+        background: rgba(16, 185, 129, 0.06);
+        border: 1px solid rgba(16, 185, 129, 0.2);
+        border-radius: var(--radius-sm);
+        margin-bottom: 8px;
+        cursor: pointer;
+        transition: all 0.2s;
+      }
+      .output-file:hover {
+        background: rgba(16, 185, 129, 0.12);
+      }
+      .output-file .of-icon {
+        font-size: 20px;
+      }
+      .output-file .of-name {
+        font-family: "JetBrains Mono", monospace;
+        font-size: 12px;
+        color: var(--green);
+        flex: 1;
+      }
+      .output-file .of-size {
+        font-size: 11px;
+        color: var(--text-muted);
+      }
+
+      .nav-item .icon {
+        width: 20px;
+        height: 20px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        flex-shrink: 0;
+      }
+      .nav-item .icon svg,
+      .card-icon svg,
+      .header-logo svg,
+      .alert-icon svg,
+      .tc-icon svg,
+      .of-icon svg {
+        width: 18px;
+        height: 18px;
+        display: block;
+      }
+      .header-logo svg {
+        width: 20px;
+        height: 20px;
+      }
+      .nav-item .icon svg {
+        width: 16px;
+        height: 16px;
+      }
+      .alert-icon svg {
+        width: 20px;
+        height: 20px;
+      }
+      .of-icon svg {
+        width: 22px;
+        height: 22px;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="app">
+      <!-- ── HEADER ─────────────────────────────────────────────────────────────── -->
+      <header class="header">
+        <div class="header-logo">
+          <svg
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+          >
+            <path
+              d="M4.5 16.5c-1.5 1.25-2.5 3.5-2.5 3.5s2.25-1 3.5-2.5L16.5 6.5c1.5-1.5 1.5-3.5 0-5s-3.5 0-5 1.5L4.5 16.5z"
+            />
+            <path d="M12 9l3 3" />
+            <path d="M9 12l3 3" />
+          </svg>
+        </div>
+        <div>
+          <div class="header-title">EveryThingDownloader</div>
+          <div class="header-subtitle">Build &amp; Packaging Tool</div>
+        </div>
+        <div class="header-spacer"></div>
+        <div class="header-badge">v1.0.0</div>
+      </header>
+
+      <!-- ── SIDEBAR ────────────────────────────────────────────────────────────── -->
+      <nav class="sidebar">
+        <div class="nav-section-label">Settings</div>
+
+        <div class="nav-item active" data-tab="general">
+          <span class="icon">
+            <svg
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+            >
+              <circle cx="12" cy="12" r="3" />
+              <path
+                d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"
+              />
+            </svg>
+          </span>
+          General
+        </div>
+        <div class="nav-item" data-tab="protection">
+          <span class="icon">
+            <svg
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+            >
+              <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
+            </svg>
+          </span>
+          Code Protection
+        </div>
+        <div class="nav-item" data-tab="restrictions">
+          <span class="icon">
+            <svg
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+            >
+              <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
+              <path d="M7 11V7a5 5 0 0 1 10 0v4" />
+            </svg>
+          </span>
+          Restrictions
+        </div>
+
+        <div class="nav-section-label">Build</div>
+
+        <div class="nav-item" data-tab="build">
+          <span class="icon">
+            <svg
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+            >
+              <polyline points="16 18 22 12 16 6" />
+              <polyline points="8 6 2 12 8 18" />
+            </svg>
+          </span>
+          Build &amp; Export
+          <span class="badge">Go</span>
+        </div>
+
+        <div class="sidebar-footer">
+          <div class="nav-item" data-tab="about">
+            <span class="icon">
+              <svg
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+              >
+                <circle cx="12" cy="12" r="10" />
+                <line x1="12" y1="16" x2="12" y2="12" />
+                <line x1="12" y1="8" x2="12.01" y2="8" />
+              </svg>
+            </span>
+            Info
+          </div>
+        </div>
+      </nav>
+
+      <!-- ── MAIN ───────────────────────────────────────────────────────────────── -->
+      <main class="main">
+        <!-- ══════════════════════════════════════
+         TAB: GENERAL
+    ══════════════════════════════════════ -->
+        <div class="tab-panel active" id="tab-general">
+          <div class="page-title">General Settings</div>
+          <div class="page-desc">
+            Basic information about the application to be packaged.
+          </div>
+
+          <div class="card">
+            <div class="card-header">
+              <div class="card-icon purple">
+                <svg
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="2"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                >
+                  <line x1="16.5" y1="9.4" x2="7.5" y2="4.21" />
+                  <polygon points="12 22.08 12 12 3 6.92 3 17.08 12 22.08" />
+                  <polygon points="12 22.08 21 17.08 21 6.92 12 12 12 22.08" />
+                  <polygon points="12 12 21 6.92 12 1.84 3 6.92 12 12" />
+                </svg>
+              </div>
+              <div>
+                <div class="card-title">Application Info</div>
+                <div class="card-subtitle">
+                  Metadata embedded into the EXE file
+                </div>
+              </div>
+            </div>
+
+            <div class="form-grid">
+              <div class="form-group">
+                <label class="form-label">Application Name</label>
+                <input
+                  type="text"
+                  id="appName"
+                  value="EveryThingDownloader"
+                  placeholder="MyApp"
+                />
+              </div>
+              <div class="form-group">
+                <label class="form-label">Version</label>
+                <input
+                  type="text"
+                  id="appVersion"
+                  value="1.0.0"
+                  placeholder="1.0.0"
+                />
+              </div>
+              <div class="form-group">
+                <label class="form-label">Company / Author</label>
+                <input
+                  type="text"
+                  id="appCompany"
+                  value="EveryThingDownloader"
+                  placeholder="Your Company"
+                />
+              </div>
+              <div class="form-group">
+                <label class="form-label">Copyright</label>
+                <input
+                  type="text"
+                  id="appCopyright"
+                  value="© 2026 EveryThingDownloader"
+                />
+              </div>
+              <div class="form-group span2">
+                <label class="form-label">Description</label>
+                <input
+                  type="text"
+                  id="appDesc"
+                  value="EveryThingDownloader"
+                  placeholder="App description"
+                />
+              </div>
+            </div>
+          </div>
+
+          <div class="card">
+            <div class="card-header">
+              <div class="card-icon cyan">
+                <svg
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="2"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                >
+                  <path
+                    d="M12 22C17.5228 22 22 17.5228 22 12C22 11.5 21.5 11 21 11H18C16.8954 11 16 10.1046 16 9C16 8.35 16.3 7.8 16.7 7.4L18.7 5.4C19.1 5 19.1 4.3 18.7 3.9C17.1 2.5 14.9 1.8 12.6 2C7.3 2.5 3 6.9 2.1 12.2C1 18.5 5.8 24 12 24"
+                  />
+                  <circle cx="7.5" cy="10.5" r="1.5" fill="currentColor" />
+                  <circle cx="11.5" cy="7.5" r="1.5" fill="currentColor" />
+                  <circle cx="16.5" cy="9.5" r="1.5" fill="currentColor" />
+                </svg>
+              </div>
+              <div>
+                <div class="card-title">Icon &amp; Resources</div>
+                <div class="card-subtitle">Icon file and UI configuration</div>
+              </div>
+            </div>
+
+            <div class="form-grid">
+              <div class="form-group">
+                <label class="form-label">File Icon (.ico)</label>
+                <div class="btn-row">
+                  <input
+                    type="text"
+                    id="iconPath"
+                    value="electron/resources/icon.ico"
+                    placeholder="Path to .ico file"
+                  />
+                  <button
+                    class="btn btn-secondary btn-sm"
+                    onclick="browseIcon()"
+                  >
+                    <svg
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      stroke-width="2"
+                      stroke-linecap="round"
+                      stroke-linejoin="round"
+                      style="
+                        width: 14px;
+                        height: 14px;
+                        margin-right: 4px;
+                        vertical-align: middle;
+                        display: inline-block;
+                      "
+                    >
+                      <path
+                        d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"
+                      /></svg
+                    >Browse
+                  </button>
+                </div>
+              </div>
+              <div class="form-group">
+                <label class="form-label">Output Directory</label>
+                <div class="btn-row">
+                  <input
+                    type="text"
+                    id="outputDir"
+                    value="dist/"
+                    placeholder="dist/"
+                  />
+                  <button
+                    class="btn btn-secondary btn-sm"
+                    onclick="browseOutput()"
+                  >
+                    <svg
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      stroke-width="2"
+                      stroke-linecap="round"
+                      stroke-linejoin="round"
+                      style="
+                        width: 14px;
+                        height: 14px;
+                        display: inline-block;
+                        vertical-align: middle;
+                      "
+                    >
+                      <path
+                        d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"
+                      />
+                    </svg>
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="card">
+            <div class="card-header">
+              <div class="card-icon yellow">
+                <svg
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="2"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                >
+                  <path
+                    d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"
+                  />
+                </svg>
+              </div>
+              <div>
+                <div class="card-title">Advanced Build Options</div>
+                <div class="card-subtitle">
+                  PyInstaller &amp; Electron Configuration
+                </div>
+              </div>
+            </div>
+
+            <div
+              class="toggle-row"
+              onclick="toggleCheck('useUpx')"
+              id="row-useUpx"
+            >
+              <div class="toggle-info">
+                <div class="toggle-label">UPX Compression</div>
+                <div class="toggle-desc">
+                  Compress EXE using UPX (reduces size by ~30% but slows down
+                  initial startup)
+                </div>
+              </div>
+              <label class="toggle" onclick.stop>
+                <input type="checkbox" id="useUpx" />
+                <div class="toggle-track"></div>
+                <div class="toggle-thumb"></div>
+              </label>
+            </div>
+
+            <div
+              class="toggle-row"
+              onclick="toggleCheck('showConsole')"
+              id="row-showConsole"
+            >
+              <div class="toggle-info">
+                <div class="toggle-label">Show Console Window</div>
+                <div class="toggle-desc">
+                  Show debug terminal at runtime (recommended disabled for
+                  release)
+                </div>
+              </div>
+              <label class="toggle" onclick.stop>
+                <input type="checkbox" id="showConsole" />
+                <div class="toggle-track"></div>
+                <div class="toggle-thumb"></div>
+              </label>
+            </div>
+
+            <div
+              class="toggle-row"
+              onclick="toggleCheck('singleFile')"
+              id="row-singleFile"
+            >
+              <div class="toggle-info">
+                <div class="toggle-label">Single File EXE</div>
+                <div class="toggle-desc">
+                  Package into a single file (slower on first startup)
+                </div>
+              </div>
+              <label class="toggle" onclick.stop>
+                <input type="checkbox" id="singleFile" checked />
+                <div class="toggle-track"></div>
+                <div class="toggle-thumb"></div>
+              </label>
+            </div>
+          </div>
+        </div>
+
+        <!-- ══════════════════════════════════════
+         TAB: PROTECTION
+    ══════════════════════════════════════ -->
+        <div class="tab-panel" id="tab-protection">
+          <div class="page-title">Code Protection</div>
+          <div class="page-desc">
+            Protection layers to prevent reverse engineering and source code
+            theft.
+          </div>
+
+          <div class="alert alert-info">
+            <div class="alert-icon">
+              <svg
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+              >
+                <path
+                  d="M15 14c.2-1 .7-1.7 1.5-2.5 1-.9 1.5-2.2 1.5-3.5A7.5 7.5 0 0 0 4 8c0 1.3.5 2.6 1.5 3.5.7.8 1.3 1.5 1.5 2.5"
+                />
+                <line x1="9" y1="18" x2="15" y2="18" />
+                <line x1="10" y1="22" x2="14" y2="22" />
+              </svg>
+            </div>
+            <div>
+              All protection features are self-implemented and do not require a
+              PyArmor Pro license. PyArmor free tier is used as an additional
+              bytecode protection layer.
+            </div>
+          </div>
+
+          <div class="card">
+            <div class="card-header">
+              <div class="card-icon purple">
+                <svg
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="2"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                >
+                  <polyline points="16 3 21 3 21 8" />
+                  <line x1="4" y1="20" x2="21" y2="3" />
+                  <polyline points="21 16 21 21 16 21" />
+                  <line x1="15" y1="15" x2="21" y2="21" />
+                  <line x1="4" y1="4" x2="9" y2="9" />
+                </svg>
+              </div>
+              <div>
+                <div class="card-title">PyArmor Bytecode Obfuscation</div>
+                <div class="card-subtitle">
+                  Python bytecode (.pyc) Encryption — free tier
+                </div>
+              </div>
+            </div>
+
+            <div
+              class="toggle-row"
+              onclick="toggleCheck('usePyarmor')"
+              id="row-usePyarmor"
+            >
+              <div class="toggle-info">
+                <div class="toggle-label">Enable PyArmor</div>
+                <div class="toggle-desc">
+                  Encrypt Python bytecode using PyArmor (requires `pip install
+                  pyarmor`)
+                </div>
+              </div>
+              <label class="toggle">
+                <input type="checkbox" id="usePyarmor" checked />
+                <div class="toggle-track"></div>
+                <div class="toggle-thumb"></div>
+              </label>
+            </div>
+
+            <div id="pyarmorOptions">
+              <div class="section-title" style="margin-top: 16px">
+                Obfuscation Level
+              </div>
+              <div class="level-selector">
+                <div
+                  class="level-opt sel"
+                  data-level="0"
+                  onclick="selectLevel(this)"
+                >
+                  <div class="lv-name">0</div>
+                  <div class="lv-desc">Basic</div>
+                </div>
+                <div
+                  class="level-opt"
+                  data-level="1"
+                  onclick="selectLevel(this)"
+                >
+                  <div class="lv-name">1</div>
+                  <div class="lv-desc">Standard</div>
+                </div>
+                <div
+                  class="level-opt"
+                  data-level="2"
+                  onclick="selectLevel(this)"
+                >
+                  <div class="lv-name">2</div>
+                  <div class="lv-desc">Advanced</div>
+                </div>
+              </div>
+              <input type="hidden" id="pyarmorLevel" value="0" />
+
+              <div
+                class="toggle-row"
+                style="margin-top: 12px"
+                onclick="toggleCheck('pyarmorMixStr')"
+                id="row-pyarmorMixStr"
+              >
+                <div class="toggle-info">
+                  <div class="toggle-label">Mix String Literals</div>
+                  <div class="toggle-desc">
+                    Obfuscate source strings (`--mix-str`)
+                  </div>
+                </div>
+                <label class="toggle">
+                  <input type="checkbox" id="pyarmorMixStr" checked />
+                  <div class="toggle-track"></div>
+                  <div class="toggle-thumb"></div>
+                </label>
+              </div>
+            </div>
+          </div>
+
+          <div class="card">
+            <div class="card-header">
+              <div class="card-icon green">
+                <svg
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="2"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                >
+                  <path d="M4.5 10.5C5 6 9 3 13.5 3S22 6 22.5 10.5" />
+                  <path d="M1.5 13.5C2 18 6 21 10.5 21s8.5-3 9-7.5" />
+                  <line x1="6" y1="6" x2="18" y2="18" />
+                </svg>
+              </div>
+              <div>
+                <div class="card-title">
+                  AST Transformation (Self-Implemented)
+                </div>
+                <div class="card-subtitle">
+                  Transform abstract syntax tree directly before packaging
+                </div>
+              </div>
+            </div>
+
+            <div
+              class="toggle-row"
+              onclick="toggleCheck('scrambleNames')"
+              id="row-scrambleNames"
+            >
+              <div class="toggle-info">
+                <div class="toggle-label">
+                  Scramble Variable / Function Names
+                </div>
+                <div class="toggle-desc">
+                  Rename all local variables and private functions to random
+                  names
+                </div>
+              </div>
+              <label class="toggle">
+                <input type="checkbox" id="scrambleNames" checked />
+                <div class="toggle-track"></div>
+                <div class="toggle-thumb"></div>
+              </label>
+            </div>
+
+            <div
+              class="toggle-row"
+              onclick="toggleCheck('encodeStrings')"
+              id="row-encodeStrings"
+            >
+              <div class="toggle-info">
+                <div class="toggle-label">String Encryption (Base64)</div>
+                <div class="toggle-desc">
+                  Replace string literals with Base64 decode calls at runtime
+                </div>
+              </div>
+              <label class="toggle">
+                <input type="checkbox" id="encodeStrings" checked />
+                <div class="toggle-track"></div>
+                <div class="toggle-thumb"></div>
+              </label>
+            </div>
+
+            <div
+              class="toggle-row"
+              onclick="toggleCheck('injectDeadCode')"
+              id="row-injectDeadCode"
+            >
+              <div class="toggle-info">
+                <div class="toggle-label">Insert Dead Code</div>
+                <div class="toggle-desc">
+                  Add useless code blocks to obfuscate control flow analysis
+                </div>
+              </div>
+              <label class="toggle">
+                <input type="checkbox" id="injectDeadCode" checked />
+                <div class="toggle-track"></div>
+                <div class="toggle-thumb"></div>
+              </label>
+            </div>
+
+            <div class="form-group" style="margin-top: 12px">
+              <label class="form-label"
+                >Number of dead code blocks per file
+                <span
+                  class="tooltip"
+                  data-tip="More blocks increase analysis difficulty but make files larger"
+                  >?</span
+                >
+              </label>
+              <input
+                type="number"
+                id="deadCodeCount"
+                value="15"
+                min="0"
+                max="100"
+                style="max-width: 120px"
+              />
+            </div>
+          </div>
+
+          <div class="card">
+            <div class="card-header">
+              <div class="card-icon red">
+                <svg
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="2"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                >
+                  <rect x="8" y="6" width="8" height="14" rx="4" />
+                  <line x1="6" y1="4" x2="9" y2="7" />
+                  <line x1="18" y1="4" x2="15" y2="7" />
+                  <line x1="4" y1="10" x2="8" y2="10" />
+                  <line x1="16" y1="10" x2="20" y2="10" />
+                  <line x1="4" y1="14" x2="8" y2="14" />
+                  <line x1="16" y1="14" x2="20" y2="14" />
+                  <line x1="6" y1="18" x2="8" y2="17" />
+                  <line x1="18" y1="18" x2="16" y2="17" />
+                </svg>
+              </div>
+              <div>
+                <div class="card-title">Anti-Debug</div>
+                <div class="card-subtitle">
+                  Detect and prevent running when debugged
+                </div>
+              </div>
+            </div>
+
+            <div
+              class="toggle-row"
+              onclick="toggleCheck('antidebug')"
+              id="row-antidebug"
+            >
+              <div class="toggle-info">
+                <div class="toggle-label">Enable Anti-Debug</div>
+                <div class="toggle-desc">
+                  Exit automatically if debugger is detected (IsDebuggerPresent,
+                  sys.gettrace)
+                </div>
+              </div>
+              <label class="toggle">
+                <input type="checkbox" id="antidebug" checked />
+                <div class="toggle-track"></div>
+                <div class="toggle-thumb"></div>
+              </label>
+            </div>
+          </div>
+        </div>
+
+        <!-- ══════════════════════════════════════
+         TAB: RESTRICTIONS
+    ══════════════════════════════════════ -->
+        <div class="tab-panel" id="tab-restrictions">
+          <div class="page-title">Usage Restrictions</div>
+          <div class="page-desc">
+            Control who, when, and on which machine the application can run.
+          </div>
+
+          <!-- IP Lock -->
+          <div class="card">
+            <div class="card-header">
+              <div class="card-icon cyan">
+                <svg
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="2"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                >
+                  <circle cx="12" cy="12" r="10" />
+                  <line x1="2" y1="12" x2="22" y2="12" />
+                  <path
+                    d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"
+                  />
+                </svg>
+              </div>
+              <div>
+                <div class="card-title">IP Address Lock</div>
+                <div class="card-subtitle">
+                  Only allow execution on specified IP addresses
+                </div>
+              </div>
+            </div>
+
+            <div
+              class="toggle-row"
+              onclick="toggleCheck('enableIpLock')"
+              id="row-enableIpLock"
+            >
+              <div class="toggle-info">
+                <div class="toggle-label">Enable IP Lock</div>
+                <div class="toggle-desc">
+                  Check both local IP (LAN) and public IP (Internet)
+                </div>
+              </div>
+              <label class="toggle">
+                <input type="checkbox" id="enableIpLock" />
+                <div class="toggle-track"></div>
+                <div class="toggle-thumb"></div>
+              </label>
+            </div>
+
+            <div id="ipLockOptions" style="display: none">
+              <div class="form-group" style="margin-top: 12px">
+                <label class="form-label"
+                  >Allowed IP List
+                  <span
+                    class="tooltip"
+                    data-tip="Enter IP and press Enter to add. Supports LAN (192.168.x.x) and public IP."
+                    >?</span
+                  >
+                </label>
+                <div
+                  class="tags-wrap"
+                  id="ipTagsWrap"
+                  onclick="document.getElementById('ipInput').focus()"
+                >
+                  <input
+                    class="tags-input"
+                    id="ipInput"
+                    placeholder="Enter IP and press Enter..."
+                    onkeydown="handleTagInput(event, 'ipTags', 'ipInput')"
+                  />
+                </div>
+                <div
+                  style="
+                    font-size: 11px;
+                    color: var(--text-muted);
+                    margin-top: 4px;
+                  "
+                >
+                  <svg
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="2"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                    style="
+                      width: 12px;
+                      height: 12px;
+                      display: inline-block;
+                      vertical-align: middle;
+                      margin-right: 2px;
+                      color: var(--accent3);
+                    "
+                  >
+                    <path
+                      d="M15 14c.2-1 .7-1.7 1.5-2.5 1-.9 1.5-2.2 1.5-3.5A7.5 7.5 0 0 0 4 8c0 1.3.5 2.6 1.5 3.5.7.8 1.3 1.5 1.5 2.5"
+                    />
+                    <line x1="9" y1="18" x2="15" y2="18" />
+                    <line x1="10" y1="22" x2="14" y2="22" />
+                  </svg>
+                  Check your public IP:
+                  <a
+                    href="https://api.ipify.org"
+                    target="_blank"
+                    style="color: var(--accent3)"
+                    >api.ipify.org</a
+                  >
+                </div>
+              </div>
+
+              <div class="btn-row" style="margin-top: 8px">
+                <button
+                  class="btn btn-secondary btn-sm"
+                  onclick="addCurrentIp()"
+                >
+                  <svg
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="2"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                    style="
+                      width: 12px;
+                      height: 12px;
+                      display: inline-block;
+                      vertical-align: middle;
+                      margin-right: 2px;
+                    "
+                  >
+                    <line x1="12" y1="5" x2="12" y2="19" />
+                    <line x1="5" y1="12" x2="19" y2="12" />
+                  </svg>
+                  Add current IP
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <!-- Date Expiry -->
+          <div class="card">
+            <div class="card-header">
+              <div class="card-icon yellow">
+                <svg
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="2"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                >
+                  <rect x="3" y="4" width="18" height="18" rx="2" ry="2" />
+                  <line x1="16" y1="2" x2="16" y2="6" />
+                  <line x1="8" y1="2" x2="8" y2="6" />
+                  <line x1="3" y1="10" x2="21" y2="10" />
+                </svg>
+              </div>
+              <div>
+                <div class="card-title">Expiry Date</div>
+                <div class="card-subtitle">
+                  The application will refuse to run after this date
+                </div>
+              </div>
+            </div>
+
+            <div
+              class="toggle-row"
+              onclick="toggleCheck('enableExpiry')"
+              id="row-enableExpiry"
+            >
+              <div class="toggle-info">
+                <div class="toggle-label">Enable Expiry Limit</div>
+                <div class="toggle-desc">
+                  Show error and self-exit when expired
+                </div>
+              </div>
+              <label class="toggle">
+                <input type="checkbox" id="enableExpiry" />
+                <div class="toggle-track"></div>
+                <div class="toggle-thumb"></div>
+              </label>
+            </div>
+
+            <div id="expiryOptions" style="display: none; margin-top: 12px">
+              <div class="form-group">
+                <label class="form-label">Expiry Date</label>
+                <input type="date" id="expiryDate" style="max-width: 200px" />
+              </div>
+            </div>
+          </div>
+
+          <!-- Machine ID Lock -->
+          <div class="card">
+            <div class="card-header">
+              <div class="card-icon purple">
+                <svg
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="2"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                >
+                  <rect x="2" y="3" width="20" height="14" rx="2" ry="2" />
+                  <line x1="8" y1="21" x2="16" y2="21" />
+                  <line x1="12" y1="17" x2="12" y2="21" />
+                </svg>
+              </div>
+              <div>
+                <div class="card-title">Machine ID Lock</div>
+                <div class="card-subtitle">
+                  Restrict by hardware fingerprint
+                </div>
+              </div>
+            </div>
+
+            <div
+              class="toggle-row"
+              onclick="toggleCheck('enableMachineId')"
+              id="row-enableMachineId"
+            >
+              <div class="toggle-info">
+                <div class="toggle-label">Enable Machine ID Lock</div>
+                <div class="toggle-desc">
+                  Calculated from MAC address, hostname, CPU ID, and Windows
+                  UUID
+                </div>
+              </div>
+              <label class="toggle">
+                <input type="checkbox" id="enableMachineId" />
+                <div class="toggle-track"></div>
+                <div class="toggle-thumb"></div>
+              </label>
+            </div>
+
+            <div id="machineIdOptions" style="display: none; margin-top: 12px">
+              <div class="form-group">
+                <label class="form-label">This Machine's ID</label>
+                <div class="machine-id-box">
+                  <span id="machineIdDisplay">Loading...</span>
+                  <button
+                    class="copy-btn"
+                    onclick="copyMachineId()"
+                    title="Copy"
+                  >
+                    <svg
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      stroke-width="2"
+                      stroke-linecap="round"
+                      stroke-linejoin="round"
+                      style="width: 12px; height: 12px"
+                    >
+                      <path
+                        d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"
+                      />
+                      <rect x="8" y="2" width="8" height="4" rx="1" ry="1" />
+                    </svg>
+                  </button>
+                </div>
+              </div>
+
+              <div class="form-group" style="margin-top: 14px">
+                <label class="form-label"
+                  >Allowed Machine IDs
+                  <span
+                    class="tooltip"
+                    data-tip="Add allowed Machine IDs. Get it by running: python build_tool/builder_cli.py --machine-id-info"
+                    >?</span
+                  >
+                </label>
+                <div
+                  class="tags-wrap"
+                  id="midTagsWrap"
+                  onclick="document.getElementById('midInput').focus()"
+                >
+                  <input
+                    class="tags-input"
+                    id="midInput"
+                    placeholder="Enter Machine ID and press Enter..."
+                    onkeydown="handleTagInput(event, 'midTags', 'midInput')"
+                  />
+                </div>
+              </div>
+
+              <div class="btn-row" style="margin-top: 8px">
+                <button
+                  class="btn btn-secondary btn-sm"
+                  onclick="addCurrentMachineId()"
+                >
+                  <svg
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="2"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                    style="
+                      width: 12px;
+                      height: 12px;
+                      display: inline-block;
+                      vertical-align: middle;
+                      margin-right: 2px;
+                    "
+                  >
+                    <line x1="12" y1="5" x2="12" y2="19" />
+                    <line x1="5" y1="12" x2="19" y2="12" />
+                  </svg>
+                  Add current Machine ID
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- ══════════════════════════════════════
+         TAB: BUILD
+    ══════════════════════════════════════ -->
+        <div class="tab-panel" id="tab-build">
+          <div class="page-title">Build &amp; Export</div>
+          <div class="page-desc">Select output type and start packaging.</div>
+
+          <!-- Target selector -->
+          <div class="section-title">Select Build Type</div>
+          <div class="target-cards">
+            <div
+              class="target-card web sel"
+              data-target="web"
+              onclick="selectTarget(this)"
+            >
+              <div class="tc-check">
+                <svg
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="3"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  style="width: 10px; height: 10px"
+                >
+                  <polyline points="20 6 9 17 4 12" />
+                </svg>
+              </div>
+              <div class="tc-icon">
+                <svg
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="2"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                >
+                  <circle cx="12" cy="12" r="10" />
+                  <line x1="2" y1="12" x2="22" y2="12" />
+                  <path
+                    d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"
+                  />
+                </svg>
+              </div>
+              <div class="tc-name">Web Server EXE</div>
+              <div class="tc-desc">
+                Standalone Flask server, running via browser. Lightweight
+                (~80MB).
+              </div>
+            </div>
+            <div
+              class="target-card desktop"
+              data-target="desktop"
+              onclick="selectTarget(this)"
+            >
+              <div class="tc-check"></div>
+              <div class="tc-icon">
+                <svg
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="2"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                >
+                  <rect x="2" y="3" width="20" height="14" rx="2" ry="2" />
+                  <line x1="8" y1="21" x2="16" y2="21" />
+                  <line x1="12" y1="17" x2="12" y2="21" />
+                </svg>
+              </div>
+              <div class="tc-name">Desktop App EXE</div>
+              <div class="tc-desc">
+                Full Electron desktop app, native window. Best experience
+                (~250MB).
+              </div>
+            </div>
+            <div
+              class="target-card both"
+              data-target="both"
+              onclick="selectTarget(this)"
+            >
+              <div class="tc-check"></div>
+              <div class="tc-icon">
+                <svg
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="2"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                >
+                  <line x1="16.5" y1="9.4" x2="7.5" y2="4.21" />
+                  <polygon points="12 22.08 12 12 3 6.92 3 17.08 12 22.08" />
+                  <polygon points="12 22.08 21 17.08 21 6.92 12 12 12 22.08" />
+                  <polygon points="12 12 21 6.92 12 1.84 3 6.92 12 12" />
+                </svg>
+              </div>
+              <div class="tc-name">Both</div>
+              <div class="tc-desc">
+                Build both Web EXE and Desktop Installer concurrently.
+              </div>
+            </div>
+          </div>
+          <input type="hidden" id="buildTarget" value="web" />
+
+          <!-- Obfuscate toggle -->
+          <div class="card" style="margin-bottom: 20px">
+            <div class="card-header">
+              <div class="card-icon purple">
+                <svg
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="2"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                >
+                  <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
+                </svg>
+              </div>
+              <div>
+                <div class="card-title">Code Obfuscation & Protection</div>
+                <div class="card-subtitle">
+                  Apply all options from "Code Protection" and "Restrictions"
+                  tabs
+                </div>
+              </div>
+            </div>
+            <div
+              class="toggle-row"
+              onclick="toggleCheck('enableObfuscate')"
+              id="row-enableObfuscate"
+            >
+              <div class="toggle-info">
+                <div class="toggle-label">Enable All Protection Options</div>
+                <div class="toggle-desc">
+                  Apply PyArmor, AST scramble, IP lock, expiry, etc. (adds ~2-5
+                  mins to build)
+                </div>
+              </div>
+              <label class="toggle">
+                <input type="checkbox" id="enableObfuscate" checked />
+                <div class="toggle-track"></div>
+                <div class="toggle-thumb"></div>
+              </label>
+            </div>
+          </div>
+
+          <!-- Build controls -->
+          <div class="card">
+            <div class="card-header">
+              <div class="card-icon green">
+                <svg
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="2"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                >
+                  <path
+                    d="M4.5 16.5c-1.5 1.25-2.5 3.5-2.5 3.5s2.25-1 3.5-2.5L16.5 6.5c1.5-1.5 1.5-3.5 0-5s-3.5 0-5 1.5L4.5 16.5z"
+                  />
+                  <path d="M12 9l3 3" />
+                  <path d="M9 12l3 3" />
+                </svg>
+              </div>
+              <div>
+                <div class="card-title">Execute Build</div>
+                <div class="card-subtitle" id="buildStatusLabel">
+                  <span class="status-dot" id="buildStatusDot"></span>
+                  <span id="buildStatusText">Ready</span>
+                </div>
+              </div>
+            </div>
+
+            <div class="progress-wrap" id="progressWrap" style="display: none">
+              <div class="progress-bar indeterminate" id="progressBar"></div>
+            </div>
+
+            <div class="btn-row" style="margin-bottom: 16px">
+              <button
+                class="btn btn-primary btn-lg"
+                id="buildBtn"
+                onclick="startBuild()"
+              >
+                <svg
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="2"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  style="
+                    width: 16px;
+                    height: 16px;
+                    display: inline-block;
+                    vertical-align: middle;
+                    margin-right: 6px;
+                  "
+                >
+                  <polyline points="16 18 22 12 16 6" />
+                  <polyline points="8 6 2 12 8 18" /></svg
+                >Start Build
+              </button>
+              <button
+                class="btn btn-secondary"
+                id="stopBtn"
+                onclick="stopBuild()"
+                style="display: none"
+              >
+                <svg
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="2"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  style="
+                    width: 16px;
+                    height: 16px;
+                    display: inline-block;
+                    vertical-align: middle;
+                    margin-right: 6px;
+                  "
+                >
+                  <rect x="4" y="4" width="16" height="16" rx="1" /></svg
+                >Stop
+              </button>
+              <button class="btn btn-secondary btn-sm" onclick="exportConfig()">
+                <svg
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="2"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  style="
+                    width: 14px;
+                    height: 14px;
+                    display: inline-block;
+                    vertical-align: middle;
+                    margin-right: 4px;
+                  "
+                >
+                  <path
+                    d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"
+                  />
+                  <polyline points="17 21 17 13 7 13 7 21" />
+                  <polyline points="7 3 7 8 15 8" /></svg
+                >Save Configuration
+              </button>
+              <button
+                class="btn btn-secondary btn-sm"
+                onclick="copyCliCommand()"
+              >
+                <svg
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="2"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  style="
+                    width: 14px;
+                    height: 14px;
+                    display: inline-block;
+                    vertical-align: middle;
+                    margin-right: 4px;
+                  "
+                >
+                  <path
+                    d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"
+                  />
+                  <rect x="8" y="2" width="8" height="4" rx="1" ry="1" /></svg
+                >Copy CLI Command
+              </button>
+            </div>
+
+            <!-- Build log -->
+            <div class="section-title">Build Log</div>
+            <div class="build-log" id="buildLog">
+              <span class="log-dim"
+                >Click "Start Build" to run the packaging process...</span
+              >
+            </div>
+          </div>
+
+          <!-- Output files (shown after build) -->
+          <div id="outputSection" style="display: none">
+            <div class="section-title" style="margin-top: 20px">
+              Output Files
+            </div>
+            <div id="outputFilesList"></div>
+          </div>
+        </div>
+
+        <!-- ══════════════════════════════════════
+         TAB: ABOUT
+    ══════════════════════════════════════ -->
+        <div class="tab-panel" id="tab-about">
+          <div class="page-title">About / Guide</div>
+          <div class="page-desc">Instructions for using the Build Tool.</div>
+
+          <div class="card">
+            <div class="card-header">
+              <div class="card-icon purple">
+                <svg
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="2"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                >
+                  <path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z" />
+                  <path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z" />
+                </svg>
+              </div>
+              <div><div class="card-title">How to Use</div></div>
+            </div>
+            <div style="color: var(--text-dim); line-height: 1.8">
+              <ol style="padding-left: 20px">
+                <li>
+                  <strong>General Tab</strong> — Enter application info (name,
+                  version, icon)
+                </li>
+                <li>
+                  <strong>Protection Tab</strong> — Choose desired security
+                  layers
+                </li>
+                <li>
+                  <strong>Restrictions Tab</strong> — Configure IP lock, expiry,
+                  and machine ID
+                </li>
+                <li>
+                  <strong>Build Tab</strong> — Select output type and click
+                  Start Build
+                </li>
+              </ol>
+            </div>
+          </div>
+
+          <div class="card">
+            <div class="card-header">
+              <div class="card-icon cyan">
+                <svg
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="2"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                >
+                  <rect x="2" y="4" width="20" height="16" rx="2" ry="2" />
+                  <line x1="6" y1="8" x2="6" y2="8.01" />
+                  <line x1="10" y1="8" x2="10" y2="8.01" />
+                  <line x1="14" y1="8" x2="14" y2="8.01" />
+                  <line x1="18" y1="8" x2="18" y2="8.01" />
+                  <line x1="6" y1="12" x2="6" y2="12.01" />
+                  <line x1="10" y1="12" x2="10" y2="12.01" />
+                  <line x1="14" y1="12" x2="14" y2="12.01" />
+                  <line x1="18" y1="12" x2="18" y2="12.01" />
+                  <line x1="7" y1="16" x2="17" y2="16" />
+                </svg>
+              </div>
+              <div><div class="card-title">CLI Alternative</div></div>
+            </div>
+            <div class="build-log" style="height: auto; min-height: 80px">
+              <span class="log-ok"># Build simple web EXE</span>
+              <span class="log-info"
+                >python build_tool/builder_cli.py --target web</span
+              >
+
+              <span class="log-ok"># Build with full protection</span>
+              <span class="log-info"
+                >python build_tool/builder_cli.py --target both --obfuscate
+                --ip-lock 1.2.3.4 --expire 2025-12-31</span
+              >
+
+              <span class="log-ok"># Show this machine's ID</span>
+              <span class="log-info"
+                >python build_tool/builder_cli.py --machine-id-info</span
+              >
+
+              <span class="log-ok"># Open this GUI in a browser</span>
+              <span class="log-info"
+                >python build_tool/builder_cli.py --gui</span
+              >
+            </div>
+          </div>
+
+          <div class="card">
+            <div class="card-header">
+              <div class="card-icon green">
+                <svg
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="2"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                >
+                  <path
+                    d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"
+                  />
+                  <rect x="8" y="2" width="8" height="4" rx="1" ry="1" />
+                </svg>
+              </div>
+              <div><div class="card-title">System Requirements</div></div>
+            </div>
+            <div style="color: var(--text-dim)">
+              <table style="width: 100%; border-collapse: collapse">
+                <tr style="border-bottom: 1px solid var(--border)">
+                  <td
+                    style="padding: 8px 0; font-weight: 600; color: var(--text)"
+                  >
+                    Python
+                  </td>
+                  <td style="padding: 8px 0">3.10+ with pip</td>
+                </tr>
+                <tr style="border-bottom: 1px solid var(--border)">
+                  <td
+                    style="padding: 8px 0; font-weight: 600; color: var(--text)"
+                  >
+                    Node.js
+                  </td>
+                  <td style="padding: 8px 0">18+ (Desktop build only)</td>
+                </tr>
+                <tr style="border-bottom: 1px solid var(--border)">
+                  <td
+                    style="padding: 8px 0; font-weight: 600; color: var(--text)"
+                  >
+                    PyInstaller
+                  </td>
+                  <td style="padding: 8px 0">
+                    Auto-install: <code>pip install pyinstaller</code>
+                  </td>
+                </tr>
+                <tr style="border-bottom: 1px solid var(--border)">
+                  <td
+                    style="padding: 8px 0; font-weight: 600; color: var(--text)"
+                  >
+                    PyArmor
+                  </td>
+                  <td style="padding: 8px 0">
+                    Optional: <code>pip install pyarmor</code>
+                  </td>
+                </tr>
+                <tr>
+                  <td
+                    style="padding: 8px 0; font-weight: 600; color: var(--text)"
+                  >
+                    electron-builder
+                  </td>
+                  <td style="padding: 8px 0">
+                    Auto: <code>npm install</code> inside <code>electron/</code>
+                  </td>
+                </tr>
+              </table>
+            </div>
+          </div>
+        </div>
+      </main>
+      <!-- /.main -->
+    </div>
+    <!-- /.app -->
+
+    <script>
+      /* ═══════════════════════════════════════════════════════════════════════════
+   TAG STORE
+═══════════════════════════════════════════════════════════════════════════ */
+      const tagStore = { ipTags: [], midTags: [] };
+
+      function handleTagInput(e, storeKey, inputId) {
+        if (e.key === "Enter" || e.key === ",") {
+          e.preventDefault();
+          const val = e.target.value.trim().replace(/,$/, "");
+          if (val) addTag(storeKey, val);
+          e.target.value = "";
+        } else if (e.key === "Backspace" && !e.target.value) {
+          const arr = tagStore[storeKey];
+          if (arr.length) {
+            arr.pop();
+            renderTags(storeKey);
+          }
+        }
+      }
+
+      function addTag(storeKey, value) {
+        if (!tagStore[storeKey].includes(value)) {
+          tagStore[storeKey].push(value);
+          renderTags(storeKey);
+        }
+      }
+
+      function removeTag(storeKey, idx) {
+        tagStore[storeKey].splice(idx, 1);
+        renderTags(storeKey);
+      }
+
+      function renderTags(storeKey) {
+        const wrapId = storeKey === "ipTags" ? "ipTagsWrap" : "midTagsWrap";
+        const inputId = storeKey === "ipTags" ? "ipInput" : "midInput";
+        const wrap = document.getElementById(wrapId);
+        const input = document.getElementById(inputId);
+        // Remove old tags
+        wrap.querySelectorAll(".tag").forEach((t) => t.remove());
+        tagStore[storeKey].forEach((val, i) => {
+          const tag = document.createElement("span");
+          tag.className = "tag";
+          tag.innerHTML = `${val}<span class="tag-remove" onclick="removeTag('${storeKey}',${i})">×</span>`;
+          wrap.insertBefore(tag, input);
+        });
+      }
+
+      /* ═══════════════════════════════════════════════════════════════════════════
+   NAV
+═══════════════════════════════════════════════════════════════════════════ */
+      document.querySelectorAll(".nav-item").forEach((item) => {
+        item.addEventListener("click", () => {
+          document
+            .querySelectorAll(".nav-item")
+            .forEach((n) => n.classList.remove("active"));
+          document
+            .querySelectorAll(".tab-panel")
+            .forEach((p) => p.classList.remove("active"));
+          item.classList.add("active");
+          document
+            .getElementById("tab-" + item.dataset.tab)
+            ?.classList.add("active");
+        });
+      });
+
+      /* ═══════════════════════════════════════════════════════════════════════════
+   TOGGLES
+═══════════════════════════════════════════════════════════════════════════ */
+      function toggleCheck(id) {
+        const cb = document.getElementById(id);
+        cb.checked = !cb.checked;
+        updateToggleRow(id);
+        onToggleChange(id, cb.checked);
+      }
+
+      function updateToggleRow(id) {
+        const cb = document.getElementById(id);
+        const row = document.getElementById("row-" + id);
+        if (row) row.classList.toggle("enabled", cb.checked);
+      }
+
+      function onToggleChange(id, checked) {
+        if (id === "enableIpLock") {
+          document.getElementById("ipLockOptions").style.display = checked
+            ? ""
+            : "none";
+        }
+        if (id === "enableExpiry") {
+          document.getElementById("expiryOptions").style.display = checked
+            ? ""
+            : "none";
+        }
+        if (id === "enableMachineId") {
+          document.getElementById("machineIdOptions").style.display = checked
+            ? ""
+            : "none";
+          if (checked) loadMachineId();
+        }
+        if (id === "usePyarmor") {
+          document.getElementById("pyarmorOptions").style.opacity = checked
+            ? "1"
+            : ".4";
+          document.getElementById("pyarmorOptions").style.pointerEvents =
+            checked ? "" : "none";
+        }
+      }
+
+      // Init toggle states on load
+      [
+        "useUpx",
+        "showConsole",
+        "singleFile",
+        "usePyarmor",
+        "scrambleNames",
+        "encodeStrings",
+        "injectDeadCode",
+        "antidebug",
+        "enableIpLock",
+        "enableExpiry",
+        "enableMachineId",
+        "enableObfuscate",
+        "pyarmorMixStr",
+      ].forEach((id) => updateToggleRow(id));
+
+      /* ═══════════════════════════════════════════════════════════════════════════
+   LEVEL SELECTOR
+═══════════════════════════════════════════════════════════════════════════ */
+      function selectLevel(el) {
+        document
+          .querySelectorAll(".level-opt")
+          .forEach((l) => l.classList.remove("sel"));
+        el.classList.add("sel");
+        document.getElementById("pyarmorLevel").value = el.dataset.level;
+      }
+
+      /* ═══════════════════════════════════════════════════════════════════════════
+   TARGET SELECTOR
+═══════════════════════════════════════════════════════════════════════════ */
+      function selectTarget(el) {
+        document.querySelectorAll(".target-card").forEach((c) => {
+          c.classList.remove("sel");
+          c.querySelector(".tc-check").innerHTML = "";
+        });
+        el.classList.add("sel");
+        el.querySelector(".tc-check").innerHTML =
+          '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" style="width:10px;height:10px"><polyline points="20 6 9 17 4 12"/></svg>';
+        document.getElementById("buildTarget").value = el.dataset.target;
+      }
+
+      /* ═══════════════════════════════════════════════════════════════════════════
+   MACHINE ID (simulated — in real use, fetch from Python backend)
+═══════════════════════════════════════════════════════════════════════════ */
+      let _cachedMachineId = null;
+
+      async function loadMachineId() {
+        const el = document.getElementById("machineIdDisplay");
+        el.textContent = "Calculating...";
+        try {
+          // Try to fetch from running Flask backend
+          const resp = await fetch("http://localhost:5000/api/machine-id", {
+            signal: AbortSignal.timeout(2000),
+          });
+          const data = await resp.json();
+          _cachedMachineId = data.machine_id;
+        } catch {
+          // If no backend, show placeholder
+          _cachedMachineId =
+            "Run: python build_tool/builder_cli.py --machine-id-info";
+        }
+        el.textContent = _cachedMachineId;
+      }
+
+      function copyMachineId() {
+        if (_cachedMachineId) {
+          navigator.clipboard.writeText(_cachedMachineId).catch(() => {});
+          const btn = document.querySelector(".machine-id-box .copy-btn");
+          btn.innerHTML =
+            '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" style="width:12px;height:12px;color:var(--green)"><polyline points="20 6 9 17 4 12"/></svg>';
+          setTimeout(() => {
+            btn.innerHTML =
+              '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:12px;height:12px"><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/><rect x="8" y="2" width="8" height="4" rx="1" ry="1"/></svg>';
+          }, 1500);
+        }
+      }
+
+      function addCurrentMachineId() {
+        if (_cachedMachineId && !_cachedMachineId.startsWith("Run")) {
+          addTag("midTags", _cachedMachineId);
+        } else {
+          loadMachineId().then(() => {
+            if (_cachedMachineId && !_cachedMachineId.startsWith("Run"))
+              addTag("midTags", _cachedMachineId);
+          });
+        }
+      }
+
+      async function addCurrentIp() {
+        try {
+          const resp = await fetch("https://api.ipify.org?format=json", {
+            signal: AbortSignal.timeout(3000),
+          });
+          const data = await resp.json();
+          if (data.ip) addTag("ipTags", data.ip);
+        } catch {
+          appendLog("[WARN] Unable to retrieve public IP.", "warn");
+        }
+      }
+
+      /* ═══════════════════════════════════════════════════════════════════════════
+   BUILD LOG
+═══════════════════════════════════════════════════════════════════════════ */
+      let logEl;
+      window.addEventListener("load", () => {
+        logEl = document.getElementById("buildLog");
+      });
+
+      function clearLog() {
+        if (logEl) logEl.innerHTML = "";
+      }
+
+      function appendLog(msg, type = "dim") {
+        if (!logEl) return;
+        const span = document.createElement("span");
+        span.className = `log-line log-${type}`;
+        span.textContent = msg + "\n";
+        logEl.appendChild(span);
+        logEl.scrollTop = logEl.scrollHeight;
+      }
+
+      /* ═══════════════════════════════════════════════════════════════════════════
+   BUILD
+═══════════════════════════════════════════════════════════════════════════ */
+      let buildRunning = false;
+      let buildEventSource = null;
+
+      function collectConfig() {
+        return {
+          build: {
+            app_name: document.getElementById("appName").value,
+            version: document.getElementById("appVersion").value,
+            company: document.getElementById("appCompany").value,
+            copyright: document.getElementById("appCopyright").value,
+            description: document.getElementById("appDesc").value,
+            icon_path: document.getElementById("iconPath").value,
+            use_upx: document.getElementById("useUpx").checked,
+            console: document.getElementById("showConsole").checked,
+          },
+          obfuscation: {
+            use_pyarmor: document.getElementById("usePyarmor").checked,
+            pyarmor_obf_code: parseInt(
+              document.getElementById("pyarmorLevel").value,
+            ),
+            pyarmor_mix_str: document.getElementById("pyarmorMixStr").checked,
+            scramble_names: document.getElementById("scrambleNames").checked,
+            encode_strings: document.getElementById("encodeStrings").checked,
+            inject_dead_code: document.getElementById("injectDeadCode").checked,
+            dead_code_count:
+              parseInt(document.getElementById("deadCodeCount").value) || 15,
+            antidebug: document.getElementById("antidebug").checked,
+            ip_lock: document.getElementById("enableIpLock").checked,
+            allowed_ips: [...tagStore.ipTags],
+            date_expiry: document.getElementById("enableExpiry").checked,
+            expiry_date: document.getElementById("expiryDate").value,
+            machine_id_lock: document.getElementById("enableMachineId").checked,
+            allowed_machine_ids: [...tagStore.midTags],
+          },
+          target: document.getElementById("buildTarget").value,
+          enable_obfuscate: document.getElementById("enableObfuscate").checked,
+        };
+      }
+
+      async function startBuild() {
+        if (buildRunning) return;
+        buildRunning = true;
+
+        // Switch to build tab if not there
+        document.querySelector('[data-tab="build"]').click();
+
+        clearLog();
+        document.getElementById("buildBtn").disabled = true;
+        document.getElementById("stopBtn").style.display = "";
+        document.getElementById("progressWrap").style.display = "";
+        document.getElementById("progressBar").className =
+          "progress-bar indeterminate";
+        document.getElementById("outputSection").style.display = "none";
+        setStatus("running", "Building...");
+
+        const cfg = collectConfig();
+        appendLog("═".repeat(54), "dim");
+        appendLog(`[BUILD] Starting build: target=${cfg.target}`, "info");
+        appendLog(`   Obfuscate: ${cfg.enable_obfuscate}`, "dim");
+        appendLog(
+          `   IP Lock: ${cfg.obfuscation.ip_lock} | Expiry: ${cfg.obfuscation.date_expiry}`,
+          "dim",
+        );
+        appendLog("═".repeat(54), "dim");
+
+        try {
+          const resp = await fetch("http://localhost:5000/api/build/start", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(cfg),
+            signal: AbortSignal.timeout(10000),
+          });
+
+          if (!resp.ok) throw new Error("Backend did not respond");
+          const data = await resp.json();
+
+          buildEventSource = new EventSource(
+            `http://localhost:5000/api/build/log/${data.build_id}`,
+          );
+          buildEventSource.onmessage = (e) => {
+            const msg = JSON.parse(e.data);
+            appendLog(msg.text, msg.level || "dim");
+            if (msg.done) {
+              if (buildEventSource) {
+                buildEventSource.close();
+                buildEventSource = null;
+              }
+              finishBuild(msg.success, msg.outputs || []);
+            }
+          };
+          buildEventSource.onerror = () => {
+            if (buildRunning) {
+              appendLog("[WARN] Connection to build server lost.", "warn");
+              if (buildEventSource) {
+                buildEventSource.close();
+                buildEventSource = null;
+              }
+              finishBuild(false, []);
+            }
+          };
+        } catch (err) {
+          // Backend not running — simulate build with CLI command display
+          appendLog("", "dim");
+          appendLog(
+            "[INFO] Backend is not running. Displaying CLI command for manual execution:",
+            "warn",
+          );
+          appendLog("", "dim");
+          const cmd = buildCliCommand(cfg);
+          appendLog("  " + cmd, "ok");
+          appendLog("", "dim");
+          appendLog(
+            "Copy the command above and run it in your terminal at the project root directory.",
+            "dim",
+          );
+          finishBuild(null, []);
+        }
+      }
+
+      function stopBuild() {
+        if (buildEventSource) {
+          buildEventSource.close();
+          buildEventSource = null;
+        }
+        fetch("http://localhost:5000/api/build/cancel", {
+          method: "POST",
+        }).catch(() => {});
+        appendLog("[CANCEL] Build cancelled.", "warn");
+        finishBuild(false, []);
+      }
+
+      function finishBuild(success, outputs) {
+        buildRunning = false;
+        document.getElementById("buildBtn").disabled = false;
+        document.getElementById("stopBtn").style.display = "none";
+        document.getElementById("progressBar").className = "progress-bar";
+        document.getElementById("progressBar").style.width = success
+          ? "100%"
+          : "0%";
+
+        if (success === true) {
+          setStatus("success", "Build succeeded!");
+          if (outputs.length) showOutputFiles(outputs);
+        } else if (success === false) {
+          setStatus("error", "Build failed");
+        } else {
+          // neutral
+          setStatus("", "Ready");
+        }
+      }
+
+      function showOutputFiles(files) {
+        const sec = document.getElementById("outputSection");
+        const list = document.getElementById("outputFilesList");
+        list.innerHTML = "";
+        files.forEach((f) => {
+          const div = document.createElement("div");
+          div.className = "output-file";
+          div.innerHTML = `<div class="of-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:20px;height:20px;color:var(--green)"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg></div><div class="of-name">${f.path}</div><div class="of-size">${f.size || ""}</div>`;
+          list.appendChild(div);
+        });
+        sec.style.display = "";
+      }
+
+      function setStatus(state, text) {
+        const dot = document.getElementById("buildStatusDot");
+        const label = document.getElementById("buildStatusText");
+        dot.className = "status-dot" + (state ? " " + state : "");
+        label.textContent = text;
+      }
+
+      /* ═══════════════════════════════════════════════════════════════════════════
+   CONFIG EXPORT / CLI COMMAND
+═══════════════════════════════════════════════════════════════════════════ */
+      function buildCliCommand(cfg) {
+        cfg = cfg || collectConfig();
+        const o = cfg.obfuscation;
+        const b = cfg.build;
+        let cmd = `python build_tool/builder_cli.py --target ${cfg.target}`;
+        cmd += ` --name "${b.app_name}" --version ${b.version}`;
+        if (cfg.enable_obfuscate) cmd += " --obfuscate";
+        if (!o.use_pyarmor) cmd += " --no-pyarmor";
+        if (o.pyarmor_obf_code !== 1)
+          cmd += ` --pyarmor-level ${o.pyarmor_obf_code}`;
+        if (!o.scramble_names) cmd += " --no-scramble";
+        if (!o.encode_strings) cmd += " --no-encode-strings";
+        if (!o.antidebug) cmd += " --no-antidebug";
+        if (o.ip_lock && o.allowed_ips.length)
+          cmd += ` --ip-lock ${o.allowed_ips.join(" ")}`;
+        if (o.date_expiry && o.expiry_date) cmd += ` --expire ${o.expiry_date}`;
+        if (o.machine_id_lock) {
+          cmd += " --machine-id";
+          if (o.allowed_machine_ids.length)
+            cmd += ` --machine-ids ${o.allowed_machine_ids.join(" ")}`;
+        }
+        if (b.use_upx) cmd += " --upx";
+        if (b.console) cmd += " --console";
+        return cmd;
+      }
+
+      function copyCliCommand() {
+        const cmd = buildCliCommand();
+        navigator.clipboard.writeText(cmd).catch(() => {});
+        appendLog("[COPY] CLI command copied:", "info");
+        appendLog("   " + cmd, "ok");
+        // Switch to build tab to show log
+        document.querySelector('[data-tab="build"]').click();
+      }
+
+      function exportConfig() {
+        const cfg = collectConfig();
+        const blob = new Blob([JSON.stringify(cfg, null, 2)], {
+          type: "application/json",
+        });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = "build_config.json";
+        a.click();
+        URL.revokeObjectURL(url);
+      }
+
+      function browseIcon() {
+        appendLog('[INFO] Enter the icon path manually in "File Icon".', "dim");
+      }
+      function browseOutput() {
+        appendLog(
+          '[INFO] Enter the output path manually in "Output Directory".',
+          "dim",
+        );
+      }
+
+      /* ═══════════════════════════════════════════════════════════════════════════
+   INIT
+═══════════════════════════════════════════════════════════════════════════ */
+      window.addEventListener("load", () => {
+        // Set default expiry to 1 year from now
+        const next = new Date();
+        next.setFullYear(next.getFullYear() + 1);
+        document.getElementById("expiryDate").value = next
+          .toISOString()
+          .split("T")[0];
+      });
+    </script>
+  </body>
+</html>

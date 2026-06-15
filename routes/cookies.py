@@ -28,7 +28,7 @@ def upload_cookies():
 
     new_cookies = parse_cookies_to_dict(content)
     if not new_cookies:
-        return jsonify({"status": "error", "message": "File cookie tải lên không hợp lệ hoặc không chứa cookie hợp lệ."}), 400
+        return jsonify({"status": "error", "message": "The uploaded cookie file is invalid or does not contain valid cookies."}), 400
 
     cookies_dir = os.path.join(TEMP_DOWNLOAD_DIR, "cookies")
     os.makedirs(cookies_dir, exist_ok=True)
@@ -115,12 +115,12 @@ def paste_cookies():
         return jsonify({"status": "error", "message": "Client ID is required."}), 400
         
     if not content:
-        return jsonify({"status": "error", "message": "Nội dung cookie trống."}), 400
+        return jsonify({"status": "error", "message": "Cookie content is empty."}), 400
         
     try:
         new_cookies = parse_cookies_to_dict(content)
         if not new_cookies:
-            return jsonify({"status": "error", "message": "Nội dung cookie không hợp lệ hoặc không chứa cookie hợp lệ."}), 400
+            return jsonify({"status": "error", "message": "Cookie content is invalid or does not contain valid cookies."}), 400
 
         cookies_dir = os.path.join(TEMP_DOWNLOAD_DIR, "cookies")
         os.makedirs(cookies_dir, exist_ok=True)
@@ -146,10 +146,10 @@ def paste_cookies():
             f.write(merged_content)
             
         logger.info(f"Saved pasted merged cookies for client {client_id}")
-        return jsonify({"status": "success", "message": "Lưu cookie thành công!"})
+        return jsonify({"status": "success", "message": "Cookies saved successfully!"})
     except Exception as e:
         logger.error(f"Failed to save pasted cookies: {e}")
-        return jsonify({"status": "error", "message": f"Lỗi khi lưu cookie: {e}"}), 500
+        return jsonify({"status": "error", "message": f"Error saving cookies: {e}"}), 500
 
 
 @cookies_bp.route("/api/cookies/clear/<client_id>", methods=["POST"])

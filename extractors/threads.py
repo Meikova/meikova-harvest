@@ -22,7 +22,7 @@ def extract_shortcode(url):
 def parse_threads_page(url, client_id=None):
     shortcode = extract_shortcode(url)
     if not shortcode:
-        return {"status": "error", "message": "Không thể trích xuất shortcode từ URL Threads."}
+        return {"status": "error", "message": "Unable to extract shortcode from Threads URL."}
         
     session = requests.Session()
     
@@ -140,9 +140,9 @@ def parse_threads_page(url, client_id=None):
         if "login" in final_url.lower() or "Confirm you're not a bot".lower() in html.lower():
             return {
                 "status": "error",
-                "message": "Threads yêu cầu xác minh danh tính hoặc đây là bài viết riêng tư. Vui lòng xuất và tải lên file cookie J2TEAM (chọn định dạng Netscape hoặc JSON) của Instagram/Threads để tiếp tục."
+                "message": "Threads requires identity verification or this is a private post. Please export and upload a J2TEAM cookie file (Netscape or JSON format) for Instagram/Threads to continue."
             }
-        return {"status": "error", "message": "Không thể trích xuất thông tin bài viết từ trang Threads này. Có thể bài viết đã bị xóa hoặc giới hạn truy cập."}
+        return {"status": "error", "message": "Unable to extract post information from this Threads page. The post may have been deleted or access is restricted."}
         
     # Extract info from target_post
     uploader = target_post.get("user", {}).get("username", "Threads User")
@@ -267,7 +267,7 @@ def parse_threads_page(url, client_id=None):
     if not images and not video_options:
         return {
             "status": "error",
-            "message": "Bài viết Threads này chỉ chứa văn bản và không có hình ảnh hoặc video để tải xuống."
+            "message": "This Threads post only contains text and does not have any images or videos to download."
         }
         
     thumbnail = images[0]["url"] if images else ""
@@ -332,7 +332,7 @@ def parse_threads_page(url, client_id=None):
         "thumbnail": thumbnail,
         "views": "N/A",
         "likes": f"{likes:,}" if likes else "0",
-        "upload_date": "Hôm nay",
+        "upload_date": "Today",
         "category": "Threads Post",
         "tags": ["Threads"],
         "subtitles": [],

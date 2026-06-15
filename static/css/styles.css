@@ -1,4 +1,44 @@
+/* === GLOBAL: Disable text selection except on inputs === */
+*, *::before, *::after {
+  -webkit-user-select: none;
+  user-select: none;
+}
+input, textarea, [contenteditable="true"] {
+  -webkit-user-select: text;
+  user-select: text;
+}
+
+/* === CUSTOM SCROLLBAR === */
+::-webkit-scrollbar {
+  width: 5px;
+  height: 5px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: linear-gradient(
+    180deg,
+    rgba(99, 179, 237, 0.35) 0%,
+    rgba(183, 148, 244, 0.35) 100%
+  );
+  border-radius: 10px;
+  transition: background 0.2s;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: linear-gradient(
+    180deg,
+    rgba(99, 179, 237, 0.75) 0%,
+    rgba(183, 148, 244, 0.75) 100%
+  );
+  box-shadow: 0 0 6px rgba(99, 179, 237, 0.4);
+}
+::-webkit-scrollbar-corner {
+  background: transparent;
+}
+
 /* === DESIGN SYSTEM === */
+
 :root {
   --bg: #07080f;
   --bg-gradient: radial-gradient(
@@ -865,7 +905,7 @@ body[class*="theme-"] .card {
 /* === RESULTS === */
 .result-grid {
   display: grid;
-  grid-template-columns: 340px 1fr;
+  grid-template-columns: 300px 1fr;
   gap: 24px;
 }
 
@@ -1222,6 +1262,15 @@ body[class*="theme-"] .card {
 }
 .progress-format-label {
   font-size: 0.76rem;
+  color: var(--text-dim);
+  opacity: 0.75;
+  font-weight: normal;
+  font-family: var(--font);
+}
+.progress-format-label::before {
+  content: "•";
+  margin-right: 6px;
+  margin-left: 6px;
   color: var(--text-faint);
 }
 
@@ -1299,9 +1348,22 @@ body[class*="theme-"] .card {
 }
 .tags-container {
   display: flex;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
   gap: 6px;
   margin-top: 10px;
+  overflow-x: auto;
+  white-space: nowrap;
+  padding-bottom: 4px;
+}
+.tags-container::-webkit-scrollbar {
+  height: 3px;
+}
+.tags-container::-webkit-scrollbar-track {
+  background: transparent;
+}
+.tags-container::-webkit-scrollbar-thumb {
+  background: rgba(var(--purple-rgb), 0.25);
+  border-radius: 4px;
 }
 .tag-pill {
   font-size: 0.72rem;
@@ -1311,6 +1373,18 @@ body[class*="theme-"] .card {
   padding: 3px 8px;
   border-radius: 4px;
   font-weight: 500;
+}
+.media-actions-row {
+  display: flex;
+  gap: 10px;
+  margin-top: 12px;
+  width: 100%;
+}
+.media-actions-row .desc-toggle-btn-modal,
+.media-actions-row .images-toggle-btn-modal {
+  margin-top: 0;
+  flex: 1;
+  width: auto;
 }
 .desc-toggle-btn-modal {
   display: flex;
@@ -1331,7 +1405,7 @@ body[class*="theme-"] .card {
     background 0.2s,
     color 0.2s,
     border-color 0.2s;
-  margin-top: 12px;
+  margin-top: 0;
 }
 .desc-toggle-btn-modal:hover {
   background: rgba(255, 255, 255, 0.07);
@@ -2123,11 +2197,15 @@ body[class*="theme-"] .card {
 .image-checkbox-container {
   position: absolute;
   top: 8px;
-  left: 8px;
+  right: 8px;
+  width: 18px;
+  height: 18px;
   z-index: 5;
+  display: block;
 }
 
 .custom-checkbox {
+  position: relative;
   width: 18px;
   height: 18px;
   border-radius: 4px;
@@ -2154,10 +2232,15 @@ body[class*="theme-"] .card {
   border-color: var(--cyan);
 }
 .custom-checkbox:checked::after {
-  content: "✓";
-  color: #000;
-  font-size: 11px;
-  font-weight: bold;
+  content: "";
+  position: absolute;
+  top: 2px;
+  left: 5px;
+  width: 4px;
+  height: 8px;
+  border: solid #000;
+  border-width: 0 2px 2px 0;
+  transform: rotate(45deg);
 }
 
 .image-info-bar {
@@ -3173,7 +3256,7 @@ body.theme-vimeo {
 .advanced-label input[type="checkbox"] {
   display: none;
 }
-.custom-checkbox {
+.advanced-label .custom-checkbox {
   width: 14px;
   height: 14px;
   border: 1px solid rgba(var(--cyan-rgb), 0.5);
@@ -3240,7 +3323,7 @@ body.theme-vimeo {
   border-color: rgba(0, 0, 0, 0.1);
   color: #000;
 }
-.light-theme .custom-checkbox {
+.light-theme .advanced-label .custom-checkbox {
   border-color: rgba(0, 0, 0, 0.2);
 }
 .light-theme .advanced-label input[type="checkbox"]:checked + .custom-checkbox {
@@ -3773,11 +3856,14 @@ select option {
 }
 /* Add custom modern arrow icon using CSS pseudo-elements */
 .error-summary::before {
-  content: '▶';
-  font-size: 0.65rem;
-  color: var(--red);
-  transition: transform 0.2s ease;
+  content: "";
   display: inline-block;
+  width: 0;
+  height: 0;
+  border-top: 4px solid transparent;
+  border-bottom: 4px solid transparent;
+  border-left: 6px solid var(--red);
+  transition: transform 0.2s ease;
 }
 details[open] .error-summary::before {
   transform: rotate(90deg);
@@ -3795,18 +3881,18 @@ details[open] .error-summary::before {
 }
 
 /* --- DOWNLOAD PROGRESS CANCEL --- */
-.progress-cancel-row {
+.progress-actions-row {
   display: flex;
-  justify-content: flex-end;
-  margin-top: 6px;
+  align-items: center;
+  gap: 10px;
 }
 .btn-cancel-download {
   background: rgba(255, 68, 68, 0.08);
   border: 1px solid rgba(255, 68, 68, 0.2);
   color: #ff8080;
-  padding: 6px 16px;
-  border-radius: var(--radius-sm);
-  font-size: 0.8rem;
+  padding: 4px 10px;
+  border-radius: var(--radius-xs);
+  font-size: 0.72rem;
   font-weight: 500;
   cursor: pointer;
   transition: all 0.25s ease;
@@ -3823,9 +3909,141 @@ details[open] .error-summary::before {
 .btn-cancel-download:active {
   transform: translateY(0);
 }
-.state-complete .progress-cancel-row,
-.state-error .progress-cancel-row {
+.state-complete #cancel-download-btn,
+.state-error #cancel-download-btn {
   display: none;
 }
 
+/* --- VIEWPORT HEIGHT ADAPTATION (Prevents vertical overflow on smaller screens) --- */
+@media (max-height: 850px) {
+  html {
+    font-size: 14px;
+  }
+  body {
+    padding: 10px 16px;
+  }
+  .app-shell {
+    gap: 10px;
+  }
+  .header {
+    padding-bottom: 0px;
+  }
+  .logo {
+    margin-bottom: 2px;
+    gap: 10px;
+  }
+  .logo-img {
+    width: 36px;
+    height: 36px;
+  }
+  .logo h1 {
+    font-size: 1.7rem;
+  }
+  .subtitle {
+    display: none; /* Hide subtitle under 850px height to reclaim vertical space */
+  }
+  .card {
+    padding: 12px 20px;
+    gap: 10px;
+  }
+  .search-input-wrap {
+    min-height: 40px;
+    padding: 0 12px;
+  }
+  .btn-primary {
+    min-height: 40px;
+    font-size: 0.85rem;
+    padding: 0 18px;
+  }
+  .result-grid {
+    grid-template-columns: 260px 1fr;
+    gap: 16px;
+  }
+  .media-info {
+    gap: 6px;
+  }
+  .media-title {
+    font-size: 0.9rem;
+    line-height: 1.3;
+  }
+  .rich-stats-grid {
+    gap: 4px;
+    margin-top: 4px;
+  }
+  .stat-item {
+    padding: 4px 2px;
+    font-size: 0.68rem;
+  }
+  .tags-container {
+    margin-top: 4px;
+  }
+  .media-actions-row {
+    margin-top: 6px;
+    gap: 8px;
+  }
+  .media-actions-row .desc-toggle-btn-modal,
+  .media-actions-row .images-toggle-btn-modal {
+    padding: 8px;
+    font-size: 0.72rem;
+    width: auto;
+    margin-top: 0;
+  }
+  .format-row {
+    padding: 8px 10px;
+  }
+  .format-name {
+    font-size: 0.75rem;
+  }
+  .format-size {
+    font-size: 0.7rem;
+  }
+  .format-btn {
+    padding: 5px 10px;
+    font-size: 0.7rem;
+  }
+}
 
+@media (max-height: 740px) {
+  html {
+    font-size: 13px;
+  }
+  body {
+    padding: 4px 12px;
+  }
+  .app-shell {
+    gap: 6px;
+  }
+  .logo-img {
+    width: 30px;
+    height: 30px;
+  }
+  .logo h1 {
+    font-size: 1.5rem;
+  }
+  .card {
+    padding: 10px 16px;
+    gap: 8px;
+  }
+  .search-input-wrap {
+    min-height: 38px;
+  }
+  .btn-primary {
+    min-height: 38px;
+  }
+  .result-grid {
+    grid-template-columns: 230px 1fr;
+    gap: 10px;
+  }
+  .media-actions-row {
+    margin-top: 4px;
+    gap: 6px;
+  }
+  .media-actions-row .desc-toggle-btn-modal,
+  .media-actions-row .images-toggle-btn-modal {
+    padding: 6px;
+    font-size: 0.68rem;
+  }
+  .format-row {
+    padding: 6px 8px;
+  }
+}

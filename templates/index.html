@@ -1,777 +1,1710 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>EveryThingDownloader | Future-Tech Media Downloader</title>
-    <meta name="description" content="EveryThingDownloader is a self-hosted, high-performance, ad-free video and audio downloader for YouTube, Facebook, Instagram, Threads, and TikTok.">
-    <meta name="keywords" content="video downloader, media extractor, youtube downloader, facebook downloader, instagram downloader, threads downloader, tiktok downloader, ad-free, self-hosted">
-    <meta name="author" content="m3iK18dp">
-    
+    <meta
+      name="description"
+      content="EveryThingDownloader is a self-hosted, high-performance, ad-free video and audio downloader for YouTube, Facebook, Instagram, Threads, and TikTok."
+    />
+    <meta
+      name="keywords"
+      content="video downloader, media extractor, youtube downloader, facebook downloader, instagram downloader, threads downloader, tiktok downloader, ad-free, self-hosted"
+    />
+    <meta name="author" content="m3iK18dp" />
+
     <!-- Open Graph / Facebook -->
-    <meta property="og:type" content="website">
-    <meta property="og:url" content="https://github.com/m3iK18dp">
-    <meta property="og:title" content="EveryThingDownloader | High-Performance Media Downloader">
-    <meta property="og:description" content="Download video and audio from YouTube, Facebook, Instagram, Threads, and TikTok instantly. Self-hosted, private, and ad-free.">
-    <meta property="og:image" content="{{ url_for('static', filename='logo.png') }}">
+    <meta property="og:type" content="website" />
+    <meta property="og:url" content="https://github.com/m3iK18dp" />
+    <meta
+      property="og:title"
+      content="EveryThingDownloader | High-Performance Media Downloader"
+    />
+    <meta
+      property="og:description"
+      content="Download video and audio from YouTube, Facebook, Instagram, Threads, and TikTok instantly. Self-hosted, private, and ad-free."
+    />
+    <meta
+      property="og:image"
+      content="{{ url_for('static', filename='logo.png') }}"
+    />
 
     <!-- Twitter -->
-    <meta property="twitter:card" content="summary_large_image">
-    <meta property="twitter:url" content="https://github.com/m3iK18dp">
-    <meta property="twitter:title" content="EveryThingDownloader | High-Performance Media Downloader">
-    <meta property="twitter:description" content="Download video and audio from YouTube, Facebook, Instagram, Threads, and TikTok instantly. Self-hosted, private, and ad-free.">
-    <meta property="twitter:image" content="{{ url_for('static', filename='logo.png') }}">
+    <meta property="twitter:card" content="summary_large_image" />
+    <meta property="twitter:url" content="https://github.com/m3iK18dp" />
+    <meta
+      property="twitter:title"
+      content="EveryThingDownloader | High-Performance Media Downloader"
+    />
+    <meta
+      property="twitter:description"
+      content="Download video and audio from YouTube, Facebook, Instagram, Threads, and TikTok instantly. Self-hosted, private, and ad-free."
+    />
+    <meta
+      property="twitter:image"
+      content="{{ url_for('static', filename='logo.png') }}"
+    />
 
     <!-- Favicon -->
-    <link rel="icon" type="image/png" href="{{ url_for('static', filename='favicon.png') }}">
+    <link
+      rel="icon"
+      type="image/png"
+      href="{{ url_for('static', filename='favicon.png') }}"
+    />
 
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&family=Space+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/noUiSlider/15.7.1/nouislider.min.css" />
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}?v=6.1">
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&family=Space+Grotesk:wght@400;500;600;700&display=swap"
+      rel="stylesheet"
+    />
+    <link
+      rel="stylesheet"
+      href="https://cdnjs.cloudflare.com/ajax/libs/noUiSlider/15.7.1/nouislider.min.css"
+    />
+    <link
+      rel="stylesheet"
+      href="{{ url_for('static', filename='css/styles.css') }}?v=6.5"
+    />
     <script src="https://cdn.jsdelivr.net/npm/hls.js@1.5.8/dist/hls.min.js"></script>
     <script>
-        (function() {
-            const savedTheme = localStorage.getItem('theme');
-            if (savedTheme === 'light') {
-                document.documentElement.classList.add('light-theme');
-            }
-        })();
+      (function () {
+        const savedTheme = localStorage.getItem("theme");
+        if (savedTheme === "light") {
+          document.documentElement.classList.add("light-theme");
+        }
+      })();
     </script>
     <!-- Google Structured Data (SEO Schema) -->
     <script type="application/ld+json">
-    {
-      "@context": "https://schema.org",
-      "@type": "WebApplication",
-      "name": "EveryThingDownloader",
-      "url": "https://github.com/m3iK18dp",
-      "description": "High-performance, self-hosted media downloader. Extract videos, slideshows, and audio from YouTube, Facebook, Instagram, Threads, and TikTok.",
-      "applicationCategory": "MultimediaApplication",
-      "operatingSystem": "All",
-      "author": {
-        "@type": "Person",
-        "name": "m3iK18dp",
-        "url": "https://github.com/m3iK18dp"
+      {
+        "@context": "https://schema.org",
+        "@type": "WebApplication",
+        "name": "EveryThingDownloader",
+        "url": "https://github.com/m3iK18dp",
+        "description": "High-performance, self-hosted media downloader. Extract videos, slideshows, and audio from YouTube, Facebook, Instagram, Threads, and TikTok.",
+        "applicationCategory": "MultimediaApplication",
+        "operatingSystem": "All",
+        "author": {
+          "@type": "Person",
+          "name": "m3iK18dp",
+          "url": "https://github.com/m3iK18dp"
+        }
       }
-    }
     </script>
-</head>
-<body>
+  </head>
+  <body>
     <div class="bg-glow bg-glow-1"></div>
     <div class="bg-glow bg-glow-2"></div>
     <div class="bg-glow bg-glow-3"></div>
     <canvas id="cursor-canvas"></canvas>
 
     <div class="app-shell">
-        <!-- Header -->
-        <header class="header">
-            <div class="logo">
-                <img src="{{ url_for('static', filename='logo.png') }}" alt="Logo" class="logo-img">
-                <h1>Everything<span class="brand-accent">Downloader</span></h1>
+      <!-- Header -->
+      <header class="header">
+        <div class="logo">
+          <img
+            src="{{ url_for('static', filename='logo.png') }}"
+            alt="Logo"
+            class="logo-img"
+          />
+          <h1>Everything<span class="brand-accent">Downloader</span></h1>
+        </div>
+        <div class="header-actions">
+          <button
+            id="settings-toggle"
+            class="header-action-btn"
+            title="Advanced Options"
+          >
+            <svg
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="1.5"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+            >
+              <circle cx="12" cy="12" r="3" />
+              <path
+                d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"
+              />
+            </svg>
+          </button>
+          <button
+            id="theme-toggle"
+            class="header-action-btn"
+            title="Toggle theme"
+          >
+            <svg
+              class="sun-icon"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="1.5"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+            >
+              <circle cx="12" cy="12" r="5" />
+              <line x1="12" y1="1" x2="12" y2="3" />
+              <line x1="12" y1="21" x2="12" y2="23" />
+              <line x1="4.22" y1="4.22" x2="5.64" y2="5.64" />
+              <line x1="18.36" y1="18.36" x2="19.78" y2="19.78" />
+              <line x1="1" y1="12" x2="3" y2="12" />
+              <line x1="21" y1="12" x2="23" y2="12" />
+              <line x1="4.22" y1="19.78" x2="5.64" y2="18.36" />
+              <line x1="18.36" y1="5.64" x2="19.78" y2="4.22" />
+            </svg>
+            <svg
+              class="moon-icon"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="1.5"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+            >
+              <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z" />
+            </svg>
+          </button>
+          <button
+            id="customizer-toggle"
+            class="header-action-btn"
+            title="UI Customizer"
+          >
+            <svg
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="1.5"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+            >
+              <path
+                d="M12 22C17.5228 22 22 17.5228 22 12C22 11.5 21.5 11 21 11H18C16.8954 11 16 10.1046 16 9C16 8.35 16.3 7.8 16.7 7.4L18.7 5.4C19.1 5 19.1 4.3 18.7 3.9C17.1 2.5 14.9 1.8 12.6 2C7.3 2.5 3 6.9 2.1 12.2C1 18.5 5.8 24 12 24"
+              />
+              <circle cx="7.5" cy="10.5" r="1.5" fill="currentColor" />
+              <circle cx="11.5" cy="7.5" r="1.5" fill="currentColor" />
+              <circle cx="16.5" cy="9.5" r="1.5" fill="currentColor" />
+            </svg>
+          </button>
+
+          <!-- Settings Dropdown Panel -->
+          <div id="settings-dropdown" class="settings-dropdown hidden">
+            <div class="settings-dropdown-header">
+              <svg
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="1.5"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+              >
+                <circle cx="12" cy="12" r="3" />
+                <path
+                  d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"
+                />
+              </svg>
+              <span>Advanced Options</span>
             </div>
-            <div class="header-actions">
-                <button id="settings-toggle" class="header-action-btn" title="Tùy chọn nâng cao">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
-                        <circle cx="12" cy="12" r="3"/>
-                        <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/>
-                    </svg>
-                </button>
-                <button id="theme-toggle" class="header-action-btn" title="Toggle theme">
-                    <svg class="sun-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
-                        <circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/>
-                    </svg>
-                    <svg class="moon-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
-                        <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>
-                    </svg>
-                </button>
-                <button id="customizer-toggle" class="header-action-btn" title="Cá nhân hóa (UI Customizer)">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
-                        <path d="M12 22C17.5228 22 22 17.5228 22 12C22 11.5 21.5 11 21 11H18C16.8954 11 16 10.1046 16 9C16 8.35 16.3 7.8 16.7 7.4L18.7 5.4C19.1 5 19.1 4.3 18.7 3.9C17.1 2.5 14.9 1.8 12.6 2C7.3 2.5 3 6.9 2.1 12.2C1 18.5 5.8 24 12 24"/>
-                        <circle cx="7.5" cy="10.5" r="1.5" fill="currentColor"/>
-                        <circle cx="11.5" cy="7.5" r="1.5" fill="currentColor"/>
-                        <circle cx="16.5" cy="9.5" r="1.5" fill="currentColor"/>
-                    </svg>
-                </button>
-
-                <!-- Settings Dropdown Panel -->
-                <div id="settings-dropdown" class="settings-dropdown hidden">
-                    <div class="settings-dropdown-header">
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
-                            <circle cx="12" cy="12" r="3"/>
-                            <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/>
-                        </svg>
-                        <span>Tùy chọn nâng cao</span>
-                    </div>
-                    <!-- Trim Media -->
-                    <div class="trim-section">
-                        <div id="trim-preview-container" class="hidden" style="margin-top: 15px;">
-                            <video id="trim-preview-player" style="width: 100%; border-radius: 8px; margin-bottom: 15px;" controls></video>
-                        </div>
-                        <label class="advanced-label">
-                            <input type="checkbox" id="trim-checkbox">
-                            <span class="custom-checkbox"></span>
-                            <span>Cắt thời lượng (Trim Media)</span>
-                        </label>
-                        <div id="trim-slider-container" class="hidden" style="margin-top: 15px; margin-bottom: 10px;">
-                            <div id="trim-range-slider" style="margin: 10px 10px 20px 10px;"></div>
-                        </div>
-                        <div id="trim-inputs-container" class="trim-inputs hidden">
-                            <div class="trim-field">
-                                <span>Bắt đầu:</span>
-                                <input type="text" id="trim-start" value="00:00:00" placeholder="hh:mm:ss">
-                            </div>
-                            <div class="trim-field">
-                                <span>Kết thúc:</span>
-                                <input type="text" id="trim-end" value="00:00:10" placeholder="hh:mm:ss">
-                            </div>
-                        </div>
-                    </div>
-                    <!-- Subtitles Translation -->
-                    <div class="subtitle-translate-section hidden" id="sub-translate-container">
-                        <label class="advanced-label">
-                            <input type="checkbox" id="translate-subs-checkbox">
-                            <span class="custom-checkbox"></span>
-                            <span>Tự dịch phụ đề sang Tiếng Việt</span>
-                        </label>
-                    </div>
-                    <!-- Export Format Option -->
-                    <div class="export-section" style="margin-top: 15px; border-top: 1px solid rgba(255, 255, 255, 0.05); padding-top: 15px;">
-                        <label class="advanced-label">
-                            <span>Định dạng xuất (Export Format):</span>
-                        </label>
-                        <select id="export-type-select" style="width: 100%; padding: 8px 12px; background: rgba(0,0,0,0.3); border: 1px solid var(--glass-border); border-radius: 8px; color: var(--text); font-family: var(--font); outline: none; margin-top: 5px; cursor: pointer;">
-                            <option value="default">Mặc định (Default format)</option>
-                            <option value="gif">Ảnh động GIF lặp (Looping GIF)</option>
-                            <option value="shorts">Video dọc Shorts/TikTok (9:16)</option>
-                        </select>
-                    </div>
-                    <!-- Cinematic Filters -->
-                    <div class="filter-section" style="margin-top: 15px; border-top: 1px solid rgba(255, 255, 255, 0.05); padding-top: 15px;">
-                        <label class="advanced-label">
-                            <span>Bộ lọc màu (Cinematic Filter):</span>
-                        </label>
-                        <select id="color-filter-select" style="width: 100%; padding: 8px 12px; background: rgba(0,0,0,0.3); border: 1px solid var(--glass-border); border-radius: 8px; color: var(--text); font-family: var(--font); outline: none; margin-top: 5px; cursor: pointer;">
-                            <option value="none">Gốc (Original)</option>
-                            <option value="cyberpunk">Cyberpunk (Cyan/Purple)</option>
-                            <option value="vintage">Hoài cổ (Vintage Warm)</option>
-                            <option value="noir">Trắng đen (Noir High Contrast)</option>
-                            <option value="enhance">Làm nét & Khử nhiễu (Denoise & Sharpen)</option>
-                        </select>
-                    </div>
-                    <!-- AI Voiceover (Lồng tiếng) -->
-                    <div class="voiceover-section" id="voiceover-container" style="margin-top: 15px; border-top: 1px solid rgba(255, 255, 255, 0.05); padding-top: 15px;">
-                        <label class="advanced-label">
-                            <input type="checkbox" id="voiceover-checkbox">
-                            <span class="custom-checkbox"></span>
-                            <span>Lồng tiếng AI (Vietnamese Voiceover)</span>
-                        </label>
-                        <div id="voiceover-select-container" class="hidden" style="margin-top: 8px;">
-                            <select id="voiceover-voice-select" style="width: 100%; padding: 8px 12px; background: rgba(0,0,0,0.3); border: 1px solid var(--glass-border); border-radius: 8px; color: var(--text); font-family: var(--font); outline: none; cursor: pointer;">
-                                <option value="vi-VN-HoaiMyNeural">Hoài My (Giọng nữ ấm áp)</option>
-                                <option value="vi-VN-NamMinhNeural">Nam Minh (Giọng nam truyền cảm)</option>
-                            </select>
-                        </div>
-                    </div>
-                    <!-- Cloud Sync Options -->
-                    <div class="cloud-sync-section" style="margin-top: 15px; border-top: 1px solid rgba(255, 255, 255, 0.05); padding-top: 15px;">
-                        <label class="advanced-label">
-                            <span>Lưu trữ đám mây (Cloud Sync):</span>
-                        </label>
-                        <select id="cloud-sync-select" style="width: 100%; padding: 8px 12px; background: rgba(0,0,0,0.3); border: 1px solid var(--glass-border); border-radius: 8px; color: var(--text); font-family: var(--font); outline: none; margin-top: 5px; cursor: pointer;">
-                            <option value="local">Tải về máy khách (Local Download)</option>
-                            <option value="telegram">Gửi qua Telegram Bot</option>
-                        </select>
-                        <div id="telegram-config-inputs" class="hidden" style="margin-top: 10px; display: flex; flex-direction: column; gap: 8px;">
-                            <input type="text" id="tg-bot-token" placeholder="Telegram Bot Token" style="width: 100%; padding: 8px 12px; background: rgba(0,0,0,0.3); border: 1px solid var(--glass-border); border-radius: 8px; color: var(--text); font-family: var(--font); font-size: 0.85rem;">
-                            <input type="text" id="tg-chat-id" placeholder="Telegram Chat/Group ID" style="width: 100%; padding: 8px 12px; background: rgba(0,0,0,0.3); border: 1px solid var(--glass-border); border-radius: 8px; color: var(--text); font-family: var(--font); font-size: 0.85rem;">
-                        </div>
-                    </div>
+            <!-- Trim Media -->
+            <div class="trim-section">
+              <div
+                id="trim-preview-container"
+                class="hidden"
+                style="margin-top: 15px"
+              >
+                <video
+                  id="trim-preview-player"
+                  style="width: 100%; border-radius: 8px; margin-bottom: 15px"
+                  controls
+                ></video>
+              </div>
+              <label class="advanced-label">
+                <input type="checkbox" id="trim-checkbox" />
+                <span class="custom-checkbox"></span>
+                <span>Trim Media</span>
+              </label>
+              <div
+                id="trim-slider-container"
+                class="hidden"
+                style="margin-top: 15px; margin-bottom: 10px"
+              >
+                <div
+                  id="trim-range-slider"
+                  style="margin: 10px 10px 20px 10px"
+                ></div>
+              </div>
+              <div id="trim-inputs-container" class="trim-inputs hidden">
+                <div class="trim-field">
+                  <span>Start:</span>
+                  <input
+                    type="text"
+                    id="trim-start"
+                    value="00:00:00"
+                    placeholder="hh:mm:ss"
+                  />
                 </div>
-
-                <!-- UI Customizer Dropdown Panel -->
-                <div id="customizer-dropdown" class="settings-dropdown hidden" style="right: 10px; width: 330px;">
-                    <div class="settings-dropdown-header">
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="width: 18px; height: 18px;">
-                            <path d="M12 22C17.5228 22 22 17.5228 22 12C22 11.5 21.5 11 21 11H18C16.8954 11 16 10.1046 16 9C16 8.35 16.3 7.8 16.7 7.4L18.7 5.4C19.1 5 19.1 4.3 18.7 3.9C17.1 2.5 14.9 1.8 12.6 2C7.3 2.5 3 6.9 2.1 12.2C1 18.5 5.8 24 12 24"/>
-                            <circle cx="7.5" cy="10.5" r="1.5" fill="currentColor"/>
-                            <circle cx="11.5" cy="7.5" r="1.5" fill="currentColor"/>
-                            <circle cx="16.5" cy="9.5" r="1.5" fill="currentColor"/>
-                        </svg>
-                        <span>Cá nhân hóa giao diện</span>
-                    </div>
-
-                    <div class="customizer-scroll">
-                        <!-- Accent color preset -->
-                        <div>
-                            <label class="advanced-label" style="font-size: 0.85rem; font-weight: 500; margin-bottom: 5px; display: block;">
-                                <span>Màu sắc chủ đạo (Accent Theme):</span>
-                            </label>
-                             <select id="customizer-accent" class="customizer-select">
-                                <option value="default">Neon Cyan (Mặc định)</option>
-                                <option value="emerald">Emerald Green (Xanh lục)</option>
-                                <option value="orchid">Orchid Pink (Hồng tím)</option>
-                                <option value="amber">Amber Gold (Hổ phách)</option>
-                                <option value="purple">Royal Purple (Tím hoàng gia)</option>
-                                <option value="rose">Ruby Red (Đỏ hồng)</option>
-                                <option value="orange">Electric Orange (Cam điện)</option>
-                                <option value="blue">Sapphire Blue (Xanh lam)</option>
-                                <option value="peach">Sunset Peach (Màu đào)</option>
-                                <option value="lime">Acid Lime (Xanh chanh)</option>
-                            </select>
-                        </div>
-
-                        <!-- Border Radius Option -->
-                        <div>
-                            <label class="advanced-label" style="font-size: 0.85rem; font-weight: 500; margin-bottom: 5px; display: block;">
-                                <span>Độ bo góc (Corner Radii):</span>
-                            </label>
-                            <select id="customizer-radius" class="customizer-select">
-                                <option value="sharp">Sharp (Góc vuông - 4px)</option>
-                                <option value="rounded">Rounded (Bo tròn - 12px)</option>
-                                <option value="pill">Pill (Kén tròn - 24px)</option>
-                            </select>
-                        </div>
-
-                        <!-- Glassmorphism Blur Strength -->
-                        <div>
-                            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 5px;">
-                                <label class="advanced-label" style="font-size: 0.85rem; font-weight: 500; margin: 0;">Độ mờ kính (Glass Blur):</label>
-                                <span id="customizer-blur-val" style="font-size: 0.8rem; color: var(--cyan);">24px</span>
-                            </div>
-                            <input type="range" id="customizer-blur" min="0" max="40" value="24" style="width: 100%; accent-color: var(--cyan); cursor: pointer;">
-                        </div>
-
-                        <!-- Font Size Option -->
-                        <div>
-                            <label class="advanced-label" style="font-size: 0.85rem; font-weight: 500; margin-bottom: 5px; display: block;">
-                                <span>Kích thước chữ (Typography Scale):</span>
-                            </label>
-                            <select id="customizer-fontsize" class="customizer-select">
-                                <option value="small">Nhỏ (90% - Compact)</option>
-                                <option value="medium">Vừa (100% - Default)</option>
-                                <option value="large">Lớn (110% - Standard)</option>
-                            </select>
-                        </div>
-
-                        <!-- Divider -->
-                        <div style="border-top: 1px solid rgba(255, 255, 255, 0.08); margin: 5px 0;"></div>
-
-                        <!-- Grid Mesh Toggle -->
-                        <div style="display: flex; flex-direction: column; gap: 10px;">
-                            <label class="toggle-switch-container">
-                                <input type="checkbox" id="customizer-grid-enable" checked>
-                                <span class="toggle-switch-slider"></span>
-                                <span>Hiển thị mạng lưới sao (Star Grid)</span>
-                            </label>
-                            <label class="toggle-switch-container">
-                                <input type="checkbox" id="customizer-ripples-enable" checked>
-                                <span class="toggle-switch-slider"></span>
-                                <span>Sóng nước tương tác (Ripples)</span>
-                            </label>
-                            <label class="toggle-switch-container">
-                                <input type="checkbox" id="customizer-sparkles-enable" checked>
-                                <span class="toggle-switch-slider"></span>
-                                <span>Bụi sáng lấp lánh (Sparkles)</span>
-                            </label>
-                        </div>
-
-                        <!-- Grid Spacing slider -->
-                        <div id="grid-spacing-container">
-                            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 5px;">
-                                <label class="advanced-label" style="font-size: 0.85rem; font-weight: 500; margin: 0; pointer-events: none;">
-                                    <span>Khoảng cách lưới (Node Spacing):</span>
-                                </label>
-                                <span id="customizer-spacing-val" style="font-size: 0.8rem; color: var(--cyan);">54px</span>
-                            </div>
-                            <input type="range" id="customizer-spacing" min="30" max="90" value="54" style="width: 100%; accent-color: var(--cyan); cursor: pointer;">
-                        </div>
-
-                        <!-- Gravity radius slider -->
-                        <div id="grid-gravity-container">
-                            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 5px;">
-                                <label class="advanced-label" style="font-size: 0.85rem; font-weight: 500; margin: 0; pointer-events: none;">
-                                    <span>Bán kính trọng lực (Well Radius):</span>
-                                </label>
-                                <span id="customizer-gravity-val" style="font-size: 0.8rem; color: var(--cyan);">180px</span>
-                            </div>
-                            <input type="range" id="customizer-gravity" min="100" max="300" value="180" style="width: 100%; accent-color: var(--cyan); cursor: pointer;">
-                        </div>
-
-                        <!-- Gravity Mode dropdown -->
-                        <div>
-                             <label class="advanced-label" style="font-size: 0.85rem; font-weight: 500; margin-bottom: 5px; display: block;">
-                                 <span>Chế độ tương tác trọng lực (Gravity Mode):</span>
-                             </label>
-                             <select id="customizer-gravity-mode" class="customizer-select">
-                                 <option value="pull">Lực hút / Hố đen (Mặc định)</option>
-                                 <option value="push">Lực đẩy / Lồi lưới</option>
-                                 <option value="none">Không uốn cong lưới</option>
-                             </select>
-                         </div>
-
-                         <!-- Gravity Depth slider -->
-                         <div id="grid-gravity-depth-container">
-                             <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 5px;">
-                                 <label class="advanced-label" style="font-size: 0.85rem; font-weight: 500; margin: 0; pointer-events: none;">
-                                     <span>Độ sâu uốn lưới (Gravity Depth):</span>
-                                 </label>
-                                 <span id="customizer-gravity-depth-val" style="font-size: 0.8rem; color: var(--cyan);">130px</span>
-                             </div>
-                             <input type="range" id="customizer-gravity-depth" min="50" max="250" value="130" style="width: 100%; accent-color: var(--cyan); cursor: pointer;">
-                         </div>
-
-                         <!-- Sparkle Shape dropdown -->
-                         <div>
-                             <label class="advanced-label" style="font-size: 0.85rem; font-weight: 500; margin-bottom: 5px; display: block;">
-                                 <span>Hình dạng bụi sáng (Stardust Shape):</span>
-                             </label>
-                             <select id="customizer-sparkle-shape" class="customizer-select">
-                                 <option value="star">Ngôi sao 4 cánh (Mặc định)</option>
-                                 <option value="circle">Hạt ngọc tròn (Circle)</option>
-                                 <option value="diamond">Đốm kim cương (Diamond)</option>
-                             </select>
-                         </div>
-
-                        <!-- Reset to defaults button -->
-                        <button id="customizer-reset-btn" class="secondary-btn">
-                            Đặt lại giao diện mặc định
-                        </button>
-                    </div>
+                <div class="trim-field">
+                  <span>End:</span>
+                  <input
+                    type="text"
+                    id="trim-end"
+                    value="00:00:10"
+                    placeholder="hh:mm:ss"
+                  />
                 </div>
+              </div>
             </div>
-            <p class="subtitle">High-performance media extraction — No ads, no limits, no API keys</p>
-        </header>
-
-        <!-- Main Card -->
-        <main class="card">
-            <!-- Search Bar -->
-            <div class="search-bar">
-                <div class="search-input-wrap">
-                    <svg class="search-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
-                        <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/>
-                        <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/>
-                    </svg>
-                    <input type="text" id="url-input" placeholder="Paste a YouTube, Facebook, TikTok, or other media link here..." autocomplete="off" spellcheck="false">
-                    <button id="paste-btn" class="icon-btn" title="Paste from clipboard">
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
-                            <rect x="8" y="2" width="8" height="4" rx="1" ry="1"/>
-                            <path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/>
-                        </svg>
-                    </button>
-                    <button id="clear-url-btn" class="icon-btn hidden" title="Clear URL & Reset">
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
-                            <line x1="18" y1="6" x2="6" y2="18"></line>
-                            <line x1="6" y1="6" x2="18" y2="18"></line>
-                        </svg>
-                    </button>
-                </div>
-                <button id="analyze-btn" class="btn-primary">
-                    <span>Analyze</span>
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                        <polyline points="9 18 15 12 9 6"/>
-                    </svg>
-                </button>
+            <!-- Subtitles Translation -->
+            <div
+              class="subtitle-translate-section hidden"
+              id="sub-translate-container"
+            >
+              <label class="advanced-label">
+                <input type="checkbox" id="translate-subs-checkbox" />
+                <span class="custom-checkbox"></span>
+                <span>Auto-translate subtitles to English</span>
+              </label>
             </div>
-
-            <!-- Active Cookies Badge & Toggle Manage -->
-            <div class="cookies-status-row">
-                <div id="active-cookies-badge" class="active-cookies-badge hidden" style="margin: 0;">
-                    <span class="pulse-dot"></span>
-                    <span>Active session cookies loaded</span>
-                    <button id="clear-cookies-btn" class="btn-clear-cookies" title="Clear cookies">Clear</button>
-                </div>
-                <button id="toggle-cookies-btn" class="btn-toggle-cookies" title="Upload or Manage Cookies">
-                    <svg class="cookie-btn-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
-                        <path d="M12 2a10 10 0 1 0 10 10c0-1.66-1.34-3-3-3s-3 1.34-3 3-1.34 3-3 3-3-1.34-3-3 1.34-3 3-3 3 1.34 3 3a3 3 0 1 1-6 0c0-3.31 2.69-6 6-6Z"/>
-                    </svg>
-                    <span>Manage Cookies</span>
-                </button>
+            <!-- Export Format Option -->
+            <div
+              class="export-section"
+              style="
+                margin-top: 15px;
+                border-top: 1px solid rgba(255, 255, 255, 0.05);
+                padding-top: 15px;
+              "
+            >
+              <label class="advanced-label">
+                <span>Export Format:</span>
+              </label>
+              <select
+                id="export-type-select"
+                style="
+                  width: 100%;
+                  padding: 8px 12px;
+                  background: rgba(0, 0, 0, 0.3);
+                  border: 1px solid var(--glass-border);
+                  border-radius: 8px;
+                  color: var(--text);
+                  font-family: var(--font);
+                  outline: none;
+                  margin-top: 5px;
+                  cursor: pointer;
+                "
+              >
+                <option value="default">Default format</option>
+                <option value="gif">Looping GIF</option>
+                <option value="shorts">Vertical video (Shorts/TikTok 9:16)</option>
+              </select>
             </div>
-
-            <!-- Loader -->
-            <div id="loader" class="loader hidden">
-                <div class="spinner">
-                    <div class="spinner-ring outer"></div>
-                    <div class="spinner-ring inner"></div>
-                    <div class="spinner-dot"></div>
-                </div>
-                <div class="loader-content">
-                    <span id="loader-text">Analyzing link...</span>
-                    <div class="loader-scanline"></div>
-                </div>
-                <button id="cancel-analyze-btn" class="btn-cancel-analyze" title="Hủy phân tích đường dẫn">Hủy phân tích (Cancel)</button>
+            <!-- Cinematic Filters -->
+            <div
+              class="filter-section"
+              style="
+                margin-top: 15px;
+                border-top: 1px solid rgba(255, 255, 255, 0.05);
+                padding-top: 15px;
+              "
+            >
+              <label class="advanced-label">
+                <span>Cinematic Filter:</span>
+              </label>
+              <select
+                id="color-filter-select"
+                style="
+                  width: 100%;
+                  padding: 8px 12px;
+                  background: rgba(0, 0, 0, 0.3);
+                  border: 1px solid var(--glass-border);
+                  border-radius: 8px;
+                  color: var(--text);
+                  font-family: var(--font);
+                  outline: none;
+                  margin-top: 5px;
+                  cursor: pointer;
+                "
+              >
+                <option value="none">Original</option>
+                <option value="cyberpunk">Cyberpunk (Cyan/Purple)</option>
+                <option value="vintage">Vintage Warm</option>
+                <option value="noir">Noir High Contrast</option>
+                <option value="enhance">
+                  Denoise & Sharpen
+                </option>
+              </select>
             </div>
-
-            <!-- Error -->
-            <div id="error-card" class="error-banner hidden">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
-                    <circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/>
-                </svg>
-                <p id="error-message">An error occurred.</p>
+            <!-- AI Voiceover -->
+            <div
+              class="voiceover-section"
+              id="voiceover-container"
+              style="
+                margin-top: 15px;
+                border-top: 1px solid rgba(255, 255, 255, 0.05);
+                padding-top: 15px;
+              "
+            >
+              <label class="advanced-label">
+                <input type="checkbox" id="voiceover-checkbox" />
+                <span class="custom-checkbox"></span>
+                <span>AI Voiceover</span>
+              </label>
+              <div
+                id="voiceover-select-container"
+                class="hidden"
+                style="margin-top: 8px"
+              >
+                <select
+                  id="voiceover-voice-select"
+                  style="
+                    width: 100%;
+                    padding: 8px 12px;
+                    background: rgba(0, 0, 0, 0.3);
+                    border: 1px solid var(--glass-border);
+                    border-radius: 8px;
+                    color: var(--text);
+                    font-family: var(--font);
+                    outline: none;
+                    cursor: pointer;
+                  "
+                >
+                  <option value="vi-VN-HoaiMyNeural">
+                    Hoai My (Warm Female)
+                  </option>
+                  <option value="vi-VN-NamMinhNeural">
+                    Nam Minh (Expressive Male)
+                  </option>
+                </select>
+              </div>
             </div>
+            <!-- Cloud Sync Options -->
+            <div
+              class="cloud-sync-section"
+              style="
+                margin-top: 15px;
+                border-top: 1px solid rgba(255, 255, 255, 0.05);
+                padding-top: 15px;
+              "
+            >
+              <label class="advanced-label">
+                <span>Cloud Sync:</span>
+              </label>
+              <select
+                id="cloud-sync-select"
+                style="
+                  width: 100%;
+                  padding: 8px 12px;
+                  background: rgba(0, 0, 0, 0.3);
+                  border: 1px solid var(--glass-border);
+                  border-radius: 8px;
+                  color: var(--text);
+                  font-family: var(--font);
+                  outline: none;
+                  margin-top: 5px;
+                  cursor: pointer;
+                "
+              >
+                <option value="local">Local Download</option>
+                <option value="telegram">Send via Telegram Bot</option>
+              </select>
+              <div
+                id="telegram-config-inputs"
+                class="hidden"
+                style="
+                  margin-top: 10px;
+                  display: flex;
+                  flex-direction: column;
+                  gap: 8px;
+                "
+              >
+                <input
+                  type="text"
+                  id="tg-bot-token"
+                  placeholder="Telegram Bot Token"
+                  style="
+                    width: 100%;
+                    padding: 8px 12px;
+                    background: rgba(0, 0, 0, 0.3);
+                    border: 1px solid var(--glass-border);
+                    border-radius: 8px;
+                    color: var(--text);
+                    font-family: var(--font);
+                    font-size: 0.85rem;
+                  "
+                />
+                <input
+                  type="text"
+                  id="tg-chat-id"
+                  placeholder="Telegram Chat/Group ID"
+                  style="
+                    width: 100%;
+                    padding: 8px 12px;
+                    background: rgba(0, 0, 0, 0.3);
+                    border: 1px solid var(--glass-border);
+                    border-radius: 8px;
+                    color: var(--text);
+                    font-family: var(--font);
+                    font-size: 0.85rem;
+                  "
+                />
+              </div>
+            </div>
+          </div>
 
-            <!-- Cookies Upload Section (Initially Hidden) -->
-            <div id="cookies-section" class="cookies-panel hidden">
-                <div class="cookies-header">
-                    <svg class="cookies-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
-                        <path d="M12 2a10 10 0 1 0 10 10c0-1.66-1.34-3-3-3s-3 1.34-3 3-1.34 3-3 3-3-1.34-3-3 1.34-3 3-3 3 1.34 3 3a3 3 0 1 1-6 0c0-3.31 2.69-6 6-6Z"/>
-                    </svg>
-                    <h4>Authentication Required (Cookies Upload)</h4>
-                </div>
-                <div class="cookies-instructions">
-                    <p>This media requires authentication. Export your browser session cookies using one of the following extensions:</p>
-                    <div class="cookies-methods">
-                        <div class="cookie-method">
-                            <h5>Method 1: J2TEAM Cookies (Recommended)</h5>
-                            <ol>
-                                <li>Install <a href="https://chromewebstore.google.com/detail/j2team-cookies/okpidcojinmlaakglciglbpcpajaibco" target="_blank" rel="noopener">J2TEAM Cookies</a>.</li>
-                                <li>Log in to the video platform in your browser.</li>
-                                <li>Click the extension icon and select <strong>Export</strong> (downloads a `.json` file).</li>
-                            </ol>
-                        </div>
-                        <div class="cookie-method">
-                            <h5>Method 2: Get cookies.txt LOCALLY</h5>
-                            <ol>
-                                <li>Install <a href="https://chromewebstore.google.com/detail/get-cookiestxt-locally/cclelndahbckbenkjhflpdbgdldlbecc" target="_blank" rel="noopener">Get cookies.txt LOCALLY</a>.</li>
-                                <li>Log in to the video platform in your browser.</li>
-                                <li>Open the extension and click <strong>Export</strong> (downloads a `.txt` file).</li>
-                            </ol>
-                        </div>
-                    </div>
-                </div>
-                <div class="cookies-tabs">
-                    <button class="cookie-tab-btn active" id="cookie-tab-upload">Tải file cookies</button>
-                    <button class="cookie-tab-btn" id="cookie-tab-paste">Dán văn bản cookies</button>
-                </div>
-
-                <div id="cookie-tab-content-upload" class="cookie-tab-content">
-                    <div id="cookie-dropzone" class="cookie-dropzone">
-                        <input type="file" id="cookie-file-input" accept=".txt,.json" class="hidden">
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" class="upload-arrow">
-                            <polyline points="16 16 12 12 8 16"/><line x1="12" y1="12" x2="12" y2="21"/><path d="M20.39 18.39A5 5 0 0 0 18 9h-1.26A8 8 0 1 0 3 16.3"/>
-                        </svg>
-                        <p id="dropzone-text">Drag & drop your cookies.txt or cookies.json here or <span>browse file</span></p>
-                    </div>
-                </div>
-
-                <div id="cookie-tab-content-paste" class="cookie-tab-content cookie-textarea-container hidden">
-                    <textarea id="cookie-text-input" class="cookie-textarea" placeholder="Dán nội dung cookies.txt (Netscape) hoặc cookies.json (J2TEAM) tại đây..."></textarea>
-                    <button id="cookie-save-text-btn" class="btn-primary cookie-save-btn">Lưu Cookies</button>
-                </div>
+          <!-- UI Customizer Dropdown Panel -->
+          <div
+            id="customizer-dropdown"
+            class="settings-dropdown hidden"
+            style="right: 10px; width: 330px"
+          >
+            <div class="settings-dropdown-header">
+              <svg
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="1.5"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                style="width: 18px; height: 18px"
+              >
+                <path
+                  d="M12 22C17.5228 22 22 17.5228 22 12C22 11.5 21.5 11 21 11H18C16.8954 11 16 10.1046 16 9C16 8.35 16.3 7.8 16.7 7.4L18.7 5.4C19.1 5 19.1 4.3 18.7 3.9C17.1 2.5 14.9 1.8 12.6 2C7.3 2.5 3 6.9 2.1 12.2C1 18.5 5.8 24 12 24"
+                />
+                <circle cx="7.5" cy="10.5" r="1.5" fill="currentColor" />
+                <circle cx="11.5" cy="7.5" r="1.5" fill="currentColor" />
+                <circle cx="16.5" cy="9.5" r="1.5" fill="currentColor" />
+              </svg>
+              <span>UI Customizer</span>
             </div>
 
-            <!-- Results -->
-            <section id="result-section" class="result">
-                <div class="result-grid welcome-mode">
-                    <!-- Left: Media Info -->
-                    <div class="media-info">
-                        <div class="thumb-wrap">
-                            <img id="video-thumbnail" src="" alt="Thumbnail">
-                            <span id="media-badge" class="tag tag-default">Video</span>
-                            <span id="video-duration-badge" class="tag tag-duration">0:00</span>
-                        </div>
-                        <h2 id="video-title" class="media-title"></h2>
-                        
-                        <div class="media-meta-row">
-                            <div class="meta-author">
-                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
-                                    <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/>
-                                </svg>
-                                <span id="video-uploader"></span>
-                            </div>
-                            <span id="video-category" class="category-badge hidden">Music</span>
-                        </div>
+            <div class="customizer-scroll">
+              <!-- Accent color preset -->
+              <div>
+                <label
+                  class="advanced-label"
+                  style="
+                    font-size: 0.85rem;
+                    font-weight: 500;
+                    margin-bottom: 5px;
+                    display: block;
+                  "
+                >
+                  <span>Accent Theme:</span>
+                </label>
+                <select id="customizer-accent" class="customizer-select">
+                  <option value="default">Neon Cyan (Default)</option>
+                  <option value="emerald">Emerald Green</option>
+                  <option value="orchid">Orchid Pink</option>
+                  <option value="amber">Amber Gold</option>
+                  <option value="purple">Royal Purple</option>
+                  <option value="rose">Ruby Red</option>
+                  <option value="orange">Electric Orange</option>
+                  <option value="blue">Sapphire Blue</option>
+                  <option value="peach">Sunset Peach</option>
+                  <option value="lime">Acid Lime</option>
+                </select>
+              </div>
 
-                        <!-- Rich Stats Grid -->
-                        <div class="rich-stats-grid">
-                            <div class="stat-item" title="Views">
-                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
-                                    <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/>
-                                </svg>
-                                <span id="video-views">—</span>
-                            </div>
-                            <div class="stat-item" title="Likes">
-                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
-                                    <path d="M14 9V5a3 3 0 0 0-3-3l-4 9v11h11.28a2 2 0 0 0 2-1.7l1.38-9a2 2 0 0 0-2-2.3zM7 22H4a2 2 0 0 1-2-2v-7a2 2 0 0 1 2-2h3"/>
-                                </svg>
-                                <span id="video-likes">—</span>
-                            </div>
-                            <div class="stat-item" title="Upload Date">
-                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
-                                    <rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/>
-                                </svg>
-                                <span id="video-date">—</span>
-                            </div>
-                        </div>
+              <!-- Border Radius Option -->
+              <div>
+                <label
+                  class="advanced-label"
+                  style="
+                    font-size: 0.85rem;
+                    font-weight: 500;
+                    margin-bottom: 5px;
+                    display: block;
+                  "
+                >
+                  <span>Corner Radius:</span>
+                </label>
+                <select id="customizer-radius" class="customizer-select">
+                  <option value="sharp">Sharp (4px)</option>
+                  <option value="rounded">Rounded (12px)</option>
+                  <option value="pill">Pill (24px)</option>
+                </select>
+              </div>
 
-                        <!-- Tags Container -->
-                        <div id="video-tags-container" class="tags-container">
-                            <!-- JS injects tags here -->
-                        </div>
-
-                        <!-- Description Trigger Button -->
-                        <button id="desc-toggle-btn" class="desc-toggle-btn-modal" title="View Description">
-                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
-                                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
-                                <polyline points="14 2 14 8 20 8"/>
-                                <line x1="16" y1="13" x2="8" y2="13"/>
-                                <line x1="16" y1="17" x2="8" y2="17"/>
-                                <polyline points="10 9 9 9 8 9"/>
-                            </svg>
-                            <span>View Description</span>
-                        </button>
-
-                        <!-- Images Trigger Button -->
-                        <button id="images-toggle-btn" class="images-toggle-btn-modal" title="View Images">
-                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
-                                <rect x="3" y="3" width="18" height="18" rx="2" ry="2"/>
-                                <circle cx="8.5" cy="8.5" r="1.5"/>
-                                <polyline points="21 15 16 10 5 21"/>
-                            </svg>
-                            <span>View Images</span>
-                        </button>
-
-
-                    </div>
-
-                    <!-- Right: Format Options -->
-                    <div class="format-panel">
-                        <div id="options-container" class="format-list">
-                            <!-- JS injects here -->
-                        </div>
-                        <div id="welcome-dashboard" class="welcome-dashboard">
-                            <div class="welcome-header">
-                                <h3 class="welcome-title">EveryThingDownloader</h3>
-                                <p class="welcome-subtitle">Dán link bất kỳ từ các nền tảng để phân tích và tải xuống đa phương tiện.</p>
-                            </div>
-                            
-                            <!-- Supported Platforms Badges -->
-                            <div class="welcome-platforms">
-                                <h4 class="welcome-section-title">Nền tảng phổ biến & Web Video</h4>
-                                <div class="platform-badges-grid">
-                                    <span class="platform-badge tag-youtube" data-url-hint="https://www.youtube.com/watch?v=aqz-KE-bpKQ">YouTube</span>
-                                    <span class="platform-badge tag-facebook" data-url-hint="https://www.facebook.com/watch/?v=3827182910">Facebook</span>
-                                    <span class="platform-badge tag-instagram" data-url-hint="https://www.instagram.com/p/C_xYz12uD9B/">Instagram</span>
-                                    <span class="platform-badge tag-threads" data-url-hint="https://www.threads.net/@zuck/post/Cx12871s">Threads</span>
-                                    <span class="platform-badge tag-tiktok" data-url-hint="https://www.tiktok.com/@tiktok/video/710293810293">TikTok</span>
-                                    <span class="platform-badge tag-twitter" data-url-hint="https://x.com/NASA/status/1682845876543">Twitter/X</span>
-                                    <span class="platform-badge tag-reddit" data-url-hint="https://www.reddit.com/r/gamingpc/comments/1ty80y7/just_finished_my_build/">Reddit</span>
-                                    <span class="platform-badge tag-soundcloud" data-url-hint="https://soundcloud.com/octobersveryown/drake-back-to-back">SoundCloud</span>
-                                    <span class="platform-badge tag-pinterest" data-url-hint="https://www.pinterest.com/pin/123456789012/">Pinterest</span>
-                                    <span class="platform-badge tag-vimeo" data-url-hint="https://vimeo.com/83928172">Vimeo</span>
-                                    <span class="platform-badge tag-web" data-url-hint="https://motchilltv.lt/episodes/bai-hoc-dang-doi-tap-1/">Web Video / Any Link</span>
-                                </div>
-                            </div>
-
-                            <!-- History Section -->
-                            <div class="welcome-history" id="welcome-history-section">
-                                <div class="welcome-history-header">
-                                    <h4 class="welcome-section-title">Lịch sử phân tích gần đây</h4>
-                                    <button id="clear-history-btn" class="clear-history-btn" title="Xóa toàn bộ lịch sử">
-                                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
-                                            <polyline points="3 6 5 6 21 6"></polyline>
-                                            <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
-                                            <line x1="10" y1="11" x2="10" y2="17"></line>
-                                            <line x1="14" y1="11" x2="14" y2="17"></line>
-                                        </svg>
-                                        <span>Xóa lịch sử</span>
-                                    </button>
-                                </div>
-                                <div class="history-list" id="history-list">
-                                    <!-- JS injects items here -->
-                                </div>
-                            </div>
-                        </div>
-                    </div>
+              <!-- Glassmorphism Blur Strength -->
+              <div>
+                <div
+                  style="
+                    display: flex;
+                    justify-content: space-between;
+                    align-items: center;
+                    margin-bottom: 5px;
+                  "
+                >
+                  <label
+                    class="advanced-label"
+                    style="font-size: 0.85rem; font-weight: 500; margin: 0"
+                    >Glass Blur:</label
+                  >
+                  <span
+                    id="customizer-blur-val"
+                    style="font-size: 0.8rem; color: var(--cyan)"
+                    >24px</span
+                  >
                 </div>
-            </section>
+                <input
+                  type="range"
+                  id="customizer-blur"
+                  min="0"
+                  max="40"
+                  value="24"
+                  style="
+                    width: 100%;
+                    accent-color: var(--cyan);
+                    cursor: pointer;
+                  "
+                />
+              </div>
 
-            <!-- Progress -->
-            <section id="download-progress" class="progress-panel hidden">
-                <div class="progress-header">
-                    <div class="progress-title-row">
-                        <div class="progress-spinner-mini"></div>
-                        <span id="download-status-title">Preparing...</span>
-                    </div>
-                    <span id="progress-percent" class="progress-pct">0%</span>
-                </div>
-                <div class="progress-track">
-                    <div class="progress-fill" id="progress-fill"></div>
-                </div>
-                <p id="download-status-message" class="progress-msg">Starting download...</p>
-                <p id="download-format-label" class="progress-format-label"></p>
-                <div class="progress-cancel-row">
-                    <button id="cancel-download-btn" class="btn-cancel-download" title="Hủy tải xuống (Cancel Download)">Hủy tải (Cancel)</button>
-                </div>
-            </section>
-        </main>
+              <!-- Font Size Option -->
+              <div>
+                <label
+                  class="advanced-label"
+                  style="
+                    font-size: 0.85rem;
+                    font-weight: 500;
+                    margin-bottom: 5px;
+                    display: block;
+                  "
+                >
+                  <span>Typography Scale:</span>
+                </label>
+                <select id="customizer-fontsize" class="customizer-select">
+                  <option value="small">Small (90% - Compact)</option>
+                  <option value="medium">Medium (100% - Default)</option>
+                  <option value="large">Large (110% - Standard)</option>
+                </select>
+              </div>
 
-        <footer class="footer">
-            <p>Powered by Flask & yt-dlp &bull; Developed by <a href="https://github.com/m3iK18dp" class="footer-link" target="_blank" rel="noopener">m3iK18dp</a> &bull; 
-                <a href="https://www.facebook.com/m3iK18dp.dev" class="footer-link" target="_blank" rel="noopener">
-                    <svg class="social-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 2h-3a5 5 0 0 0-5 5v3H7v4h3v8h4v-8h3l1-4h-4V7a1 1 0 0 1 1-1h3z"/></svg>
-                    Facebook
-                </a> &bull; 
-                <a href="https://github.com/m3iK18dp" class="footer-link" target="_blank" rel="noopener">
-                    <svg class="social-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 19c-5 1.5-5-2.5-7-3m14 6v-3.87a3.37 3.37 0 0 0-.94-2.61c3.14-.35 6.44-1.54 6.44-7A5.44 5.44 0 0 0 20 4.77 5.07 5.07 0 0 0 19.91 1S18.73.65 16 2.48a13.38 13.38 0 0 0-7 0C6.27.65 5.09 1 5.09 1A5.07 5.07 0 0 0 5 4.77a5.44 5.44 0 0 0-1.5 3.78c0 5.42 3.3 6.61 6.44 7A3.37 3.37 0 0 0 9 18.13V22"/></svg>
-                    GitHub
-                </a>
+              <!-- Divider -->
+              <div
+                style="
+                  border-top: 1px solid rgba(255, 255, 255, 0.08);
+                  margin: 5px 0;
+                "
+              ></div>
+
+              <!-- Grid Mesh Toggle -->
+              <div style="display: flex; flex-direction: column; gap: 10px">
+                <label class="toggle-switch-container">
+                  <input type="checkbox" id="customizer-grid-enable" checked />
+                  <span class="toggle-switch-slider"></span>
+                  <span>Show Star Grid</span>
+                </label>
+                <label class="toggle-switch-container">
+                  <input
+                    type="checkbox"
+                    id="customizer-ripples-enable"
+                    checked
+                  />
+                  <span class="toggle-switch-slider"></span>
+                  <span>Interactive Ripples</span>
+                </label>
+                <label class="toggle-switch-container">
+                  <input
+                    type="checkbox"
+                    id="customizer-sparkles-enable"
+                    checked
+                  />
+                  <span class="toggle-switch-slider"></span>
+                  <span>Sparkles</span>
+                </label>
+              </div>
+
+              <!-- Grid Spacing slider -->
+              <div id="grid-spacing-container">
+                <div
+                  style="
+                    display: flex;
+                    justify-content: space-between;
+                    align-items: center;
+                    margin-bottom: 5px;
+                  "
+                >
+                  <label
+                    class="advanced-label"
+                    style="
+                      font-size: 0.85rem;
+                      font-weight: 500;
+                      margin: 0;
+                      pointer-events: none;
+                    "
+                  >
+                    <span>Node Spacing:</span>
+                  </label>
+                  <span
+                    id="customizer-spacing-val"
+                    style="font-size: 0.8rem; color: var(--cyan)"
+                    >54px</span
+                  >
+                </div>
+                <input
+                  type="range"
+                  id="customizer-spacing"
+                  min="30"
+                  max="90"
+                  value="54"
+                  style="
+                    width: 100%;
+                    accent-color: var(--cyan);
+                    cursor: pointer;
+                  "
+                />
+              </div>
+
+              <!-- Gravity radius slider -->
+              <div id="grid-gravity-container">
+                <div
+                  style="
+                    display: flex;
+                    justify-content: space-between;
+                    align-items: center;
+                    margin-bottom: 5px;
+                  "
+                >
+                  <label
+                    class="advanced-label"
+                    style="
+                      font-size: 0.85rem;
+                      font-weight: 500;
+                      margin: 0;
+                      pointer-events: none;
+                    "
+                  >
+                    <span>Gravity Radius:</span>
+                  </label>
+                  <span
+                    id="customizer-gravity-val"
+                    style="font-size: 0.8rem; color: var(--cyan)"
+                    >180px</span
+                  >
+                </div>
+                <input
+                  type="range"
+                  id="customizer-gravity"
+                  min="100"
+                  max="300"
+                  value="180"
+                  style="
+                    width: 100%;
+                    accent-color: var(--cyan);
+                    cursor: pointer;
+                  "
+                />
+              </div>
+
+              <!-- Gravity Mode dropdown -->
+              <div>
+                <label
+                  class="advanced-label"
+                  style="
+                    font-size: 0.85rem;
+                    font-weight: 500;
+                    margin-bottom: 5px;
+                    display: block;
+                  "
+                >
+                  <span>Gravity Mode:</span>
+                </label>
+                <select id="customizer-gravity-mode" class="customizer-select">
+                  <option value="pull">Pull / Black Hole (Default)</option>
+                  <option value="push">Push / Bulge</option>
+                  <option value="none">No gravity warping</option>
+                </select>
+              </div>
+
+              <!-- Gravity Depth slider -->
+              <div id="grid-gravity-depth-container">
+                <div
+                  style="
+                    display: flex;
+                    justify-content: space-between;
+                    align-items: center;
+                    margin-bottom: 5px;
+                  "
+                >
+                  <label
+                    class="advanced-label"
+                    style="
+                      font-size: 0.85rem;
+                      font-weight: 500;
+                      margin: 0;
+                      pointer-events: none;
+                    "
+                  >
+                    <span>Gravity Depth:</span>
+                  </label>
+                  <span
+                    id="customizer-gravity-depth-val"
+                    style="font-size: 0.8rem; color: var(--cyan)"
+                    >130px</span
+                  >
+                </div>
+                <input
+                  type="range"
+                  id="customizer-gravity-depth"
+                  min="50"
+                  max="250"
+                  value="130"
+                  style="
+                    width: 100%;
+                    accent-color: var(--cyan);
+                    cursor: pointer;
+                  "
+                />
+              </div>
+
+              <!-- Sparkle Shape dropdown -->
+              <div>
+                <label
+                  class="advanced-label"
+                  style="
+                    font-size: 0.85rem;
+                    font-weight: 500;
+                    margin-bottom: 5px;
+                    display: block;
+                  "
+                >
+                  <span>Stardust Shape:</span>
+                </label>
+                <select id="customizer-sparkle-shape" class="customizer-select">
+                  <option value="star">4-pointed Star (Default)</option>
+                  <option value="circle">Circle</option>
+                  <option value="diamond">Diamond</option>
+                </select>
+              </div>
+
+              <!-- Reset to defaults button -->
+              <button id="customizer-reset-btn" class="secondary-btn">
+                Reset UI Settings
+              </button>
+            </div>
+          </div>
+        </div>
+        <p class="subtitle">
+          High-performance media extraction — No ads, no limits, no API keys
+        </p>
+      </header>
+
+      <!-- Main Card -->
+      <main class="card">
+        <!-- Search Bar -->
+        <div class="search-bar">
+          <div class="search-input-wrap">
+            <svg
+              class="search-icon"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="1.5"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+            >
+              <path
+                d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"
+              />
+              <path
+                d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"
+              />
+            </svg>
+            <input
+              type="text"
+              id="url-input"
+              placeholder="Paste a YouTube, Facebook, TikTok, or other media link here..."
+              autocomplete="off"
+              spellcheck="false"
+            />
+            <button
+              id="paste-btn"
+              class="icon-btn"
+              title="Paste from clipboard"
+            >
+              <svg
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="1.5"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+              >
+                <rect x="8" y="2" width="8" height="4" rx="1" ry="1" />
+                <path
+                  d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"
+                />
+              </svg>
+            </button>
+            <button
+              id="clear-url-btn"
+              class="icon-btn hidden"
+              title="Clear URL & Reset"
+            >
+              <svg
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="1.5"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+              >
+                <line x1="18" y1="6" x2="6" y2="18"></line>
+                <line x1="6" y1="6" x2="18" y2="18"></line>
+              </svg>
+            </button>
+          </div>
+          <button id="analyze-btn" class="btn-primary">
+            <span>Analyze</span>
+            <svg
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+            >
+              <polyline points="9 18 15 12 9 6" />
+            </svg>
+          </button>
+        </div>
+
+        <!-- Active Cookies Badge & Toggle Manage -->
+        <div class="cookies-status-row">
+          <div
+            id="active-cookies-badge"
+            class="active-cookies-badge hidden"
+            style="margin: 0"
+          >
+            <span class="pulse-dot"></span>
+            <span>Active session cookies loaded</span>
+            <button
+              id="clear-cookies-btn"
+              class="btn-clear-cookies"
+              title="Clear cookies"
+            >
+              Clear
+            </button>
+          </div>
+          <button
+            id="toggle-cookies-btn"
+            class="btn-toggle-cookies"
+            title="Upload or Manage Cookies"
+          >
+            <svg
+              class="cookie-btn-icon"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="1.5"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+            >
+              <path
+                d="M12 2a10 10 0 1 0 10 10c0-1.66-1.34-3-3-3s-3 1.34-3 3-1.34 3-3 3-3-1.34-3-3 1.34-3 3-3 3 1.34 3 3a3 3 0 1 1-6 0c0-3.31 2.69-6 6-6Z"
+              />
+            </svg>
+            <span>Manage Cookies</span>
+          </button>
+        </div>
+
+        <!-- Loader -->
+        <div id="loader" class="loader hidden">
+          <div class="spinner">
+            <div class="spinner-ring outer"></div>
+            <div class="spinner-ring inner"></div>
+            <div class="spinner-dot"></div>
+          </div>
+          <div class="loader-content">
+            <span id="loader-text">Analyzing link...</span>
+            <div class="loader-scanline"></div>
+          </div>
+          <button
+            id="cancel-analyze-btn"
+            class="btn-cancel-analyze"
+            title="Cancel Analyze"
+          >
+            Cancel
+          </button>
+        </div>
+
+        <!-- Error -->
+        <div id="error-card" class="error-banner hidden">
+          <svg
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="1.5"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+          >
+            <circle cx="12" cy="12" r="10" />
+            <line x1="12" y1="8" x2="12" y2="12" />
+            <line x1="12" y1="16" x2="12.01" y2="16" />
+          </svg>
+          <p id="error-message">An error occurred.</p>
+        </div>
+
+        <!-- Cookies Upload Section (Initially Hidden) -->
+        <div id="cookies-section" class="cookies-panel hidden">
+          <div class="cookies-header">
+            <svg
+              class="cookies-icon"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="1.5"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+            >
+              <path
+                d="M12 2a10 10 0 1 0 10 10c0-1.66-1.34-3-3-3s-3 1.34-3 3-1.34 3-3 3-3-1.34-3-3 1.34-3 3-3 3 1.34 3 3a3 3 0 1 1-6 0c0-3.31 2.69-6 6-6Z"
+              />
+            </svg>
+            <h4>Authentication Required (Cookies Upload)</h4>
+          </div>
+          <div class="cookies-instructions">
+            <p>
+              This media requires authentication. Export your browser session
+              cookies using one of the following extensions:
             </p>
-        </footer>
+            <div class="cookies-methods">
+              <div class="cookie-method">
+                <h5>Method 1: J2TEAM Cookies (Recommended)</h5>
+                <ol>
+                  <li>
+                    Install
+                    <a
+                      href="https://chromewebstore.google.com/detail/j2team-cookies/okpidcojinmlaakglciglbpcpajaibco"
+                      target="_blank"
+                      rel="noopener"
+                      >J2TEAM Cookies</a
+                    >.
+                  </li>
+                  <li>Log in to the video platform in your browser.</li>
+                  <li>
+                    Click the extension icon and select
+                    <strong>Export</strong> (downloads a `.json` file).
+                  </li>
+                </ol>
+              </div>
+              <div class="cookie-method">
+                <h5>Method 2: Get cookies.txt LOCALLY</h5>
+                <ol>
+                  <li>
+                    Install
+                    <a
+                      href="https://chromewebstore.google.com/detail/get-cookiestxt-locally/cclelndahbckbenkjhflpdbgdldlbecc"
+                      target="_blank"
+                      rel="noopener"
+                      >Get cookies.txt LOCALLY</a
+                    >.
+                  </li>
+                  <li>Log in to the video platform in your browser.</li>
+                  <li>
+                    Open the extension and click
+                    <strong>Export</strong> (downloads a `.txt` file).
+                  </li>
+                </ol>
+              </div>
+            </div>
+          </div>
+          <div class="cookies-tabs">
+            <button class="cookie-tab-btn active" id="cookie-tab-upload">
+              Upload Cookies File
+            </button>
+            <button class="cookie-tab-btn" id="cookie-tab-paste">
+              Paste Cookie Text
+            </button>
+          </div>
+
+          <div id="cookie-tab-content-upload" class="cookie-tab-content">
+            <div id="cookie-dropzone" class="cookie-dropzone">
+              <input
+                type="file"
+                id="cookie-file-input"
+                accept=".txt,.json"
+                class="hidden"
+              />
+              <svg
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="1.5"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                class="upload-arrow"
+              >
+                <polyline points="16 16 12 12 8 16" />
+                <line x1="12" y1="12" x2="12" y2="21" />
+                <path d="M20.39 18.39A5 5 0 0 0 18 9h-1.26A8 8 0 1 0 3 16.3" />
+              </svg>
+              <p id="dropzone-text">
+                Drag & drop your cookies.txt or cookies.json here or
+                <span>browse file</span>
+              </p>
+            </div>
+          </div>
+
+          <div
+            id="cookie-tab-content-paste"
+            class="cookie-tab-content cookie-textarea-container hidden"
+          >
+            <textarea
+              id="cookie-text-input"
+              class="cookie-textarea"
+              placeholder="Paste cookies.txt (Netscape) or cookies.json (J2TEAM) content here..."
+            ></textarea>
+            <button
+              id="cookie-save-text-btn"
+              class="btn-primary cookie-save-btn"
+            >
+              Save Cookies
+            </button>
+          </div>
+        </div>
+
+        <!-- Results -->
+        <section id="result-section" class="result">
+          <div class="result-grid welcome-mode">
+            <!-- Left: Media Info -->
+            <div class="media-info">
+              <div class="thumb-wrap">
+                <img id="video-thumbnail" src="" alt="Thumbnail" />
+                <span id="media-badge" class="tag tag-default">Video</span>
+                <span id="video-duration-badge" class="tag tag-duration"
+                  >0:00</span
+                >
+              </div>
+              <h2 id="video-title" class="media-title"></h2>
+
+              <div class="media-meta-row">
+                <div class="meta-author">
+                  <svg
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="1.5"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                  >
+                    <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
+                    <circle cx="12" cy="7" r="4" />
+                  </svg>
+                  <span id="video-uploader"></span>
+                </div>
+                <span id="video-category" class="category-badge hidden"
+                  >Music</span
+                >
+              </div>
+
+              <!-- Rich Stats Grid -->
+              <div class="rich-stats-grid">
+                <div class="stat-item" title="Views">
+                  <svg
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="1.5"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                  >
+                    <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
+                    <circle cx="12" cy="12" r="3" />
+                  </svg>
+                  <span id="video-views">—</span>
+                </div>
+                <div class="stat-item" title="Likes">
+                  <svg
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="1.5"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                  >
+                    <path
+                      d="M14 9V5a3 3 0 0 0-3-3l-4 9v11h11.28a2 2 0 0 0 2-1.7l1.38-9a2 2 0 0 0-2-2.3zM7 22H4a2 2 0 0 1-2-2v-7a2 2 0 0 1 2-2h3"
+                    />
+                  </svg>
+                  <span id="video-likes">—</span>
+                </div>
+                <div class="stat-item" title="Upload Date">
+                  <svg
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="1.5"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                  >
+                    <rect x="3" y="4" width="18" height="18" rx="2" ry="2" />
+                    <line x1="16" y1="2" x2="16" y2="6" />
+                    <line x1="8" y1="2" x2="8" y2="6" />
+                    <line x1="3" y1="10" x2="21" y2="10" />
+                  </svg>
+                  <span id="video-date">—</span>
+                </div>
+              </div>
+
+              <!-- Tags Container -->
+              <div id="video-tags-container" class="tags-container">
+                <!-- JS injects tags here -->
+              </div>
+
+              <!-- Action Buttons Row -->
+              <div class="media-actions-row">
+                <!-- Description Trigger Button -->
+                <button
+                  id="desc-toggle-btn"
+                  class="desc-toggle-btn-modal"
+                  title="View Description"
+                >
+                  <svg
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="1.5"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                  >
+                    <path
+                      d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"
+                    />
+                    <polyline points="14 2 14 8 20 8" />
+                    <line x1="16" y1="13" x2="8" y2="13" />
+                    <line x1="16" y1="17" x2="8" y2="17" />
+                    <polyline points="10 9 9 9 8 9" />
+                  </svg>
+                  <span>View Description</span>
+                </button>
+
+                <!-- Images Trigger Button -->
+                <button
+                  id="images-toggle-btn"
+                  class="images-toggle-btn-modal"
+                  title="View Images"
+                >
+                  <svg
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="1.5"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                  >
+                    <rect x="3" y="3" width="18" height="18" rx="2" ry="2" />
+                    <circle cx="8.5" cy="8.5" r="1.5" />
+                    <polyline points="21 15 16 10 5 21" />
+                  </svg>
+                  <span>View Images</span>
+                </button>
+              </div>
+            </div>
+
+            <!-- Right: Format Options -->
+            <div class="format-panel">
+              <div id="options-container" class="format-list">
+                <!-- JS injects here -->
+              </div>
+              <div id="welcome-dashboard" class="welcome-dashboard">
+                <div class="welcome-header">
+                  <h3 class="welcome-title">EveryThingDownloader</h3>
+                  <p class="welcome-subtitle">
+                    Paste any supported URL to analyze and download media.
+                  </p>
+                </div>
+
+                <!-- Supported Platforms Badges -->
+                <div class="welcome-platforms">
+                  <h4 class="welcome-section-title">
+                    Popular Platforms & Web Video
+                  </h4>
+                  <div class="platform-badges-grid">
+                    <span
+                      class="platform-badge tag-youtube"
+                      data-url-hint="https://www.youtube.com/watch?v=aqz-KE-bpKQ"
+                      >YouTube</span
+                    >
+                    <span
+                      class="platform-badge tag-facebook"
+                      data-url-hint="https://www.facebook.com/watch/?v=3827182910"
+                      >Facebook</span
+                    >
+                    <span
+                      class="platform-badge tag-instagram"
+                      data-url-hint="https://www.instagram.com/p/C_xYz12uD9B/"
+                      >Instagram</span
+                    >
+                    <span
+                      class="platform-badge tag-threads"
+                      data-url-hint="https://www.threads.net/@zuck/post/Cx12871s"
+                      >Threads</span
+                    >
+                    <span
+                      class="platform-badge tag-tiktok"
+                      data-url-hint="https://www.tiktok.com/@tiktok/video/710293810293"
+                      >TikTok</span
+                    >
+                    <span
+                      class="platform-badge tag-twitter"
+                      data-url-hint="https://x.com/NASA/status/1682845876543"
+                      >Twitter/X</span
+                    >
+                    <span
+                      class="platform-badge tag-reddit"
+                      data-url-hint="https://www.reddit.com/r/gamingpc/comments/1ty80y7/just_finished_my_build/"
+                      >Reddit</span
+                    >
+                    <span
+                      class="platform-badge tag-soundcloud"
+                      data-url-hint="https://soundcloud.com/octobersveryown/drake-back-to-back"
+                      >SoundCloud</span
+                    >
+                    <span
+                      class="platform-badge tag-pinterest"
+                      data-url-hint="https://www.pinterest.com/pin/123456789012/"
+                      >Pinterest</span
+                    >
+                    <span
+                      class="platform-badge tag-vimeo"
+                      data-url-hint="https://vimeo.com/83928172"
+                      >Vimeo</span
+                    >
+                    <span
+                      class="platform-badge tag-web"
+                      data-url-hint="https://motchilltv.lt/episodes/bai-hoc-dang-doi-tap-1/"
+                      >Web Video / Any Link</span
+                    >
+                  </div>
+                </div>
+
+                <!-- History Section -->
+                <div class="welcome-history" id="welcome-history-section">
+                  <div class="welcome-history-header">
+                    <h4 class="welcome-section-title">
+                      Recent History
+                    </h4>
+                    <button
+                      id="clear-history-btn"
+                      class="clear-history-btn"
+                      title="Clear all history"
+                    >
+                      <svg
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="currentColor"
+                        stroke-width="1.5"
+                        stroke-linecap="round"
+                        stroke-linejoin="round"
+                      >
+                        <polyline points="3 6 5 6 21 6"></polyline>
+                        <path
+                          d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"
+                        ></path>
+                        <line x1="10" y1="11" x2="10" y2="17"></line>
+                        <line x1="14" y1="11" x2="14" y2="17"></line>
+                      </svg>
+                      <span>Clear History</span>
+                    </button>
+                  </div>
+                  <div class="history-list" id="history-list">
+                    <!-- JS injects items here -->
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <!-- Progress -->
+        <section id="download-progress" class="progress-panel hidden">
+          <div class="progress-header">
+            <div class="progress-title-row">
+              <div class="progress-spinner-mini"></div>
+              <span id="download-status-title">Preparing...</span>
+              <span id="download-format-label" class="progress-format-label"></span>
+            </div>
+            <div class="progress-actions-row">
+              <span id="progress-percent" class="progress-pct">0%</span>
+              <button
+                id="cancel-download-btn"
+                class="btn-cancel-download"
+                title="Cancel Download"
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+          <div class="progress-track">
+            <div class="progress-fill" id="progress-fill"></div>
+          </div>
+          <p id="download-status-message" class="progress-msg">
+            Starting download...
+          </p>
+        </section>
+      </main>
+
+      <footer class="footer">
+        <p>
+          Powered by Flask & yt-dlp &bull; Developed by
+          <a
+            href="https://github.com/m3iK18dp"
+            class="footer-link"
+            target="_blank"
+            rel="noopener"
+            >m3iK18dp</a
+          >
+          &bull;
+          <a
+            href="https://www.facebook.com/m3iK18dp.dev"
+            class="footer-link"
+            target="_blank"
+            rel="noopener"
+          >
+            <svg
+              class="social-icon"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+            >
+              <path
+                d="M18 2h-3a5 5 0 0 0-5 5v3H7v4h3v8h4v-8h3l1-4h-4V7a1 1 0 0 1 1-1h3z"
+              />
+            </svg>
+            Facebook
+          </a>
+          &bull;
+          <a
+            href="https://github.com/m3iK18dp"
+            class="footer-link"
+            target="_blank"
+            rel="noopener"
+          >
+            <svg
+              class="social-icon"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+            >
+              <path
+                d="M9 19c-5 1.5-5-2.5-7-3m14 6v-3.87a3.37 3.37 0 0 0-.94-2.61c3.14-.35 6.44-1.54 6.44-7A5.44 5.44 0 0 0 20 4.77 5.07 5.07 0 0 0 19.91 1S18.73.65 16 2.48a13.38 13.38 0 0 0-7 0C6.27.65 5.09 1 5.09 1A5.07 5.07 0 0 0 5 4.77a5.44 5.44 0 0 0-1.5 3.78c0 5.42 3.3 6.61 6.44 7A3.37 3.37 0 0 0 9 18.13V22"
+              />
+            </svg>
+            GitHub
+          </a>
+        </p>
+      </footer>
     </div>
 
     <!-- Description Modal -->
     <div id="desc-modal" class="modal-overlay hidden">
-        <div class="modal-card">
-            <div class="modal-header">
-                <h3>Video Description</h3>
-                <button id="modal-close-btn" class="modal-close-btn" title="Close">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                        <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
-                    </svg>
-                </button>
-            </div>
-            <div id="modal-desc-content" class="modal-body">
-                <!-- Description content will be injected here -->
-            </div>
+      <div class="modal-card">
+        <div class="modal-header">
+          <h3>Video Description</h3>
+          <button id="modal-close-btn" class="modal-close-btn" title="Close">
+            <svg
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+            >
+              <line x1="18" y1="6" x2="6" y2="18" />
+              <line x1="6" y1="6" x2="18" y2="18" />
+            </svg>
+          </button>
         </div>
+        <div id="modal-desc-content" class="modal-body">
+          <!-- Description content will be injected here -->
+        </div>
+      </div>
     </div>
 
     <!-- Images Modal -->
     <div id="images-modal" class="modal-overlay hidden">
-        <div class="modal-card modal-card-wide">
-            <div class="modal-header">
-                <h3>Extracted Images / Thumbnails</h3>
-                <button id="images-modal-close-btn" class="modal-close-btn" title="Close">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                        <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
-                    </svg>
-                </button>
-            </div>
-            
-            <div class="images-modal-toolbar">
-                <label class="select-all-wrap">
-                    <input type="checkbox" id="images-select-all" class="custom-checkbox">
-                    <span>Select All</span>
-                </label>
-                <button id="images-download-selected" class="btn-primary btn-sm">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width: 14px; height: 14px; margin-right: 6px;"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
-                    <span>Download Selected</span>
-                </button>
-            </div>
-
-            <div id="modal-images-grid" class="modal-body images-grid">
-                <!-- Grid items will be injected here -->
-            </div>
+      <div class="modal-card modal-card-wide">
+        <div class="modal-header">
+          <h3>Extracted Images / Thumbnails</h3>
+          <button
+            id="images-modal-close-btn"
+            class="modal-close-btn"
+            title="Close"
+          >
+            <svg
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+            >
+              <line x1="18" y1="6" x2="6" y2="18" />
+              <line x1="6" y1="6" x2="18" y2="18" />
+            </svg>
+          </button>
         </div>
+
+        <div class="images-modal-toolbar">
+          <label class="select-all-wrap">
+            <input
+              type="checkbox"
+              id="images-select-all"
+              class="custom-checkbox"
+            />
+            <span>Select All</span>
+          </label>
+          <button id="images-download-selected" class="btn-primary btn-sm">
+            <svg
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              style="width: 14px; height: 14px; margin-right: 6px"
+            >
+              <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+              <polyline points="7 10 12 15 17 10" />
+              <line x1="12" y1="15" x2="12" y2="3" />
+            </svg>
+            <span>Download Selected</span>
+          </button>
+        </div>
+
+        <div id="modal-images-grid" class="modal-body images-grid">
+          <!-- Grid items will be injected here -->
+        </div>
+      </div>
     </div>
 
     <!-- Preview Modal -->
     <div id="preview-modal" class="modal-overlay hidden">
-        <div class="modal-card modal-card-preview">
-            <div class="modal-header">
-                <h3 id="preview-title">Media Preview</h3>
-                <button id="preview-modal-close-btn" class="modal-close-btn" title="Close">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                        <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
-                    </svg>
-                </button>
-            </div>
-            
-            <div class="preview-content-area">
-                <!-- Loader Overlay -->
-                <div id="preview-loader" class="preview-loader hidden">
-                    <div class="preview-loader-spinner"></div>
-                    <div id="preview-loader-text" class="preview-loader-text">Loading media preview...</div>
-                </div>
-
-                <!-- Video Preview -->
-                <div id="preview-video-container" class="preview-player-container hidden">
-                    <video id="preview-video-player" controls></video>
-                </div>
-                
-                <!-- Audio Preview -->
-                <div id="preview-audio-container" class="preview-player-container hidden">
-                    <div class="audio-preview-card">
-                        <svg class="audio-wave-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/></svg>
-                        <audio id="preview-audio-player" controls></audio>
-                    </div>
-                </div>
-                
-                <!-- Image Preview -->
-                <div id="preview-image-container" class="preview-player-container hidden">
-                    <div class="image-preview-wrapper">
-                        <img id="preview-image-element" src="" alt="Preview Image">
-                        <div class="image-controls">
-                            <button id="btn-zoom-in" class="btn-control" title="Zoom In">
-                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/><line x1="11" y1="8" x2="11" y2="14"/><line x1="8" y1="11" x2="14" y2="11"/></svg>
-                            </button>
-                            <button id="btn-zoom-out" class="btn-control" title="Zoom Out">
-                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/><line x1="8" y1="11" x2="14" y2="11"/></svg>
-                            </button>
-                            <button id="btn-rotate" class="btn-control" title="Rotate">
-                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>
-                            </button>
-                        </div>
-                    </div>
-                </div>
-                
-                <!-- Subtitle Preview -->
-                <div id="preview-subtitle-container" class="preview-player-container hidden">
-                    <div class="subtitle-preview-box">
-                        <div class="sub-header">
-                            <span id="preview-sub-lang">Language</span>
-                            <button id="btn-copy-sub" class="btn-primary btn-sm">Copy Subtitles</button>
-                        </div>
-                        <div id="preview-sub-text" class="sub-text-area">
-                            Loading subtitle content...
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-            <div class="preview-footer-toolbar">
-                <span id="preview-meta-info" class="preview-meta">Quality: Unknown | Size: Unknown</span>
-                <button id="preview-download-btn" class="btn-primary">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width: 16px; height: 16px; margin-right: 8px;"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
-                    <span>Download Format</span>
-                </button>
-            </div>
+      <div class="modal-card modal-card-preview">
+        <div class="modal-header">
+          <h3 id="preview-title">Media Preview</h3>
+          <button
+            id="preview-modal-close-btn"
+            class="modal-close-btn"
+            title="Close"
+          >
+            <svg
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+            >
+              <line x1="18" y1="6" x2="6" y2="18" />
+              <line x1="6" y1="6" x2="18" y2="18" />
+            </svg>
+          </button>
         </div>
+
+        <div class="preview-content-area">
+          <!-- Loader Overlay -->
+          <div id="preview-loader" class="preview-loader hidden">
+            <div class="preview-loader-spinner"></div>
+            <div id="preview-loader-text" class="preview-loader-text">
+              Loading media preview...
+            </div>
+          </div>
+
+          <!-- Video Preview -->
+          <div
+            id="preview-video-container"
+            class="preview-player-container hidden"
+          >
+            <video id="preview-video-player" controls></video>
+          </div>
+
+          <!-- Audio Preview -->
+          <div
+            id="preview-audio-container"
+            class="preview-player-container hidden"
+          >
+            <div class="audio-preview-card">
+              <svg
+                class="audio-wave-icon"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="1.5"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+              >
+                <path d="M9 18V5l12-2v13" />
+                <circle cx="6" cy="18" r="3" />
+                <circle cx="18" cy="16" r="3" />
+              </svg>
+              <audio id="preview-audio-player" controls></audio>
+            </div>
+          </div>
+
+          <!-- Image Preview -->
+          <div
+            id="preview-image-container"
+            class="preview-player-container hidden"
+          >
+            <div class="image-preview-wrapper">
+              <img id="preview-image-element" src="" alt="Preview Image" />
+              <div class="image-controls">
+                <button id="btn-zoom-in" class="btn-control" title="Zoom In">
+                  <svg
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="2"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                  >
+                    <circle cx="11" cy="11" r="8" />
+                    <line x1="21" y1="21" x2="16.65" y2="16.65" />
+                    <line x1="11" y1="8" x2="11" y2="14" />
+                    <line x1="8" y1="11" x2="14" y2="11" />
+                  </svg>
+                </button>
+                <button id="btn-zoom-out" class="btn-control" title="Zoom Out">
+                  <svg
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="2"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                  >
+                    <circle cx="11" cy="11" r="8" />
+                    <line x1="21" y1="21" x2="16.65" y2="16.65" />
+                    <line x1="8" y1="11" x2="14" y2="11" />
+                  </svg>
+                </button>
+                <button id="btn-rotate" class="btn-control" title="Rotate">
+                  <svg
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="2"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                  >
+                    <polyline points="23 4 23 10 17 10" />
+                    <path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10" />
+                  </svg>
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <!-- Subtitle Preview -->
+          <div
+            id="preview-subtitle-container"
+            class="preview-player-container hidden"
+          >
+            <div class="subtitle-preview-box">
+              <div class="sub-header">
+                <span id="preview-sub-lang">Language</span>
+                <button id="btn-copy-sub" class="btn-primary btn-sm">
+                  Copy Subtitles
+                </button>
+              </div>
+              <div id="preview-sub-text" class="sub-text-area">
+                Loading subtitle content...
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="preview-footer-toolbar">
+          <span id="preview-meta-info" class="preview-meta"
+            >Quality: Unknown | Size: Unknown</span
+          >
+          <button id="preview-download-btn" class="btn-primary">
+            <svg
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              style="width: 16px; height: 16px; margin-right: 8px"
+            >
+              <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+              <polyline points="7 10 12 15 17 10" />
+              <line x1="12" y1="15" x2="12" y2="3" />
+            </svg>
+            <span>Download Format</span>
+          </button>
+        </div>
+      </div>
     </div>
 
     <!-- Confirm Modal -->
     <div id="confirm-modal" class="modal-overlay hidden">
-        <div class="modal-card modal-card-confirm">
-            <div class="modal-header">
-                <h3 id="confirm-modal-title">Xác nhận</h3>
-                <button id="confirm-close-btn" class="modal-close-btn" title="Close">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                        <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
-                    </svg>
-                </button>
-            </div>
-            <div class="modal-body confirm-modal-body">
-                <div class="confirm-message-container">
-                    <div class="confirm-icon-wrap">
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                            <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/>
-                            <line x1="12" y1="9" x2="12" y2="13"/>
-                            <line x1="12" y1="17" x2="12.01" y2="17"/>
-                        </svg>
-                    </div>
-                    <p id="confirm-modal-message">Bạn có chắc chắn muốn thực hiện hành động này?</p>
-                </div>
-            </div>
-            <div class="confirm-modal-footer">
-                <button id="confirm-modal-btn-no" class="confirm-btn confirm-btn-no">Hủy</button>
-                <button id="confirm-modal-btn-yes" class="confirm-btn confirm-btn-yes">Đồng ý</button>
-            </div>
+      <div class="modal-card modal-card-confirm">
+        <div class="modal-header">
+          <h3 id="confirm-modal-title">Confirm</h3>
+          <button id="confirm-close-btn" class="modal-close-btn" title="Close">
+            <svg
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+            >
+              <line x1="18" y1="6" x2="6" y2="18" />
+              <line x1="6" y1="6" x2="18" y2="18" />
+            </svg>
+          </button>
         </div>
+        <div class="modal-body confirm-modal-body">
+          <div class="confirm-message-container">
+            <div class="confirm-icon-wrap">
+              <svg
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+              >
+                <path
+                  d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"
+                />
+                <line x1="12" y1="9" x2="12" y2="13" />
+                <line x1="12" y1="17" x2="12.01" y2="17" />
+              </svg>
+            </div>
+            <p id="confirm-modal-message">
+              Are you sure you want to perform this action?
+            </p>
+          </div>
+        </div>
+        <div class="confirm-modal-footer">
+          <button id="confirm-modal-btn-no" class="confirm-btn confirm-btn-no">
+            Cancel
+          </button>
+          <button
+            id="confirm-modal-btn-yes"
+            class="confirm-btn confirm-btn-yes"
+          >
+            Confirm
+          </button>
+        </div>
+      </div>
     </div>
 
     <script src="https://cdnjs.cloudflare.com/ajax/libs/noUiSlider/15.7.1/nouislider.min.js"></script>
-    <script src="{{ url_for('static', filename='js/main.js') }}?v=6.0"></script>
-</body>
+    <script src="{{ url_for('static', filename='js/main.js') }}?v=6.1"></script>
+  </body>
 </html>

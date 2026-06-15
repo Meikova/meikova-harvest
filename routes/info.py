@@ -14,7 +14,7 @@ except ImportError:
 
 from config import TEMP_DOWNLOAD_DIR
 from utils.helpers import format_duration, format_size, get_referer_by_url, get_url_content_length
-from utils.ytdl import create_ydl_instance
+from utils.ytdl import create_ydl_instance, should_use_impersonate
 
 from extractors import (
     extract_instagram_via_gallery_dl,
@@ -85,7 +85,7 @@ def get_info():
             if any(keyword in str(gallery_e).lower() for keyword in ["login", "redirect", "cookie"]):
                 return jsonify({
                     "status": "error",
-                    "message": "Bài đăng Twitter/X này yêu cầu cookie tài khoản để truy cập hoặc bị giới hạn độ tuổi. Vui lòng đăng nhập vào Twitter/X trên trình duyệt, xuất và tải lên file cookie J2TEAM (chọn định dạng Netscape hoặc JSON) để tiếp tục."
+                    "message": "This Twitter/X post requires an account cookie to access or is age-restricted. Please log in to Twitter/X in your browser, export and upload a J2TEAM cookie file (choose Netscape or JSON format) to continue."
                 }), 400
 
     is_reddit = "reddit.com" in url.lower() or "redd.it" in url.lower()
@@ -190,7 +190,7 @@ def get_info():
         if not any(path in lower_url for path in ["/p/", "/reel/", "/reels/", "/stories/", "/tv/"]):
             return jsonify({
                 "status": "error",
-                "message": "Vui lòng nhập liên kết của một bài đăng (Post), Reel, Story hoặc TV cụ thể trên Instagram thay vì trang cá nhân của người dùng."
+                "message": "Please enter a link to a specific Post, Reel, Story, or TV on Instagram instead of a user's profile."
             }), 400
 
     if "/stories/" in url and ("facebook.com" in url or "fb.com" in url or "fb.watch" in url):
@@ -255,7 +255,7 @@ def get_info():
             if any(keyword in str(gallery_e).lower() for keyword in ["login", "redirect", "cookie", "captcha"]):
                 return jsonify({
                     "status": "error",
-                    "message": "Video hoặc Slideshow TikTok này yêu cầu cookie tài khoản để truy cập hoặc IP hệ thống đang bị chặn (gặp captcha). Vui lòng đăng nhập vào TikTok trên trình duyệt, xuất và tải lên file cookie J2TEAM (chọn định dạng Netscape hoặc JSON) của TikTok để tiếp tục."
+                    "message": "This TikTok Video or Slideshow requires account cookies or the system IP is blocked (captcha encountered). Please log in to TikTok in your browser, export and upload a J2TEAM cookie file (Netscape or JSON format) to continue."
                 }), 400
 
     is_instagram = "instagram.com" in url.lower() or "instagr.am" in url.lower()
@@ -272,7 +272,7 @@ def get_info():
             if any(keyword in str(gallery_e).lower() for keyword in ["login", "redirect", "cookie"]):
                 return jsonify({
                     "status": "error",
-                    "message": "Instagram yêu cầu cookie tài khoản để truy cập. Vui lòng xuất và tải lên file cookie J2TEAM (chọn định dạng Netscape hoặc JSON) để tiếp tục."
+                    "message": "Instagram requires account cookies to access. Please export and upload a J2TEAM cookie file (Netscape or JSON format) to continue."
                 }), 400
 
     is_youtube = any(domain in url.lower() for domain in ["youtube.com", "youtu.be"])
@@ -285,13 +285,14 @@ def get_info():
         "js_runtimes": {"deno": {}, "node": {}, "bun": {}, "quickjs": {}},
         "cookiesfrombrowser": "auto",
         "ignoreerrors": False,
+        "compat_opts": {"prefer-legacy-http-handler"},
         "extractor_args": {
             "youtube": {
                 "player_client": ["ios", "android", "web_creator", "mweb", "default"],
             }
         },
     }
-    if ImpersonateTarget:
+    if should_use_impersonate():
         try:
             ydl_opts["impersonate"] = ImpersonateTarget.from_str("chrome")
         except Exception as e:
@@ -377,7 +378,7 @@ def get_info():
                     if any(keyword in err_str for keyword in twitter_auth_keywords):
                         return jsonify({
                             "status": "error",
-                            "message": "Bài đăng Twitter/X này yêu cầu cookie đăng nhập để truy cập (Twitter đã chặn hoàn toàn việc xem ẩn danh). Vui lòng đăng nhập vào Twitter/X trên trình duyệt, xuất và tải lên file cookie J2TEAM (Netscape/JSON) của Twitter/X trong mục 'Manage Cookies' để tiếp tục."
+                            "message": "This Twitter/X post requires login cookies to access (Twitter blocks anonymous viewing completely). Please log in to Twitter/X in your browser, export and upload a J2TEAM cookie file (Netscape or JSON format) in the 'Manage Cookies' section to continue."
                         }), 400
 
                 is_soundcloud = "soundcloud.com" in url.lower()
@@ -385,7 +386,7 @@ def get_info():
                     if any(k in err_str for k in ["geo", "restricted", "location", "country", "blocked", "copyright"]):
                         return jsonify({
                             "status": "error",
-                            "message": "Nội dung SoundCloud này bị giới hạn quốc gia (Geo-restricted) hoặc chặn bản quyền ở vị trí của máy chủ. Vui lòng thử lại sau hoặc sử dụng một máy chủ/VPN ở vị trí khác."
+                            "message": "This SoundCloud content is geo-restricted or blocked due to copyright in the server's location. Please try again later or use a proxy/VPN at a different location."
                         }), 400
                 
                 is_facebook = any(domain in url.lower() for domain in ["facebook.com", "fb.com", "fb.watch", "fb.gg"])
@@ -421,7 +422,7 @@ def get_info():
                     if any(keyword in err_str for keyword in fb_auth_keywords):
                         return jsonify({
                             "status": "error",
-                            "message": "Facebook yêu cầu cookie tài khoản để truy cập bài viết/video này (có thể là video riêng tư, giới hạn đối tượng hoặc trong nhóm kín). Vui lòng đăng nhập vào Facebook trên trình duyệt, xuất và tải lên file cookie J2TEAM (chọn định dạng Netscape hoặc JSON) của Facebook để tiếp tục."
+                            "message": "Facebook requires account cookies to access this post/video (it might be private, restricted, or in a closed group). Please log in to Facebook in your browser, export and upload a J2TEAM cookie file (Netscape or JSON format) to continue."
                         }), 400
 
                 is_youtube = any(domain in url.lower() for domain in ["youtube.com", "youtu.be", "youtubekids.com", "youtube-nocookie.com"])
@@ -441,7 +442,7 @@ def get_info():
                     if any(keyword in err_str for keyword in youtube_auth_keywords):
                         return jsonify({
                             "status": "error",
-                            "message": "YouTube yêu cầu xác minh danh tính (Sign in / Confirm you are not a bot) hoặc video này là riêng tư/giới hạn độ tuổi. Vui lòng xuất và tải lên file cookie J2TEAM (chọn định dạng Netscape hoặc JSON) của YouTube để tiếp tục."
+                            "message": "YouTube requires identity verification (Sign in / Confirm you are not a bot) or this video is private/age-restricted. Please export and upload a J2TEAM cookie file (Netscape or JSON format) to continue."
                         }), 400
 
                 is_tiktok = "tiktok" in url.lower()
@@ -466,7 +467,7 @@ def get_info():
                     if any(keyword in err_str for keyword in tiktok_auth_keywords):
                         return jsonify({
                             "status": "error",
-                            "message": "Video hoặc Slideshow TikTok này yêu cầu cookie tài khoản để truy cập hoặc IP hệ thống đang bị chặn (gặp captcha). Vui lòng đăng nhập vào TikTok trên trình duyệt, xuất và tải lên file cookie J2TEAM (chọn định dạng Netscape hoặc JSON) của TikTok để tiếp tục."
+                            "message": "This TikTok Video or Slideshow requires account cookies or the system IP is blocked (captcha encountered). Please log in to TikTok in your browser, export and upload a J2TEAM cookie file (Netscape or JSON format) to continue."
                         }), 400
 
                 is_reddit = "reddit.com" in url.lower() or "redd.it" in url.lower()
@@ -486,7 +487,7 @@ def get_info():
                     if any(keyword in err_str for keyword in reddit_auth_keywords):
                         return jsonify({
                             "status": "error",
-                            "message": "Reddit yêu cầu cookie tài khoản để truy cập hoặc IP hệ thống đang bị rate-limit. Vui lòng đăng nhập vào Reddit trên trình duyệt, xuất và tải lên file cookie J2TEAM (chọn định dạng Netscape hoặc JSON) của Reddit để tiếp tục."
+                            "message": "Reddit requires account cookies or the system IP is rate-limited. Please log in to Reddit in your browser, export and upload a J2TEAM cookie file (Netscape or JSON format) to continue."
                         }), 400
 
                 # --- Instagram photo post fallback ---
@@ -499,18 +500,18 @@ def get_info():
                         if any(keyword in str(gallery_e).lower() for keyword in ["login", "redirect", "cookie"]):
                             return jsonify({
                                 "status": "error",
-                                "message": "Instagram yêu cầu cookie tài khoản để truy cập. Vui lòng xuất và tải lên file cookie J2TEAM (chọn định dạng Netscape hoặc JSON) để tiếp tục."
+                                "message": "Instagram requires account cookies to access. Please export and upload a J2TEAM cookie file (Netscape or JSON format) to continue."
                             }), 400
 
                 if "there is no video in this post" in err_str:
                     return jsonify({
                         "status": "error",
-                        "message": "Không thể tải được thông tin hình ảnh từ Instagram. Instagram có thể yêu cầu cookie tài khoản để truy cập bài viết này. Vui lòng tải lên cookie J2TEAM (chọn định dạng Netscape hoặc JSON) để tiếp tục."
+                        "message": "Unable to load image information from Instagram. Instagram may require account cookies to access this post. Please upload a J2TEAM cookie file (Netscape or JSON format) to continue."
                     }), 400
                 if is_instagram and any(keyword in err_str for keyword in ["login", "logged-in", "cookies", "redirect", "confirm your age", "challenge", "checkpoint", "sign in", "rate limit", "empty media", "unable to extract"]):
                     return jsonify({
                         "status": "error",
-                        "message": "Instagram yêu cầu cookie tài khoản để truy cập. Vui lòng xuất và tải lên file cookie J2TEAM (chọn định dạng Netscape hoặc JSON) để tiếp tục."
+                        "message": "Instagram requires account cookies to access. Please export and upload a J2TEAM cookie file (Netscape or JSON format) to continue."
                     }), 400
                 if is_reddit and reddit_gallery_fallback:
                     logger.info("yt-dlp failed for Reddit video. Falling back to pre-extracted gallery-dl info.")
@@ -559,11 +560,11 @@ def get_info():
                     if any(keyword in str(gallery_e).lower() for keyword in ["login", "redirect", "cookie"]):
                         return jsonify({
                             "status": "error",
-                            "message": "Instagram yêu cầu cookie tài khoản để truy cập. Vui lòng xuất và tải lên file cookie J2TEAM (chọn định dạng Netscape hoặc JSON) để tiếp tục."
+                            "message": "Instagram requires account cookies to access. Please export and upload a J2TEAM cookie file (Netscape or JSON format) to continue."
                         }), 400
                 return jsonify({
                     "status": "error",
-                    "message": "Instagram yêu cầu cookie tài khoản để truy cập. Vui lòng xuất và tải lên file cookie J2TEAM (chọn định dạng Netscape hoặc JSON) để tiếp tục."
+                    "message": "Instagram requires account cookies to access. Please export and upload a J2TEAM cookie file (Netscape or JSON format) to continue."
                 }), 400
             if is_reddit and reddit_gallery_fallback:
                 logger.info("yt-dlp returned no info for Reddit video. Falling back to pre-extracted gallery-dl info.")
@@ -622,7 +623,7 @@ def get_info():
                         if any(keyword in str(gallery_e).lower() for keyword in ["login", "redirect", "cookie"]):
                             return jsonify({
                                 "status": "error",
-                                "message": "Instagram yêu cầu cookie tài khoản để truy cập. Vui lòng xuất và tải lên file cookie J2TEAM (chọn định dạng Netscape hoặc JSON) để tiếp tục."
+                                "message": "Instagram requires account cookies to access. Please export and upload a J2TEAM cookie file (Netscape or JSON format) to continue."
                             }), 400
 
             if info:
@@ -644,7 +645,7 @@ def get_info():
                             if any(keyword in str(gallery_e).lower() for keyword in ["login", "redirect", "cookie", "captcha"]):
                                 return jsonify({
                                     "status": "error",
-                                    "message": "Video hoặc Slideshow TikTok này yêu cầu cookie tài khoản để truy cập hoặc IP hệ thống đang bị chặn (gặp captcha). Vui lòng đăng nhập vào TikTok trên trình duyệt, xuất và tải lên file cookie J2TEAM (chọn định dạng Netscape hoặc JSON) của TikTok để tiếp tục."
+                                    "message": "This TikTok Video or Slideshow requires account cookies or the system IP is blocked (captcha encountered). Please log in to TikTok in your browser, export and upload a J2TEAM cookie file (Netscape or JSON format) to continue."
                                 }), 400
 
             extractor = info.get("extractor_key", "").lower() if info.get("extractor_key") else ""
@@ -1290,6 +1291,8 @@ def analyze_video_scenes():
                 stdout=subprocess.PIPE,
                 stderr=subprocess.PIPE,
                 text=True,
+                encoding='utf-8',
+                errors='ignore',
                 timeout=12
             )
             stderr_output = result.stderr or ""

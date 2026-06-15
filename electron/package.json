@@ -1,0 +1,76 @@
+{
+  "name": "everythingdownloader",
+  "version": "1.0.0",
+  "description": "EveryThingDownloader - Media Downloader Desktop App",
+  "main": "main.js",
+  "author": "EveryThingDownloader",
+  "license": "MIT",
+  "scripts": {
+    "start": "electron .",
+    "dev": "electron . --dev",
+    "build": "electron-builder",
+    "build:win": "electron-builder --win",
+    "build:portable": "electron-builder --win portable",
+    "postinstall": "electron-builder install-app-deps"
+  },
+  "dependencies": {
+    "electron-log": "^5.1.2",
+    "node-fetch": "^3.3.2"
+  },
+  "devDependencies": {
+    "electron": "^31.0.0",
+    "electron-builder": "^24.13.3"
+  },
+  "build": {
+    "appId": "com.everythingdownloader.app",
+    "productName": "EveryThingDownloader",
+    "directories": {
+      "output": "../dist_electron"
+    },
+    "files": [
+      "**/*",
+      "!node_modules",
+      "resources/**/*"
+    ],
+    "extraResources": [
+      {
+        "from": "resources/server.exe",
+        "to": "server.exe",
+        "filter": ["**/*"]
+      },
+      {
+        "from": "../downloads",
+        "to": "downloads",
+        "filter": ["**/*"]
+      }
+    ],
+    "win": {
+      "target": [
+        {
+          "target": "nsis",
+          "arch": ["x64"]
+        },
+        {
+          "target": "portable",
+          "arch": ["x64"]
+        }
+      ],
+      "icon": "resources/icon.ico",
+      "requestedExecutionLevel": "asInvoker"
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "shortcutName": "EveryThingDownloader",
+      "installerIcon": "resources/icon.ico",
+      "uninstallerIcon": "resources/icon.ico",
+      "installerHeader": "resources/icon.ico",
+      "license": "resources/license.txt"
+    },
+    "portable": {
+      "artifactName": "EveryThingDownloader-Portable-${version}.exe"
+    }
+  }
+}
