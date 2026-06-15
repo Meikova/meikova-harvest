@@ -21,9 +21,9 @@ The system components are bound by the following version requirements and runtim
 
 In Desktop mode, Electron functions as a Chromium-based UI frame while spawning and managing the Python server process lifecycle:
 
-1. **Process Spawn**: Electron's `main.js` executes `resources/server.exe` as a headless background process using Node's `child_process.spawn`.
+1. **Process Spawn**: Electron's `main.js` executes the backend server binary (located at `resources/server.exe` on Windows or `resources/server` on macOS) as a headless background process using Node's `child_process.spawn`.
 2. **Health Probe**: The main process polls `/api/machine-id` until it receives a valid JSON response (maximum 15 retries), verifying the server is up before rendering the main `BrowserWindow`.
-3. **Shutdown Event**: When the Electron window is closed, the main process fires a termination signal (`SIGTERM` / `taskkill`) to the PID of `server.exe` to guarantee no orphaned server processes are left in memory.
+3. **Shutdown Event**: When the Electron window is closed, the main process fires a termination signal (`SIGTERM` on macOS/Linux, or `taskkill`/`SIGTERM` on Windows) to the PID of the server binary to guarantee no orphaned server processes are left in memory.
 
 ---
 
@@ -127,8 +127,10 @@ When a build is triggered via `/api/build/start`, the obfuscation module execute
    - **Expiry Limit**: Compares local system time (and optionally queries an NTP server to prevent local clock tampering) against the compiled expiration date.
    - **Machine ID Lock**: Checks the local system fingerprint:
      - On Windows, extracts CSPRODUCT UUID: `wmic csproduct get uuid`
+     - On macOS, computes a custom SHA256 hardware fingerprint based on the MAC address, hostname, and CPU processor strings.
      - Terminates if it does not match the whitelisted Machine IDs.
 
 5. **Compilation Interfaces**:
-   - **API / Web Interface**: Initiated via `/api/build/start` HTTP POST request which executes non-interactive PyInstaller/PyArmor commands in the background.
-   - **Interactive CLI Menu Dashboard**: Run via `python build_tool/builder_cli.py` without arguments. Displays a color-coded terminal dashboard where developers can toggle obfuscation settings, configure licenses, enter metadata, view their Machine ID, load/save configuration files, and launch the compiler interactively.
+   - **API / Web Interface**: Initiated via `/api/build/start` HTTP POST request.
+   - **Web Builder GUI**: Launched via `python build_tool/builder_cli.py --gui`. It spawns a local Flask server running on a dynamically allocated port (starting from `5001` upwards) to avoid conflicts with the main application server, and triggers a browser window opening `http://127.0.0.1:<port>/`.
+   - **Interactive CLI Menu Dashboard**: Run via `python build_tool/builder_cli.py` without arguments. Displays a color-coded terminal dashboard where developers can toggle target output systems (Web, Desktop, or Both), target platforms (Windows, macOS, or Auto), configure obfuscation settings (PyArmor, AST scrambling, etc.), set up licensing rules (IP lock, expiration dates like `2027-12-31`, Machine ID whitelist), customize packaging metadata, view the current system Machine ID, load/save configuration profiles, and trigger packaging interactively.

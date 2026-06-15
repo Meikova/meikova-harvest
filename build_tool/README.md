@@ -25,30 +25,42 @@ npm install
 ## GUI Usage
 
 ```bash
-# Open interface in browser
+# Open the GUI Builder web interface
+# This launches a dedicated local Flask server on a dynamic port (starting from 5001) and opens it in your default browser
 python build_tool/builder_cli.py --gui
-
-# Or open directly
-start build_tool/builder_gui.html
 ```
 
 ---
 
 ## CLI Usage
 
-### Build Web Server EXE (Simple)
+### Build Web Server Binary (Simple)
 ```bash
+# Windows (outputs dist/EveryThingDownloader.exe)
+# macOS (outputs dist/EveryThingDownloader)
 python build_tool/builder_cli.py --target web
 ```
 
-### Build Desktop App EXE
+### Build Desktop App
 ```bash
+# Packages the server and Electron app.
+# Windows (outputs dist_electron/EveryThingDownloader Setup 1.0.0.exe or portable)
+# macOS (outputs dist_electron/EveryThingDownloader-1.0.0.dmg or .zip)
 python build_tool/builder_cli.py --target desktop
 ```
 
 ### Build Both
 ```bash
 python build_tool/builder_cli.py --target both
+```
+
+### Target Platform Selection
+```bash
+# By default, it auto-detects the host system. You can explicitly specify the target:
+python build_tool/builder_cli.py --target web --platform macos
+python build_tool/builder_cli.py --target web --platform windows
+
+# Note: PyInstaller does not support cross-compilation. You must run the build tool on a native macOS machine to build for macOS, or Windows for Windows.
 ```
 
 ### Build with Code Protection
@@ -63,7 +75,8 @@ python build_tool/builder_cli.py --target web --obfuscate --ip-lock 1.2.3.4 5.6.
 
 ### Build with Date Expiry
 ```bash
-python build_tool/builder_cli.py --target web --obfuscate --expire 2025-12-31
+# Packs a date expiry check. Since the current year is 2026, set it to 2027-12-31 or later
+python build_tool/builder_cli.py --target web --obfuscate --expire 2027-12-31
 ```
 
 ### Build with Machine ID Lock
@@ -97,12 +110,13 @@ python build_tool/builder_cli.py --help
 | Dead code | `--dead-code` | Inject dummy code blocks for analysis noise |
 | Anti-debug | `--antidebug` | Terminate execution if a debugger is detected |
 | IP Lock | `--ip-lock IP1 IP2` | Restrict execution to authorized IP addresses |
-| Date Expiry | `--expire YYYY-MM-DD` | Terminate execution after a specified date |
+| Expiry Date | `--expire YYYY-MM-DD` | Terminate execution after a specified date |
 | Machine ID Lock | `--machine-id` | Lock build to a specific hardware fingerprint |
+| Target Platform | `--platform windows/macos/auto` | Target platform to build for (requires native host) |
 
 ---
 
-## Web EXE Build Flow
+## Web Binary Build Flow
 
 ```
 Source code
@@ -111,10 +125,11 @@ Source code
 Obfuscator (AST transform + PyArmor)
     |
     v
-PyInstaller → dist/EveryThingDownloader.exe
+PyInstaller → dist/EveryThingDownloader.exe (Windows)
+              dist/EveryThingDownloader (macOS)
 ```
 
-## Desktop EXE Build Flow
+## Desktop App Build Flow
 
 ```
 Source code
@@ -123,10 +138,11 @@ Source code
 Obfuscator
     |
     v
-PyInstaller → server.exe
+PyInstaller → server.exe (Windows) / server (macOS)
     | copy to electron/resources/
     v
-electron-builder → dist_electron/EveryThingDownloader-Setup.exe
+electron-builder → dist_electron/EveryThingDownloader Setup 1.0.0.exe (Windows NSIS)
+                   dist_electron/EveryThingDownloader-1.0.0.dmg (macOS DMG)
 ```
 
 ---
@@ -159,5 +175,5 @@ electron/
 ├── preload.js           — IPC bridge
 ├── splash.html          — Splash screen
 ├── package.json         — npm config + electron-builder config
-└── resources/           — Icon + bundled server.exe
+└── resources/           — Icon + bundled server.exe (Windows) or server (macOS)
 ```

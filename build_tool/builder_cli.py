@@ -618,8 +618,57 @@ Examples:
 
     if args.gui:
         import webbrowser
-        gui_path = Path(__file__).parent / 'builder_gui.html'
-        webbrowser.open(f'file:///{gui_path.as_posix()}')
+        import socket
+        import threading
+        import time
+        from flask import Flask
+        from flask_cors import CORS
+        
+        # Search for a free port starting from 5001
+        def find_free_port(start=5001):
+            port = start
+            while True:
+                with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+                    try:
+                        s.bind(('127.0.0.1', port))
+                        return port
+                    except OSError:
+                        port += 1
+
+        port = find_free_port(5001)
+        url = f"http://127.0.0.1:{port}/"
+
+        app = Flask(__name__, static_folder=None)
+        CORS(app)
+        
+        # Register build blueprint
+        from routes.build import build_bp
+        app.register_blueprint(build_bp)
+
+        # Serve builder_gui.html at index /
+        @app.route('/')
+        def index():
+            gui_path = Path(__file__).resolve().parent / 'builder_gui.html'
+            return gui_path.read_text(encoding='utf-8')
+
+        # Auto open browser in a separate thread
+        def open_browser():
+            time.sleep(0.5)
+            webbrowser.open(url)
+            
+        threading.Thread(target=open_browser, daemon=True).start()
+        
+        print(f"\n==================================================")
+        print(f"  Starting Build Tool GUI server on {url}")
+        print(f"  Press Ctrl+C to stop the server.")
+        print(f"==================================================\n")
+        
+        # Suppress server routing logs
+        import logging
+        log = logging.getLogger('werkzeug')
+        log.setLevel(logging.ERROR)
+        
+        app.run(host='127.0.0.1', port=port, debug=False)
         return
 
     run_build(args)

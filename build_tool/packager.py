@@ -189,8 +189,8 @@ class Packager:
         src_root = entry_point.parent
 
         if platform.system() == 'Windows':
-            icon_line = f"icon='{str(icon).replace('\\\\', '/')}'," if icon else "icon=None,"
-            version_line = f"version='{str(version_file).replace('\\\\', '/')}',"
+            icon_line = f"icon='{str(icon).replace('\\', '/')}'," if icon else "icon=None,"
+            version_line = f"version='{str(version_file).replace('\\', '/')}',"
         else:
             icon_line = "icon=None,"
             version_line = ""

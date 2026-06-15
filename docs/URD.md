@@ -3,7 +3,7 @@
 ## 1. Executive Summary & Scope
 EveryThingDownloader is a self-hosted, universal media download utility designed to extract, convert, and package video, audio, image, and subtitle assets from major online social and media platforms. The application operates in two distinct delivery models:
 1. **Self-Hosted Web Application**: A lightweight, multi-client web utility accessible from local and network browsers.
-2. **Standalone Windows Desktop Application**: A high-fidelity, packaged desktop shell wrapping the core server, requiring zero external runtime dependencies (Python/Node.js) or command-line execution from the end-user.
+2. **Standalone Desktop Application**: A high-fidelity, packaged desktop shell wrapping the core server on Windows and macOS, requiring zero external runtime dependencies (Python/Node.js) or command-line execution from the end-user.
 
 This document details the user needs, target user personas, functional and non-functional requirement mappings, and UI/UX design systems to align developers and stakeholders on the project's behavioral specifications.
 
@@ -36,7 +36,7 @@ This document details the user needs, target user personas, functional and non-f
 | **FR-05** | Image Extraction | Detect and extract individual images from galleries/albums with multi-select batch downloads. | Medium |
 | **FR-06** | Subtitles | Download or copy subtitle tracks as raw text or VTT format. | Medium |
 | **FR-07** | Session Bypass | Upload Netscape-formatted cookie files to bypass age restrictions and login walls. | High |
-| **FR-08** | Packaging | Compile server and Electron shell into single-file EXEs, installers, and portables. | High |
+| **FR-08** | Packaging | Compile server and Electron shell into single-file binaries, installers, app bundles, and portables for Windows and macOS. | High |
 | **FR-09** | Obfuscation | AST code scrambling, string literal encryption, anti-debugging, and binary shielding. | High |
 | **FR-10** | Licensing | Apply IP whitelist locks, date-based expiry limits, and Machine ID hardware locks. | High |
 | **NFR-01** | Clean-up | Automatically delete temporary files immediately after completion or cancellation. | High |
