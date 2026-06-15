@@ -44,6 +44,44 @@ def warn(msg):  print(_color(f'[WARN ] {msg}', '33'))
 def error(msg): print(_color(f'[ERROR] {msg}', '31'))
 
 
+def execute_build(obf_cfg: ObfuscationConfig, build_cfg: BuildConfig, target: str, obfuscate: bool):
+    # ── Run obfuscation ───────────────────────────────────────────────────
+    protected_src = ROOT_DIR
+    if obfuscate:
+        output_dir = ROOT_DIR / 'dist' / '_protected'
+        info('Starting source code protection…')
+        obf = Obfuscator(obf_cfg)
+        protected_src = obf.run(ROOT_DIR, output_dir, progress_cb=info)
+        ok(f'Source code protected: {protected_src}')
+    else:
+        warn('Skipping source code protection (use --obfuscate to enable)')
+
+    build_cfg.protected_src = protected_src if obfuscate else None
+
+    # ── Run packaging ─────────────────────────────────────────────────────
+    packager = Packager(build_cfg)
+
+    if target in ('web', 'both'):
+        info('Building Web EXE…')
+        try:
+            exe = packager.build_web_exe(progress_cb=info)
+            ok(f'Web EXE: {exe}')
+        except Exception as e:
+            error(f'Build Web EXE failed: {e}')
+            sys.exit(1)
+
+    if target in ('desktop', 'both'):
+        info('Building Desktop EXE…')
+        try:
+            exe = packager.build_desktop_exe(progress_cb=info)
+            ok(f'Desktop EXE: {exe}')
+        except Exception as e:
+            error(f'Build Desktop EXE failed: {e}')
+            sys.exit(1)
+
+    ok('Completed!')
+
+
 def run_build(args: argparse.Namespace):
     # ── Obfuscation config ────────────────────────────────────────────────
     obf_cfg = ObfuscationConfig()
@@ -88,44 +126,375 @@ def run_build(args: argparse.Namespace):
         obf_cfg = ObfuscationConfig.from_dict(data.get('obfuscation', {}))
         build_cfg = BuildConfig.from_dict(data.get('build', {}))
 
-    # ── Run obfuscation ───────────────────────────────────────────────────
-    protected_src = ROOT_DIR
-    if args.obfuscate:
-        output_dir = ROOT_DIR / 'dist' / '_protected'
-        info('Starting source code protection…')
-        obf = Obfuscator(obf_cfg)
-        protected_src = obf.run(ROOT_DIR, output_dir, progress_cb=info)
-        ok(f'Source code protected: {protected_src}')
-    else:
-        warn('Skipping source code protection (use --obfuscate to enable)')
+    # Auto-add current machine ID if --machine-id without --machine-ids
+    if obf_cfg.machine_id_lock and not obf_cfg.allowed_machine_ids:
+        mid = get_current_machine_id()
+        obf_cfg.allowed_machine_ids = [mid]
+        info(f'Auto-detected Machine ID: {mid}')
 
-    build_cfg.protected_src = protected_src if args.obfuscate else None
+    execute_build(obf_cfg, build_cfg, args.target, args.obfuscate)
 
-    # ── Run packaging ─────────────────────────────────────────────────────
-    packager = Packager(build_cfg)
 
-    if args.target in ('web', 'both'):
-        info('Building Web EXE…')
+def select_target_menu(current_target: str) -> str:
+    while True:
+        print("\n" + "-" * 50)
+        print(_color("  Select Build Target", "1;35"))
+        print("-" * 50)
+        print("1. Web EXE (Standalone Backend for browser-based UI)")
+        print("2. Desktop EXE (Backend + Electron Installer/Portable)")
+        print("3. Both Targets (Web and Desktop EXEs)")
+        print("0. Back to Main Menu")
+        print(f"Current target: {_color(current_target.upper(), '1;32')}")
+        
         try:
-            exe = packager.build_web_exe(progress_cb=info)
-            ok(f'Web EXE: {exe}')
-        except Exception as e:
-            error(f'Build Web EXE failed: {e}')
-            sys.exit(1)
+            choice = input(_color("Choose option [0-3]: ", "1;36")).strip()
+        except (KeyboardInterrupt, EOFError):
+            return current_target
 
-    if args.target in ('desktop', 'both'):
-        info('Building Desktop EXE…')
+        if choice == '0' or choice == '':
+            return current_target
+        elif choice == '1':
+            return 'web'
+        elif choice == '2':
+            return 'desktop'
+        elif choice == '3':
+            return 'both'
+        else:
+            print(_color("Invalid choice. Please enter 0-3.", "31"))
+
+
+def configure_protection_menu(obfuscate: bool, obf_cfg: ObfuscationConfig):
+    while True:
+        print("\n" + "-" * 50)
+        print(_color("  Source Code Protection / Obfuscation Settings", "1;35"))
+        print("-" * 50)
+        
+        status_on_off = "ENABLED" if obfuscate else "DISABLED"
+        print(f"1. Enable Source Protection:     [{_color(status_on_off, '1;32' if obfuscate else '1;30')}]")
+        print(f"2. PyArmor Obfuscation:          [{_color('YES' if obf_cfg.use_pyarmor else 'NO', '32' if obf_cfg.use_pyarmor else '30')}]")
+        print(f"3. PyArmor Level:                [{_color(str(obf_cfg.pyarmor_obf_code), '32')}]")
+        print(f"4. PyArmor Scramble Strings:     [{_color('YES' if obf_cfg.pyarmor_mix_str else 'NO', '32' if obf_cfg.pyarmor_mix_str else '30')}]")
+        print(f"5. AST Name Scrambling:          [{_color('YES' if obf_cfg.scramble_names else 'NO', '32' if obf_cfg.scramble_names else '30')}]")
+        print(f"6. AST String Encoding:          [{_color('YES' if obf_cfg.encode_strings else 'NO', '32' if obf_cfg.encode_strings else '30')}]")
+        print(f"7. AST Dead Code Injection:      [{_color('YES' if obf_cfg.inject_dead_code else 'NO', '32' if obf_cfg.inject_dead_code else '30')}]")
+        print(f"8. AST Dead Code Count:          [{_color(str(obf_cfg.dead_code_count), '32')}]")
+        print(f"9. AST Anti-Debug Checks:        [{_color('YES' if obf_cfg.antidebug else 'NO', '32' if obf_cfg.antidebug else '30')}]")
+        print("0. Back to Main Menu")
+        
         try:
-            exe = packager.build_desktop_exe(progress_cb=info)
-            ok(f'Desktop EXE: {exe}')
-        except Exception as e:
-            error(f'Build Desktop EXE failed: {e}')
-            sys.exit(1)
+            choice = input(_color("Choose option [0-9] to edit/toggle: ", "1;36")).strip()
+        except (KeyboardInterrupt, EOFError):
+            break
 
-    ok('Completed!')
+        if choice == '0' or choice == '':
+            break
+        elif choice == '1':
+            obfuscate = not obfuscate
+        elif choice == '2':
+            obf_cfg.use_pyarmor = not obf_cfg.use_pyarmor
+        elif choice == '3':
+            level = input("Enter PyArmor level [0=off, 1=standard, 2=advanced]: ").strip()
+            if level in ('0', '1', '2'):
+                obf_cfg.pyarmor_obf_code = int(level)
+            else:
+                print(_color("Invalid level. Choose 0, 1, or 2.", "31"))
+        elif choice == '4':
+            obf_cfg.pyarmor_mix_str = not obf_cfg.pyarmor_mix_str
+        elif choice == '5':
+            obf_cfg.scramble_names = not obf_cfg.scramble_names
+        elif choice == '6':
+            obf_cfg.encode_strings = not obf_cfg.encode_strings
+        elif choice == '7':
+            obf_cfg.inject_dead_code = not obf_cfg.inject_dead_code
+        elif choice == '8':
+            count = input("Enter number of dead code blocks per file: ").strip()
+            if count.isdigit():
+                obf_cfg.dead_code_count = int(count)
+            else:
+                print(_color("Must be a number.", "31"))
+        elif choice == '9':
+            obf_cfg.antidebug = not obf_cfg.antidebug
+        else:
+            print(_color("Invalid choice.", "31"))
+            
+    return obfuscate, obf_cfg
+
+
+def configure_licensing_menu(obf_cfg: ObfuscationConfig) -> ObfuscationConfig:
+    import re
+    while True:
+        print("\n" + "-" * 50)
+        print(_color("  Licensing & Expiry Restrictions", "1;35"))
+        print("-" * 50)
+        
+        ip_lock_str = "ENABLED" if obf_cfg.ip_lock else "DISABLED"
+        print(f"1. IP Address Lock:         [{_color(ip_lock_str, '1;32' if obf_cfg.ip_lock else '1;30')}]")
+        if obf_cfg.ip_lock:
+            print(f"   Allowed IPs:             {', '.join(obf_cfg.allowed_ips) if obf_cfg.allowed_ips else '(None set)'}")
+            
+        expiry_lock_str = "ENABLED" if obf_cfg.date_expiry else "DISABLED"
+        print(f"2. Expiry Date Lock:        [{_color(expiry_lock_str, '1;32' if obf_cfg.date_expiry else '1;30')}]")
+        if obf_cfg.date_expiry:
+            print(f"   Expiry Date:             {obf_cfg.expiry_date or '(None set)'}")
+            
+        mid_lock_str = "ENABLED" if obf_cfg.machine_id_lock else "DISABLED"
+        print(f"3. Machine ID Lock:         [{_color(mid_lock_str, '1;32' if obf_cfg.machine_id_lock else '1;30')}]")
+        if obf_cfg.machine_id_lock:
+            print(f"   Allowed Machine IDs:     {', '.join(obf_cfg.allowed_machine_ids) if obf_cfg.allowed_machine_ids else '(None set, defaults to current device)'}")
+            
+        print("0. Back to Main Menu")
+        
+        try:
+            choice = input(_color("Choose option [0-3]: ", "1;36")).strip()
+        except (KeyboardInterrupt, EOFError):
+            break
+
+        if choice == '0' or choice == '':
+            break
+        elif choice == '1':
+            obf_cfg.ip_lock = not obf_cfg.ip_lock
+            if obf_cfg.ip_lock:
+                ips = input("Enter allowed IP addresses (space-separated, e.g. '192.168.1.5 127.0.0.1'): ").strip()
+                if ips:
+                    obf_cfg.allowed_ips = ips.split()
+                else:
+                    print("No IPs entered. Lock disabled.")
+                    obf_cfg.ip_lock = False
+        elif choice == '2':
+            obf_cfg.date_expiry = not obf_cfg.date_expiry
+            if obf_cfg.date_expiry:
+                date_str = input("Enter expiry date (YYYY-MM-DD): ").strip()
+                if re.match(r'^\d{4}-\d{2}-\d{2}$', date_str):
+                    obf_cfg.expiry_date = date_str
+                else:
+                    print(_color("Invalid format. Must be YYYY-MM-DD. Lock disabled.", "31"))
+                    obf_cfg.date_expiry = False
+        elif choice == '3':
+            obf_cfg.machine_id_lock = not obf_cfg.machine_id_lock
+            if obf_cfg.machine_id_lock:
+                mids = input("Enter allowed Machine IDs (space-separated, leave empty for current device ID): ").strip()
+                if mids:
+                    obf_cfg.allowed_machine_ids = mids.split()
+                else:
+                    current_mid = get_current_machine_id()
+                    obf_cfg.allowed_machine_ids = [current_mid]
+                    print(f"Using current device Machine ID: {current_mid}")
+        else:
+            print(_color("Invalid choice.", "31"))
+            
+    return obf_cfg
+
+
+def configure_metadata_menu(build_cfg: BuildConfig) -> BuildConfig:
+    while True:
+        print("\n" + "-" * 50)
+        print(_color("  Package & Windows File Metadata Settings", "1;35"))
+        print("-" * 50)
+        print(f"1. App Name:            [{_color(build_cfg.app_name, '32')}]")
+        print(f"2. Version:             [{_color(build_cfg.version, '32')}]")
+        print(f"3. Icon Path:           [{_color(build_cfg.icon_path or 'Default', '32')}]")
+        print(f"4. Show Console Window: [{_color('YES' if build_cfg.console else 'NO', '32' if build_cfg.console else '30')}]")
+        print(f"5. Use UPX Compression:  [{_color('YES' if build_cfg.use_upx else 'NO', '32' if build_cfg.use_upx else '30')}]")
+        print(f"6. Company Name:        [{_color(build_cfg.company or 'None', '32')}]")
+        print(f"7. Description:         [{_color(build_cfg.description or 'None', '32')}]")
+        print(f"8. Copyright:           [{_color(build_cfg.copyright or 'None', '32')}]")
+        print("0. Back to Main Menu")
+        
+        try:
+            choice = input(_color("Choose option [0-8] to edit/toggle: ", "1;36")).strip()
+        except (KeyboardInterrupt, EOFError):
+            break
+
+        if choice == '0' or choice == '':
+            break
+        elif choice == '1':
+            name = input(f"Enter new App Name [current: {build_cfg.app_name}]: ").strip()
+            if name:
+                build_cfg.app_name = name
+        elif choice == '2':
+            version = input(f"Enter new Version [current: {build_cfg.version}]: ").strip()
+            if version:
+                build_cfg.version = version
+        elif choice == '3':
+            path_str = input(f"Enter path to .ico file [current: {build_cfg.icon_path}]: ").strip()
+            if path_str:
+                path = Path(path_str)
+                if path.exists() and path.suffix.lower() == '.ico':
+                    build_cfg.icon_path = str(path.resolve())
+                else:
+                    print(_color("File does not exist or is not a .ico file.", "31"))
+        elif choice == '4':
+            build_cfg.console = not build_cfg.console
+        elif choice == '5':
+            build_cfg.use_upx = not build_cfg.use_upx
+        elif choice == '6':
+            comp = input(f"Enter Company Name [current: {build_cfg.company}]: ").strip()
+            if comp:
+                build_cfg.company = comp
+        elif choice == '7':
+            desc = input(f"Enter File Description [current: {build_cfg.description}]: ").strip()
+            if desc:
+                build_cfg.description = desc
+        elif choice == '8':
+            copyr = input(f"Enter Copyright String [current: {build_cfg.copyright}]: ").strip()
+            if copyr:
+                build_cfg.copyright = copyr
+        else:
+            print(_color("Invalid choice.", "31"))
+            
+    return build_cfg
+
+
+def load_config_menu(obf_cfg: ObfuscationConfig, build_cfg: BuildConfig, target: str, obfuscate: bool):
+    try:
+        path_str = input("Enter path to configuration JSON file: ").strip()
+    except (KeyboardInterrupt, EOFError):
+        return obf_cfg, build_cfg, target, obfuscate
+        
+    if not path_str:
+        return obf_cfg, build_cfg, target, obfuscate
+    path = Path(path_str)
+    if not path.exists():
+        print(_color("File not found.", "31"))
+        return obf_cfg, build_cfg, target, obfuscate
+    try:
+        with path.open(encoding='utf-8') as f:
+            data = json.load(f)
+        obf_cfg = ObfuscationConfig.from_dict(data.get('obfuscation', {}))
+        build_cfg = BuildConfig.from_dict(data.get('build', {}))
+        target = data.get('target', target)
+        obfuscate = data.get('obfuscate', obfuscate)
+        print(_color("Configuration loaded successfully!", "32"))
+    except Exception as e:
+        print(_color(f"Failed to load configuration: {e}", "31"))
+    return obf_cfg, build_cfg, target, obfuscate
+
+
+def save_config_menu(obf_cfg: ObfuscationConfig, build_cfg: BuildConfig, target: str, obfuscate: bool):
+    try:
+        path_str = input("Enter path to save configuration JSON file [default: build_config.json]: ").strip()
+    except (KeyboardInterrupt, EOFError):
+        return
+        
+    if not path_str:
+        path_str = "build_config.json"
+    path = Path(path_str)
+    try:
+        data = {
+            'target': target,
+            'obfuscate': obfuscate,
+            'obfuscation': obf_cfg.to_dict(),
+            'build': build_cfg.to_dict()
+        }
+        with path.open('w', encoding='utf-8') as f:
+            json.dump(data, f, indent=4)
+        print(_color(f"Configuration saved to {path.resolve()}", "32"))
+    except Exception as e:
+        print(_color(f"Failed to save configuration: {e}", "31"))
+
+
+def run_interactive_menu():
+    target = 'both'
+    obfuscate = True
+    obf_cfg = ObfuscationConfig()
+    build_cfg = BuildConfig()
+
+    while True:
+        print("\n" + "=" * 65)
+        print(_color("  EveryThingDownloader — Advanced Packaging Tool (CLI Menu)", "1;35"))
+        print("=" * 65)
+        
+        # Display current configs
+        print(f"[{_color('1', '33')}] Target Output:        {_color(target.upper(), '1;32')}")
+        
+        obf_status = _color("ENABLED", "1;32") if obfuscate else _color("DISABLED", "1;30")
+        print(f"[{_color('2', '33')}] Code Protection:     {obf_status}")
+        if obfuscate:
+            pyarmor_status = f"Yes (Level {obf_cfg.pyarmor_obf_code})" if obf_cfg.use_pyarmor else "No"
+            mix_str_status = "Yes" if obf_cfg.pyarmor_mix_str else "No"
+            scramble_status = "Yes" if obf_cfg.scramble_names else "No"
+            encode_status = "Yes" if obf_cfg.encode_strings else "No"
+            dead_code_status = f"Yes ({obf_cfg.dead_code_count} blocks)" if obf_cfg.inject_dead_code else "No"
+            antidebug_status = "Yes" if obf_cfg.antidebug else "No"
+            print(f"    - PyArmor: {pyarmor_status} | Mix Strings: {mix_str_status}")
+            print(f"    - AST Scramble: {scramble_status} | Encode Strings: {encode_status}")
+            print(f"    - Dead Code: {dead_code_status} | Anti-Debug: {antidebug_status}")
+            
+        ip_status = f"Yes ({', '.join(obf_cfg.allowed_ips)})" if obf_cfg.ip_lock else "No"
+        expiry_status = f"Yes ({obf_cfg.expiry_date})" if obf_cfg.date_expiry else "No"
+        mid_status = f"Yes ({len(obf_cfg.allowed_machine_ids)} device(s))" if obf_cfg.machine_id_lock else "No"
+        print(f"[{_color('3', '33')}] Licensing & Expiry:   IP Lock: {ip_status} | Expiry: {expiry_status} | Machine ID: {mid_status}")
+        
+        print(f"[{_color('4', '33')}] Package Metadata:")
+        print(f"    - App Name:    {build_cfg.app_name} (Version: {build_cfg.version})")
+        print(f"    - Company:     {build_cfg.company}")
+        print(f"    - Description: {build_cfg.description}")
+        print(f"    - Copyright:   {build_cfg.copyright}")
+        icon_display = Path(build_cfg.icon_path).name if build_cfg.icon_path else 'Default'
+        print(f"    - Icon:        {icon_display}")
+        console_status = "Yes" if build_cfg.console else "No"
+        upx_status = "Yes" if build_cfg.use_upx else "No"
+        print(f"    - Show Console: {console_status} | Use UPX: {upx_status}")
+        
+        mid = get_current_machine_id()
+        mid_display = mid[:8] + "..." + mid[-8:] if len(mid) > 16 else mid
+        print(f"[{_color('5', '33')}] Hardware Fingerprint: Current Machine ID: {_color(mid_display, '36')}")
+        print("-" * 65)
+        print(f"[{_color('B', '1;32')}] Start Build    [{_color('L', '36')}] Load Config    [{_color('S', '36')}] Save Config    [{_color('Q', '1;31')}] Quit")
+        print("-" * 65)
+        
+        try:
+            choice = input(_color("Enter option: ", "1;36")).strip().upper()
+        except (KeyboardInterrupt, EOFError):
+            print("\nExiting CLI.")
+            break
+            
+        if choice == 'Q':
+            print("Goodbye.")
+            break
+        elif choice == '1':
+            target = select_target_menu(target)
+        elif choice == '2':
+            obfuscate, obf_cfg = configure_protection_menu(obfuscate, obf_cfg)
+        elif choice == '3':
+            obf_cfg = configure_licensing_menu(obf_cfg)
+        elif choice == '4':
+            build_cfg = configure_metadata_menu(build_cfg)
+        elif choice == '5':
+            print(f"\nYour complete Machine ID:\n  {_color(mid, '1;36')}")
+            try:
+                input("\nPress Enter to return to main menu...")
+            except (KeyboardInterrupt, EOFError):
+                pass
+        elif choice == 'L':
+            obf_cfg, build_cfg, target, obfuscate = load_config_menu(obf_cfg, build_cfg, target, obfuscate)
+        elif choice == 'S':
+            save_config_menu(obf_cfg, build_cfg, target, obfuscate)
+        elif choice == 'B':
+            print("\n" + "=" * 65)
+            info("Starting build process from CLI menu...")
+            print("=" * 65)
+            # Auto-add current machine ID if machine-id is locked without specific machine-ids
+            if obf_cfg.machine_id_lock and not obf_cfg.allowed_machine_ids:
+                obf_cfg.allowed_machine_ids = [mid]
+                info(f'Auto-detected Machine ID: {mid}')
+            try:
+                execute_build(obf_cfg, build_cfg, target, obfuscate)
+            except Exception as e:
+                error(f"Build failed: {e}")
+            try:
+                input("\nPress Enter to return to main menu...")
+            except (KeyboardInterrupt, EOFError):
+                pass
+        else:
+            print(_color("Invalid choice. Please choose again.", "31"))
 
 
 def main():
+    if len(sys.argv) == 1:
+        run_interactive_menu()
+        return
+
     parser = argparse.ArgumentParser(
         prog='builder_cli',
         description='EveryThingDownloader — Advanced Packaging Tool',
@@ -215,16 +584,10 @@ Examples:
         return
 
     if args.gui:
-        import webbrowser, os
+        import webbrowser
         gui_path = Path(__file__).parent / 'builder_gui.html'
         webbrowser.open(f'file:///{gui_path.as_posix()}')
         return
-
-    # Auto-add current machine ID if --machine-id without --machine-ids
-    if args.machine_id and not args.machine_ids:
-        mid = get_current_machine_id()
-        args.machine_ids = [mid]
-        info(f'Auto-detected Machine ID: {mid}')
 
     run_build(args)
 

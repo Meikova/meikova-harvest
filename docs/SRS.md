@@ -128,3 +128,7 @@ When a build is triggered via `/api/build/start`, the obfuscation module execute
    - **Machine ID Lock**: Checks the local system fingerprint:
      - On Windows, extracts CSPRODUCT UUID: `wmic csproduct get uuid`
      - Terminates if it does not match the whitelisted Machine IDs.
+
+5. **Compilation Interfaces**:
+   - **API / Web Interface**: Initiated via `/api/build/start` HTTP POST request which executes non-interactive PyInstaller/PyArmor commands in the background.
+   - **Interactive CLI Menu Dashboard**: Run via `python build_tool/builder_cli.py` without arguments. Displays a color-coded terminal dashboard where developers can toggle obfuscation settings, configure licenses, enter metadata, view their Machine ID, load/save configuration files, and launch the compiler interactively.

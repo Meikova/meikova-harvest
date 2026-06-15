@@ -104,6 +104,22 @@ Navigate to `http://localhost:5000/builder` in your browser to access the GUI co
 - **Date Expiry**: Select an expiration date. The packaged application will verify the date and exit if it has expired.
 - **Machine ID Lock**: Click **Get Current Machine ID** to fetch your hardware fingerprint. Whitelist this ID to restrict execution to that specific computer.
 
+### 4.4 Interactive CLI Builder Menu
+Instead of utilizing the browser-based Web GUI, developers can run the build tool directly within their preferred terminal.
+1. Open a PowerShell or Command Prompt terminal.
+2. Launch the script without any command line arguments:
+   ```powershell
+   python build_tool/builder_cli.py
+   ```
+3. A color-coded terminal dashboard will render displaying current settings:
+   - **Target Output**: Toggle compiled targets between Web, Desktop, or Both.
+   - **Code Protection**: Configure PyArmor levels, AST identifier scrambling, string encryption, dead code injection (custom block counts), and anti-debug guards.
+   - **Licensing & Expiry**: Configure IP white-listing, set system expiry date constraints, and check/add hardware Machine ID locks.
+   - **Package Metadata**: Customize exe headers (App Name, Version, Company Name, Copyright, File Description, custom Icon path, and UPX compression).
+   - **Config Profile Management**: Save/load settings directly from configuration JSON files.
+4. Press `B` to trigger the build pipeline using the selected parameters.
+
+
 ---
 
 ## 5. Maintenance & Troubleshooting
