@@ -48,7 +48,7 @@ def format_number(val):
 def get_referer_by_url(url):
     """Helper to return the correct Referer header based on the target URL domain."""
     if not url:
-        return "https://www.facebook.com/"
+        return None
     url_lower = url.lower()
     if "tiktok" in url_lower or "tiktokcdn" in url_lower:
         return "https://www.tiktok.com/"
@@ -66,7 +66,18 @@ def get_referer_by_url(url):
         return "https://www.pinterest.com/"
     elif "vimeo" in url_lower or "vimeocdn" in url_lower:
         return "https://vimeo.com/"
-    return "https://www.facebook.com/"
+    elif "youtube" in url_lower or "googlevideo" in url_lower:
+        return "https://www.youtube.com/"
+        
+    try:
+        from urllib.parse import urlparse
+        parsed = urlparse(url)
+        if parsed.netloc:
+            return f"{parsed.scheme}://{parsed.netloc}/"
+    except Exception:
+        pass
+        
+    return None
 
 
 def get_url_content_length(url, cookies_file=None):

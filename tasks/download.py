@@ -597,50 +597,97 @@ def bg_download_task(download_id, url, format_id, ext, quality="192", title="med
             })
 
     try:
-        try:
-            with create_ydl_instance(ydl_opts, url, client_id) as ydl:
-                ret_code = ydl.download([url])
-                if ret_code != 0:
-                    raise Exception(f"yt-dlp download returned non-zero code {ret_code}")
-        except Exception as e:
-            with downloads_status_lock:
-                status_info = downloads_status.get(download_id)
-                if status_info and status_info.get("status") == "cancelled":
-                    raise e
-            logger.warning(f"Download with cookies failed: {e}. Retrying without cookies...")
-            ydl_opts_no_cookies = ydl_opts.copy()
-            ydl_opts_no_cookies.pop("cookiefile", None)
-            ydl_opts_no_cookies.pop("cookiesfrombrowser", None)
-            with yt_dlp.YoutubeDL(ydl_opts_no_cookies) as ydl_nocookies:
-                ret_nocookies = ydl_nocookies.download([url])
-                if ret_nocookies != 0:
-                    raise Exception(f"Fallback download also failed with code {ret_nocookies}")
+        is_direct_vtt = (ext == "vtt" and url.startswith("http"))
+        if is_direct_vtt:
+            try:
+                with downloads_status_lock:
+                    if download_id in downloads_status:
+                        downloads_status[download_id].update({
+                            "status": "downloading",
+                            "progress": 30,
+                            "message": "Downloading subtitle file directly..."
+                        })
+                
+                headers = {
+                    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
+                }
+                # Load cookies if available
+                cookies_dict = {}
+                if client_id:
+                    client_cookies = os.path.join(TEMP_DOWNLOAD_DIR, "cookies", f"cookies_{client_id}.txt")
+                    if os.path.exists(client_cookies):
+                        try:
+                            with open(client_cookies, 'r', encoding='utf-8', errors='ignore') as f:
+                                for line in f:
+                                    line = line.strip()
+                                    if not line or line.startswith('#'):
+                                        continue
+                                    parts = line.split('\t')
+                                    if len(parts) >= 7:
+                                        cookies_dict[parts[5]] = parts[6]
+                        except Exception as cookie_err:
+                            logger.warning(f"Failed to load cookies for direct subtitle download: {cookie_err}")
+                
+                logger.info(f"Downloading VTT directly from: {url}")
+                response = requests.get(url, headers=headers, cookies=cookies_dict, verify=False, timeout=15)
+                response.raise_for_status()
+                
+                filepath = os.path.join(temp_dir, "subtitle.vtt")
+                with open(filepath, "w", encoding="utf-8", errors="ignore") as f:
+                    f.write(response.text)
+                    
+                logger.info(f"Direct VTT download completed: {filepath}")
+                subtitles_path = filepath
+                
+            except Exception as e:
+                logger.error(f"Direct VTT download failed: {e}. Falling back to standard yt-dlp flow...")
+                is_direct_vtt = False
 
-        downloaded_files = os.listdir(temp_dir)
-        if not downloaded_files:
-            raise Exception("Download completed but no output file found.")
+        if not is_direct_vtt:
+            try:
+                with create_ydl_instance(ydl_opts, url, client_id) as ydl:
+                    ret_code = ydl.download([url])
+                    if ret_code != 0:
+                        raise Exception(f"yt-dlp download returned non-zero code {ret_code}")
+            except Exception as e:
+                with downloads_status_lock:
+                    status_info = downloads_status.get(download_id)
+                    if status_info and status_info.get("status") == "cancelled":
+                        raise e
+                logger.warning(f"Download with cookies failed: {e}. Retrying without cookies...")
+                ydl_opts_no_cookies = ydl_opts.copy()
+                ydl_opts_no_cookies.pop("cookiefile", None)
+                ydl_opts_no_cookies.pop("cookiesfrombrowser", None)
+                with yt_dlp.YoutubeDL(ydl_opts_no_cookies) as ydl_nocookies:
+                    ret_nocookies = ydl_nocookies.download([url])
+                    if ret_nocookies != 0:
+                        raise Exception(f"Fallback download also failed with code {ret_nocookies}")
 
-        if ext == "vtt":
-            # For subtitles, we only look for .vtt or .srt files
-            sub_files = [f for f in downloaded_files if f.endswith((".vtt", ".srt"))]
-            if not sub_files:
-                raise Exception("Subtitle download completed but no subtitle file was found on disk.")
-            filename_on_disk = sub_files[0]
-            filepath = os.path.join(temp_dir, filename_on_disk)
-        else:
-            # Ignore subtitle, metadata and helper files to avoid alphabetical selection bug
-            media_files = [f for f in downloaded_files if not f.endswith((".vtt", ".srt", ".ass", ".json", ".png", ".jpg", ".jpeg", ".webp", ".txt", ".description"))]
-            if not media_files:
-                raise Exception("Download completed but no media file found.")
-            filename_on_disk = media_files[0]
-            filepath = os.path.join(temp_dir, filename_on_disk)
+            downloaded_files = os.listdir(temp_dir)
+            if not downloaded_files:
+                raise Exception("Download completed but no output file found.")
 
-        # Apply all post-processing: trim, voiceover, color filters, export formatting
-        vtt_files = [f for f in os.listdir(temp_dir) if f.endswith(".vtt")]
-        subtitles_path = None
-        if vtt_files:
-            vi_vtt = [f for f in vtt_files if f.endswith(".vi.vtt")]
-            subtitles_path = os.path.join(temp_dir, vi_vtt[0]) if vi_vtt else os.path.join(temp_dir, vtt_files[0])
+            if ext == "vtt":
+                # For subtitles, we only look for .vtt or .srt files
+                sub_files = [f for f in downloaded_files if f.endswith((".vtt", ".srt"))]
+                if not sub_files:
+                    raise Exception("Subtitle download completed but no subtitle file was found on disk.")
+                filename_on_disk = sub_files[0]
+                filepath = os.path.join(temp_dir, filename_on_disk)
+            else:
+                # Ignore subtitle, metadata and helper files to avoid alphabetical selection bug
+                media_files = [f for f in downloaded_files if not f.endswith((".vtt", ".srt", ".ass", ".json", ".png", ".jpg", ".jpeg", ".webp", ".txt", ".description"))]
+                if not media_files:
+                    raise Exception("Download completed but no media file found.")
+                filename_on_disk = media_files[0]
+                filepath = os.path.join(temp_dir, filename_on_disk)
+
+            # Apply all post-processing: trim, voiceover, color filters, export formatting
+            vtt_files = [f for f in os.listdir(temp_dir) if f.endswith(".vtt")]
+            subtitles_path = None
+            if vtt_files:
+                vi_vtt = [f for f in vtt_files if f.endswith(".vi.vtt")]
+                subtitles_path = os.path.join(temp_dir, vi_vtt[0]) if vi_vtt else os.path.join(temp_dir, vtt_files[0])
         
         def progress_cb(message, progress_val):
             with downloads_status_lock:

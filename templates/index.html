@@ -65,7 +65,7 @@
     />
     <link
       rel="stylesheet"
-      href="{{ url_for('static', filename='css/styles.css') }}?v=6.6"
+      href="{{ url_for('static', filename='css/styles.css') }}?v=7.4"
     />
     <script src="https://cdn.jsdelivr.net/npm/hls.js@1.5.8/dist/hls.min.js"></script>
     <script>
@@ -1525,7 +1525,57 @@
             id="preview-video-container"
             class="preview-player-container hidden"
           >
-            <video id="preview-video-player" controls></video>
+            <div class="video-preview-card">
+              <div class="video-wrapper">
+                <video id="preview-video-player"></video>
+                <!-- Custom Video Controls Overlay -->
+                <div class="custom-video-controls hidden-controls">
+                  <div class="video-slider-container">
+                    <input type="range" id="video-seek-slider" class="audio-slider video-slider" min="0" max="100" value="0">
+                    <div class="video-time-row">
+                      <span id="video-time-current">00:00</span>
+                      <span id="video-time-total">00:00</span>
+                    </div>
+                  </div>
+                  
+                  <div class="video-buttons-row">
+                    <div class="video-left-controls">
+                      <button id="video-play-pause-btn" class="audio-btn video-btn" title="Play">
+                        <svg class="play-icon" viewBox="0 0 24 24" fill="currentColor" width="20" height="20"><path d="M8 5v14l11-7z"/></svg>
+                        <svg class="pause-icon hidden" viewBox="0 0 24 24" fill="currentColor" width="20" height="20"><path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"/></svg>
+                      </button>
+                      
+                      <div class="video-volume-container">
+                        <button id="video-mute-btn" class="audio-btn video-btn" title="Mute">
+                          <svg class="volume-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="18" height="18">
+                            <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon>
+                            <path class="volume-waves" d="M19.07 4.93a10 10 0 0 1 0 14.14M15.54 8.46a5 5 0 0 1 0 7.07"></path>
+                          </svg>
+                          <svg class="mute-icon hidden" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="18" height="18">
+                            <line x1="23" y1="9" x2="17" y2="15"></line>
+                            <line x1="17" y1="9" x2="23" y2="15"></line>
+                            <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon>
+                          </svg>
+                        </button>
+                        <input type="range" id="video-volume-slider" class="audio-slider volume-slider" min="0" max="1" step="0.05" value="1">
+                      </div>
+                    </div>
+                    
+                    <div class="video-right-controls">
+                      <div class="video-selector-container">
+                        <select id="video-preview-format-select" class="custom-select" title="Change format/quality">
+                        </select>
+                      </div>
+                      <button id="video-fullscreen-btn" class="audio-btn video-btn" title="Fullscreen">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="18" height="18">
+                          <path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3"></path>
+                        </svg>
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
           </div>
 
           <!-- Audio Preview -->
@@ -1534,20 +1584,84 @@
             class="preview-player-container hidden"
           >
             <div class="audio-preview-card">
-              <svg
-                class="audio-wave-icon"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                stroke-width="1.5"
-                stroke-linecap="round"
-                stroke-linejoin="round"
-              >
-                <path d="M9 18V5l12-2v13" />
-                <circle cx="6" cy="18" r="3" />
-                <circle cx="18" cy="16" r="3" />
-              </svg>
-              <audio id="preview-audio-player" controls></audio>
+              <div class="audio-visualizer-area">
+                <svg
+                  class="audio-wave-icon"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="1.5"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                >
+                  <path d="M9 18V5l12-2v13" />
+                  <circle cx="6" cy="18" r="3" />
+                  <circle cx="18" cy="16" r="3" />
+                </svg>
+                <div class="waveform-animation">
+                  <span class="bar"></span>
+                  <span class="bar"></span>
+                  <span class="bar"></span>
+                  <span class="bar"></span>
+                  <span class="bar"></span>
+                  <span class="bar"></span>
+                  <span class="bar"></span>
+                  <span class="bar"></span>
+                  <span class="bar"></span>
+                  <span class="bar"></span>
+                  <span class="bar"></span>
+                  <span class="bar"></span>
+                  <span class="bar"></span>
+                  <span class="bar"></span>
+                  <span class="bar"></span>
+                  <span class="bar"></span>
+                  <span class="bar"></span>
+                  <span class="bar"></span>
+                  <span class="bar"></span>
+                  <span class="bar"></span>
+                </div>
+              </div>
+              
+              <audio id="preview-audio-player" style="display: none;"></audio>
+              
+              <div class="custom-audio-controls">
+                <div class="audio-slider-container">
+                  <input type="range" id="audio-seek-slider" class="audio-slider" min="0" max="100" value="0">
+                  <div class="audio-time-row">
+                    <span id="audio-time-current">00:00</span>
+                    <span id="audio-time-total">00:00</span>
+                  </div>
+                </div>
+                
+                <div class="audio-buttons-row">
+                  <div class="audio-left-controls">
+                    <button id="audio-play-pause-btn" class="audio-btn" title="Play">
+                      <svg class="play-icon" viewBox="0 0 24 24" fill="currentColor" width="20" height="20"><path d="M8 5v14l11-7z"/></svg>
+                      <svg class="pause-icon hidden" viewBox="0 0 24 24" fill="currentColor" width="20" height="20"><path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"/></svg>
+                    </button>
+                    
+                    <div class="audio-volume-container">
+                      <button id="audio-mute-btn" class="audio-btn" title="Mute">
+                        <svg class="volume-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="18" height="18">
+                          <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon>
+                          <path class="volume-waves" d="M19.07 4.93a10 10 0 0 1 0 14.14M15.54 8.46a5 5 0 0 1 0 7.07"></path>
+                        </svg>
+                        <svg class="mute-icon hidden" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="18" height="18">
+                          <line x1="23" y1="9" x2="17" y2="15"></line>
+                          <line x1="17" y1="9" x2="23" y2="15"></line>
+                          <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon>
+                        </svg>
+                      </button>
+                      <input type="range" id="audio-volume-slider" class="audio-slider volume-slider" min="0" max="1" step="0.05" value="1">
+                    </div>
+                  </div>
+                  
+                  <div class="audio-selector-container">
+                    <select id="audio-preview-format-select" class="custom-select" title="Change format/quality">
+                    </select>
+                  </div>
+                </div>
+              </div>
             </div>
           </div>
 
@@ -1557,6 +1671,17 @@
             class="preview-player-container hidden"
           >
             <div class="image-preview-wrapper">
+              <!-- Prev / Next Navigation Buttons -->
+              <button id="btn-prev-image" class="nav-control prev hidden" title="Previous Image">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <polyline points="15 18 9 12 15 6"></polyline>
+                </svg>
+              </button>
+              <button id="btn-next-image" class="nav-control next hidden" title="Next Image">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <polyline points="9 18 15 12 9 6"></polyline>
+                </svg>
+              </button>
               <img id="preview-image-element" src="" alt="Preview Image" />
               <div class="image-controls">
                 <button id="btn-zoom-in" class="btn-control" title="Zoom In">
@@ -1705,6 +1830,6 @@
     </div>
 
     <script src="https://cdnjs.cloudflare.com/ajax/libs/noUiSlider/15.7.1/nouislider.min.js"></script>
-    <script src="{{ url_for('static', filename='js/main.js') }}?v=6.1"></script>
+    <script src="{{ url_for('static', filename='js/main.js') }}?v=7.3"></script>
   </body>
 </html>

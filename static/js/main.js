@@ -631,6 +631,30 @@ document.addEventListener("DOMContentLoaded", () => {
     const btnZoomIn = document.getElementById("btn-zoom-in");
     const btnZoomOut = document.getElementById("btn-zoom-out");
     const btnRotate = document.getElementById("btn-rotate");
+    const btnPrevImage = document.getElementById("btn-prev-image");
+    const btnNextImage = document.getElementById("btn-next-image");
+
+    // Custom audio player elements
+    const audioCard = document.querySelector(".audio-preview-card");
+    const audioPlayPauseBtn = document.getElementById("audio-play-pause-btn");
+    const audioSeekSlider = document.getElementById("audio-seek-slider");
+    const audioTimeCurrent = document.getElementById("audio-time-current");
+    const audioTimeTotal = document.getElementById("audio-time-total");
+    const audioMuteBtn = document.getElementById("audio-mute-btn");
+    const audioVolumeSlider = document.getElementById("audio-volume-slider");
+    const audioFormatSelect = document.getElementById("audio-preview-format-select");
+
+    // Custom video player elements
+    const videoCard = document.querySelector(".video-preview-card");
+    const videoPlayPauseBtn = document.getElementById("video-play-pause-btn");
+    const videoSeekSlider = document.getElementById("video-seek-slider");
+    const videoTimeCurrent = document.getElementById("video-time-current");
+    const videoTimeTotal = document.getElementById("video-time-total");
+    const videoMuteBtn = document.getElementById("video-mute-btn");
+    const videoVolumeSlider = document.getElementById("video-volume-slider");
+    const videoFullscreenBtn = document.getElementById("video-fullscreen-btn");
+    const videoFormatSelect = document.getElementById("video-preview-format-select");
+    const customVideoControls = document.querySelector(".custom-video-controls");
 
     function getProxiedImageUrl(url) {
         if (!url) return "";
@@ -882,6 +906,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
     // Global state
     let activeUrl = "";
+    let activeMetadata = null;
     let pollingInterval = null;
     let activeDownloadId = null;
     let extractedImages = [];
@@ -894,7 +919,9 @@ document.addEventListener("DOMContentLoaded", () => {
     let previewActiveExt = "";
     let previewActiveFilename = "";
     let previewActivePollInterval = null;
+    let previewCurrentImageIndex = -1;
 
+    // Helper to stop all preview playbacks and destroy Hls instances
     // Helper to stop all preview playbacks and destroy Hls instances
     function stopAllPreviewPlaybacks() {
         if (previewActivePollInterval) {
@@ -903,16 +930,405 @@ document.addEventListener("DOMContentLoaded", () => {
         }
         if (previewVideoPlayer) {
             previewVideoPlayer.pause();
+            previewVideoPlayer.onerror = null;
             if (previewVideoPlayer.hlsInstance) {
                 previewVideoPlayer.hlsInstance.destroy();
                 delete previewVideoPlayer.hlsInstance;
             }
-            previewVideoPlayer.src = "";
+            previewVideoPlayer.removeAttribute("src");
+            try {
+                previewVideoPlayer.load();
+            } catch (e) {}
         }
         if (previewAudioPlayer) {
             previewAudioPlayer.pause();
-            previewAudioPlayer.src = "";
+            previewAudioPlayer.onerror = null;
+            previewAudioPlayer.removeAttribute("src");
+            try {
+                previewAudioPlayer.load();
+            } catch (e) {}
         }
+
+        // Reset Custom Audio UI
+        if (audioCard) audioCard.classList.remove("playing");
+        if (audioPlayPauseBtn) {
+            const playIcon = audioPlayPauseBtn.querySelector(".play-icon");
+            const pauseIcon = audioPlayPauseBtn.querySelector(".pause-icon");
+            if (playIcon) playIcon.classList.remove("hidden");
+            if (pauseIcon) pauseIcon.classList.add("hidden");
+        }
+        if (audioSeekSlider) {
+            audioSeekSlider.value = 0;
+            updateSliderBackground(audioSeekSlider);
+        }
+        if (audioTimeCurrent) audioTimeCurrent.textContent = "00:00";
+        if (audioTimeTotal) audioTimeTotal.textContent = "00:00";
+
+        // Reset Custom Video UI
+        if (videoCard) videoCard.classList.remove("playing");
+        if (videoPlayPauseBtn) {
+            const playIcon = videoPlayPauseBtn.querySelector(".play-icon");
+            const pauseIcon = videoPlayPauseBtn.querySelector(".pause-icon");
+            if (playIcon) playIcon.classList.remove("hidden");
+            if (pauseIcon) pauseIcon.classList.add("hidden");
+        }
+        if (videoSeekSlider) {
+            videoSeekSlider.value = 0;
+            updateSliderBackground(videoSeekSlider);
+        }
+        if (videoTimeCurrent) videoTimeCurrent.textContent = "00:00";
+        if (videoTimeTotal) videoTimeTotal.textContent = "00:00";
+        if (customVideoControls) {
+            customVideoControls.classList.add("hidden-controls");
+        }
+    }
+
+    // Format Time helper (seconds -> mm:ss)
+    function formatTime(seconds) {
+        if (isNaN(seconds) || seconds === Infinity) return "00:00";
+        const mins = Math.floor(seconds / 60);
+        const secs = Math.floor(seconds % 60);
+        return `${mins.toString().padStart(2, "0")}:${secs.toString().padStart(2, "0")}`;
+    }
+
+    // Dynamic track fill for ranges
+    function updateSliderBackground(slider) {
+        if (!slider) return;
+        const val = parseFloat(slider.value) || 0;
+        const min = parseFloat(slider.min) || 0;
+        const max = parseFloat(slider.max) || 100;
+        const pct = ((val - min) / (max - min)) * 100;
+        slider.style.background = `linear-gradient(to right, var(--cyan) 0%, var(--cyan) ${pct}%, var(--slider-track) ${pct}%, var(--slider-track) 100%)`;
+    }
+
+    // --- CUSTOM AUDIO PLAYER HANDLERS ---
+    if (previewAudioPlayer) {
+        previewAudioPlayer.addEventListener("play", () => {
+            if (audioCard) audioCard.classList.add("playing");
+            if (audioPlayPauseBtn) {
+                const playIcon = audioPlayPauseBtn.querySelector(".play-icon");
+                const pauseIcon = audioPlayPauseBtn.querySelector(".pause-icon");
+                if (playIcon) playIcon.classList.add("hidden");
+                if (pauseIcon) pauseIcon.classList.remove("hidden");
+            }
+        });
+
+        previewAudioPlayer.addEventListener("pause", () => {
+            if (audioCard) audioCard.classList.remove("playing");
+            if (audioPlayPauseBtn) {
+                const playIcon = audioPlayPauseBtn.querySelector(".play-icon");
+                const pauseIcon = audioPlayPauseBtn.querySelector(".pause-icon");
+                if (playIcon) playIcon.classList.remove("hidden");
+                if (pauseIcon) pauseIcon.classList.add("hidden");
+            }
+        });
+
+        previewAudioPlayer.addEventListener("timeupdate", () => {
+            if (previewAudioPlayer.duration) {
+                const pct = (previewAudioPlayer.currentTime / previewAudioPlayer.duration) * 100;
+                if (audioSeekSlider) {
+                    audioSeekSlider.value = pct;
+                    updateSliderBackground(audioSeekSlider);
+                }
+                if (audioTimeCurrent) {
+                    audioTimeCurrent.textContent = formatTime(previewAudioPlayer.currentTime);
+                }
+            }
+        });
+
+        previewAudioPlayer.addEventListener("loadedmetadata", () => {
+            if (audioTimeTotal && previewAudioPlayer.duration) {
+                audioTimeTotal.textContent = formatTime(previewAudioPlayer.duration);
+            }
+            if (audioSeekSlider) {
+                audioSeekSlider.value = 0;
+                updateSliderBackground(audioSeekSlider);
+            }
+            if (audioVolumeSlider) {
+                audioVolumeSlider.value = previewAudioPlayer.muted ? 0 : previewAudioPlayer.volume;
+                updateSliderBackground(audioVolumeSlider);
+            }
+        });
+
+        previewAudioPlayer.addEventListener("durationchange", () => {
+            if (audioTimeTotal && previewAudioPlayer.duration) {
+                audioTimeTotal.textContent = formatTime(previewAudioPlayer.duration);
+            }
+        });
+    }
+
+    if (audioPlayPauseBtn && previewAudioPlayer) {
+        audioPlayPauseBtn.addEventListener("click", () => {
+            if (previewAudioPlayer.paused) {
+                previewAudioPlayer.play().catch(e => console.log("Play failed: ", e));
+            } else {
+                previewAudioPlayer.pause();
+            }
+        });
+    }
+
+    if (audioSeekSlider && previewAudioPlayer) {
+        audioSeekSlider.addEventListener("input", function() {
+            updateSliderBackground(this);
+        });
+        audioSeekSlider.addEventListener("change", function() {
+            if (previewAudioPlayer.duration) {
+                previewAudioPlayer.currentTime = (parseFloat(this.value) / 100) * previewAudioPlayer.duration;
+            }
+        });
+    }
+
+    if (audioVolumeSlider && previewAudioPlayer) {
+        audioVolumeSlider.addEventListener("input", function() {
+            previewAudioPlayer.volume = parseFloat(this.value);
+            updateSliderBackground(this);
+            // Sync mute icon if needed
+            if (audioMuteBtn) {
+                const volIcon = audioMuteBtn.querySelector(".volume-icon");
+                const muteIcon = audioMuteBtn.querySelector(".mute-icon");
+                if (previewAudioPlayer.volume === 0) {
+                    if (volIcon) volIcon.classList.add("hidden");
+                    if (muteIcon) muteIcon.classList.remove("hidden");
+                } else {
+                    if (volIcon) volIcon.classList.remove("hidden");
+                    if (muteIcon) muteIcon.classList.add("hidden");
+                    previewAudioPlayer.muted = false;
+                }
+            }
+        });
+    }
+
+    if (audioMuteBtn && previewAudioPlayer && audioVolumeSlider) {
+        let prevVolume = 1.0;
+        audioMuteBtn.addEventListener("click", () => {
+            previewAudioPlayer.muted = !previewAudioPlayer.muted;
+            const volIcon = audioMuteBtn.querySelector(".volume-icon");
+            const muteIcon = audioMuteBtn.querySelector(".mute-icon");
+
+            if (previewAudioPlayer.muted) {
+                if (volIcon) volIcon.classList.add("hidden");
+                if (muteIcon) muteIcon.classList.remove("hidden");
+                prevVolume = parseFloat(audioVolumeSlider.value) || 1.0;
+                audioVolumeSlider.value = 0;
+            } else {
+                if (volIcon) volIcon.classList.remove("hidden");
+                if (muteIcon) muteIcon.classList.add("hidden");
+                audioVolumeSlider.value = prevVolume;
+                previewAudioPlayer.volume = prevVolume;
+            }
+            updateSliderBackground(audioVolumeSlider);
+        });
+    }
+
+    // --- CUSTOM VIDEO PLAYER HANDLERS ---
+    let videoHoverTimeout = null;
+    function showVideoControls() {
+        if (customVideoControls) {
+            customVideoControls.classList.remove("hidden-controls");
+        }
+        if (videoHoverTimeout) {
+            clearTimeout(videoHoverTimeout);
+        }
+        // Only trigger hide timer if video is playing
+        if (previewVideoPlayer && !previewVideoPlayer.paused) {
+            videoHoverTimeout = setTimeout(() => {
+                // Check if mouse is currently hovering overlay controls to prevent autohide
+                const isHoveringControls = customVideoControls && customVideoControls.matches(':hover');
+                if (!isHoveringControls) {
+                    customVideoControls.classList.add("hidden-controls");
+                }
+            }, 3000);
+        }
+    }
+
+    const videoWrapperElement = document.querySelector(".video-wrapper");
+    if (videoWrapperElement) {
+        videoWrapperElement.addEventListener("mousemove", showVideoControls);
+        videoWrapperElement.addEventListener("mouseleave", () => {
+            if (previewVideoPlayer && !previewVideoPlayer.paused && customVideoControls) {
+                customVideoControls.classList.add("hidden-controls");
+            }
+        });
+    }
+
+    if (previewVideoPlayer) {
+        previewVideoPlayer.addEventListener("play", () => {
+            if (videoCard) videoCard.classList.add("playing");
+            if (videoPlayPauseBtn) {
+                const playIcon = videoPlayPauseBtn.querySelector(".play-icon");
+                const pauseIcon = videoPlayPauseBtn.querySelector(".pause-icon");
+                if (playIcon) playIcon.classList.add("hidden");
+                if (pauseIcon) pauseIcon.classList.remove("hidden");
+            }
+            showVideoControls();
+        });
+
+        previewVideoPlayer.addEventListener("pause", () => {
+            if (videoCard) videoCard.classList.remove("playing");
+            if (videoPlayPauseBtn) {
+                const playIcon = videoPlayPauseBtn.querySelector(".play-icon");
+                const pauseIcon = videoPlayPauseBtn.querySelector(".pause-icon");
+                if (playIcon) playIcon.classList.remove("hidden");
+                if (pauseIcon) pauseIcon.classList.add("hidden");
+            }
+            // Always show controls when paused
+            if (customVideoControls) {
+                customVideoControls.classList.remove("hidden-controls");
+            }
+            if (videoHoverTimeout) {
+                clearTimeout(videoHoverTimeout);
+            }
+        });
+
+        previewVideoPlayer.addEventListener("timeupdate", () => {
+            if (previewVideoPlayer.duration) {
+                const pct = (previewVideoPlayer.currentTime / previewVideoPlayer.duration) * 100;
+                if (videoSeekSlider) {
+                    videoSeekSlider.value = pct;
+                    updateSliderBackground(videoSeekSlider);
+                }
+                if (videoTimeCurrent) {
+                    videoTimeCurrent.textContent = formatTime(previewVideoPlayer.currentTime);
+                }
+            }
+        });
+
+        previewVideoPlayer.addEventListener("loadedmetadata", () => {
+            if (videoTimeTotal && previewVideoPlayer.duration) {
+                videoTimeTotal.textContent = formatTime(previewVideoPlayer.duration);
+            }
+            if (videoSeekSlider) {
+                videoSeekSlider.value = 0;
+                updateSliderBackground(videoSeekSlider);
+            }
+            if (videoVolumeSlider) {
+                videoVolumeSlider.value = previewVideoPlayer.muted ? 0 : previewVideoPlayer.volume;
+                updateSliderBackground(videoVolumeSlider);
+            }
+        });
+
+        previewVideoPlayer.addEventListener("durationchange", () => {
+            if (videoTimeTotal && previewVideoPlayer.duration) {
+                videoTimeTotal.textContent = formatTime(previewVideoPlayer.duration);
+            }
+        });
+    }
+
+    if (videoPlayPauseBtn && previewVideoPlayer) {
+        videoPlayPauseBtn.addEventListener("click", (e) => {
+            e.stopPropagation();
+            if (previewVideoPlayer.paused) {
+                previewVideoPlayer.play().catch(e => console.log("Play failed: ", e));
+            } else {
+                previewVideoPlayer.pause();
+            }
+        });
+    }
+
+    // Clicking on video itself toggles play/pause
+    if (previewVideoPlayer) {
+        previewVideoPlayer.addEventListener("click", () => {
+            if (previewVideoPlayer.paused) {
+                previewVideoPlayer.play().catch(e => console.log("Play failed: ", e));
+            } else {
+                previewVideoPlayer.pause();
+            }
+        });
+    }
+
+    if (videoSeekSlider && previewVideoPlayer) {
+        videoSeekSlider.addEventListener("input", function(e) {
+            e.stopPropagation();
+            updateSliderBackground(this);
+        });
+        videoSeekSlider.addEventListener("change", function(e) {
+            e.stopPropagation();
+            if (previewVideoPlayer.duration) {
+                previewVideoPlayer.currentTime = (parseFloat(this.value) / 100) * previewVideoPlayer.duration;
+            }
+        });
+    }
+
+    if (videoVolumeSlider && previewVideoPlayer) {
+        videoVolumeSlider.addEventListener("input", function(e) {
+            e.stopPropagation();
+            previewVideoPlayer.volume = parseFloat(this.value);
+            updateSliderBackground(this);
+            // Sync mute icon if needed
+            if (videoMuteBtn) {
+                const volIcon = videoMuteBtn.querySelector(".volume-icon");
+                const muteIcon = videoMuteBtn.querySelector(".mute-icon");
+                if (previewVideoPlayer.volume === 0) {
+                    if (volIcon) volIcon.classList.add("hidden");
+                    if (muteIcon) muteIcon.classList.remove("hidden");
+                } else {
+                    if (volIcon) volIcon.classList.remove("hidden");
+                    if (muteIcon) muteIcon.classList.add("hidden");
+                    previewVideoPlayer.muted = false;
+                }
+            }
+        });
+    }
+
+    if (videoMuteBtn && previewVideoPlayer && videoVolumeSlider) {
+        let prevVideoVolume = 1.0;
+        videoMuteBtn.addEventListener("click", (e) => {
+            e.stopPropagation();
+            previewVideoPlayer.muted = !previewVideoPlayer.muted;
+            const volIcon = videoMuteBtn.querySelector(".volume-icon");
+            const muteIcon = videoMuteBtn.querySelector(".mute-icon");
+
+            if (previewVideoPlayer.muted) {
+                if (volIcon) volIcon.classList.add("hidden");
+                if (muteIcon) muteIcon.classList.remove("hidden");
+                prevVideoVolume = parseFloat(videoVolumeSlider.value) || 1.0;
+                videoVolumeSlider.value = 0;
+            } else {
+                if (volIcon) volIcon.classList.remove("hidden");
+                if (muteIcon) muteIcon.classList.add("hidden");
+                videoVolumeSlider.value = prevVideoVolume;
+                previewVideoPlayer.volume = prevVideoVolume;
+            }
+            updateSliderBackground(videoVolumeSlider);
+        });
+    }
+
+    if (videoFullscreenBtn && previewVideoPlayer) {
+        videoFullscreenBtn.addEventListener("click", (e) => {
+            e.stopPropagation();
+            if (previewVideoPlayer.requestFullscreen) {
+                previewVideoPlayer.requestFullscreen();
+            } else if (previewVideoPlayer.webkitRequestFullscreen) {
+                previewVideoPlayer.webkitRequestFullscreen();
+            } else if (previewVideoPlayer.msRequestFullscreen) {
+                previewVideoPlayer.msRequestFullscreen();
+            }
+        });
+    }
+
+    // --- QUALITY/FORMAT DROP DOWN SELECT CHANGE HANDLERS ---
+    if (audioFormatSelect) {
+        audioFormatSelect.addEventListener("change", function() {
+            const formatId = this.value;
+            if (activeMetadata && activeMetadata.audio_options) {
+                const opt = activeMetadata.audio_options.find(o => o.format_id === formatId);
+                if (opt) {
+                    triggerPreview(null, opt.format_id, opt.ext, opt.label, opt.quality, opt.url, "", "", "audio");
+                }
+            }
+        });
+    }
+
+    if (videoFormatSelect) {
+        videoFormatSelect.addEventListener("change", function() {
+            const formatId = this.value;
+            if (activeMetadata && activeMetadata.video_options) {
+                const opt = activeMetadata.video_options.find(o => o.format_id === formatId);
+                if (opt) {
+                    triggerPreview(null, opt.format_id, opt.ext, opt.label, opt.quality, opt.url, "", "", "video");
+                }
+            }
+        });
     }
 
     // Close preview modal behavior
@@ -932,8 +1348,20 @@ document.addEventListener("DOMContentLoaded", () => {
         };
 
         document.addEventListener("keydown", (e) => {
-            if (e.key === "Escape" && !previewModal.classList.contains("hidden")) {
-                closePreviewModal();
+            if (previewModal && !previewModal.classList.contains("hidden")) {
+                if (e.key === "Escape") {
+                    closePreviewModal();
+                } else if (!previewImageContainer.classList.contains("hidden") && extractedImages && extractedImages.length > 1) {
+                    if (e.key === "ArrowRight") {
+                        let nextIdx = previewCurrentImageIndex + 1;
+                        if (nextIdx >= extractedImages.length) nextIdx = 0;
+                        showPreviewImage(nextIdx);
+                    } else if (e.key === "ArrowLeft") {
+                        let prevIdx = previewCurrentImageIndex - 1;
+                        if (prevIdx < 0) prevIdx = extractedImages.length - 1;
+                        showPreviewImage(prevIdx);
+                    }
+                }
             }
         });
     }
@@ -1022,6 +1450,74 @@ document.addEventListener("DOMContentLoaded", () => {
         btnRotate.onclick = () => {
             previewRotation = (previewRotation + 90) % 360;
             updateImageTransform();
+        };
+    }
+
+    function showPreviewImage(index) {
+        if (!extractedImages || index < 0 || index >= extractedImages.length) return;
+        
+        const img = extractedImages[index];
+        let imgUrl, imgLabel, imgExt;
+        if (typeof img === "string") {
+            imgUrl = img;
+            imgLabel = `Photo ${index + 1}`;
+            imgExt = "jpg";
+        } else {
+            imgUrl = img.url || "";
+            imgLabel = img.label || `Photo ${index + 1}`;
+            imgExt = img.ext || "jpg";
+        }
+
+        const finalUrl = `/api/download/image?url=${encodeURIComponent(imgUrl)}&client_id=${encodeURIComponent(clientId)}`;
+
+        previewZoomLevel = 1;
+        previewRotation = 0;
+        updateImageTransform();
+
+        previewActiveUrl = finalUrl;
+        const cleanTitle = getSafeTitle(videoTitle.textContent, "image");
+        const cleanLabel = imgLabel.replace(/\s*\(\d+x\d+\)/, "");
+        previewActiveFilename = `${cleanTitle}_${cleanLabel.replace(/\s+/g, "_")}.${imgExt}`;
+        previewTitle.textContent = cleanLabel;
+        previewMetaInfo.textContent = `Type: ${imgExt.toUpperCase()}`;
+
+        if (previewImageElement) {
+            previewImageContainer.classList.add("hidden");
+            previewLoader.classList.remove("hidden");
+            previewLoaderText.textContent = "Loading image...";
+
+            previewImageElement.onload = () => {
+                previewLoader.classList.add("hidden");
+                previewImageContainer.classList.remove("hidden");
+            };
+            previewImageElement.onerror = () => {
+                previewLoaderText.textContent = "Failed to load image preview.";
+            };
+            previewImageElement.src = finalUrl;
+        }
+        
+        previewCurrentImageIndex = index;
+    }
+
+    if (btnPrevImage) {
+        btnPrevImage.onclick = (e) => {
+            e.stopPropagation();
+            if (extractedImages && extractedImages.length > 1) {
+                let prevIdx = previewCurrentImageIndex - 1;
+                if (prevIdx < 0) prevIdx = extractedImages.length - 1;
+                showPreviewImage(prevIdx);
+            }
+        };
+    }
+
+    if (btnNextImage) {
+        btnNextImage.onclick = (e) => {
+            e.stopPropagation();
+            if (extractedImages && extractedImages.length > 1) {
+                let nextIdx = previewCurrentImageIndex + 1;
+                if (nextIdx >= extractedImages.length) nextIdx = 0;
+                showPreviewImage(nextIdx);
+            }
         };
     }
 
@@ -1626,6 +2122,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
     // Display parsed metadata
     function displayMetadata(data) {
+        activeMetadata = data;
         const resultGrid = resultSection.querySelector(".result-grid");
         if (resultGrid) {
             resultGrid.classList.remove("welcome-mode");
@@ -1972,6 +2469,45 @@ document.addEventListener("DOMContentLoaded", () => {
         const audioSvg = `<svg class="format-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/></svg>`;
         const downloadSvg = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>`;
 
+        function createFormatGroup(titleHtml, elements) {
+            if (!elements || elements.length === 0) return null;
+
+            const groupDiv = document.createElement("div");
+            groupDiv.className = "format-group";
+
+            const labelDiv = document.createElement("div");
+            labelDiv.className = "format-group-label";
+            labelDiv.innerHTML = `
+                <div class="format-group-title-left">
+                    ${titleHtml}
+                </div>
+                <svg class="chevron-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <polyline points="6 9 12 15 18 9"></polyline>
+                </svg>
+            `;
+
+            const contentDiv = document.createElement("div");
+            contentDiv.className = "format-group-content";
+
+            const innerDiv = document.createElement("div");
+            innerDiv.className = "format-group-inner";
+
+            elements.forEach(el => {
+                innerDiv.appendChild(el);
+            });
+
+            contentDiv.appendChild(innerDiv);
+            groupDiv.appendChild(labelDiv);
+            groupDiv.appendChild(contentDiv);
+
+            labelDiv.addEventListener("click", () => {
+                const isCollapsed = contentDiv.classList.toggle("collapsed");
+                labelDiv.classList.toggle("collapsed", isCollapsed);
+            });
+
+            return groupDiv;
+        }
+
         // Render Video options if present
         if (data.video_options && data.video_options.length > 0) {
             const videos = data.video_options.filter(opt => opt.ext !== "jpg");
@@ -2007,14 +2543,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
                 // Render ungrouped videos first (if any)
                 if (noGroup.length > 0) {
-                    const videoGroupLabel = document.createElement("div");
-                    videoGroupLabel.className = "format-group-label";
-                    videoGroupLabel.innerHTML = `
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M23 7l-7 5 7 5V7z"/><rect x="1" y="5" width="15" height="14" rx="2" ry="2"/></svg>
-                        <span>Video Options</span>
-                    `;
-                    optionsContainer.appendChild(videoGroupLabel);
-
+                    const rowEls = [];
                     noGroup.forEach(option => {
                         const row = document.createElement("div");
                         row.className = "format-row video-row";
@@ -2036,21 +2565,19 @@ document.addEventListener("DOMContentLoaded", () => {
                                 </button>
                             </div>
                         `;
-                        optionsContainer.appendChild(row);
+                        rowEls.push(row);
                     });
+                    const titleHtml = `
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M23 7l-7 5 7 5V7z"/><rect x="1" y="5" width="15" height="14" rx="2" ry="2"/></svg>
+                        <span>Video Options</span>
+                    `;
+                    const groupEl = createFormatGroup(titleHtml, rowEls);
+                    if (groupEl) optionsContainer.appendChild(groupEl);
                 }
 
                 // Render grouped videos by server
                 serverOrder.forEach(server => {
-                    const serverGroupLabel = document.createElement("div");
-                    serverGroupLabel.className = "format-group-label server-group-label";
-
-                    serverGroupLabel.innerHTML = `
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M23 7l-7 5 7 5V7z"/><rect x="1" y="5" width="15" height="14" rx="2" ry="2"/></svg>
-                        <span>${server}</span>
-                    `;
-                    optionsContainer.appendChild(serverGroupLabel);
-
+                    const rowEls = [];
                     grouped[server].forEach(option => {
                         const row = document.createElement("div");
                         row.className = "format-row video-row";
@@ -2088,21 +2615,20 @@ document.addEventListener("DOMContentLoaded", () => {
                                 </button>
                             </div>
                         `;
-                        optionsContainer.appendChild(row);
+                        rowEls.push(row);
                     });
+                    const titleHtml = `
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M23 7l-7 5 7 5V7z"/><rect x="1" y="5" width="15" height="14" rx="2" ry="2"/></svg>
+                        <span>${server}</span>
+                    `;
+                    const groupEl = createFormatGroup(titleHtml, rowEls);
+                    if (groupEl) optionsContainer.appendChild(groupEl);
                 });
             }
 
 
             if (photos.length > 0) {
-                const photoGroupLabel = document.createElement("div");
-                photoGroupLabel.className = "format-group-label";
-                photoGroupLabel.innerHTML = `
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
-                    <span>Photo Options</span>
-                `;
-                optionsContainer.appendChild(photoGroupLabel);
-
+                const rowEls = [];
                 photos.forEach(option => {
                     const row = document.createElement("div");
                     row.className = "format-row photo-row";
@@ -2125,21 +2651,20 @@ document.addEventListener("DOMContentLoaded", () => {
                             </button>
                         </div>
                     `;
-                    optionsContainer.appendChild(row);
+                    rowEls.push(row);
                 });
+                const titleHtml = `
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
+                    <span>Photo Options</span>
+                `;
+                const groupEl = createFormatGroup(titleHtml, rowEls);
+                if (groupEl) optionsContainer.appendChild(groupEl);
             }
         }
 
         // Render Audio options if present
         if (data.audio_options && data.audio_options.length > 0) {
-            const audioGroupLabel = document.createElement("div");
-            audioGroupLabel.className = "format-group-label";
-            audioGroupLabel.innerHTML = `
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/></svg>
-                <span>Audio Options</span>
-            `;
-            optionsContainer.appendChild(audioGroupLabel);
-
+            const rowEls = [];
             data.audio_options.forEach(option => {
                 const row = document.createElement("div");
                 row.className = "format-row audio-row";
@@ -2152,30 +2677,29 @@ document.addEventListener("DOMContentLoaded", () => {
                         ${sizeBadge}
                     </div>
                     <div class="format-actions">
-                        <button class="btn-preview" data-id="${option.format_id}" data-ext="${option.ext}" data-label="${option.label}" data-quality="${option.quality || ''}" data-url="${option.url || ''}">
+                        <button class="btn-preview" data-id="${option.format_id}" data-ext="${option.ext}" data-label="${option.label}" data-quality="${option.quality || ''}" data-url="${option.url || ''}" data-type="audio">
                             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
                             <span>Preview</span>
                         </button>
-                        <button class="btn-get" data-id="${option.format_id}" data-ext="${option.ext}" data-label="${option.label}" data-quality="${option.quality || ''}" data-url="${option.url || ''}">
+                        <button class="btn-get" data-id="${option.format_id}" data-ext="${option.ext}" data-label="${option.label}" data-quality="${option.quality || ''}" data-url="${option.url || ''}" data-type="audio">
                             ${downloadSvg}
                             <span>Get</span>
                         </button>
                     </div>
                 `;
-                optionsContainer.appendChild(row);
+                rowEls.push(row);
             });
+            const titleHtml = `
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/></svg>
+                <span>Audio Options</span>
+            `;
+            const groupEl = createFormatGroup(titleHtml, rowEls);
+            if (groupEl) optionsContainer.appendChild(groupEl);
         }
 
         // Render Subtitle options if present
         if (data.subtitles && data.subtitles.length > 0) {
-            const subGroupLabel = document.createElement("div");
-            subGroupLabel.className = "format-group-label";
-            subGroupLabel.innerHTML = `
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
-                <span>Subtitles Options</span>
-            `;
-            optionsContainer.appendChild(subGroupLabel);
-
+            const rowEls = [];
             data.subtitles.forEach(option => {
                 const row = document.createElement("div");
                 row.className = "format-row subtitle-row";
@@ -2188,18 +2712,24 @@ document.addEventListener("DOMContentLoaded", () => {
                         ${sizeBadge}
                     </div>
                     <div class="format-actions">
-                        <button class="btn-preview" data-id="${option.lang_code}" data-ext="vtt" data-label="Subtitles - ${option.name}">
+                        <button class="btn-preview" data-id="${option.lang_code}" data-ext="vtt" data-label="Subtitles - ${option.name}" data-url="${option.url || ''}">
                             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
                             <span>Preview</span>
                         </button>
-                        <button class="btn-get" data-id="${option.lang_code}" data-ext="vtt" data-label="Subtitles - ${option.name}">
+                        <button class="btn-get" data-id="${option.lang_code}" data-ext="vtt" data-label="Subtitles - ${option.name}" data-url="${option.url || ''}">
                             ${downloadSvg}
-                            <span>Get VTT</span>
+                            <span>Get</span>
                         </button>
                     </div>
                 `;
-                optionsContainer.appendChild(row);
+                rowEls.push(row);
             });
+            const titleHtml = `
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+                <span>Subtitles Options</span>
+            `;
+            const groupEl = createFormatGroup(titleHtml, rowEls);
+            if (groupEl) optionsContainer.appendChild(groupEl);
         }
 
         // Render photo options from data.images if no video or audio options are available at all
@@ -2207,14 +2737,7 @@ document.addEventListener("DOMContentLoaded", () => {
         const hasAudioOptions = data.audio_options && data.audio_options.length > 0;
 
         if (!hasVideoOptions && !hasAudioOptions && data.images && data.images.length > 0) {
-            const photoGroupLabel = document.createElement("div");
-            photoGroupLabel.className = "format-group-label";
-            photoGroupLabel.innerHTML = `
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
-                <span>Photo Options</span>
-            `;
-            optionsContainer.appendChild(photoGroupLabel);
-
+            const rowEls = [];
             data.images.forEach((img, idx) => {
                 const row = document.createElement("div");
                 row.className = "format-row photo-row";
@@ -2253,8 +2776,14 @@ document.addEventListener("DOMContentLoaded", () => {
                         </button>
                     </div>
                 `;
-                optionsContainer.appendChild(row);
+                rowEls.push(row);
             });
+            const titleHtml = `
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
+                <span>Photo Options</span>
+            `;
+            const groupEl = createFormatGroup(titleHtml, rowEls);
+            if (groupEl) optionsContainer.appendChild(groupEl);
         }
 
         // Bind download actions
@@ -2287,7 +2816,8 @@ document.addEventListener("DOMContentLoaded", () => {
                 const customUrl = btn.getAttribute("data-url");
                 const episode = btn.getAttribute("data-episode") || "";
                 const server = btn.getAttribute("data-server") || "";
-                triggerPreview(btn, formatId, ext, label, quality, customUrl, episode, server);
+                const type = btn.getAttribute("data-type") || "";
+                triggerPreview(btn, formatId, ext, label, quality, customUrl, episode, server, type);
             });
         });
 
@@ -2527,7 +3057,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
         try {
             const requestBody = {
-                url: (formatId.startsWith("direct_") || formatId === "image_preview" || formatId === "image_download") ? (customUrl || activeUrl) : activeUrl,
+                url: (formatId.startsWith("direct_") || formatId === "image_preview" || formatId === "image_download" || ext === "vtt") ? (customUrl || activeUrl) : activeUrl,
                 format_id: formatId,
                 ext: ext,
                 quality: quality,
@@ -2800,8 +3330,14 @@ document.addEventListener("DOMContentLoaded", () => {
     }
 
     // Dynamic Media Preview Orchestrator
-    async function triggerPreview(btn, formatId, ext, label, quality, customUrl, episode = "", server = "") {
+    async function triggerPreview(btn, formatId, ext, label, quality, customUrl, episode = "", server = "", type = "") {
         if (!previewModal) return;
+
+        // Hide navigation buttons by default
+        if (btnPrevImage && btnNextImage) {
+            btnPrevImage.classList.add("hidden");
+            btnNextImage.classList.add("hidden");
+        }
 
         // Reset zoom & rotations
         previewZoomLevel = 1;
@@ -2827,6 +3363,51 @@ document.addEventListener("DOMContentLoaded", () => {
         previewTitle.textContent = label;
         previewMetaInfo.textContent = `Type: ${ext.toUpperCase()} ${quality ? `| Quality: ${quality}` : ""}`;
 
+        // Populate Audio Select Dropdown if Audio Preview
+        if (ext === "mp3" || ext === "m4a" || type === "audio") {
+            if (audioFormatSelect) {
+                audioFormatSelect.innerHTML = "";
+                const audioOpts = (activeMetadata && activeMetadata.audio_options) ? activeMetadata.audio_options : [];
+                if (audioOpts.length > 0) {
+                    audioFormatSelect.style.display = "";
+                    audioOpts.forEach(opt => {
+                        const optionEl = document.createElement("option");
+                        optionEl.value = opt.format_id;
+                        optionEl.textContent = `${opt.label} ${opt.size ? `(${opt.size})` : ""}`;
+                        if (opt.format_id === formatId) {
+                            optionEl.selected = true;
+                        }
+                        audioFormatSelect.appendChild(optionEl);
+                    });
+                } else {
+                    audioFormatSelect.style.display = "none";
+                }
+            }
+        }
+
+        // Populate Video Select Dropdown if Video Preview
+        const isVideoPreview = (ext !== "vtt" && ext !== "mp3" && ext !== "m4a" && type !== "audio" && formatId !== "image_preview");
+        if (isVideoPreview) {
+            if (videoFormatSelect) {
+                videoFormatSelect.innerHTML = "";
+                const videoOpts = (activeMetadata && activeMetadata.video_options) ? activeMetadata.video_options : [];
+                if (videoOpts.length > 0) {
+                    videoFormatSelect.style.display = "";
+                    videoOpts.forEach(opt => {
+                        const optionEl = document.createElement("option");
+                        optionEl.value = opt.format_id;
+                        optionEl.textContent = `${opt.label} ${opt.size ? `(${opt.size})` : ""}`;
+                        if (opt.format_id === formatId) {
+                            optionEl.selected = true;
+                        }
+                        videoFormatSelect.appendChild(optionEl);
+                    });
+                } else {
+                    videoFormatSelect.style.display = "none";
+                }
+            }
+        }
+
         // Stop current playbacks
         stopAllPreviewPlaybacks();
 
@@ -2841,6 +3422,27 @@ document.addEventListener("DOMContentLoaded", () => {
             const cleanLabel = label.replace(/\s*\(\d+x\d+\)/, "");
             previewActiveFilename = `${cleanTitle}_${cleanLabel.replace(/\s+/g, "_")}.${ext}`;
 
+            // Resolve previewCurrentImageIndex
+            if (extractedImages && extractedImages.length > 0) {
+                previewCurrentImageIndex = extractedImages.findIndex(img => {
+                    const u = (typeof img === "string") ? img : (img.url || "");
+                    return u === customUrl;
+                });
+            } else {
+                previewCurrentImageIndex = -1;
+            }
+
+            // Show/hide prev/next buttons
+            if (btnPrevImage && btnNextImage) {
+                if (previewCurrentImageIndex >= 0 && extractedImages.length > 1) {
+                    btnPrevImage.classList.remove("hidden");
+                    btnNextImage.classList.remove("hidden");
+                } else {
+                    btnPrevImage.classList.add("hidden");
+                    btnNextImage.classList.add("hidden");
+                }
+            }
+
             if (previewImageElement) {
                 previewImageElement.src = finalUrl;
                 previewImageElement.onload = () => {
@@ -2854,9 +3456,22 @@ document.addEventListener("DOMContentLoaded", () => {
             return;
         }
 
+        const streamUrl = customUrl || activeUrl || "";
+        const isYoutube = streamUrl.toLowerCase().includes("youtube.com") || 
+                          streamUrl.toLowerCase().includes("youtu.be") || 
+                          streamUrl.toLowerCase().includes("googlevideo.com") ||
+                          streamUrl.toLowerCase().includes("youtube-nocookie.com");
+
         // Direct stream preview (stream-on-demand)
-        const isDirectStream = formatId.startsWith("direct_") ||
-            (customUrl && customUrl.startsWith("http") && !formatId.includes("+"));
+        const isDirectStream = (ext !== "vtt") && (
+            formatId.startsWith("direct_") ||
+            (type === "audio") ||
+            (customUrl && customUrl.startsWith("http") && !formatId.includes("+"))
+        );
+
+        console.log("[triggerPreview] streamUrl:", streamUrl);
+        console.log("[triggerPreview] isYoutube:", isYoutube);
+        console.log("[triggerPreview] isDirectStream:", isDirectStream);
 
         if (isDirectStream) {
             const streamUrl = customUrl || activeUrl;
@@ -2869,8 +3484,15 @@ document.addEventListener("DOMContentLoaded", () => {
 
             previewLoader.classList.add("hidden");
 
-            if (ext === "mp3" || ext === "m4a") {
+            if (ext === "mp3" || ext === "m4a" || type === "audio") {
                 if (previewAudioPlayer) {
+                    previewAudioPlayer.onerror = () => {
+                        console.warn("HTML5 Audio Error");
+                        previewLoaderText.textContent = "Cannot play this audio stream directly. Please download the format instead using the button below.";
+                        previewLoader.classList.remove("hidden");
+                        previewAudioContainer.classList.add("hidden");
+                        stopAllPreviewPlaybacks();
+                    };
                     previewAudioPlayer.src = proxyStreamUrl;
                     previewAudioPlayer.load();
                     previewAudioContainer.classList.remove("hidden");
@@ -2922,7 +3544,7 @@ document.addEventListener("DOMContentLoaded", () => {
         // Audio, Video, Subtitle Preview Flow (Downloads to server & streams)
         try {
             const payload = {
-                url: (formatId.startsWith("direct_") || formatId === "image_preview" || formatId === "image_download") ? (customUrl || activeUrl) : activeUrl,
+                url: (formatId.startsWith("direct_") || formatId === "image_preview" || formatId === "image_download" || ext === "vtt") ? (customUrl || activeUrl) : activeUrl,
                 format_id: formatId,
                 ext: ext,
                 quality: quality || "192",
@@ -2978,8 +3600,15 @@ document.addEventListener("DOMContentLoaded", () => {
 
                         const previewStreamUrl = `/api/download/file/${downloadId}?preview=true`;
 
-                        if (ext === "mp3" || ext === "m4a") {
+                        if (ext === "mp3" || ext === "m4a" || type === "audio") {
                             if (previewAudioPlayer) {
+                                previewAudioPlayer.onerror = () => {
+                                    console.warn("HTML5 Audio Error");
+                                    previewLoaderText.textContent = "Cannot play this audio file. Please try downloading the format instead using the button below.";
+                                    previewLoader.classList.remove("hidden");
+                                    previewAudioContainer.classList.add("hidden");
+                                    stopAllPreviewPlaybacks();
+                                };
                                 previewAudioPlayer.src = previewStreamUrl;
                                 previewAudioPlayer.load();
                                 previewAudioContainer.classList.remove("hidden");

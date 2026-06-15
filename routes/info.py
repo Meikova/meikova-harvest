@@ -1048,13 +1048,27 @@ def get_info():
 
                 # --- Build audio options ---
                 est_m4a_size = format_size(best_audio_size) if best_audio_size else None
+                audio_url = None
+                if best_audio_format:
+                    audio_url = best_audio_format.get("url")
+                if not audio_url:
+                    for f in formats_list:
+                        if f.get("acodec") != "none" and f.get("url"):
+                            audio_url = f.get("url")
+                            break
+                if not audio_url:
+                    audio_url = info.get("url")
+                if not audio_url and formats_list:
+                    audio_url = formats_list[-1].get("url")
+
                 audio_options.append({
                     "format_id": "bestaudio[ext=m4a]/bestaudio",
                     "resolution": "Audio",
                     "ext": "m4a",
                     "type": "audio",
                     "size": est_m4a_size,
-                    "label": "M4A AAC (Original Quality - Fast)"
+                    "label": "M4A AAC (Original Quality - Fast)",
+                    "url": audio_url
                 })
 
                 qualities = [
@@ -1071,7 +1085,8 @@ def get_info():
                         "type": "audio",
                         "quality": q_val,
                         "size": est_size,
-                        "label": f"MP3 {q_name} ({q_label})"
+                        "label": f"MP3 {q_name} ({q_label})",
+                        "url": audio_url
                     })
 
             # --- Detect platform and source ---
