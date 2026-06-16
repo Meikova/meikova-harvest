@@ -39,6 +39,13 @@ This document details the user needs, target user personas, functional and non-f
 | **FR-08** | Packaging | Compile server and Electron shell into single-file binaries, installers, app bundles, and portables for Windows and macOS. | High |
 | **FR-09** | Obfuscation | AST code scrambling, string literal encryption, anti-debugging, and binary shielding. | High |
 | **FR-10** | Licensing | Apply IP whitelist locks, date-based expiry limits, and Machine ID hardware locks. | High |
+| **FR-11** | Preview | Render fallback webpage (HTML) formats inside an interactive sandbox/iframe using a CORS-safe proxy instead of displaying raw text. | Medium |
+| **FR-12** | Fullscreen | Enable a 3-mode preview fullscreen layout (Normal, Web Fullscreen, Native Fullscreen) for all formats with 3s mouse-inactivity auto-hiding for header/controls/cursor. | High |
+| **FR-13** | Session Bypass | Bypass IP blocks and Cloudflare protection on webpage preview/download using curl_cffi Chrome impersonator and whitelisted cookies. | High |
+| **FR-14** | Subtitles | Batch translate subtitle cues to target language using Google Translate API in 4000-char chunks to bypass rate limits. | Medium |
+| **FR-15** | Subtitles | Aggressively deduplicate and collapse rolling subtitles (YouTube-style captions) by matching sequences and containment. | High |
+| **FR-16** | Subtitles | Align and shift subtitle timestamps automatically when downloading a trimmed video segment. | High |
+| **FR-17** | Subtitles | Automatically split long sentences in translated subtitles into shorter blocks of max 10 words per slide. | Medium |
 | **NFR-01** | Clean-up | Automatically delete temporary files immediately after completion or cancellation. | High |
 | **NFR-02** | Performance | Dynamic multi-threaded download segments to maximize bandwidth utilization. | High |
 

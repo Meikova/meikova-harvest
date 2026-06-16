@@ -99,6 +99,42 @@ Some platforms (like Twitter/X, Instagram, or age-restricted YouTube videos) req
 3. In the pop-up modal, adjust the visual range slider handles to define your custom **Start Time** and **End Time**.
 4. Click **Download**. The server clips the media on the fly and sends the trimmed file to your browser.
 
+### 3.3 Interactive Webpage Previewing (HTML / Text)
+EveryThingDownloader allows you to preview webpage/HTML files directly inside the application interface before downloading.
+1. Paste a link (e.g., any website URL that falls back to Webpage Options or provides HTML files) and click **ANALYZE LINK**.
+2. Click **Preview** next to the Webpage (HTML / Text) format.
+3. The system dynamically proxies the website and renders it inside an interactive, scrollable sandbox container (`<iframe>`), showing you the real live layout.
+4. If the format is a plain text file (`.txt`, `.xml`), it displays the raw text content inside the text area for quick inspection or copying.
+
+### 3.4 Bypassing 403 Forbidden & Cloudflare Webpage Blocks
+If a webpage is protected by anti-bot challenge screens (like Cloudflare "Just a moment..."):
+1. The app automatically utilizes a secure browser-impersonating request engine (`curl_cffi` Chrome impersonator) to query the page.
+2. To fully bypass authentication or captcha blocks, ensure you import active session cookies (e.g. using J2TEAM cookie file) via the **Manage Cookies** panel.
+3. When you preview or download, the app automatically maps the active session cookies into the proxy server and download tasks, delivering the authentic page content instead of a 403 Forbidden error.
+
+### 3.5 Universal 3-Mode Fullscreen & Auto-Hide Controls
+During file preview (Video, Audio, Image, Subtitle transcript, or Webpage/HTML):
+1. Click the Fullscreen button on the top modal header or the player control bar to cycle through:
+   - **Normal Mode**: Styled modal container overlaying the main dashboard.
+   - **Theater / Web Fullscreen**: Expands the preview to occupy the entire browser viewport (perfect for working inside Electron or in a standard browser tab).
+   - **Native Fullscreen**: Requests native browser full-screen display.
+2. In Theater and Native Fullscreen modes, the player header, custom controls, and mouse cursor automatically fade out and hide after **3 seconds of inactivity** to prevent distraction.
+3. Moving the mouse instantly restores visibility to all controls and the cursor.
+
+### 3.6 Subtitles Translation, Deduplication & Shift Alignment
+EveryThingDownloader features a highly optimized caption translation engine that runs directly alongside video downloading or previewing.
+1. **Interactive Subtitle Translation**:
+   - In the video preview screen, select a subtitle option from the subtitles dropdown (e.g. English).
+   - To translate, select a target language (default: Vietnamese) and trigger translation.
+   - The engine automatically aggregates VTT captions, translates them, and updates the transcript live.
+2. **Aggressive Rolling Caption Deduplication**:
+   - For platforms like YouTube that output auto-generated subtitles as "rolling" text (words appearing sequentially by clearing previous words), the system automatically analyzes cue pairs.
+   - It identifies overlaps by checking containment and word sequences, collapses duplicate rolling chains, and reconstructs clean, complete sentences.
+3. **Synchronized Video Trimming**:
+   - When downloading a trimmed video segment, the subtitle timestamps are automatically shifted (`new_start = max(0, original_start - trim_start)`). Cues outside the trimmed boundary are discarded.
+4. **Visual Layout Optimization**:
+   - The engine automatically segments long translated sentences into slides containing a maximum of 10 words. This ensures text blocks never clutter the media player screen or overlap other UI elements.
+
 ---
 
 ## 4. Packing the App (GUI Builder Operations)
