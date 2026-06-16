@@ -1247,6 +1247,46 @@ def get_info():
                 with ThreadPoolExecutor(max_workers=min(10, len(video_options))) as executor:
                     list(executor.map(resolve_tiktok_size, video_options))
 
+            # Post-process video_options to ensure correct type based on extension or URL path
+            for opt in video_options:
+                ext = (opt.get("ext") or "").lower()
+                url_path = (opt.get("url") or "").lower()
+                
+                # If extension is not specified, guess it from the URL path/query
+                if not ext and url_path:
+                    try:
+                        parsed_path = urllib.parse.urlparse(url_path).path.lower()
+                        for known_ext in [".mp4", ".m3u8", ".mp3", ".m4a", ".jpg", ".jpeg", ".png", ".webp", ".gif", ".html", ".htm"]:
+                            if parsed_path.endswith(known_ext) or f"{known_ext}?" in url_path or f"{known_ext}/" in url_path:
+                                ext = known_ext.lstrip(".")
+                                opt["ext"] = ext
+                                break
+                    except Exception as parse_err:
+                        logger.warning(f"Error parsing option URL in post-process: {parse_err}")
+                
+                # Ensure the 'type' field is correct based on the extension
+                if ext in ["html", "htm"]:
+                    opt["type"] = "webpage"
+                elif ext in ["jpg", "jpeg", "png", "webp", "gif"]:
+                    opt["type"] = "image"
+                elif ext in ["mp3", "m4a", "wav", "ogg", "aac", "flac", "opus"]:
+                    opt["type"] = "audio"
+                elif ext in ["mp4", "mkv", "avi", "mov", "flv", "webm", "m3u8", "ts"]:
+                    opt["type"] = "video"
+                
+                # Extra check for resolution keywords or labels if type is still not set or is generic
+                if not opt.get("type") or opt.get("type") == "video":
+                    res_lower = (opt.get("resolution") or "").lower()
+                    label_lower = (opt.get("label") or "").lower()
+                    if "webpage" in res_lower or "webpage" in label_lower or "html" in label_lower:
+                        opt["type"] = "webpage"
+                    elif "image" in label_lower or "photo" in label_lower:
+                        opt["type"] = "image"
+                    elif "audio" in label_lower or "sound" in label_lower:
+                        opt["type"] = "audio"
+                    elif not opt.get("type"):
+                        opt["type"] = "video"
+
             return jsonify({
                 "status": "success",
                 "title": title,

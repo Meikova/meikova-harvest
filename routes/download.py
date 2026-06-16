@@ -30,6 +30,7 @@ def start_download():
     ext = (data.get("ext") or "mp4").strip()
     quality = (data.get("quality") or "192").strip()
     title = (data.get("title") or "media").strip()
+    thumbnail = (data.get("thumbnail") or "").strip()
     client_id = data.get("client_id")
     episode = (data.get("episode") or "").strip()
     server = (data.get("server") or "").strip()
@@ -45,6 +46,8 @@ def start_download():
     color_filter = data.get("color_filter") or "none"
     voiceover_active = bool(data.get("voiceover_active"))
     voiceover_voice = data.get("voiceover_voice") or "vi-VN-HoaiMyNeural"
+    voiceover_rate = data.get("voiceover_rate")
+    voiceover_pitch = data.get("voiceover_pitch")
     cloud_destination = data.get("cloud_destination") or "local"
     tg_bot_token = data.get("tg_bot_token")
     tg_chat_id = data.get("tg_chat_id")
@@ -64,6 +67,19 @@ def start_download():
             "temp_dir": None,
             "filename": None,
             "error": None,
+            "url": url,
+            "format_id": format_id,
+            "quality": quality,
+            "title": title,
+            "thumbnail": thumbnail,
+            "voiceover_active": voiceover_active,
+            "voiceover_voice": voiceover_voice,
+            "voiceover_rate": voiceover_rate,
+            "voiceover_pitch": voiceover_pitch,
+            "trim_start": trim_start,
+            "trim_end": trim_end,
+            "cloud_destination": cloud_destination,
+            "timestamp": time.time(),
         }
 
     logger.info(f"Enqueued task {download_id} for {url} (client_id: {client_id})")
@@ -78,6 +94,8 @@ def start_download():
             "color_filter": color_filter,
             "voiceover_active": voiceover_active,
             "voiceover_voice": voiceover_voice,
+            "voiceover_rate": voiceover_rate,
+            "voiceover_pitch": voiceover_pitch,
             "cloud_destination": cloud_destination,
             "tg_bot_token": tg_bot_token,
             "tg_chat_id": tg_chat_id,
@@ -88,6 +106,21 @@ def start_download():
     thread.start()
 
     return jsonify({"status": "success", "download_id": download_id})
+
+
+@download_bp.route("/api/download/history", methods=["GET"])
+def get_download_history_api():
+    history = downloads_status.get_history(limit=50)
+    return jsonify({"status": "success", "history": history})
+
+
+@download_bp.route("/api/download/history/clear", methods=["POST"])
+def clear_download_history_api():
+    success = downloads_status.clear_history()
+    if success:
+        return jsonify({"status": "success", "message": "Download history cleared."})
+    else:
+        return jsonify({"status": "error", "message": "Failed to clear download history."}), 500
 
 
 @download_bp.route("/api/download/status/<download_id>", methods=["GET"])
@@ -456,3 +489,38 @@ def proxy_stream():
         return Response(generate(), status=resp.status_code, headers=resp_headers)
     except Exception as e:
         return f"Proxy error: {e}", 500
+
+
+@download_bp.route("/api/download/history/delete/<download_id>", methods=["POST"])
+def delete_download_history_item(download_id):
+    data = request.get_json() or {}
+    delete_file = bool(data.get("delete_file", False))
+    
+    with downloads_status_lock:
+        status_info = downloads_status.get(download_id)
+        
+    if not status_info:
+        return jsonify({"status": "error", "message": "Download task not found."}), 404
+        
+    if delete_file:
+        filepath = status_info.get("filepath")
+        if filepath and os.path.exists(filepath):
+            try:
+                os.remove(filepath)
+                logger.info(f"Deleted physical file: {filepath}")
+            except Exception as e:
+                logger.warning(f"Failed to delete physical file {filepath}: {e}")
+                
+        temp_dir = status_info.get("temp_dir")
+        if temp_dir and os.path.exists(temp_dir):
+            try:
+                shutil.rmtree(temp_dir)
+                logger.info(f"Deleted temp directory: {temp_dir}")
+            except Exception as e:
+                logger.warning(f"Failed to delete temp directory {temp_dir}: {e}")
+
+    success = downloads_status.delete_task(download_id)
+    if success:
+        return jsonify({"status": "success", "message": "Download task deleted."})
+    else:
+        return jsonify({"status": "error", "message": "Failed to delete task from database."}), 500

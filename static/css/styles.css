@@ -2486,14 +2486,22 @@ body[class*="theme-"] .card {
   flex-direction: column;
   width: 100%;
   max-width: 640px;
-  background: transparent;
-  backdrop-filter: none;
-  -webkit-backdrop-filter: none;
-  border: none;
-  border-radius: 0;
-  padding: 16px;
-  box-shadow: none;
+  background: rgba(15, 15, 25, 0.4);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border: 1px solid rgba(255, 255, 255, 0.05);
+  border-radius: 20px;
+  padding: 24px;
+  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.4);
   margin: 0 auto;
+  position: relative;
+  overflow: hidden;
+  transition: border-color 0.5s ease, box-shadow 0.5s ease;
+}
+
+.audio-preview-card.playing {
+  border-color: rgba(var(--cyan-rgb), 0.3);
+  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.4), 0 0 20px rgba(var(--cyan-rgb), 0.25), 0 0 50px rgba(var(--cyan-rgb), 0.15);
 }
 
 .audio-visualizer-area {
@@ -2501,25 +2509,111 @@ body[class*="theme-"] .card {
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 16px;
-  padding: 32px 16px;
-  background: transparent;
-  border: none;
+  gap: 20px;
+  padding: 40px 20px;
+  background: rgba(10, 10, 18, 0.55);
+  border: 1px solid rgba(255, 255, 255, 0.03);
+  border-radius: 16px;
   width: 100%;
+  position: relative;
+  overflow: hidden;
+  margin-bottom: 20px;
+}
+
+/* Pulsating backdrop glow */
+.visualizer-glow-backdrop {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%) scale(1);
+  width: 280px;
+  height: 280px;
+  background: radial-gradient(circle, rgba(0, 243, 255, 0.12) 0%, rgba(139, 92, 246, 0.08) 50%, rgba(0, 0, 0, 0) 70%);
+  border-radius: 50%;
+  pointer-events: none;
+  z-index: 0;
+  opacity: 0.15;
+  filter: blur(20px);
+  transition: transform 0.1s ease-out, opacity 0.1s ease-out;
+}
+
+/* Vinyl Record Player */
+.vinyl-container {
+  position: relative;
+  width: 150px;
+  height: 150px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1;
+  margin-bottom: 8px;
+}
+
+.vinyl-record {
+  width: 100%;
+  height: 100%;
+  border-radius: 50%;
+  background: radial-gradient(circle, #0e0e16 0%, #1c1c2b 30%, #0d0d15 40%, #161624 65%, #0a0a10 75%, #000 100%);
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.7), inset 0 0 1px rgba(255, 255, 255, 0.15);
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  animation: spin-vinyl 15s linear infinite;
+  animation-play-state: paused;
+}
+
+/* Vinyl grooves texture overlay */
+.vinyl-record::after {
+  content: "";
+  position: absolute;
+  top: 5px; left: 5px; right: 5px; bottom: 5px;
+  border-radius: 50%;
+  border: 1px solid rgba(255, 255, 255, 0.025);
+  box-shadow: 
+    inset 0 0 10px rgba(0, 0, 0, 0.9),
+    0 0 0 4px rgba(255, 255, 255, 0.008),
+    0 0 0 10px rgba(255, 255, 255, 0.012),
+    0 0 0 16px rgba(255, 255, 255, 0.008),
+    0 0 0 22px rgba(255, 255, 255, 0.012),
+    0 0 0 28px rgba(255, 255, 255, 0.008),
+    0 0 0 34px rgba(255, 255, 255, 0.012),
+    0 0 0 40px rgba(255, 255, 255, 0.008),
+    0 0 0 46px rgba(255, 255, 255, 0.012),
+    0 0 0 52px rgba(255, 255, 255, 0.008),
+    0 0 0 58px rgba(255, 255, 255, 0.012);
+  pointer-events: none;
+}
+
+.audio-preview-card.playing .vinyl-record {
+  animation-play-state: running;
+}
+
+/* Record Center Label */
+.vinyl-label {
+  width: 50px;
+  height: 50px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, var(--cyan) 0%, var(--purple) 50%, #ff007f 100%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.4), inset 0 0 0 3px rgba(0, 0, 0, 0.2);
+  z-index: 2;
+  transition: transform 0.1s ease-out;
 }
 
 .audio-wave-icon {
-  width: 96px;
-  height: 96px;
-  color: var(--cyan);
-  filter: drop-shadow(0 0 20px rgba(var(--cyan-rgb), 0.5));
-  transition: transform 0.3s ease, color 0.3s ease, filter 0.3s ease;
+  width: 24px !important;
+  height: 24px !important;
+  color: #fff !important;
+  filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.4)) !important;
+  z-index: 3;
 }
 
-.audio-preview-card.playing .audio-wave-icon {
-  animation: pulse-green 1.5s infinite alternate;
-  color: var(--purple);
-  filter: drop-shadow(0 0 25px rgba(var(--purple-rgb), 0.7));
+@keyframes spin-vinyl {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
 }
 
 .waveform-animation {
@@ -2527,15 +2621,19 @@ body[class*="theme-"] .card {
   align-items: flex-end;
   gap: 6px;
   height: 60px;
-  margin-top: 12px;
+  margin-top: 18px;
+  margin-bottom: 24px;
+  z-index: 1;
+  -webkit-box-reflect: below 2px linear-gradient(transparent, rgba(0, 0, 0, 0.15));
 }
 
 .waveform-animation .bar {
-  width: 5px;
+  width: 6px;
   height: 10px;
-  background: linear-gradient(to top, var(--cyan), var(--purple));
-  border-radius: 3px;
-  transition: height 0.2s ease;
+  background: linear-gradient(to top, var(--cyan) 0%, var(--purple) 70%, #ff007f 100%);
+  border-radius: 4px;
+  transition: height 0.08s ease-out;
+  filter: drop-shadow(0 0 4px rgba(0, 243, 255, 0.3));
 }
 
 /* Animate bars when playing */
@@ -3025,7 +3123,7 @@ body[class*="theme-"] .card {
   }
   .audio-visualizer-area {
     padding: 16px 8px;
-    margin-bottom: 12px;
+    margin-bottom: 16px;
   }
   .audio-wave-icon {
     width: 40px;
@@ -3033,6 +3131,7 @@ body[class*="theme-"] .card {
   }
   .waveform-animation {
     height: 30px;
+    margin-bottom: 16px;
   }
   @keyframes bounce-bar {
     0% { height: 6px; }
@@ -3079,13 +3178,20 @@ body[class*="theme-"] .card {
   border-color: var(--border);
 }
 .light-theme .audio-preview-card, .light-theme .video-preview-card {
-  background: transparent;
-  border-color: transparent;
-  box-shadow: none;
+  background: rgba(255, 255, 255, 0.45);
+  border: 1px solid rgba(0, 0, 0, 0.05);
+  box-shadow: 0 15px 35px rgba(0, 0, 0, 0.06);
+}
+.light-theme .audio-preview-card.playing, .light-theme .video-preview-card.playing {
+  border-color: rgba(var(--cyan-rgb), 0.3);
+  box-shadow: 0 15px 35px rgba(0, 0, 0, 0.06), 0 0 20px rgba(var(--cyan-rgb), 0.25), 0 0 50px rgba(var(--cyan-rgb), 0.15);
 }
 .light-theme .audio-visualizer-area {
-  background: transparent;
-  border: none;
+  background: rgba(255, 255, 255, 0.6);
+  border: 1px solid rgba(0, 0, 0, 0.02);
+}
+.light-theme .visualizer-glow-backdrop {
+  background: radial-gradient(circle, rgba(0, 243, 255, 0.08) 0%, rgba(139, 92, 246, 0.04) 50%, rgba(0, 0, 0, 0) 70%);
 }
 .light-theme .audio-btn {
   background: rgba(0, 0, 0, 0.02);
@@ -4517,3 +4623,150 @@ details[open] .error-summary::before {
     padding: 6px 8px;
   }
 }
+
+/* History Tabs */
+.history-tabs {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 16px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+  padding-bottom: 8px;
+}
+
+.history-tab-btn {
+  background: transparent;
+  border: none;
+  color: var(--text-faint, #64748b);
+  padding: 6px 12px;
+  font-size: 0.82rem;
+  font-weight: 500;
+  cursor: pointer;
+  border-radius: 6px;
+  transition: all 0.2s ease;
+  user-select: none;
+}
+
+.history-tab-btn:hover {
+  color: #fff;
+  background: rgba(255, 255, 255, 0.04);
+}
+
+.history-tab-btn.active {
+  color: var(--cyan, #00f2fe);
+  background: rgba(0, 242, 254, 0.08);
+}
+
+/* History Item Actions */
+.history-item-actions {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+  margin-left: 12px;
+  flex-shrink: 0;
+}
+
+.history-action-btn {
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  color: var(--text-dim, #a0aec0);
+  padding: 5px 8px;
+  border-radius: 4px;
+  font-size: 0.72rem;
+  font-weight: 500;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  transition: all 0.2s ease;
+}
+
+.history-action-btn:hover:not(:disabled) {
+  background: rgba(255, 255, 255, 0.08);
+  border-color: rgba(255, 255, 255, 0.15);
+  color: #fff;
+}
+
+.history-action-btn.btn-dl {
+  background: rgba(0, 242, 254, 0.06);
+  border-color: rgba(0, 242, 254, 0.15);
+  color: var(--cyan, #00f2fe);
+}
+
+.history-action-btn.btn-dl:hover:not(:disabled) {
+  background: rgba(0, 242, 254, 0.15);
+  border-color: rgba(0, 242, 254, 0.25);
+  color: #fff;
+}
+
+.history-action-btn.btn-re {
+  background: rgba(168, 85, 247, 0.06);
+  border-color: rgba(168, 85, 247, 0.15);
+  color: #a855f7;
+}
+
+.history-action-btn.btn-re:hover:not(:disabled) {
+  background: rgba(168, 85, 247, 0.15);
+  border-color: rgba(168, 85, 247, 0.25);
+  color: #fff;
+}
+
+.history-action-btn:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+}
+
+.history-item-status-tag {
+  font-size: 0.65rem;
+  padding: 1px 4px;
+  border-radius: 3px;
+  font-weight: 600;
+  text-transform: uppercase;
+  line-height: 1;
+}
+
+.history-item-status-tag.status-complete {
+  background: rgba(46, 204, 113, 0.1);
+  color: #2ecc71;
+  border: 1px solid rgba(46, 204, 113, 0.2);
+}
+
+.history-item-status-tag.status-error {
+  background: rgba(231, 76, 60, 0.1);
+  color: #e74c3c;
+  border: 1px solid rgba(231, 76, 60, 0.2);
+}
+
+.history-item-status-tag.status-cancelled {
+  background: rgba(149, 165, 166, 0.1);
+  color: #95a5a6;
+  border: 1px solid rgba(149, 165, 166, 0.2);
+}
+
+/* Light Theme overrides for new elements */
+.light-theme .history-tab-btn {
+  color: #64748b;
+}
+.light-theme .history-tab-btn:hover {
+  color: #000;
+  background: rgba(0, 0, 0, 0.03);
+}
+.light-theme .history-tab-btn.active {
+  color: var(--cyan);
+  background: rgba(var(--cyan-rgb), 0.06);
+}
+.light-theme .history-action-btn {
+  background: rgba(0, 0, 0, 0.02);
+  border: 1px solid rgba(0, 0, 0, 0.06);
+  color: #4a5568;
+}
+.light-theme .history-action-btn:hover:not(:disabled) {
+  background: rgba(0, 0, 0, 0.05);
+  border-color: rgba(0, 0, 0, 0.12);
+  color: #000;
+}
+
+/* Real audio visualizer override */
+.waveform-animation.real-visualizer .bar {
+  animation: none !important;
+}
+

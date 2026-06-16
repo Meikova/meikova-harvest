@@ -15,6 +15,8 @@ window.canvasSettings = {
 };
 
 document.addEventListener("DOMContentLoaded", () => {
+    let autoFillSettingsAfterAnalysis = null;
+
     // Theme Toggle Logic
     const themeToggle = document.getElementById("theme-toggle");
     const currentTheme = localStorage.getItem("theme");
@@ -477,6 +479,34 @@ document.addEventListener("DOMContentLoaded", () => {
         });
     }
 
+    // Voiceover speed & pitch sliders
+    const voiceoverRateSlider = document.getElementById("voiceover-rate-slider");
+    const voiceoverRateVal = document.getElementById("voiceover-rate-val");
+    const voiceoverPitchSlider = document.getElementById("voiceover-pitch-slider");
+    const voiceoverPitchVal = document.getElementById("voiceover-pitch-val");
+
+    if (voiceoverRateSlider && voiceoverRateVal) {
+        voiceoverRateSlider.addEventListener("input", () => {
+            const val = parseInt(voiceoverRateSlider.value);
+            if (val === 0) {
+                voiceoverRateVal.innerText = "Normal";
+            } else {
+                voiceoverRateVal.innerText = (val > 0 ? "+" : "") + val + "%";
+            }
+        });
+    }
+
+    if (voiceoverPitchSlider && voiceoverPitchVal) {
+        voiceoverPitchSlider.addEventListener("input", () => {
+            const val = parseInt(voiceoverPitchSlider.value);
+            if (val === 0) {
+                voiceoverPitchVal.innerText = "Normal";
+            } else {
+                voiceoverPitchVal.innerText = (val > 0 ? "+" : "") + val + "%";
+            }
+        });
+    }
+
     // Cloud sync select change
     const cloudSyncSelect = document.getElementById("cloud-sync-select");
     const telegramConfigInputs = document.getElementById("telegram-config-inputs");
@@ -637,6 +667,7 @@ document.addEventListener("DOMContentLoaded", () => {
     // Custom audio player elements
     const audioCard = document.querySelector(".audio-preview-card");
     const audioPlayPauseBtn = document.getElementById("audio-play-pause-btn");
+    const audioLoopBtn = document.getElementById("audio-loop-btn");
     const audioSeekSlider = document.getElementById("audio-seek-slider");
     const audioTimeCurrent = document.getElementById("audio-time-current");
     const audioTimeTotal = document.getElementById("audio-time-total");
@@ -647,6 +678,7 @@ document.addEventListener("DOMContentLoaded", () => {
     // Custom video player elements
     const videoCard = document.querySelector(".video-preview-card");
     const videoPlayPauseBtn = document.getElementById("video-play-pause-btn");
+    const videoLoopBtn = document.getElementById("video-loop-btn");
     const videoSeekSlider = document.getElementById("video-seek-slider");
     const videoTimeCurrent = document.getElementById("video-time-current");
     const videoTimeTotal = document.getElementById("video-time-total");
@@ -931,6 +963,14 @@ document.addEventListener("DOMContentLoaded", () => {
         if (previewVideoPlayer) {
             previewVideoPlayer.pause();
             previewVideoPlayer.onerror = null;
+            previewVideoPlayer.loop = false;
+            if (videoLoopBtn) {
+                videoLoopBtn.classList.remove("active-loop");
+                videoLoopBtn.title = "Repeat (Off)";
+                videoLoopBtn.style.color = "";
+                videoLoopBtn.style.borderColor = "";
+                videoLoopBtn.style.boxShadow = "";
+            }
             if (previewVideoPlayer.hlsInstance) {
                 previewVideoPlayer.hlsInstance.destroy();
                 delete previewVideoPlayer.hlsInstance;
@@ -943,6 +983,14 @@ document.addEventListener("DOMContentLoaded", () => {
         if (previewAudioPlayer) {
             previewAudioPlayer.pause();
             previewAudioPlayer.onerror = null;
+            previewAudioPlayer.loop = false;
+            if (audioLoopBtn) {
+                audioLoopBtn.classList.remove("active-loop");
+                audioLoopBtn.title = "Repeat (Off)";
+                audioLoopBtn.style.color = "";
+                audioLoopBtn.style.borderColor = "";
+                audioLoopBtn.style.boxShadow = "";
+            }
             previewAudioPlayer.removeAttribute("src");
             try {
                 previewAudioPlayer.load();
@@ -1001,10 +1049,195 @@ document.addEventListener("DOMContentLoaded", () => {
         slider.style.background = `linear-gradient(to right, var(--cyan) 0%, var(--cyan) ${pct}%, var(--slider-track) ${pct}%, var(--slider-track) 100%)`;
     }
 
+    // --- AUDIO VISUALIZER LOGIC (WEB AUDIO API) ---
+    let audioCtx = null;
+    let analyser = null;
+    let sourceNode = null;
+    let visualizerAnimationId = null;
+
+    function initAudioVisualizer() {
+        if (audioCtx) return;
+        try {
+            const AudioContextClass = window.AudioContext || window.webkitAudioContext;
+            if (!AudioContextClass) return;
+
+            audioCtx = new AudioContextClass();
+            analyser = audioCtx.createAnalyser();
+            analyser.fftSize = 64; // Gives 32 frequency bins, perfect for our 20 bars
+
+            // Make sure the audio player supports CORS requests so the Web Audio node doesn't get blocked
+            previewAudioPlayer.crossOrigin = "anonymous";
+
+            sourceNode = audioCtx.createMediaElementSource(previewAudioPlayer);
+            sourceNode.connect(analyser);
+            analyser.connect(audioCtx.destination);
+
+            // Add the class to disable simulated CSS animations
+            const waveformContainer = document.querySelector(".waveform-animation");
+            if (waveformContainer) {
+                waveformContainer.classList.add("real-visualizer");
+            }
+        } catch (err) {
+            console.warn("Failed to initialize Web Audio visualizer, falling back to CSS animation:", err);
+        }
+    }
+
+    function renderAudioVisualizer() {
+        if (!analyser) return;
+
+        const bars = document.querySelectorAll(".waveform-animation .bar");
+        if (bars.length === 0) return;
+
+        const bufferLength = analyser.frequencyBinCount;
+        const dataArray = new Uint8Array(bufferLength);
+
+        const draw = () => {
+            if (!previewAudioPlayer || previewAudioPlayer.paused) {
+                // Smoothly decay bars and backdrop back to rest height/state
+                let stillDecaying = false;
+                bars.forEach(bar => {
+                    const currentHeight = parseFloat(bar.style.height) || 10;
+                    if (currentHeight > 10) {
+                        bar.style.height = `${Math.max(10, currentHeight * 0.85 - 0.5)}px`;
+                        stillDecaying = true;
+                    } else {
+                        bar.style.height = "10px";
+                    }
+                });
+
+                const backdrop = document.querySelector(".visualizer-glow-backdrop");
+                if (backdrop) {
+                    const currentTransform = backdrop.style.transform || "";
+                    const scaleMatch = currentTransform.match(/scale\(([^)]+)\)/);
+                    let currentScale = scaleMatch ? parseFloat(scaleMatch[1]) : 1.0;
+                    let currentOpacity = parseFloat(backdrop.style.opacity) || 0.15;
+                    
+                    if (currentScale > 1.0) {
+                        currentScale = Math.max(1.0, currentScale * 0.92 - 0.01);
+                        backdrop.style.transform = `translate(-50%, -50%) scale(${currentScale})`;
+                        stillDecaying = true;
+                    }
+                    if (currentOpacity > 0.15) {
+                        currentOpacity = Math.max(0.15, currentOpacity * 0.9);
+                        backdrop.style.opacity = currentOpacity;
+                        stillDecaying = true;
+                    }
+                }
+
+                const vinylLabel = document.querySelector(".vinyl-label");
+                if (vinylLabel) {
+                    const currentTransform = vinylLabel.style.transform || "";
+                    const scaleMatch = currentTransform.match(/scale\(([^)]+)\)/);
+                    let currentScale = scaleMatch ? parseFloat(scaleMatch[1]) : 1.0;
+                    if (currentScale > 1.0) {
+                        currentScale = Math.max(1.0, currentScale * 0.9);
+                        vinylLabel.style.transform = `scale(${currentScale})`;
+                        stillDecaying = true;
+                    }
+                }
+
+                // Decay the card frame and vinyl record shadows back to their rest CSS states
+                if (audioCard) {
+                    audioCard.style.boxShadow = "";
+                    audioCard.style.borderColor = "";
+                }
+                const vinylRecord = document.querySelector(".vinyl-record");
+                if (vinylRecord) {
+                    vinylRecord.style.boxShadow = "";
+                }
+
+                if (stillDecaying) {
+                    visualizerAnimationId = requestAnimationFrame(draw);
+                } else {
+                    visualizerAnimationId = null;
+                }
+                return;
+            }
+
+            visualizerAnimationId = requestAnimationFrame(draw);
+            analyser.getByteFrequencyData(dataArray);
+
+            let sum = 0;
+            const barCount = bars.length;
+            for (let i = 0; i < barCount; i++) {
+                // Focus on lower-mid frequencies (mostly 0% to 75% of the spectrum)
+                const percentIdx = i / barCount;
+                const dataIdx = Math.floor(percentIdx * bufferLength * 0.75);
+                const value = dataArray[dataIdx] || 0;
+                sum += value;
+
+                // Map value (0-255) to height (10px - 55px)
+                const height = 10 + (value / 255) * 45;
+                bars[i].style.height = `${height}px`;
+            }
+
+            // Pulse the background glow backdrop and vinyl record center label in sync with average audio energy
+            const average = sum / barCount;
+            const backdrop = document.querySelector(".visualizer-glow-backdrop");
+            if (backdrop) {
+                const scale = 1.0 + (average / 255) * 0.35;
+                const opacity = 0.15 + (average / 255) * 0.65;
+                backdrop.style.transform = `translate(-50%, -50%) scale(${scale})`;
+                backdrop.style.opacity = opacity;
+            }
+            
+            const vinylLabel = document.querySelector(".vinyl-label");
+            if (vinylLabel) {
+                const labelScale = 1.0 + (average / 255) * 0.18;
+                vinylLabel.style.transform = `scale(${labelScale})`;
+            }
+
+            // Dynamically pulse the card frame shadow/border and vinyl record outer glow
+            if (audioCard) {
+                const innerBlur = 10 + (average / 255) * 25; // 10px to 35px blur
+                const outerBlur = 40 + (average / 255) * 60; // 40px to 100px blur
+                
+                const innerOpacity = 0.2 + (average / 255) * 0.6; // 0.2 to 0.8 opacity
+                const outerOpacity = 0.1 + (average / 255) * 0.4; // 0.1 to 0.5 opacity
+                const borderOpacity = 0.1 + (average / 255) * 0.5; // 0.1 to 0.6 opacity
+                
+                audioCard.style.boxShadow = `
+                    0 20px 40px rgba(0, 0, 0, 0.4), 
+                    0 0 ${innerBlur}px rgba(var(--cyan-rgb), ${innerOpacity}), 
+                    0 0 ${outerBlur}px rgba(var(--cyan-rgb), ${outerOpacity})
+                `;
+                audioCard.style.borderColor = `rgba(var(--cyan-rgb), ${borderOpacity})`;
+            }
+
+            const vinylRecord = document.querySelector(".vinyl-record");
+            if (vinylRecord) {
+                const innerBlur = 8 + (average / 255) * 20; // 8px to 28px blur
+                const outerBlur = 30 + (average / 255) * 50; // 30px to 80px blur
+                
+                const innerOpacity = 0.3 + (average / 255) * 0.5; // 0.3 to 0.8 opacity
+                const outerOpacity = 0.15 + (average / 255) * 0.45; // 0.15 to 0.6 opacity
+                
+                vinylRecord.style.boxShadow = `
+                    0 10px 30px rgba(0, 0, 0, 0.7), 
+                    0 0 ${innerBlur}px rgba(var(--cyan-rgb), ${innerOpacity}), 
+                    0 0 ${outerBlur}px rgba(var(--cyan-rgb), ${outerOpacity}), 
+                    inset 0 0 1px rgba(255, 255, 255, 0.15)
+                `;
+            }
+        };
+
+        if (!visualizerAnimationId) {
+            draw();
+        }
+    }
+
     // --- CUSTOM AUDIO PLAYER HANDLERS ---
     if (previewAudioPlayer) {
         previewAudioPlayer.addEventListener("play", () => {
             if (audioCard) audioCard.classList.add("playing");
+            
+            // Initialize visualizer on play (requires user gesture)
+            initAudioVisualizer();
+            if (audioCtx && audioCtx.state === "suspended") {
+                audioCtx.resume();
+            }
+            renderAudioVisualizer();
+
             if (audioPlayPauseBtn) {
                 const playIcon = audioPlayPauseBtn.querySelector(".play-icon");
                 const pauseIcon = audioPlayPauseBtn.querySelector(".pause-icon");
@@ -1015,6 +1248,8 @@ document.addEventListener("DOMContentLoaded", () => {
 
         previewAudioPlayer.addEventListener("pause", () => {
             if (audioCard) audioCard.classList.remove("playing");
+            renderAudioVisualizer(); // Trigger smooth decay
+            
             if (audioPlayPauseBtn) {
                 const playIcon = audioPlayPauseBtn.querySelector(".play-icon");
                 const pauseIcon = audioPlayPauseBtn.querySelector(".pause-icon");
@@ -1063,6 +1298,25 @@ document.addEventListener("DOMContentLoaded", () => {
                 previewAudioPlayer.play().catch(e => console.log("Play failed: ", e));
             } else {
                 previewAudioPlayer.pause();
+            }
+        });
+    }
+
+    if (audioLoopBtn && previewAudioPlayer) {
+        audioLoopBtn.addEventListener("click", () => {
+            previewAudioPlayer.loop = !previewAudioPlayer.loop;
+            if (previewAudioPlayer.loop) {
+                audioLoopBtn.classList.add("active-loop");
+                audioLoopBtn.title = "Repeat (On)";
+                audioLoopBtn.style.color = "var(--cyan)";
+                audioLoopBtn.style.borderColor = "rgba(var(--cyan-rgb), 0.4)";
+                audioLoopBtn.style.boxShadow = "0 0 10px rgba(var(--cyan-rgb), 0.3)";
+            } else {
+                audioLoopBtn.classList.remove("active-loop");
+                audioLoopBtn.title = "Repeat (Off)";
+                audioLoopBtn.style.color = "";
+                audioLoopBtn.style.borderColor = "";
+                audioLoopBtn.style.boxShadow = "";
             }
         });
     }
@@ -1225,6 +1479,26 @@ document.addEventListener("DOMContentLoaded", () => {
         });
     }
 
+    if (videoLoopBtn && previewVideoPlayer) {
+        videoLoopBtn.addEventListener("click", (e) => {
+            e.stopPropagation();
+            previewVideoPlayer.loop = !previewVideoPlayer.loop;
+            if (previewVideoPlayer.loop) {
+                videoLoopBtn.classList.add("active-loop");
+                videoLoopBtn.title = "Repeat (On)";
+                videoLoopBtn.style.color = "var(--cyan)";
+                videoLoopBtn.style.borderColor = "rgba(var(--cyan-rgb), 0.4)";
+                videoLoopBtn.style.boxShadow = "0 0 10px rgba(var(--cyan-rgb), 0.3)";
+            } else {
+                videoLoopBtn.classList.remove("active-loop");
+                videoLoopBtn.title = "Repeat (Off)";
+                videoLoopBtn.style.color = "";
+                videoLoopBtn.style.borderColor = "";
+                videoLoopBtn.style.boxShadow = "";
+            }
+        });
+    }
+
     // Clicking on video itself toggles play/pause
     if (previewVideoPlayer) {
         previewVideoPlayer.addEventListener("click", () => {
@@ -1309,9 +1583,16 @@ document.addEventListener("DOMContentLoaded", () => {
     // --- QUALITY/FORMAT DROP DOWN SELECT CHANGE HANDLERS ---
     if (audioFormatSelect) {
         audioFormatSelect.addEventListener("change", function() {
-            const formatId = this.value;
+            const val = this.value;
+            const parts = val.split("|");
+            const formatId = parts[0];
+            const quality = parts[1] || "";
+            
             if (activeMetadata && activeMetadata.audio_options) {
-                const opt = activeMetadata.audio_options.find(o => o.format_id === formatId);
+                const opt = activeMetadata.audio_options.find(o => 
+                    o.format_id === formatId && 
+                    ((!quality && !o.quality) || (String(o.quality) === String(quality)))
+                );
                 if (opt) {
                     triggerPreview(null, opt.format_id, opt.ext, opt.label, opt.quality, opt.url, "", "", "audio");
                 }
@@ -1919,8 +2200,10 @@ document.addEventListener("DOMContentLoaded", () => {
                 const colorFilterSelect = document.getElementById("color-filter-select");
                 const voiceoverCheckbox = document.getElementById("voiceover-checkbox");
                 const voiceoverVoiceSelect = document.getElementById("voiceover-voice-select");
+                const voiceoverRateSlider = document.getElementById("voiceover-rate-slider");
+                const voiceoverPitchSlider = document.getElementById("voiceover-pitch-slider");
                 const cloudSyncSelect = document.getElementById("cloud-sync-select");
-
+ 
                 savedSettings = {
                     trim_active: trimCheckbox ? trimCheckbox.checked : false,
                     trim_start: trimStart ? trimStart.value : "00:00:00",
@@ -1930,6 +2213,8 @@ document.addEventListener("DOMContentLoaded", () => {
                     color_filter: colorFilterSelect ? colorFilterSelect.value : "none",
                     voiceover_active: voiceoverCheckbox ? voiceoverCheckbox.checked : false,
                     voiceover_voice: voiceoverVoiceSelect ? voiceoverVoiceSelect.value : "vi-VN-HoaiMyNeural",
+                    voiceover_rate: voiceoverRateSlider ? voiceoverRateSlider.value : "0",
+                    voiceover_pitch: voiceoverPitchSlider ? voiceoverPitchSlider.value : "0",
                     cloud_sync: cloudSyncSelect ? cloudSyncSelect.value : "local"
                 };
             }
@@ -2510,8 +2795,26 @@ document.addEventListener("DOMContentLoaded", () => {
 
         // Render Video options if present
         if (data.video_options && data.video_options.length > 0) {
-            const videos = data.video_options.filter(opt => opt.ext !== "jpg");
-            const photos = data.video_options.filter(opt => opt.ext === "jpg");
+            const imageExts = ["jpg", "jpeg", "png", "webp", "gif", "bmp"];
+            const htmlExts = ["html", "htm"];
+            
+            const videos = data.video_options.filter(opt => {
+                if (opt.type) return opt.type === "video";
+                const ext = (opt.ext || "").toLowerCase();
+                return !imageExts.includes(ext) && !htmlExts.includes(ext);
+            });
+            
+            const photos = data.video_options.filter(opt => {
+                if (opt.type) return opt.type === "image";
+                const ext = (opt.ext || "").toLowerCase();
+                return imageExts.includes(ext);
+            });
+            
+            const webpages = data.video_options.filter(opt => {
+                if (opt.type) return opt.type === "webpage";
+                const ext = (opt.ext || "").toLowerCase();
+                return htmlExts.includes(ext);
+            });
 
             if (videos.length > 0) {
                 // Group videos by server
@@ -2656,6 +2959,40 @@ document.addEventListener("DOMContentLoaded", () => {
                 const titleHtml = `
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
                     <span>Photo Options</span>
+                `;
+                const groupEl = createFormatGroup(titleHtml, rowEls);
+                if (groupEl) optionsContainer.appendChild(groupEl);
+            }
+
+            if (webpages.length > 0) {
+                const rowEls = [];
+                webpages.forEach(option => {
+                    const row = document.createElement("div");
+                    row.className = "format-row webpage-row";
+
+                    const sizeBadge = option.size ? `<span class="format-size">${option.size}</span>` : '';
+                    row.innerHTML = `
+                        <div class="format-left">
+                            <svg class="format-icon" viewBox="0 0 24 24" fill="none" stroke="var(--warning)" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="color: var(--warning); width: 18px; height: 18px; margin-right: 8px;"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+                            <span class="format-name">${option.label}</span>
+                            ${sizeBadge}
+                        </div>
+                        <div class="format-actions">
+                            <button class="btn-preview" data-id="${option.format_id}" data-ext="${option.ext}" data-label="${option.label}" data-quality="${option.quality || ''}" data-url="${option.url || ''}">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+                                <span>Preview</span>
+                            </button>
+                            <button class="btn-get" data-id="${option.format_id}" data-ext="${option.ext}" data-label="${option.label}" data-quality="${option.quality || ''}" data-url="${option.url || ''}">
+                                ${downloadSvg}
+                                <span>Get</span>
+                            </button>
+                        </div>
+                    `;
+                    rowEls.push(row);
+                });
+                const titleHtml = `
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+                    <span>Webpage Options</span>
                 `;
                 const groupEl = createFormatGroup(titleHtml, rowEls);
                 if (groupEl) optionsContainer.appendChild(groupEl);
@@ -2821,6 +3158,79 @@ document.addEventListener("DOMContentLoaded", () => {
             });
         });
 
+        // Auto fill and trigger download if we are in a Re-download flow
+        if (typeof autoFillSettingsAfterAnalysis !== "undefined" && autoFillSettingsAfterAnalysis) {
+            try {
+                const fill = autoFillSettingsAfterAnalysis;
+                autoFillSettingsAfterAnalysis = null; // Clear immediately to prevent loop
+                
+                // Trim settings
+                const trimCheckbox = document.getElementById("trim-checkbox");
+                if (trimCheckbox) {
+                    trimCheckbox.checked = !!(fill.trim_start || fill.trim_end);
+                    trimCheckbox.dispatchEvent(new Event("change"));
+                }
+                const trimStart = document.getElementById("trim-start");
+                if (trimStart && fill.trim_start) {
+                    trimStart.value = fill.trim_start;
+                    trimStart.dispatchEvent(new Event("input"));
+                }
+                const trimEnd = document.getElementById("trim-end");
+                if (trimEnd && fill.trim_end) {
+                    trimEnd.value = fill.trim_end;
+                    trimEnd.dispatchEvent(new Event("input"));
+                }
+
+                // AI Voiceover settings
+                const voiceoverCb = document.getElementById("voiceover-checkbox");
+                if (voiceoverCb) {
+                    voiceoverCb.checked = !!fill.voiceover_active;
+                    voiceoverCb.dispatchEvent(new Event("change"));
+                }
+                const voiceoverVoice = document.getElementById("voiceover-voice-select");
+                if (voiceoverVoice && fill.voiceover_voice) {
+                    voiceoverVoice.value = fill.voiceover_voice;
+                    voiceoverVoice.dispatchEvent(new Event("change"));
+                }
+                const voiceoverRate = document.getElementById("voiceover-rate-slider");
+                if (voiceoverRate && fill.voiceover_rate) {
+                    const rateVal = parseInt(fill.voiceover_rate) || 0;
+                    voiceoverRate.value = rateVal.toString();
+                    voiceoverRate.dispatchEvent(new Event("input"));
+                }
+                const voiceoverPitch = document.getElementById("voiceover-pitch-slider");
+                if (voiceoverPitch && fill.voiceover_pitch) {
+                    const pitchVal = parseInt(fill.voiceover_pitch) || 0;
+                    voiceoverPitch.value = pitchVal.toString();
+                    voiceoverPitch.dispatchEvent(new Event("input"));
+                }
+
+                // Cloud settings
+                const cloudSelect = document.getElementById("cloud-sync-select");
+                if (cloudSelect && fill.cloud_destination) {
+                    cloudSelect.value = fill.cloud_destination;
+                    cloudSelect.dispatchEvent(new Event("change"));
+                }
+
+                // Find and trigger the download button click
+                const targetBtn = Array.from(downloadButtons).find(b => 
+                    b.getAttribute("data-id") === fill.format_id && 
+                    b.getAttribute("data-ext") === fill.ext
+                );
+                
+                if (targetBtn) {
+                    console.log(`Auto triggering Re-download for format_id=${fill.format_id}`);
+                    setTimeout(() => {
+                        targetBtn.click();
+                    }, 500); // 500ms delay for UI transitions
+                } else {
+                    console.warn(`Re-download target button not found for format_id=${fill.format_id}, ext=${fill.ext}`);
+                }
+            } catch (fillErr) {
+                console.error("Error during auto-filling re-download settings:", fillErr);
+            }
+        }
+
         // Setup Advanced Options panel state for the new media
         const trimCheckbox = document.getElementById("trim-checkbox");
         const trimInputsContainer = document.getElementById("trim-inputs-container");
@@ -2855,11 +3265,19 @@ document.addEventListener("DOMContentLoaded", () => {
 
             // Visual trimmer logic: setup noUiSlider
             const durationSeconds = parseFloat(data.duration_raw) || 0;
-            const hasVideo = data.video_options && data.video_options.some(opt => opt.ext !== "jpg");
+            const hasVideo = data.video_options && data.video_options.some(opt => {
+                if (opt.type) return opt.type === "video";
+                const ext = (opt.ext || "").toLowerCase();
+                return !["jpg", "jpeg", "png", "webp", "gif", "html", "htm"].includes(ext);
+            });
 
             if (durationSeconds > 0 && hasVideo && trimRangeSlider) {
                 // Determine a valid video format URL to load in background preview
-                const previewVideoOption = data.video_options.find(opt => opt.ext !== "jpg" && opt.url);
+                const previewVideoOption = data.video_options.find(opt => {
+                    if (opt.type) return opt.type === "video" && opt.url;
+                    const ext = (opt.ext || "").toLowerCase();
+                    return !["jpg", "jpeg", "png", "webp", "gif", "html", "htm"].includes(ext) && opt.url;
+                });
                 const previewVideoUrl = previewVideoOption ? previewVideoOption.url : null;
 
                 if (previewVideoUrl && trimPreviewPlayer) {
@@ -3062,6 +3480,7 @@ document.addEventListener("DOMContentLoaded", () => {
                 ext: ext,
                 quality: quality,
                 title: videoTitle.textContent,
+                thumbnail: videoThumbnail.getAttribute("data-original-url") || videoThumbnail.src,
                 episode: episode,
                 server: server,
                 client_id: clientId
@@ -3094,10 +3513,20 @@ document.addEventListener("DOMContentLoaded", () => {
             // AI Voiceover settings
             const voiceoverCb = document.getElementById("voiceover-checkbox");
             const voiceoverVoiceSelect = document.getElementById("voiceover-voice-select");
+            const voiceoverRateSlider = document.getElementById("voiceover-rate-slider");
+            const voiceoverPitchSlider = document.getElementById("voiceover-pitch-slider");
             if (voiceoverCb && voiceoverCb.checked) {
                 requestBody.voiceover_active = true;
                 if (voiceoverVoiceSelect) {
                     requestBody.voiceover_voice = voiceoverVoiceSelect.value;
+                }
+                if (voiceoverRateSlider) {
+                    const rateVal = parseInt(voiceoverRateSlider.value);
+                    requestBody.voiceover_rate = (rateVal >= 0 ? "+" : "") + rateVal + "%";
+                }
+                if (voiceoverPitchSlider) {
+                    const pitchVal = parseInt(voiceoverPitchSlider.value);
+                    requestBody.voiceover_pitch = (pitchVal >= 0 ? "+" : "") + pitchVal + "%";
                 }
             }
 
@@ -3372,9 +3801,13 @@ document.addEventListener("DOMContentLoaded", () => {
                     audioFormatSelect.style.display = "";
                     audioOpts.forEach(opt => {
                         const optionEl = document.createElement("option");
-                        optionEl.value = opt.format_id;
+                        const val = `${opt.format_id}|${opt.quality || ''}`;
+                        optionEl.value = val;
                         optionEl.textContent = `${opt.label} ${opt.size ? `(${opt.size})` : ""}`;
-                        if (opt.format_id === formatId) {
+                        
+                        const matchFormat = opt.format_id === formatId;
+                        const matchQuality = (!quality && !opt.quality) || (String(quality) === String(opt.quality));
+                        if (matchFormat && matchQuality) {
                             optionEl.selected = true;
                         }
                         audioFormatSelect.appendChild(optionEl);
@@ -3681,8 +4114,10 @@ document.addEventListener("DOMContentLoaded", () => {
             const colorFilterSelect = document.getElementById("color-filter-select");
             const voiceoverCheckbox = document.getElementById("voiceover-checkbox");
             const voiceoverVoiceSelect = document.getElementById("voiceover-voice-select");
+            const voiceoverRateSlider = document.getElementById("voiceover-rate-slider");
+            const voiceoverPitchSlider = document.getElementById("voiceover-pitch-slider");
             const cloudSyncSelect = document.getElementById("cloud-sync-select");
-
+ 
             const settings = {
                 trim_active: trimCheckbox ? trimCheckbox.checked : false,
                 trim_start: trimStart ? trimStart.value : "00:00:00",
@@ -3692,6 +4127,8 @@ document.addEventListener("DOMContentLoaded", () => {
                 color_filter: colorFilterSelect ? colorFilterSelect.value : "none",
                 voiceover_active: voiceoverCheckbox ? voiceoverCheckbox.checked : false,
                 voiceover_voice: voiceoverVoiceSelect ? voiceoverVoiceSelect.value : "vi-VN-HoaiMyNeural",
+                voiceover_rate: voiceoverRateSlider ? voiceoverRateSlider.value : "0",
+                voiceover_pitch: voiceoverPitchSlider ? voiceoverPitchSlider.value : "0",
                 cloud_sync: cloudSyncSelect ? cloudSyncSelect.value : "local"
             };
 
@@ -3744,6 +4181,16 @@ document.addEventListener("DOMContentLoaded", () => {
                 voiceoverCheckbox.dispatchEvent(new Event("change"));
             }
             if (voiceoverVoiceSelect) voiceoverVoiceSelect.value = s.voiceover_voice || "vi-VN-HoaiMyNeural";
+            const voiceoverRateSlider = document.getElementById("voiceover-rate-slider");
+            const voiceoverPitchSlider = document.getElementById("voiceover-pitch-slider");
+            if (voiceoverRateSlider) {
+                voiceoverRateSlider.value = s.voiceover_rate || "0";
+                voiceoverRateSlider.dispatchEvent(new Event("input"));
+            }
+            if (voiceoverPitchSlider) {
+                voiceoverPitchSlider.value = s.voiceover_pitch || "0";
+                voiceoverPitchSlider.dispatchEvent(new Event("input"));
+            }
             if (cloudSyncSelect) {
                 cloudSyncSelect.value = s.cloud_sync || "local";
                 cloudSyncSelect.dispatchEvent(new Event("change"));
@@ -3787,6 +4234,16 @@ document.addEventListener("DOMContentLoaded", () => {
                 voiceoverCheckbox.dispatchEvent(new Event("change"));
             }
             if (voiceoverVoiceSelect) voiceoverVoiceSelect.value = "vi-VN-HoaiMyNeural";
+            const voiceoverRateSlider = document.getElementById("voiceover-rate-slider");
+            const voiceoverPitchSlider = document.getElementById("voiceover-pitch-slider");
+            if (voiceoverRateSlider) {
+                voiceoverRateSlider.value = "0";
+                voiceoverRateSlider.dispatchEvent(new Event("input"));
+            }
+            if (voiceoverPitchSlider) {
+                voiceoverPitchSlider.value = "0";
+                voiceoverPitchSlider.dispatchEvent(new Event("input"));
+            }
             if (cloudSyncSelect) {
                 cloudSyncSelect.value = "local";
                 cloudSyncSelect.dispatchEvent(new Event("change"));
@@ -3810,6 +4267,8 @@ document.addEventListener("DOMContentLoaded", () => {
         { id: "color-filter-select", event: "change" },
         { id: "voiceover-checkbox", event: "change" },
         { id: "voiceover-voice-select", event: "change" },
+        { id: "voiceover-rate-slider", event: "input" },
+        { id: "voiceover-pitch-slider", event: "input" },
         { id: "cloud-sync-select", event: "change" }
     ];
 
@@ -3823,6 +4282,240 @@ document.addEventListener("DOMContentLoaded", () => {
             });
         }
     });
+
+    // --- Download History & Re-download Integration ---
+    const tabAnalyzed = document.getElementById("history-tab-analyzed");
+    const tabDownloads = document.getElementById("history-tab-downloads");
+    const contentAnalyzed = document.getElementById("history-analyzed-content");
+    const contentDownloads = document.getElementById("history-downloads-content");
+
+    if (tabAnalyzed && tabDownloads && contentAnalyzed && contentDownloads) {
+        tabAnalyzed.addEventListener("click", () => {
+            tabAnalyzed.classList.add("active");
+            tabDownloads.classList.remove("active");
+            contentAnalyzed.classList.remove("hidden");
+            contentDownloads.classList.add("hidden");
+        });
+        tabDownloads.addEventListener("click", () => {
+            tabDownloads.classList.add("active");
+            tabAnalyzed.classList.remove("active");
+            contentDownloads.classList.remove("hidden");
+            contentAnalyzed.classList.add("hidden");
+            loadDownloadHistory();
+        });
+    }
+
+    async function performDelete(downloadId, deleteFile) {
+        try {
+            const response = await fetch(`/api/download/history/delete/${downloadId}`, {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json"
+                },
+                body: JSON.stringify({ delete_file: deleteFile })
+            });
+            const data = await response.json();
+            if (data.status === "success") {
+                loadDownloadHistory();
+            } else {
+                alert("Failed to delete history item: " + data.message);
+            }
+        } catch (err) {
+            console.error("Error deleting history item:", err);
+            alert("Error deleting history item");
+        }
+    }
+
+    async function loadDownloadHistory() {
+        const downloadsList = document.getElementById("downloads-history-list");
+        if (!downloadsList) return;
+        downloadsList.innerHTML = `<div style="text-align: center; color: var(--text-muted); padding: 20px;">Loading history...</div>`;
+        try {
+            const response = await fetch("/api/download/history");
+            const data = await response.json();
+            if (data.status === "success") {
+                renderDownloadHistory(data.history);
+            } else {
+                downloadsList.innerHTML = `<div style="text-align: center; color: var(--red); padding: 20px;">Failed to load history</div>`;
+            }
+        } catch (e) {
+            console.error("Error loading download history:", e);
+            downloadsList.innerHTML = `<div style="text-align: center; color: var(--red); padding: 20px;">Error loading history</div>`;
+        }
+    }
+
+    function renderDownloadHistory(history) {
+        const downloadsList = document.getElementById("downloads-history-list");
+        if (!downloadsList) return;
+        downloadsList.innerHTML = "";
+        if (history.length === 0) {
+            downloadsList.innerHTML = `<div style="text-align: center; color: var(--text-muted); padding: 20px;">No downloaded files yet</div>`;
+            return;
+        }
+        history.forEach(item => {
+            const row = document.createElement("div");
+            row.className = "history-item";
+            row.style.cursor = "default";
+
+            const thumbUrl = getProxiedImageUrl(item.thumbnail) || "https://images.unsplash.com/photo-1611162617213-7d7a39e9b1d7?q=80&w=120";
+            const platformTag = getPlatformTag(item.url);
+            const timestampStr = item.timestamp ? new Date(item.timestamp * 1000).toLocaleDateString() : "Unknown date";
+            
+            let statusTag = "";
+            if (item.status === "complete") {
+                statusTag = `<span class="history-item-status-tag status-complete">Complete</span>`;
+            } else if (item.status === "error") {
+                statusTag = `<span class="history-item-status-tag status-error" title="${escapeHTML(item.error)}">Failed</span>`;
+            } else if (item.status === "cancelled") {
+                statusTag = `<span class="history-item-status-tag status-cancelled">Cancelled</span>`;
+            } else {
+                statusTag = `<span class="history-item-status-tag status-cancelled">${item.status}</span>`;
+            }
+
+            const title = item.title || "Unknown Title";
+            const fileExists = !!item.file_exists;
+            const extLabel = (item.ext || "mp4").toUpperCase();
+
+            row.innerHTML = `
+                <div class="history-item-left" style="flex: 1; min-width: 0;">
+                    <img class="history-thumb" src="${thumbUrl}" alt="Thumb" style="cursor: pointer;">
+                    <div class="history-details" style="min-width: 0;">
+                        <span class="history-title" style="cursor: pointer;" title="${escapeHTML(title)}">${title}</span>
+                        <div class="history-meta" style="flex-wrap: wrap; gap: 6px 10px;">
+                            <span class="history-platform-tag ${platformTag.class}">${platformTag.label}</span>
+                            <span style="color: var(--cyan); font-weight: 600;">${extLabel}</span>
+                            <span>${timestampStr}</span>
+                            ${statusTag}
+                        </div>
+                    </div>
+                </div>
+                <div class="history-item-actions">
+                    <button class="history-action-btn btn-dl" ${fileExists ? '' : 'disabled'} title="${fileExists ? 'Download file directly from server' : 'File already purged from server'}">
+                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
+                        <span>Download</span>
+                    </button>
+                    <button class="history-action-btn btn-re" title="Re-download / Fill configuration">
+                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.57-8.38l5.67-5.67"></path></svg>
+                        <span>Re-download</span>
+                    </button>
+                    <button class="history-action-btn btn-del" title="Delete from history" style="border-color: rgba(239, 68, 68, 0.2); color: var(--red);">
+                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path><line x1="10" y1="11" x2="10" y2="17"></line><line x1="14" y1="11" x2="14" y2="17"></line></svg>
+                        <span>Delete</span>
+                    </button>
+                </div>
+            `;
+
+            const titleEl = row.querySelector(".history-title");
+            const thumbEl = row.querySelector(".history-thumb");
+            const dlBtn = row.querySelector(".btn-dl");
+            const reBtn = row.querySelector(".btn-re");
+            const delBtn = row.querySelector(".btn-del");
+
+            const startAnalyze = () => {
+                urlInput.value = item.url;
+                performAnalysis();
+            };
+            titleEl.addEventListener("click", startAnalyze);
+            thumbEl.addEventListener("click", startAnalyze);
+
+            if (dlBtn && fileExists) {
+                dlBtn.addEventListener("click", () => {
+                    window.open(`/api/download/file/${item.download_id}`, "_blank");
+                });
+            }
+
+            if (reBtn) {
+                reBtn.addEventListener("click", () => {
+                    urlInput.value = item.url;
+                    autoFillSettingsAfterAnalysis = {
+                        format_id: item.format_id,
+                        ext: item.ext,
+                        quality: item.quality,
+                        trim_start: item.trim_start,
+                        trim_end: item.trim_end,
+                        voiceover_active: item.voiceover_active,
+                        voiceover_voice: item.voiceover_voice,
+                        voiceover_rate: item.voiceover_rate,
+                        voiceover_pitch: item.voiceover_pitch,
+                        cloud_destination: item.cloud_destination
+                    };
+                    performAnalysis();
+                });
+            }
+
+            if (delBtn) {
+                delBtn.addEventListener("click", () => {
+                    showConfirm({
+                        title: "Delete History Item",
+                        message: `Are you sure you want to delete "${title}" from your history?`,
+                        yesText: "Delete",
+                        noText: "Cancel",
+                        onYes: () => {
+                            if (fileExists) {
+                                setTimeout(() => {
+                                    showConfirm({
+                                        title: "Delete Physical File",
+                                        message: "Do you want to delete the downloaded file from your disk as well?",
+                                        yesText: "Yes, delete",
+                                        noText: "No, keep",
+                                        onYes: () => {
+                                            performDelete(item.download_id, true);
+                                        },
+                                        onNo: () => {
+                                            performDelete(item.download_id, false);
+                                        }
+                                    });
+                                }, 350);
+                            } else {
+                                performDelete(item.download_id, false);
+                            }
+                        }
+                    });
+                });
+            }
+
+            downloadsList.appendChild(row);
+        });
+    }
+
+    function getPlatformTag(url) {
+        if (!url) return { class: "tag-web", label: "Web" };
+        const lowerUrl = url.toLowerCase();
+        if (lowerUrl.includes("youtube.com") || lowerUrl.includes("youtu.be")) {
+            return { class: "tag-youtube", label: "YouTube" };
+        } else if (lowerUrl.includes("facebook.com") || lowerUrl.includes("fb.watch") || lowerUrl.includes("fb.com")) {
+            return { class: "tag-facebook", label: "Facebook" };
+        } else if (lowerUrl.includes("tiktok.com")) {
+            return { class: "tag-tiktok", label: "TikTok" };
+        } else if (lowerUrl.includes("instagram.com")) {
+            return { class: "tag-instagram", label: "Instagram" };
+        } else if (lowerUrl.includes("soundcloud.com")) {
+            return { class: "tag-soundcloud", label: "SoundCloud" };
+        } else if (lowerUrl.includes("vimeo.com")) {
+            return { class: "tag-vimeo", label: "Vimeo" };
+        } else {
+            return { class: "tag-web", label: "Web Video" };
+        }
+    }
+
+    const clearDownloadsBtn = document.getElementById("clear-downloads-btn");
+    if (clearDownloadsBtn) {
+        clearDownloadsBtn.addEventListener("click", async () => {
+            if (!confirm("Are you sure you want to clear all download history? This cannot be undone.")) return;
+            try {
+                const response = await fetch("/api/download/history/clear", { method: "POST" });
+                const data = await response.json();
+                if (data.status === "success") {
+                    loadDownloadHistory();
+                } else {
+                    alert("Failed to clear download history: " + data.message);
+                }
+            } catch (e) {
+                console.error("Error clearing downloads history:", e);
+                alert("Error clearing history");
+            }
+        });
+    }
 });
 
 // --- Star Grid Mesh (3D Gravity Well & Elastic Net) Effect ---

@@ -324,7 +324,9 @@ def bg_download_task(download_id, url, format_id, ext, quality="192", title="med
                     voiceover_voice=kwargs.get("voiceover_voice"),
                     subtitles_path=subtitles_path,
                     translate_subs=translate_subs,
-                    progress_callback=progress_cb
+                    progress_callback=progress_cb,
+                    voiceover_rate=kwargs.get("voiceover_rate"),
+                    voiceover_pitch=kwargs.get("voiceover_pitch")
                 )
                 ext = filepath.rsplit(".", 1)[-1].lower()
             except Exception as pp_err:
@@ -556,14 +558,25 @@ def bg_download_task(download_id, url, format_id, ext, quality="192", title="med
         except Exception as e:
             logger.warning(f"Could not set impersonate option in bg_download_task: {e}")
 
+    if ext in ["mp3", "m4a"]:
+        ydl_opts["writethumbnail"] = True
+
     if ext == "mp3":
         ydl_opts.update({
             "format": "bestaudio/best",
-            "postprocessors": [{
-                "key": "FFmpegExtractAudio",
-                "preferredcodec": "mp3",
-                "preferredquality": quality,
-            }],
+            "postprocessors": [
+                {
+                    "key": "FFmpegExtractAudio",
+                    "preferredcodec": "mp3",
+                    "preferredquality": quality,
+                },
+                {
+                    "key": "EmbedThumbnail",
+                },
+                {
+                    "key": "FFmpegMetadata",
+                }
+            ],
             "postprocessor_args": {
                 "extractaudio": ["-compression_level", "9", "-threads", "0"]
             }
@@ -571,6 +584,14 @@ def bg_download_task(download_id, url, format_id, ext, quality="192", title="med
     elif ext == "m4a":
         ydl_opts.update({
             "format": "bestaudio[ext=m4a]/bestaudio",
+            "postprocessors": [
+                {
+                    "key": "EmbedThumbnail",
+                },
+                {
+                    "key": "FFmpegMetadata",
+                }
+            ]
         })
     elif ext == "vtt":
         # We always download the selected subtitle language (format_id) first,
@@ -708,7 +729,9 @@ def bg_download_task(download_id, url, format_id, ext, quality="192", title="med
                 voiceover_voice=kwargs.get("voiceover_voice"),
                 subtitles_path=subtitles_path,
                 translate_subs=translate_subs,
-                progress_callback=progress_cb
+                progress_callback=progress_cb,
+                voiceover_rate=kwargs.get("voiceover_rate"),
+                voiceover_pitch=kwargs.get("voiceover_pitch")
             )
             ext = filepath.rsplit(".", 1)[-1].lower()
         except Exception as pp_err:

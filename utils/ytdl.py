@@ -66,6 +66,9 @@ def create_ydl_instance(ydl_opts, url=None, client_id=None):
         ydl_opts["compat_opts"] = set(ydl_opts["compat_opts"])
     ydl_opts["compat_opts"].add("prefer-legacy-http-handler")
 
+    # Enable parallel segment downloads to speed up DASH/HLS downloads
+    ydl_opts["concurrent_fragment_downloads"] = 5
+
     if should_use_impersonate():
         try:
             ydl_opts["impersonate"] = ImpersonateTarget.from_str("chrome")

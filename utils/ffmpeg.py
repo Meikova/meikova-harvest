@@ -82,13 +82,46 @@ def trim_file_if_needed(filepath, trim_start, trim_end):
     except Exception as path_e:
         logger.warning(f"Failed to add static-ffmpeg paths for trimming: {path_e}")
         
-    cmd = ["ffmpeg", "-y"]
+    # 1. Try FAST stream copy trimming first (runs in milliseconds, lossless)
+    cmd_copy = ["ffmpeg", "-y"]
     if start and not is_zero_time(start):
-        cmd.extend(["-ss", start])
+        cmd_copy.extend(["-ss", start])
     if end and not is_zero_time(end):
-        cmd.extend(["-to", end])
+        cmd_copy.extend(["-to", end])
+    cmd_copy.extend([
+        "-i", filepath,
+        "-c", "copy",
+        "-map", "0:v?", "-map", "0:a?",
+        output_filepath
+    ])
+    
+    logger.info(f"Trying fast stream copy trim: {' '.join(cmd_copy)}")
+    result = subprocess.run(cmd_copy, capture_output=True, text=True, encoding='utf-8', errors='ignore')
+    if result.returncode == 0 and os.path.exists(output_filepath) and os.path.getsize(output_filepath) > 1000:
+        logger.info("Fast stream copy trimming successful. Replacing original file.")
+        try:
+            os.remove(filepath)
+            os.rename(output_filepath, filepath)
+            return filepath
+        except Exception as replace_err:
+            logger.warning(f"Failed to replace trimmed file: {replace_err}")
+            return output_filepath
+
+    # 2. Fallback to accurate transcoding trim if copy fails (or results in corrupted/empty file)
+    logger.warning("Fast stream copy trim failed or was not possible. Falling back to transcoding trim...")
+    if os.path.exists(output_filepath):
+        try:
+            os.remove(output_filepath)
+        except Exception:
+            pass
+
+    cmd_transcode = ["ffmpeg", "-y"]
+    if start and not is_zero_time(start):
+        cmd_transcode.extend(["-ss", start])
+    if end and not is_zero_time(end):
+        cmd_transcode.extend(["-to", end])
         
-    cmd.extend([
+    cmd_transcode.extend([
         "-i", filepath,
         "-c:v", "libx264", "-preset", "superfast", "-crf", "23",
         "-c:a", "aac", "-b:a", "192k",
@@ -96,10 +129,10 @@ def trim_file_if_needed(filepath, trim_start, trim_end):
         output_filepath
     ])
     
-    logger.info(f"Running FFmpeg transcode trim command: {' '.join(cmd)}")
-    result = subprocess.run(cmd, capture_output=True, text=True, encoding='utf-8', errors='ignore')
-    if result.returncode == 0 and os.path.exists(output_filepath) and os.path.getsize(output_filepath) > 0:
-        logger.info("Trimming successful. Replacing original file.")
+    logger.info(f"Running transcode trim: {' '.join(cmd_transcode)}")
+    res_trans = subprocess.run(cmd_transcode, capture_output=True, text=True, encoding='utf-8', errors='ignore')
+    if res_trans.returncode == 0 and os.path.exists(output_filepath) and os.path.getsize(output_filepath) > 0:
+        logger.info("Transcoding trim successful. Replacing original file.")
         try:
             os.remove(filepath)
             os.rename(output_filepath, filepath)
@@ -108,39 +141,20 @@ def trim_file_if_needed(filepath, trim_start, trim_end):
             logger.warning(f"Failed to replace trimmed file: {replace_err}")
             return output_filepath
     else:
-        logger.warning(f"FFmpeg copy trim failed (code {result.returncode}). Stderr: {result.stderr}")
-        cmd_transcode = ["ffmpeg", "-y"]
-        if start and not is_zero_time(start):
-            cmd_transcode.extend(["-ss", start])
-        if end and not is_zero_time(end):
-            cmd_transcode.extend(["-to", end])
-        cmd_transcode.extend(["-i", filepath, output_filepath])
-        logger.info(f"Running FFmpeg transcode trim fallback: {' '.join(cmd_transcode)}")
-        res_trans = subprocess.run(cmd_transcode, capture_output=True, text=True, encoding='utf-8', errors='ignore')
-        if res_trans.returncode == 0 and os.path.exists(output_filepath) and os.path.getsize(output_filepath) > 0:
-            logger.info("Transcode trim fallback successful. Replacing original file.")
+        logger.error(f"Transcoding trim fallback failed (code {res_trans.returncode}). Stderr: {res_trans.stderr}")
+        if os.path.exists(output_filepath):
             try:
-                os.remove(filepath)
-                os.rename(output_filepath, filepath)
-                return filepath
-            except Exception as replace_err:
-                logger.warning(f"Failed to replace trimmed file: {replace_err}")
-                return output_filepath
-        else:
-            logger.error(f"FFmpeg transcode trim also failed. Stderr: {res_trans.stderr}")
-            if os.path.exists(output_filepath):
-                try:
-                    os.remove(output_filepath)
-                except Exception:
-                    pass
+                os.remove(output_filepath)
+            except Exception:
+                pass
             return filepath
 
 
-async def generate_voiceover_clip_async(text, voice, output_path, semaphore):
+async def generate_voiceover_clip_async(text, voice, output_path, semaphore, rate=None, pitch=None):
     async with semaphore:
         for attempt in range(3):
             try:
-                communicate = edge_tts.Communicate(text, voice)
+                communicate = edge_tts.Communicate(text, voice, rate=rate, pitch=pitch)
                 # Set a 15-second timeout for each clip generation to prevent indefinite hangs
                 await asyncio.wait_for(communicate.save(output_path), timeout=15.0)
                 if os.path.exists(output_path) and os.path.getsize(output_path) > 0:
@@ -152,11 +166,11 @@ async def generate_voiceover_clip_async(text, voice, output_path, semaphore):
 
 
 
-async def run_batch_tts(tasks_list, voiceover_voice):
+async def run_batch_tts(tasks_list, voiceover_voice, rate=None, pitch=None):
     semaphore = asyncio.Semaphore(15)
     async_tasks = []
     for text, path in tasks_list:
-        async_tasks.append(generate_voiceover_clip_async(text, voiceover_voice, path, semaphore))
+        async_tasks.append(generate_voiceover_clip_async(text, voiceover_voice, path, semaphore, rate=rate, pitch=pitch))
     results = await asyncio.gather(*async_tasks, return_exceptions=True)
     return results
 
@@ -485,10 +499,10 @@ def get_video_duration_ms(filepath):
     return 0
 
 
-def overlay_voiceover_tts(filepath, subtitles_path, voiceover_voice, temp_dir, trim_start=None, trim_end=None, progress_callback=None):
+def overlay_voiceover_tts(filepath, subtitles_path, voiceover_voice, temp_dir, trim_start=None, trim_end=None, progress_callback=None, voiceover_rate=None, voiceover_pitch=None):
     """Synthesizes speech for each subtitle line using edge-tts, schedules them sequentially,
     mixes them in Python to avoid too many inputs, and overlays it onto the video."""
-    logger.info(f"Generating AI Voiceover using voice '{voiceover_voice}' from subtitles: {subtitles_path}")
+    logger.info(f"Generating AI Voiceover using voice '{voiceover_voice}' (rate={voiceover_rate}, pitch={voiceover_pitch}) from subtitles: {subtitles_path}")
     
     try:
         with open(subtitles_path, 'r', encoding='utf-8') as f:
@@ -534,7 +548,7 @@ def overlay_voiceover_tts(filepath, subtitles_path, voiceover_voice, temp_dir, t
     try:
         loop = asyncio.new_event_loop()
         asyncio.set_event_loop(loop)
-        results = loop.run_until_complete(run_batch_tts(tasks_list, voiceover_voice))
+        results = loop.run_until_complete(run_batch_tts(tasks_list, voiceover_voice, rate=voiceover_rate, pitch=voiceover_pitch))
         loop.close()
     except Exception as batch_err:
         logger.error(f"Error during parallel TTS generation: {batch_err}")
@@ -836,7 +850,7 @@ def hardsub_video(video_path, subtitles_path):
         return video_path
 
 
-def apply_post_processing(filepath, temp_dir, trim_start=None, trim_end=None, export_type="default", color_filter="none", voiceover_active=False, voiceover_voice="vi-VN-HoaiMyNeural", subtitles_path=None, translate_subs=None, progress_callback=None):
+def apply_post_processing(filepath, temp_dir, trim_start=None, trim_end=None, export_type="default", color_filter="none", voiceover_active=False, voiceover_voice="vi-VN-HoaiMyNeural", subtitles_path=None, translate_subs=None, progress_callback=None, voiceover_rate=None, voiceover_pitch=None):
     """Applies all advanced filters, trimming, voiceovers, and formatting options to the downloaded media file."""
     if not filepath or not os.path.exists(filepath):
         return filepath
@@ -863,7 +877,7 @@ def apply_post_processing(filepath, temp_dir, trim_start=None, trim_end=None, ex
     # 2. AI Voiceover Dubbing
     if voiceover_active and subtitles_path and os.path.exists(subtitles_path):
         try:
-            filepath = overlay_voiceover_tts(filepath, subtitles_path, voiceover_voice, temp_dir, trim_start=trim_start, trim_end=trim_end, progress_callback=progress_callback)
+            filepath = overlay_voiceover_tts(filepath, subtitles_path, voiceover_voice, temp_dir, trim_start=trim_start, trim_end=trim_end, progress_callback=progress_callback, voiceover_rate=voiceover_rate, voiceover_pitch=voiceover_pitch)
         except Exception as e:
             logger.error(f"Error during AI Dubbing: {e}")
 
