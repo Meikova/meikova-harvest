@@ -45,32 +45,41 @@ jobs:
         run: |
           python build_tool/builder_cli.py --target both --name EveryThingDownloader --version ${{ env.VERSION }} --obfuscate
 
-      - name: Create GitHub Release and Upload Assets
+      # =========================================================================
+      # ĐẨY FILE EXE ĐÃ BUILD SANG KHO LƯU TRỮ CÔNG KHAI (PUBLIC REPOSITORY)
+      # =========================================================================
+      - name: Create GitHub Release and Upload Assets (To Public Repo)
         uses: softprops/action-gh-release@v2
         with:
+          repository: m3iK18dp/EveryThingDownloader-Tool # Kho lưu trữ công khai của bạn
+          token: ${{ secrets.RELEASE_TOKEN }}           # PAT cấu hình trong Secrets của Private Repo
           files: |
             dist/EveryThingDownloader.exe
             dist_electron/EveryThingDownloader-Portable-${{ env.VERSION }}.exe
             dist_electron/EveryThingDownloader Setup ${{ env.VERSION }}.exe
           draft: false
           prerelease: false
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Update update.json
+      # =========================================================================
+      # CẬP NHẬT FILE update.json TRÊN KHO LƯU TRỮ CÔNG KHAI (PUBLIC REPOSITORY)
+      # =========================================================================
+      - name: Update update.json in Public Repo
         shell: bash
         run: |
+          # 1. Clone repo công khai về thư mục tạm bằng PAT
+          git clone https://x-token-auth:${{ secrets.RELEASE_TOKEN }}@github.com/m3iK18dp/EveryThingDownloader-Tool.git public_repo
+          cd public_repo
+          
+          # 2. Ghi đè file update.json với thông tin mới nhất
           cat <<EOF > update.json
           {
             "version": "${{ env.VERSION }}",
-            "url": "https://github.com/${{ github.repository }}/releases/download/${{ github.ref_name }}/EveryThingDownloader-Portable-${{ env.VERSION }}.exe",
-            "changelog": "Phiên bản mới nhất ${{ github.ref_name }} đã được phát hành tự động qua GitHub Actions. Xem chi tiết tại mục Releases trên GitHub."
+            "url": "https://github.com/m3iK18dp/EveryThingDownloader-Tool/releases/download/${{ github.ref_name }}/EveryThingDownloader-Portable-${{ env.VERSION }}.exe",
+            "changelog": "Phiên bản mới nhất ${{ github.ref_name }} đã được phát hành tự động. Xem chi tiết tại mục Releases trên GitHub."
           }
           EOF
-
-      - name: Commit and push update.json
-        shell: bash
-        run: |
+          
+          # 3. Cấu hình git agent và push
           git config --global user.name "github-actions[bot]"
           git config --global user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add update.json
