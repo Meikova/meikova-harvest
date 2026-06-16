@@ -236,6 +236,10 @@ def get_download_file(download_id):
         content_type = "audio/mp4"
     elif ext == "vtt":
         content_type = "text/vtt"
+    elif ext in ["html", "htm"]:
+        content_type = "text/html; charset=utf-8"
+    elif ext == "txt":
+        content_type = "text/plain; charset=utf-8"
     else:
         content_type = "video/mp4"
 

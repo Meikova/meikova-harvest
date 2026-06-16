@@ -633,6 +633,7 @@ document.addEventListener("DOMContentLoaded", () => {
     // Preview Modal DOM Elements
     const previewModal = document.getElementById("preview-modal");
     const previewModalCloseBtn = document.getElementById("preview-modal-close-btn");
+    const modalFullscreenBtn = document.getElementById("modal-fullscreen-btn");
 
     // Confirm Modal DOM Elements
     const confirmModal = document.getElementById("confirm-modal");
@@ -655,6 +656,8 @@ document.addEventListener("DOMContentLoaded", () => {
     const previewSubtitleContainer = document.getElementById("preview-subtitle-container");
     const previewSubLang = document.getElementById("preview-sub-lang");
     const previewSubText = document.getElementById("preview-sub-text");
+    const previewWebpageContainer = document.getElementById("preview-webpage-container");
+    const previewWebpageIframe = document.getElementById("preview-webpage-iframe");
     const btnCopySub = document.getElementById("btn-copy-sub");
     const previewMetaInfo = document.getElementById("preview-meta-info");
     const previewDownloadBtn = document.getElementById("preview-download-btn");
@@ -1013,6 +1016,17 @@ document.addEventListener("DOMContentLoaded", () => {
     let previewActivePollInterval = null;
     let previewCurrentImageIndex = -1;
 
+    // Subtitles & advanced player states
+    let currentCues = [];
+    let activeSubUrl = "";
+    let originalSubtitleContent = "";
+    let loopStartSecs = null;
+    let loopEndSecs = null;
+    let lastTtsText = "";
+    let isDraggingVideoSlider = false;
+    let isDraggingAudioSlider = false;
+    let videoFullscreenMode = 0; // 0: Normal, 1: Theater, 2: Native Fullscreen
+
     // Helper to stop all preview playbacks and destroy Hls instances
     // Helper to stop all preview playbacks and destroy Hls instances
     function stopAllPreviewPlaybacks() {
@@ -1056,6 +1070,61 @@ document.addEventListener("DOMContentLoaded", () => {
                 previewAudioPlayer.load();
             } catch (e) {}
         }
+
+        // Reset subtitles state
+        currentCues = [];
+        activeSubUrl = "";
+        originalSubtitleContent = "";
+        loopStartSecs = null;
+        loopEndSecs = null;
+        lastTtsText = "";
+        if (window.speechSynthesis) {
+            window.speechSynthesis.cancel();
+        }
+
+        // Hide overlays & sidebar
+        const subOverlay = document.getElementById("preview-subtitles-overlay");
+        if (subOverlay) {
+            subOverlay.classList.add("hidden");
+            const box = subOverlay.querySelector(".subtitles-text-box");
+            if (box) box.textContent = "";
+        }
+
+        const sidebar = document.getElementById("preview-transcript-sidebar");
+        if (sidebar) {
+            sidebar.classList.add("hidden");
+            const list = document.getElementById("transcript-list");
+            if (list) list.innerHTML = "";
+            const search = document.getElementById("transcript-search");
+            if (search) search.value = "";
+        }
+
+        // Reset sub controls UI values
+        const loopA = document.getElementById("loop-point-a");
+        const loopB = document.getElementById("loop-point-b");
+        if (loopA) loopA.value = "";
+        if (loopB) loopB.value = "";
+
+        const subSelect = document.getElementById("preview-sub-select");
+        if (subSelect) subSelect.innerHTML = '<option value="none">None</option>';
+
+        const subTrans = document.getElementById("preview-sub-trans-select");
+        if (subTrans) subTrans.value = "none";
+
+        const voiceover = document.getElementById("preview-voiceover-select");
+        if (voiceover) voiceover.value = "none";
+
+        const speed = document.getElementById("preview-speed-select");
+        if (speed) speed.value = "1.0";
+
+        const stylePopover = document.getElementById("preview-sub-style-popover");
+        if (stylePopover) stylePopover.classList.add("hidden");
+
+        const videoSettingsMenu = document.getElementById("video-settings-menu");
+        if (videoSettingsMenu) videoSettingsMenu.classList.add("hidden");
+
+        const downloadSubBtn = document.getElementById("preview-sub-download-btn");
+        if (downloadSubBtn) downloadSubBtn.disabled = true;
 
         // Reset Custom Audio UI
         if (audioCard) audioCard.classList.remove("playing");
@@ -1320,10 +1389,12 @@ document.addEventListener("DOMContentLoaded", () => {
 
         previewAudioPlayer.addEventListener("timeupdate", () => {
             if (previewAudioPlayer.duration) {
-                const pct = (previewAudioPlayer.currentTime / previewAudioPlayer.duration) * 100;
-                if (audioSeekSlider) {
-                    audioSeekSlider.value = pct;
-                    updateSliderBackground(audioSeekSlider);
+                if (!isDraggingAudioSlider && !previewAudioPlayer.seeking) {
+                    const pct = (previewAudioPlayer.currentTime / previewAudioPlayer.duration) * 100;
+                    if (audioSeekSlider) {
+                        audioSeekSlider.value = pct;
+                        updateSliderBackground(audioSeekSlider);
+                    }
                 }
                 if (audioTimeCurrent) {
                     audioTimeCurrent.textContent = formatTime(previewAudioPlayer.currentTime);
@@ -1382,13 +1453,20 @@ document.addEventListener("DOMContentLoaded", () => {
     }
 
     if (audioSeekSlider && previewAudioPlayer) {
+        const setAudioDragging = () => { isDraggingAudioSlider = true; };
+        audioSeekSlider.addEventListener("mousedown", setAudioDragging);
+        audioSeekSlider.addEventListener("touchstart", setAudioDragging);
         audioSeekSlider.addEventListener("input", function() {
+            isDraggingAudioSlider = true;
             updateSliderBackground(this);
         });
         audioSeekSlider.addEventListener("change", function() {
             if (previewAudioPlayer.duration) {
                 previewAudioPlayer.currentTime = (parseFloat(this.value) / 100) * previewAudioPlayer.duration;
             }
+            setTimeout(() => {
+                isDraggingAudioSlider = false;
+            }, 300);
         });
     }
 
@@ -1434,33 +1512,76 @@ document.addEventListener("DOMContentLoaded", () => {
         });
     }
 
-    // --- CUSTOM VIDEO PLAYER HANDLERS ---
+    // --- PREVIEW MODAL HOVER & CURSOR AUTO-HIDE HANDLERS ---
     let videoHoverTimeout = null;
-    function showVideoControls() {
-        if (customVideoControls) {
-            customVideoControls.classList.remove("hidden-controls");
+    function showPreviewControls() {
+        const modalHeader = document.querySelector("#preview-modal .modal-header");
+        const customVideoControls = document.querySelector(".custom-video-controls");
+        const customAudioControls = document.querySelector(".custom-audio-controls");
+        const imageControls = document.querySelector(".image-controls");
+        const subHeader = document.querySelector(".subtitle-preview-box .sub-header");
+        const navControls = document.querySelectorAll(".nav-control");
+
+        if (modalHeader) modalHeader.classList.remove("hidden-header");
+        if (customVideoControls) customVideoControls.classList.remove("hidden-controls");
+        if (customAudioControls) customAudioControls.classList.remove("hidden-controls");
+        if (imageControls) imageControls.classList.remove("hidden-controls");
+        if (subHeader) subHeader.classList.remove("hidden-controls");
+        navControls.forEach(ctrl => ctrl.classList.remove("hidden-controls"));
+        
+        if (previewModal) {
+            previewModal.classList.remove("hidden-cursor");
         }
+        
         if (videoHoverTimeout) {
             clearTimeout(videoHoverTimeout);
         }
-        // Only trigger hide timer if video is playing
-        if (previewVideoPlayer && !previewVideoPlayer.paused) {
+        
+        // Auto-hide controls, header, and cursor if fullscreen is active (Stage 1 or 2)
+        if (videoFullscreenMode > 0) {
             videoHoverTimeout = setTimeout(() => {
-                // Check if mouse is currently hovering overlay controls to prevent autohide
-                const isHoveringControls = customVideoControls && customVideoControls.matches(':hover');
-                if (!isHoveringControls) {
-                    customVideoControls.classList.add("hidden-controls");
+                // Check if mouse is hovering header or custom video controls
+                const isHoveringHeader = modalHeader && modalHeader.matches(':hover');
+                const isHoveringVideoControls = customVideoControls && customVideoControls.matches(':hover');
+                const isHoveringAudioControls = customAudioControls && customAudioControls.matches(':hover');
+                const isHoveringImageControls = imageControls && imageControls.matches(':hover');
+                const isHoveringSubHeader = subHeader && subHeader.matches(':hover');
+                let isHoveringNav = false;
+                navControls.forEach(ctrl => {
+                    if (ctrl.matches(':hover')) isHoveringNav = true;
+                });
+                
+                if (!isHoveringHeader && !isHoveringVideoControls && !isHoveringAudioControls && !isHoveringImageControls && !isHoveringSubHeader && !isHoveringNav) {
+                    if (modalHeader) modalHeader.classList.add("hidden-header");
+                    if (customVideoControls) customVideoControls.classList.add("hidden-controls");
+                    if (customAudioControls) customAudioControls.classList.add("hidden-controls");
+                    if (imageControls) imageControls.classList.add("hidden-controls");
+                    if (subHeader) subHeader.classList.add("hidden-controls");
+                    navControls.forEach(ctrl => ctrl.classList.add("hidden-controls"));
+                    if (previewModal) previewModal.classList.add("hidden-cursor");
                 }
             }, 3000);
         }
     }
 
-    const videoWrapperElement = document.querySelector(".video-wrapper");
-    if (videoWrapperElement) {
-        videoWrapperElement.addEventListener("mousemove", showVideoControls);
-        videoWrapperElement.addEventListener("mouseleave", () => {
-            if (previewVideoPlayer && !previewVideoPlayer.paused && customVideoControls) {
-                customVideoControls.classList.add("hidden-controls");
+    if (previewModal) {
+        previewModal.addEventListener("mousemove", showPreviewControls);
+        previewModal.addEventListener("mouseleave", () => {
+            if (videoFullscreenMode > 0) {
+                const modalHeader = document.querySelector("#preview-modal .modal-header");
+                const customVideoControls = document.querySelector(".custom-video-controls");
+                const customAudioControls = document.querySelector(".custom-audio-controls");
+                const imageControls = document.querySelector(".image-controls");
+                const subHeader = document.querySelector(".subtitle-preview-box .sub-header");
+                const navControls = document.querySelectorAll(".nav-control");
+
+                if (modalHeader) modalHeader.classList.add("hidden-header");
+                if (customVideoControls) customVideoControls.classList.add("hidden-controls");
+                if (customAudioControls) customAudioControls.classList.add("hidden-controls");
+                if (imageControls) imageControls.classList.add("hidden-controls");
+                if (subHeader) subHeader.classList.add("hidden-controls");
+                navControls.forEach(ctrl => ctrl.classList.add("hidden-controls"));
+                previewModal.classList.add("hidden-cursor");
             }
         });
     }
@@ -1474,7 +1595,7 @@ document.addEventListener("DOMContentLoaded", () => {
                 if (playIcon) playIcon.classList.add("hidden");
                 if (pauseIcon) pauseIcon.classList.remove("hidden");
             }
-            showVideoControls();
+            showPreviewControls();
         });
 
         previewVideoPlayer.addEventListener("pause", () => {
@@ -1489,6 +1610,13 @@ document.addEventListener("DOMContentLoaded", () => {
             if (customVideoControls) {
                 customVideoControls.classList.remove("hidden-controls");
             }
+            const modalHeader = document.querySelector("#preview-modal .modal-header");
+            if (modalHeader) {
+                modalHeader.classList.remove("hidden-header");
+            }
+            if (previewModal) {
+                previewModal.classList.remove("hidden-cursor");
+            }
             if (videoHoverTimeout) {
                 clearTimeout(videoHoverTimeout);
             }
@@ -1496,13 +1624,27 @@ document.addEventListener("DOMContentLoaded", () => {
 
         previewVideoPlayer.addEventListener("timeupdate", () => {
             if (previewVideoPlayer.duration) {
-                const pct = (previewVideoPlayer.currentTime / previewVideoPlayer.duration) * 100;
-                if (videoSeekSlider) {
-                    videoSeekSlider.value = pct;
-                    updateSliderBackground(videoSeekSlider);
+                // A-B repeat logic
+                if (loopStartSecs !== null && loopEndSecs !== null) {
+                    if (previewVideoPlayer.currentTime >= loopEndSecs || previewVideoPlayer.currentTime < loopStartSecs) {
+                        previewVideoPlayer.currentTime = loopStartSecs;
+                    }
+                }
+
+                if (!isDraggingVideoSlider && !previewVideoPlayer.seeking) {
+                    const pct = (previewVideoPlayer.currentTime / previewVideoPlayer.duration) * 100;
+                    if (videoSeekSlider) {
+                        videoSeekSlider.value = pct;
+                        updateSliderBackground(videoSeekSlider);
+                    }
                 }
                 if (videoTimeCurrent) {
                     videoTimeCurrent.textContent = formatTime(previewVideoPlayer.currentTime);
+                }
+
+                // Subtitles sync
+                if (typeof updateSubtitlesOverlay === "function") {
+                    updateSubtitlesOverlay(previewVideoPlayer.currentTime);
                 }
             }
         });
@@ -1518,6 +1660,11 @@ document.addEventListener("DOMContentLoaded", () => {
             if (videoVolumeSlider) {
                 videoVolumeSlider.value = previewVideoPlayer.muted ? 0 : previewVideoPlayer.volume;
                 updateSliderBackground(videoVolumeSlider);
+            }
+            // Apply speed setting
+            const speedSelect = document.getElementById("preview-speed-select");
+            if (speedSelect && previewVideoPlayer) {
+                previewVideoPlayer.playbackRate = parseFloat(speedSelect.value) || 1.0;
             }
         });
 
@@ -1571,8 +1718,12 @@ document.addEventListener("DOMContentLoaded", () => {
     }
 
     if (videoSeekSlider && previewVideoPlayer) {
+        const setVideoDragging = () => { isDraggingVideoSlider = true; };
+        videoSeekSlider.addEventListener("mousedown", setVideoDragging);
+        videoSeekSlider.addEventListener("touchstart", setVideoDragging);
         videoSeekSlider.addEventListener("input", function(e) {
             e.stopPropagation();
+            isDraggingVideoSlider = true;
             updateSliderBackground(this);
         });
         videoSeekSlider.addEventListener("change", function(e) {
@@ -1580,6 +1731,9 @@ document.addEventListener("DOMContentLoaded", () => {
             if (previewVideoPlayer.duration) {
                 previewVideoPlayer.currentTime = (parseFloat(this.value) / 100) * previewVideoPlayer.duration;
             }
+            setTimeout(() => {
+                isDraggingVideoSlider = false;
+            }, 300);
         });
     }
 
@@ -1627,18 +1781,159 @@ document.addEventListener("DOMContentLoaded", () => {
         });
     }
 
-    if (videoFullscreenBtn && previewVideoPlayer) {
+    function updateFullscreenUI() {
+        // Update Video Fullscreen Button if present
+        if (videoFullscreenBtn) {
+            const svg = videoFullscreenBtn.querySelector("svg");
+            if (videoFullscreenMode === 0) {
+                videoFullscreenBtn.title = "Theater Mode (Web Fullscreen)";
+                if (svg) {
+                    svg.innerHTML = '<path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3"></path>';
+                }
+            } else if (videoFullscreenMode === 1) {
+                videoFullscreenBtn.title = "Native Fullscreen";
+                if (svg) {
+                    svg.innerHTML = '<rect x="3" y="3" width="18" height="18" rx="2" ry="2" stroke-width="2" fill="none" stroke="currentColor"></rect><path d="M9 3v18M15 3v18" stroke="currentColor" stroke-dasharray="2 2"></path>';
+                }
+            } else if (videoFullscreenMode === 2) {
+                videoFullscreenBtn.title = "Exit Fullscreen";
+                if (svg) {
+                    svg.innerHTML = '<path d="M4 14h6v6m10-6h-6v6M4 10h6V4m10 6h-6V4"></path>';
+                }
+            }
+        }
+        // Update Modal Fullscreen Button if present
+        if (modalFullscreenBtn) {
+            const svg = modalFullscreenBtn.querySelector("svg");
+            if (videoFullscreenMode === 0) {
+                modalFullscreenBtn.title = "Theater Mode (Web Fullscreen)";
+                if (svg) {
+                    svg.innerHTML = '<path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3"></path>';
+                }
+            } else if (videoFullscreenMode === 1) {
+                modalFullscreenBtn.title = "Native Fullscreen";
+                if (svg) {
+                    svg.innerHTML = '<rect x="3" y="3" width="18" height="18" rx="2" ry="2" stroke-width="2" fill="none" stroke="currentColor"></rect><path d="M9 3v18M15 3v18" stroke="currentColor" stroke-dasharray="2 2"></path>';
+                }
+            } else if (videoFullscreenMode === 2) {
+                modalFullscreenBtn.title = "Exit Fullscreen";
+                if (svg) {
+                    svg.innerHTML = '<path d="M4 14h6v6m10-6h-6v6M4 10h6V4m10 6h-6V4"></path>';
+                }
+            }
+        }
+    }
+
+    function toggleFullscreenMode() {
+        const videoPreviewCard = document.querySelector(".video-preview-card");
+        const audioPreviewCard = document.querySelector(".audio-preview-card");
+        if (videoFullscreenMode === 0) {
+            // Normal -> Theater Mode (Web Fullscreen)
+            videoFullscreenMode = 1;
+            if (videoPreviewCard) {
+                videoPreviewCard.classList.add("web-fullscreen");
+            }
+            if (audioPreviewCard) {
+                audioPreviewCard.classList.add("web-fullscreen");
+            }
+            if (previewModal) {
+                previewModal.classList.add("modal-web-fullscreen");
+            }
+            updateFullscreenUI();
+        } else if (videoFullscreenMode === 1) {
+            // Theater -> Native Fullscreen (We request native fullscreen on the entire modal container to support all formats)
+            videoFullscreenMode = 2;
+            if (previewModal) {
+                if (previewModal.requestFullscreen) {
+                    previewModal.requestFullscreen();
+                } else if (previewModal.webkitRequestFullscreen) {
+                    previewModal.webkitRequestFullscreen();
+                } else if (previewModal.msRequestFullscreen) {
+                    previewModal.msRequestFullscreen();
+                }
+            }
+            updateFullscreenUI();
+        } else {
+            // Native -> Normal (Exit)
+            videoFullscreenMode = 0;
+            if (videoPreviewCard) {
+                videoPreviewCard.classList.remove("web-fullscreen");
+            }
+            if (audioPreviewCard) {
+                audioPreviewCard.classList.remove("web-fullscreen");
+            }
+            if (previewModal) {
+                previewModal.classList.remove("modal-web-fullscreen");
+            }
+            if (document.fullscreenElement || document.webkitFullscreenElement || document.msFullscreenElement) {
+                if (document.exitFullscreen) {
+                    document.exitFullscreen();
+                } else if (document.webkitExitFullscreen) {
+                    document.webkitExitFullscreen();
+                } else if (document.msExitFullscreen) {
+                    document.msExitFullscreen();
+                }
+            }
+            updateFullscreenUI();
+        }
+    }
+
+    if (videoFullscreenBtn) {
         videoFullscreenBtn.addEventListener("click", (e) => {
             e.stopPropagation();
-            if (previewVideoPlayer.requestFullscreen) {
-                previewVideoPlayer.requestFullscreen();
-            } else if (previewVideoPlayer.webkitRequestFullscreen) {
-                previewVideoPlayer.webkitRequestFullscreen();
-            } else if (previewVideoPlayer.msRequestFullscreen) {
-                previewVideoPlayer.msRequestFullscreen();
-            }
+            toggleFullscreenMode();
         });
     }
+    if (modalFullscreenBtn) {
+        modalFullscreenBtn.addEventListener("click", (e) => {
+            e.stopPropagation();
+            toggleFullscreenMode();
+        });
+    }
+
+    const handleFullscreenChange = () => {
+        const isNative = document.fullscreenElement || document.webkitFullscreenElement || document.msFullscreenElement;
+        if (!isNative && videoFullscreenMode === 2) {
+            videoFullscreenMode = 0;
+            const videoPreviewCard = document.querySelector(".video-preview-card");
+            const audioPreviewCard = document.querySelector(".audio-preview-card");
+            if (videoPreviewCard) {
+                videoPreviewCard.classList.remove("web-fullscreen");
+            }
+            if (audioPreviewCard) {
+                audioPreviewCard.classList.remove("web-fullscreen");
+            }
+            if (previewModal) {
+                previewModal.classList.remove("modal-web-fullscreen");
+                previewModal.classList.remove("hidden-cursor");
+            }
+            
+            // Remove auto-hide classes
+            const modalHeader = document.querySelector("#preview-modal .modal-header");
+            const customVideoControls = document.querySelector(".custom-video-controls");
+            const customAudioControls = document.querySelector(".custom-audio-controls");
+            const imageControls = document.querySelector(".image-controls");
+            const subHeader = document.querySelector(".subtitle-preview-box .sub-header");
+            const navControls = document.querySelectorAll(".nav-control");
+            
+            if (modalHeader) modalHeader.classList.remove("hidden-header");
+            if (customVideoControls) customVideoControls.classList.remove("hidden-controls");
+            if (customAudioControls) customAudioControls.classList.remove("hidden-controls");
+            if (imageControls) imageControls.classList.remove("hidden-controls");
+            if (subHeader) subHeader.classList.remove("hidden-controls");
+            navControls.forEach(ctrl => ctrl.classList.remove("hidden-controls"));
+            
+            updateFullscreenUI();
+        }
+    };
+
+    document.addEventListener("fullscreenchange", handleFullscreenChange);
+    document.addEventListener("webkitfullscreenchange", handleFullscreenChange);
+    document.addEventListener("mozfullscreenchange", handleFullscreenChange);
+    document.addEventListener("MSFullscreenChange", handleFullscreenChange);
+    
+    // Initialize Fullscreen UI
+    updateFullscreenUI();
 
     // --- QUALITY/FORMAT DROP DOWN SELECT CHANGE HANDLERS ---
     if (audioFormatSelect) {
@@ -1675,8 +1970,50 @@ document.addEventListener("DOMContentLoaded", () => {
     // Close preview modal behavior
     if (previewModal && previewModalCloseBtn) {
         const closePreviewModal = () => {
+            // Exit native fullscreen if active
+            if (document.fullscreenElement || document.webkitFullscreenElement || document.msFullscreenElement) {
+                if (document.exitFullscreen) {
+                    document.exitFullscreen();
+                } else if (document.webkitExitFullscreen) {
+                    document.webkitExitFullscreen();
+                } else if (document.msExitFullscreen) {
+                    document.msExitFullscreen();
+                }
+            }
+
             previewModal.classList.add("hidden");
             document.body.classList.remove("modal-open");
+            
+            // Clean up Web Fullscreen / Theater Mode states
+            videoFullscreenMode = 0;
+            const videoPreviewCard = document.querySelector(".video-preview-card");
+            const audioPreviewCard = document.querySelector(".audio-preview-card");
+            if (videoPreviewCard) {
+                videoPreviewCard.classList.remove("web-fullscreen");
+                videoPreviewCard.classList.remove("hidden-cursor");
+            }
+            if (audioPreviewCard) {
+                audioPreviewCard.classList.remove("web-fullscreen");
+            }
+            previewModal.classList.remove("modal-web-fullscreen");
+            previewModal.classList.remove("hidden-cursor");
+            
+            // Remove auto-hide classes
+            const modalHeader = document.querySelector("#preview-modal .modal-header");
+            const customVideoControls = document.querySelector(".custom-video-controls");
+            const customAudioControls = document.querySelector(".custom-audio-controls");
+            const imageControls = document.querySelector(".image-controls");
+            const subHeader = document.querySelector(".subtitle-preview-box .sub-header");
+            const navControls = document.querySelectorAll(".nav-control");
+            
+            if (modalHeader) modalHeader.classList.remove("hidden-header");
+            if (customVideoControls) customVideoControls.classList.remove("hidden-controls");
+            if (customAudioControls) customAudioControls.classList.remove("hidden-controls");
+            if (imageControls) imageControls.classList.remove("hidden-controls");
+            if (subHeader) subHeader.classList.remove("hidden-controls");
+            navControls.forEach(ctrl => ctrl.classList.remove("hidden-controls"));
+            
+            updateFullscreenUI();
             stopAllPreviewPlaybacks();
         };
 
@@ -3848,6 +4185,9 @@ document.addEventListener("DOMContentLoaded", () => {
     async function triggerPreview(btn, formatId, ext, label, quality, customUrl, episode = "", server = "", type = "") {
         if (!previewModal) return;
 
+        ext = (ext || "").toLowerCase();
+        type = (type || "").toLowerCase();
+
         // Hide navigation buttons by default
         if (btnPrevImage && btnNextImage) {
             btnPrevImage.classList.add("hidden");
@@ -3872,6 +4212,8 @@ document.addEventListener("DOMContentLoaded", () => {
         previewAudioContainer.classList.add("hidden");
         previewImageContainer.classList.add("hidden");
         previewSubtitleContainer.classList.add("hidden");
+        if (previewWebpageContainer) previewWebpageContainer.classList.add("hidden");
+        if (previewWebpageIframe) previewWebpageIframe.removeAttribute("src");
         previewLoader.classList.remove("hidden");
         previewLoaderText.textContent = "Connecting to source & preparing stream...";
 
@@ -3930,6 +4272,47 @@ document.addEventListener("DOMContentLoaded", () => {
         // Stop current playbacks
         stopAllPreviewPlaybacks();
 
+        // Populate Subtitles Select Dropdown if Video Preview
+        if (isVideoPreview) {
+            const previewSubSelect = document.getElementById("preview-sub-select");
+            if (previewSubSelect) {
+                previewSubSelect.innerHTML = '<option value="none">None</option>';
+                let subOpts = (activeMetadata && activeMetadata.subtitles) ? activeMetadata.subtitles : [];
+                if (subOpts && typeof subOpts === "object" && !Array.isArray(subOpts)) {
+                    subOpts = Object.keys(subOpts).map(key => {
+                        const val = subOpts[key];
+                        if (typeof val === "string") {
+                            return { lang_code: key, name: key.toUpperCase(), url: val };
+                        }
+                        return {
+                            lang_code: key,
+                            name: val.name || key.toUpperCase(),
+                            url: val.url || ""
+                        };
+                    });
+                }
+                if (!Array.isArray(subOpts)) {
+                    subOpts = [];
+                }
+                subOpts.forEach(opt => {
+                    const optionEl = document.createElement("option");
+                    optionEl.value = opt.url || opt.lang_code;
+                    optionEl.textContent = opt.name;
+                    previewSubSelect.appendChild(optionEl);
+                });
+                // Auto-load first subtitle if available
+                if (subOpts.length > 0) {
+                    const autoSub = subOpts.find(s => s.lang_code === "vi") || subOpts.find(s => s.lang_code === "en") || subOpts[0];
+                    if (autoSub) {
+                        previewSubSelect.value = autoSub.url || autoSub.lang_code;
+                        if (typeof loadSubtitle === "function") {
+                            loadSubtitle(autoSub.url || autoSub.lang_code);
+                        }
+                    }
+                }
+            }
+        }
+
         // Image Preview Flow
         if (ext === "jpg" || ext === "png" || ext === "jpeg" || formatId === "image_preview") {
             const finalUrl = formatId === "image_preview"
@@ -3976,6 +4359,50 @@ document.addEventListener("DOMContentLoaded", () => {
         }
 
         const streamUrl = customUrl || activeUrl || "";
+
+        const lowerExt = (ext || "").toLowerCase();
+        const lowerType = (type || "").toLowerCase();
+        const isHtmlPage = (lowerExt === "html" || lowerExt === "htm" || lowerType === "webpage");
+        const isRawTextFile = (lowerExt === "txt" || lowerExt === "xml");
+
+        // Webpage / HTML / Text Preview Flow
+        if (isHtmlPage || isRawTextFile) {
+            previewActiveUrl = streamUrl;
+            
+            if (isHtmlPage && previewWebpageContainer && previewWebpageIframe) {
+                previewWebpageContainer.classList.remove("hidden");
+                previewLoader.classList.remove("hidden");
+                previewLoaderText.textContent = "Loading webpage view...";
+                
+                const proxyUrl = `/api/system/proxy-sub?url=${encodeURIComponent(streamUrl)}&mode=html&client_id=${encodeURIComponent(clientId)}`;
+                previewWebpageIframe.src = proxyUrl;
+                
+                previewWebpageIframe.onload = () => {
+                    previewLoader.classList.add("hidden");
+                };
+                previewWebpageIframe.onerror = () => {
+                    previewLoaderText.textContent = "Failed to render webpage preview.";
+                };
+            } else if (previewSubText) {
+                if (previewSubLang) previewSubLang.textContent = label;
+                previewSubtitleContainer.classList.remove("hidden");
+                previewSubText.textContent = "Fetching content...";
+                if (btnCopySub) btnCopySub.textContent = "Copy Content";
+
+                const proxyUrl = `/api/system/proxy-sub?url=${encodeURIComponent(streamUrl)}&client_id=${encodeURIComponent(clientId)}`;
+                fetch(proxyUrl)
+                    .then(res => res.text())
+                    .then(text => {
+                        previewLoader.classList.add("hidden");
+                        previewSubText.textContent = text || "No content found.";
+                    })
+                    .catch(err => {
+                        previewLoader.classList.add("hidden");
+                        previewSubText.textContent = "Failed to fetch content from this source.";
+                    });
+            }
+            return;
+        }
         const isYoutube = streamUrl.toLowerCase().includes("youtube.com") || 
                           streamUrl.toLowerCase().includes("youtu.be") || 
                           streamUrl.toLowerCase().includes("googlevideo.com") ||
@@ -4142,6 +4569,12 @@ document.addEventListener("DOMContentLoaded", () => {
                                 const textRes = await fetch(previewStreamUrl);
                                 const text = await textRes.text();
                                 previewSubText.textContent = text || "No content found in subtitle file.";
+                            }
+                        } else if (ext === "html" || ext === "htm" || type === "webpage") {
+                            if (previewWebpageContainer && previewWebpageIframe) {
+                                previewWebpageContainer.classList.remove("hidden");
+                                previewWebpageIframe.src = previewStreamUrl;
+                                previewLoader.classList.add("hidden");
                             }
                         } else {
                             if (previewVideoPlayer) {
@@ -4601,6 +5034,958 @@ document.addEventListener("DOMContentLoaded", () => {
                 alert("Error clearing history");
             }
         });
+    }
+
+    // --- ADVANCED SUBTITLES PLAYER SYSTEM & INTERACTIVE TRANSCRIPT ---
+
+    function parseTimeToSeconds(timeStr) {
+        timeStr = timeStr.replace(',', '.');
+        const parts = timeStr.split(':');
+        let hrs = 0, mins = 0, secs = 0;
+        if (parts.length === 3) {
+            hrs = parseFloat(parts[0]);
+            mins = parseFloat(parts[1]);
+            secs = parseFloat(parts[2]);
+        } else if (parts.length === 2) {
+            mins = parseFloat(parts[0]);
+            secs = parseFloat(parts[1]);
+        } else {
+            secs = parseFloat(parts[0]);
+        }
+        return hrs * 3600 + mins * 60 + secs;
+    }
+
+    function parseSubtitleText(text) {
+        if (!text) return [];
+        const normalized = text.replace(/\r\n/g, '\n').replace(/\r/g, '\n');
+        const timePattern = /((?:\d{2}:)?\d{2}:\d{2}[.,]\d{3})\s*-->\s*((?:\d{2}:)?\d{2}:\d{2}[.,]\d{3})/;
+        const lines = normalized.split('\n');
+        const cues = [];
+        let currentCue = null;
+        
+        for (let i = 0; i < lines.length; i++) {
+            const line = lines[i].trim();
+            if (!line) continue;
+            
+            const match = timePattern.exec(line);
+            if (match) {
+                if (currentCue) {
+                    cues.push(currentCue);
+                }
+                const start = parseTimeToSeconds(match[1]);
+                const end = parseTimeToSeconds(match[2]);
+                currentCue = { start, end, text: "" };
+            } else if (currentCue) {
+                // Check if this line is a cue index (a number) followed by a timestamp line
+                if (/^\d+$/.test(line)) {
+                    let isIndex = false;
+                    for (let j = i + 1; j < lines.length; j++) {
+                        const nextLine = lines[j].trim();
+                        if (!nextLine) continue;
+                        if (timePattern.test(nextLine)) {
+                            isIndex = true;
+                        }
+                        break;
+                    }
+                    if (isIndex) {
+                        continue; // Skip this line, it's just the next cue's index
+                    }
+                }
+                if (currentCue.text) {
+                    currentCue.text += "\n" + line;
+                } else {
+                    currentCue.text = line;
+                }
+            }
+        }
+        if (currentCue) {
+            cues.push(currentCue);
+        }
+        
+        return cleanAndMergeCues(cues);
+    }
+
+    function getWordOverlap(text1, text2) {
+        if (!text1 || !text2) return 0;
+        const words1 = text1.toLowerCase().replace(/[.,\/#!$%\^&\*;:{}=\-_`~()?]/g,"").split(/\s+/).filter(Boolean);
+        const words2 = text2.toLowerCase().replace(/[.,\/#!$%\^&\*;:{}=\-_`~()?]/g,"").split(/\s+/).filter(Boolean);
+        
+        let maxOverlapWords = 0;
+        const minLen = Math.min(words1.length, words2.length);
+        
+        for (let k = 1; k <= minLen; k++) {
+            let match = true;
+            for (let i = 0; i < k; i++) {
+                if (words1[words1.length - k + i] !== words2[i]) {
+                    match = false;
+                    break;
+                }
+            }
+            if (match) {
+                maxOverlapWords = k;
+            }
+        }
+        return maxOverlapWords;
+    }
+
+    function cleanAndMergeCues(cues) {
+        if (!cues || cues.length === 0) return [];
+        
+        // Step 1: Clean HTML tags and bracketed/parenthesized annotations like [âm nhạc], [ca hát], (laughter)
+        let cleaned = cues.map(cue => {
+            let text = cue.text;
+            // Remove HTML style tags
+            text = text.replace(/<[^>]+>/g, '');
+            // Remove [music] or (music) annotations
+            text = text.replace(/\[[^\]]*\]/g, '');
+            text = text.replace(/\([^)]*\)/g, '');
+            // Normalize spaces
+            text = text.replace(/\s+/g, ' ').trim();
+            return {
+                start: cue.start,
+                end: cue.end,
+                text: text
+            };
+        }).filter(cue => cue.text.length > 0);
+        
+        if (cleaned.length === 0) return [];
+        
+        // Step 2: Merge cues with start times extremely close (< 1.5s) if one contains the other
+        let merged = [];
+        for (let i = 0; i < cleaned.length; i++) {
+            let current = cleaned[i];
+            if (merged.length === 0) {
+                merged.push(current);
+                continue;
+            }
+            
+            let last = merged[merged.length - 1];
+            
+            // If start times are within 1.5 seconds
+            if (Math.abs(current.start - last.start) < 1.5) {
+                const lastTextNorm = last.text.toLowerCase().replace(/[.,\/#!$%\^&\*;:{}=\-_`~()?]/g,"").replace(/\s+/g, ' ').trim();
+                const currTextNorm = current.text.toLowerCase().replace(/[.,\/#!$%\^&\*;:{}=\-_`~()?]/g,"").replace(/\s+/g, ' ').trim();
+                
+                if (currTextNorm.includes(lastTextNorm)) {
+                    // current contains last -> update last's text and end time
+                    last.text = current.text;
+                    last.start = Math.min(last.start, current.start);
+                    last.end = Math.max(last.end, current.end);
+                    continue;
+                } else if (lastTextNorm.includes(currTextNorm)) {
+                    // last contains current -> update last's end time
+                    last.end = Math.max(last.end, current.end);
+                    continue;
+                }
+            }
+            
+            merged.push(current);
+        }
+        
+        // Step 3: Strip rolling suffix-prefix overlap between consecutive cues
+        let finalCues = [];
+        for (let i = 0; i < merged.length; i++) {
+            let current = merged[i];
+            if (finalCues.length === 0) {
+                finalCues.push(current);
+                continue;
+            }
+            
+            let last = finalCues[finalCues.length - 1];
+            
+            const overlapCount = getWordOverlap(last.text, current.text);
+            if (overlapCount > 0) {
+                const rawWords = current.text.split(/\s+/);
+                if (overlapCount >= rawWords.length) {
+                    // If the current cue is entirely a duplicate of the end of the last cue
+                    last.end = Math.max(last.end, current.end);
+                } else {
+                    // Strip the overlap words from the beginning of current cue
+                    current.text = rawWords.slice(overlapCount).join(' ').trim();
+                    if (current.text.length > 0) {
+                        finalCues.push(current);
+                    } else {
+                        last.end = Math.max(last.end, current.end);
+                    }
+                }
+            } else {
+                finalCues.push(current);
+            }
+        }
+        
+        return finalCues;
+    }
+
+    async function loadSubtitle(urlOrContent, isContent = false) {
+        try {
+            let text = "";
+            if (isContent) {
+                text = urlOrContent;
+            } else {
+                if (!urlOrContent || urlOrContent === "none") {
+                    currentCues = [];
+                    activeSubUrl = "";
+                    originalSubtitleContent = "";
+                    const overlay = document.getElementById("preview-subtitles-overlay");
+                    if (overlay) overlay.classList.add("hidden");
+                    const sidebar = document.getElementById("preview-transcript-sidebar");
+                    if (sidebar) sidebar.classList.add("hidden");
+                    const downloadBtn = document.getElementById("preview-sub-download-btn");
+                    if (downloadBtn) downloadBtn.disabled = true;
+                    return;
+                }
+                activeSubUrl = urlOrContent;
+                let fetchUrl = urlOrContent;
+                if (urlOrContent.startsWith("http://") || urlOrContent.startsWith("https://") || urlOrContent.startsWith("/api/download/file/")) {
+                    fetchUrl = `/api/system/proxy-sub?url=${encodeURIComponent(urlOrContent)}`;
+                }
+                const res = await fetch(fetchUrl);
+                text = await res.text();
+            }
+            
+            originalSubtitleContent = text;
+            currentCues = parseSubtitleText(text);
+            console.log(`Loaded ${currentCues.length} subtitles cues`);
+            
+            // Populate Interactive Transcript Sidebar
+            const transcriptList = document.getElementById("transcript-list");
+            const sidebar = document.getElementById("preview-transcript-sidebar");
+            if (transcriptList) {
+                transcriptList.innerHTML = "";
+                currentCues.forEach((cue, index) => {
+                    const cueEl = document.createElement("div");
+                    cueEl.className = "transcript-item";
+                    cueEl.setAttribute("data-index", index);
+                    
+                    const timeEl = document.createElement("span");
+                    timeEl.className = "transcript-item-time";
+                    timeEl.textContent = formatTime(cue.start);
+                    
+                    const textEl = document.createElement("span");
+                    textEl.className = "transcript-item-text";
+                    textEl.textContent = cue.text;
+                    
+                    cueEl.appendChild(timeEl);
+                    cueEl.appendChild(textEl);
+                    
+                    // Click to seek
+                    cueEl.addEventListener("click", () => {
+                        if (previewVideoPlayer) {
+                            previewVideoPlayer.currentTime = cue.start;
+                            previewVideoPlayer.play().catch(e => console.log(e));
+                        }
+                    });
+                    
+                    transcriptList.appendChild(cueEl);
+                });
+            }
+            if (sidebar) {
+                if (currentCues.length > 0) {
+                    sidebar.classList.remove("hidden");
+                } else {
+                    sidebar.classList.add("hidden");
+                }
+            }
+            
+            // Enable download subtitle button
+            const downloadBtn = document.getElementById("preview-sub-download-btn");
+            if (downloadBtn) {
+                downloadBtn.disabled = currentCues.length === 0;
+            }
+            
+            // Apply current style selections
+            applySubtitleStyles();
+            
+            // Trigger overlay check
+            if (previewVideoPlayer) {
+                updateSubtitlesOverlay(previewVideoPlayer.currentTime);
+            }
+            
+        } catch (err) {
+            console.error("Failed to load subtitle track:", err);
+        }
+    }
+
+    function speakTts(text, lang) {
+        if (!window.speechSynthesis) return;
+        window.speechSynthesis.cancel(); // Cancel any ongoing speech first
+        
+        const utterance = new SpeechSynthesisUtterance(text);
+        
+        // Find suitable voice matching selected language
+        const voices = window.speechSynthesis.getVoices();
+        let voice = null;
+        
+        if (lang === "vi") {
+            voice = voices.find(v => v.lang.includes("vi-VN") || v.lang.includes("vi_VN"));
+            utterance.lang = "vi-VN";
+        } else if (lang === "en") {
+            voice = voices.find(v => v.lang.includes("en-US") || v.lang.includes("en_US") || v.lang.includes("en-GB"));
+            utterance.lang = "en-US";
+        }
+        
+        if (voice) {
+            utterance.voice = voice;
+        }
+        
+        if (previewVideoPlayer) {
+            utterance.rate = previewVideoPlayer.playbackRate || 1.0;
+        }
+        
+        window.speechSynthesis.speak(utterance);
+    }
+
+    function updateSubtitlesOverlay(currentTime) {
+        if (!currentCues || currentCues.length === 0) {
+            const overlay = document.getElementById("preview-subtitles-overlay");
+            if (overlay) overlay.classList.add("hidden");
+            return;
+        }
+        
+        // Find matching cues
+        const activeCues = currentCues.filter(c => currentTime >= c.start && currentTime <= c.end);
+        const overlay = document.getElementById("preview-subtitles-overlay");
+        const textBox = overlay ? overlay.querySelector(".subtitles-text-box") : null;
+        
+        if (activeCues.length > 0) {
+            const textContent = activeCues.map(c => c.text).join('\n');
+            if (textBox) {
+                textBox.textContent = textContent;
+            }
+            if (overlay) {
+                overlay.classList.remove("hidden");
+            }
+            
+            // Trigger TTS if active
+            const voiceSelect = document.getElementById("preview-voiceover-select");
+            if (voiceSelect && voiceSelect.value !== "none") {
+                const speechText = activeCues[0].text;
+                if (speechText && speechText !== lastTtsText) {
+                    lastTtsText = speechText;
+                    speakTts(speechText, voiceSelect.value);
+                }
+            }
+            
+            // Highlight cue in Interactive Transcript Sidebar
+            const firstActiveIndex = currentCues.indexOf(activeCues[0]);
+            const cueEls = document.querySelectorAll(".transcript-item");
+            cueEls.forEach(el => el.classList.remove("active"));
+            
+            const activeEl = document.querySelector(`.transcript-item[data-index="${firstActiveIndex}"]`);
+            if (activeEl) {
+                activeEl.classList.add("active");
+                // Scroll into view if not manual scrolling
+                const listEl = document.getElementById("transcript-list");
+                if (listEl && !listEl.matches(':hover')) {
+                    activeEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                }
+            }
+        } else {
+            if (overlay) {
+                overlay.classList.add("hidden");
+            }
+            // Remove highlight
+            const cueEls = document.querySelectorAll(".transcript-item");
+            cueEls.forEach(el => el.classList.remove("active"));
+        }
+    }
+
+    function applySubtitleStyles() {
+        const sizeSelect = document.getElementById("preview-sub-size");
+        const colorSelect = document.getElementById("preview-sub-color");
+        const bgSelect = document.getElementById("preview-sub-bg");
+        const posSelect = document.getElementById("preview-sub-pos");
+        
+        const overlay = document.getElementById("preview-subtitles-overlay");
+        const textBox = overlay ? overlay.querySelector(".subtitles-text-box") : null;
+        
+        if (textBox) {
+            if (sizeSelect) textBox.style.fontSize = sizeSelect.value;
+            if (colorSelect) textBox.style.color = colorSelect.value;
+            if (bgSelect) textBox.style.background = bgSelect.value;
+        }
+        if (overlay && posSelect) {
+            if (posSelect.value === "top") {
+                overlay.classList.remove("pos-bottom");
+                overlay.classList.add("pos-top");
+            } else {
+                overlay.classList.remove("pos-top");
+                overlay.classList.add("pos-bottom");
+            }
+        }
+    }
+
+    function parseTimeStringToSeconds(str) {
+        if (!str) return null;
+        const parts = str.trim().split(':');
+        if (parts.length === 2) {
+            const mins = parseInt(parts[0], 10);
+            const secs = parseFloat(parts[1]);
+            if (!isNaN(mins) && !isNaN(secs)) {
+                return mins * 60 + secs;
+            }
+        } else if (parts.length === 1) {
+            const secs = parseFloat(parts[0]);
+            if (!isNaN(secs)) return secs;
+        }
+        return null;
+    }
+
+    function formatMsToVttTime(ms) {
+        const hours = Math.floor(ms / 3600000);
+        const minutes = Math.floor((ms % 3600000) / 60000);
+        const seconds = Math.floor((ms % 60000) / 1000);
+        const milliseconds = Math.floor(ms % 1000);
+        
+        return `${hours.toString().padStart(2, "0")}:${minutes.toString().padStart(2, "0")}:${seconds.toString().padStart(2, "0")}.${milliseconds.toString().padStart(3, "0")}`;
+    }
+
+    // --- SUBTITLE & CONTROLS INTERACTIVE BINDINGS ---
+
+    const previewSubSelect = document.getElementById("preview-sub-select");
+    if (previewSubSelect) {
+        previewSubSelect.addEventListener("change", function() {
+            const val = this.value;
+            const transSelect = document.getElementById("preview-sub-trans-select");
+            if (transSelect) transSelect.value = "none";
+            loadSubtitle(val);
+        });
+    }
+
+    const previewSubTransSelect = document.getElementById("preview-sub-trans-select");
+    if (previewSubTransSelect) {
+        previewSubTransSelect.addEventListener("change", async function() {
+            const targetLang = this.value;
+            if (targetLang === "none") {
+                const subSelect = document.getElementById("preview-sub-select");
+                if (subSelect && subSelect.value !== "none") {
+                    loadSubtitle(subSelect.value);
+                } else if (originalSubtitleContent) {
+                    loadSubtitle(originalSubtitleContent, true);
+                }
+                return;
+            }
+            
+            try {
+                const payload = { target_lang: targetLang };
+                const subSelect = document.getElementById("preview-sub-select");
+                
+                if (subSelect && subSelect.value !== "none") {
+                    payload.url = subSelect.value;
+                } else if (originalSubtitleContent) {
+                    payload.content = originalSubtitleContent;
+                } else {
+                    this.value = "none";
+                    return;
+                }
+                
+                previewLoader.classList.remove("hidden");
+                previewLoaderText.textContent = "Translating subtitles...";
+                
+                const resp = await fetch("/api/system/translate-sub", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify(payload)
+                });
+                const resData = await resp.json();
+                previewLoader.classList.add("hidden");
+                
+                if (resData.status === "success" && resData.translated_vtt) {
+                    loadSubtitle(resData.translated_vtt, true);
+                } else {
+                    alert("Failed to translate subtitle: " + (resData.message || "Unknown error"));
+                    this.value = "none";
+                }
+            } catch (e) {
+                console.error("Subtitle translation error:", e);
+                previewLoader.classList.add("hidden");
+                this.value = "none";
+            }
+        });
+    }
+
+    const previewVoiceoverSelect = document.getElementById("preview-voiceover-select");
+    if (previewVoiceoverSelect) {
+        previewVoiceoverSelect.addEventListener("change", function() {
+            if (this.value === "none") {
+                if (window.speechSynthesis) window.speechSynthesis.cancel();
+            } else {
+                if (previewVideoPlayer && currentCues.length > 0) {
+                    updateSubtitlesOverlay(previewVideoPlayer.currentTime);
+                }
+            }
+        });
+    }
+
+    const previewSpeedSelect = document.getElementById("preview-speed-select");
+    if (previewSpeedSelect) {
+        previewSpeedSelect.addEventListener("change", function() {
+            if (previewVideoPlayer) {
+                previewVideoPlayer.playbackRate = parseFloat(this.value);
+            }
+        });
+    }
+
+    const previewSubUploadBtn = document.getElementById("preview-sub-upload-btn");
+    const previewSubUploadFile = document.getElementById("preview-sub-upload-file");
+    if (previewSubUploadBtn && previewSubUploadFile) {
+        previewSubUploadBtn.addEventListener("click", (e) => {
+            e.stopPropagation();
+            previewSubUploadFile.click();
+        });
+        
+        previewSubUploadFile.addEventListener("change", function() {
+            const file = this.files[0];
+            if (!file) return;
+            
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                const text = e.target.result;
+                originalSubtitleContent = text;
+                loadSubtitle(text, true);
+                
+                const subSelect = document.getElementById("preview-sub-select");
+                if (subSelect) {
+                    const prevCustom = subSelect.querySelector('option[data-type="custom"]');
+                    if (prevCustom) prevCustom.remove();
+                    
+                    const opt = document.createElement("option");
+                    opt.value = "custom";
+                    opt.textContent = `Uploaded: ${file.name}`;
+                    opt.setAttribute("data-type", "custom");
+                    opt.selected = true;
+                    subSelect.appendChild(opt);
+                }
+            };
+            reader.readAsText(file);
+            this.value = "";
+        });
+    }
+
+    const previewSubDownloadBtn = document.getElementById("preview-sub-download-btn");
+    if (previewSubDownloadBtn) {
+        previewSubDownloadBtn.addEventListener("click", (e) => {
+            e.stopPropagation();
+            if (currentCues.length === 0) return;
+            
+            let vttContent = "WEBVTT\n\n";
+            currentCues.forEach((cue, index) => {
+                const startStr = formatMsToVttTime(cue.start * 1000);
+                const endStr = formatMsToVttTime(cue.end * 1000);
+                vttContent += `${index + 1}\n${startStr} --> ${endStr}\n${cue.text}\n\n`;
+            });
+            
+            const blob = new Blob([vttContent], { type: "text/vtt;charset=utf-8" });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement("a");
+            const videoName = getSafeTitle(videoTitle.textContent, "subtitles");
+            a.href = url;
+            a.download = `${videoName}.vtt`;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+        });
+    }
+
+    const loopPointAInput = document.getElementById("loop-point-a");
+    const loopPointBInput = document.getElementById("loop-point-b");
+    const btnLoopASet = document.getElementById("btn-loop-a-set");
+    const btnLoopBSet = document.getElementById("btn-loop-b-set");
+    const btnLoopClear = document.getElementById("btn-loop-clear");
+
+    if (btnLoopASet) {
+        btnLoopASet.addEventListener("click", (e) => {
+            e.stopPropagation();
+            if (previewVideoPlayer) {
+                loopStartSecs = previewVideoPlayer.currentTime;
+                if (loopPointAInput) {
+                    loopPointAInput.value = formatTime(loopStartSecs);
+                }
+                if (loopEndSecs !== null && loopStartSecs >= loopEndSecs) {
+                    loopEndSecs = null;
+                    if (loopPointBInput) loopPointBInput.value = "";
+                }
+            }
+        });
+    }
+
+    if (btnLoopBSet) {
+        btnLoopBSet.addEventListener("click", (e) => {
+            e.stopPropagation();
+            if (previewVideoPlayer) {
+                loopEndSecs = previewVideoPlayer.currentTime;
+                if (loopPointBInput) {
+                    loopPointBInput.value = formatTime(loopEndSecs);
+                }
+                if (loopStartSecs !== null && loopEndSecs <= loopStartSecs) {
+                    loopStartSecs = null;
+                    if (loopPointAInput) loopPointAInput.value = "";
+                }
+            }
+        });
+    }
+
+    if (btnLoopClear) {
+        btnLoopClear.addEventListener("click", (e) => {
+            e.stopPropagation();
+            loopStartSecs = null;
+            loopEndSecs = null;
+            if (loopPointAInput) loopPointAInput.value = "";
+            if (loopPointBInput) loopPointBInput.value = "";
+        });
+    }
+
+    if (loopPointAInput) {
+        loopPointAInput.addEventListener("change", function() {
+            const secs = parseTimeStringToSeconds(this.value);
+            if (secs !== null) {
+                loopStartSecs = secs;
+                this.value = formatTime(secs);
+            } else {
+                loopStartSecs = null;
+                this.value = "";
+            }
+        });
+    }
+
+    if (loopPointBInput) {
+        loopPointBInput.addEventListener("change", function() {
+            const secs = parseTimeStringToSeconds(this.value);
+            if (secs !== null) {
+                loopEndSecs = secs;
+                this.value = formatTime(secs);
+            } else {
+                loopEndSecs = null;
+                this.value = "";
+            }
+        });
+    }
+
+    // Toggle A-B Loop visibility
+    const toggleAbLoop = document.getElementById("toggle-ab-loop");
+    const abLoopWrapper = document.getElementById("ab-loop-wrapper");
+    
+    if (toggleAbLoop && abLoopWrapper) {
+        // Load saved state
+        const savedState = localStorage.getItem("ab-loop-visible") === "true";
+        toggleAbLoop.checked = savedState;
+        if (savedState) {
+            abLoopWrapper.classList.remove("collapsed");
+            abLoopWrapper.classList.add("expanded");
+        } else {
+            abLoopWrapper.classList.remove("expanded");
+            abLoopWrapper.classList.add("collapsed");
+        }
+        
+        toggleAbLoop.addEventListener("change", () => {
+            if (toggleAbLoop.checked) {
+                abLoopWrapper.classList.remove("collapsed");
+                abLoopWrapper.classList.add("expanded");
+                localStorage.setItem("ab-loop-visible", "true");
+            } else {
+                abLoopWrapper.classList.remove("expanded");
+                abLoopWrapper.classList.add("collapsed");
+                localStorage.setItem("ab-loop-visible", "false");
+                // Clear active loop when toggled off
+                const clearBtn = document.getElementById("btn-loop-clear");
+                if (clearBtn) clearBtn.click();
+            }
+        });
+    }
+
+    const videoTranscriptBtn = document.getElementById("video-transcript-btn");
+    const previewTranscriptSidebar = document.getElementById("preview-transcript-sidebar");
+    const closeTranscriptSidebarBtn = document.getElementById("close-transcript-sidebar-btn");
+
+    if (videoTranscriptBtn && previewTranscriptSidebar) {
+        videoTranscriptBtn.addEventListener("click", (e) => {
+            e.stopPropagation();
+            previewTranscriptSidebar.classList.toggle("hidden");
+        });
+    }
+
+    if (closeTranscriptSidebarBtn && previewTranscriptSidebar) {
+        closeTranscriptSidebarBtn.addEventListener("click", (e) => {
+            e.stopPropagation();
+            previewTranscriptSidebar.classList.add("hidden");
+        });
+    }
+
+    const videoSettingsBtn = document.getElementById("video-settings-btn");
+    const videoSettingsMenu = document.getElementById("video-settings-menu");
+    const closeSettingsMenuBtn = document.getElementById("close-settings-menu-btn");
+    
+    if (videoSettingsBtn && videoSettingsMenu) {
+        videoSettingsBtn.addEventListener("click", (e) => {
+            e.stopPropagation();
+            videoSettingsMenu.classList.toggle("hidden");
+        });
+    }
+    
+    if (closeSettingsMenuBtn && videoSettingsMenu) {
+        closeSettingsMenuBtn.addEventListener("click", (e) => {
+            e.stopPropagation();
+            videoSettingsMenu.classList.add("hidden");
+        });
+    }
+
+    // Hide settings menu when clicking outside
+    document.addEventListener("click", (e) => {
+        if (videoSettingsMenu && !videoSettingsMenu.classList.contains("hidden")) {
+            if (!videoSettingsMenu.contains(e.target) && e.target !== videoSettingsBtn) {
+                videoSettingsMenu.classList.add("hidden");
+            }
+        }
+    });
+
+    function initCustomDropdowns() {
+        const settingsMenu = document.getElementById("video-settings-menu");
+        if (!settingsMenu) return;
+
+        const selectMenus = settingsMenu.querySelectorAll(".custom-select-menu");
+        selectMenus.forEach(selectEl => {
+            if (!selectEl.id) return;
+            
+            // Check if already initialized
+            let container = settingsMenu.querySelector(`.custom-dropdown-container[data-select-id="${selectEl.id}"]`);
+            if (container) return;
+
+            // Hide the real select element
+            selectEl.style.setProperty("display", "none", "important");
+
+            // Create custom dropdown markup
+            container = document.createElement("div");
+            container.className = "custom-dropdown-container";
+            container.setAttribute("data-select-id", selectEl.id);
+
+            const trigger = document.createElement("div");
+            trigger.className = "custom-dropdown-trigger";
+
+            const selectedText = document.createElement("span");
+            selectedText.className = "custom-dropdown-selected-text";
+            
+            const arrow = document.createElement("span");
+            arrow.className = "custom-dropdown-arrow";
+            arrow.innerHTML = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" width="10" height="10"><polyline points="6 9 12 15 18 9"/></svg>`;
+
+            trigger.appendChild(selectedText);
+            trigger.appendChild(arrow);
+
+            const optionsList = document.createElement("div");
+            optionsList.className = "custom-dropdown-options-list";
+
+            container.appendChild(trigger);
+            container.appendChild(optionsList);
+
+            // Insert custom container right after the select
+            selectEl.parentNode.insertBefore(container, selectEl.nextSibling);
+
+            // Rebuild function
+            function rebuildCustomOptions() {
+                optionsList.innerHTML = "";
+                Array.from(selectEl.options).forEach(opt => {
+                    const optDiv = document.createElement("div");
+                    optDiv.className = "custom-dropdown-option";
+                    optDiv.setAttribute("data-value", opt.value);
+                    optDiv.textContent = opt.textContent;
+                    
+                    if (opt.selected) {
+                        optDiv.classList.add("active");
+                        selectedText.textContent = opt.textContent;
+                    }
+
+                    optDiv.addEventListener("click", (e) => {
+                        e.stopPropagation();
+                        // Update select value
+                        selectEl.value = opt.value;
+                        // Dispatch event
+                        selectEl.dispatchEvent(new Event("change"));
+                        // Close menu
+                        container.classList.remove("open");
+                    });
+
+                    optionsList.appendChild(optDiv);
+                });
+
+                // If nothing is selected, display first option or placeholder
+                if (selectEl.selectedIndex === -1 || !selectedText.textContent) {
+                    if (selectEl.options.length > 0) {
+                        selectedText.textContent = selectEl.options[0].textContent;
+                    } else {
+                        selectedText.textContent = "None";
+                    }
+                }
+            }
+
+            // Initial build
+            rebuildCustomOptions();
+
+            // Set dynamic opening direction
+            if (["preview-sub-select", "preview-sub-trans-select", "preview-voiceover-select"].includes(selectEl.id)) {
+                container.classList.add("open-down");
+            } else {
+                container.classList.add("open-up");
+            }
+
+            // Trigger click event to toggle dropdown list open/closed
+            trigger.addEventListener("click", (e) => {
+                // Close all other dropdowns
+                const allDropdowns = settingsMenu.querySelectorAll(".custom-dropdown-container");
+                allDropdowns.forEach(other => {
+                    if (other !== container) {
+                        other.classList.remove("open");
+                    }
+                });
+
+                container.classList.toggle("open");
+            });
+
+            // Sync when select value changes programmatically
+            try {
+                const valueDescriptor = Object.getOwnPropertyDescriptor(HTMLSelectElement.prototype, 'value');
+                if (valueDescriptor) {
+                    Object.defineProperty(selectEl, 'value', {
+                        get: function() {
+                            return valueDescriptor.get.call(this);
+                        },
+                        set: function(val) {
+                            valueDescriptor.set.call(this, val);
+                            const selectedOpt = Array.from(selectEl.options).find(o => o.value === val);
+                            if (selectedOpt) {
+                                selectedText.textContent = selectedOpt.textContent;
+                            }
+                            const customOpts = optionsList.querySelectorAll(".custom-dropdown-option");
+                            customOpts.forEach(opt => {
+                                if (opt.getAttribute("data-value") === val) {
+                                    opt.classList.add("active");
+                                } else {
+                                    opt.classList.remove("active");
+                                }
+                            });
+                        },
+                        configurable: true
+                    });
+                }
+            } catch (e) {
+                console.warn("Could not override select value property descriptor:", e);
+            }
+
+            // Sync when selectedIndex changes programmatically
+            try {
+                const indexDescriptor = Object.getOwnPropertyDescriptor(HTMLSelectElement.prototype, 'selectedIndex');
+                if (indexDescriptor) {
+                    Object.defineProperty(selectEl, 'selectedIndex', {
+                        get: function() {
+                            return indexDescriptor.get.call(this);
+                        },
+                        set: function(idx) {
+                            indexDescriptor.set.call(this, idx);
+                            const opt = selectEl.options[idx];
+                            if (opt) {
+                                selectedText.textContent = opt.textContent;
+                                const val = opt.value;
+                                const customOpts = optionsList.querySelectorAll(".custom-dropdown-option");
+                                customOpts.forEach(co => {
+                                    if (co.getAttribute("data-value") === val) {
+                                        co.classList.add("active");
+                                    } else {
+                                        co.classList.remove("active");
+                                    }
+                                });
+                            }
+                        },
+                        configurable: true
+                    });
+                }
+            } catch (e) {
+                console.warn("Could not override select selectedIndex property descriptor:", e);
+            }
+
+            // Sync on change event
+            selectEl.addEventListener("change", () => {
+                const val = selectEl.value;
+                const selectedOpt = Array.from(selectEl.options).find(o => o.value === val);
+                if (selectedOpt) {
+                    selectedText.textContent = selectedOpt.textContent;
+                }
+                const customOpts = optionsList.querySelectorAll(".custom-dropdown-option");
+                customOpts.forEach(opt => {
+                    if (opt.getAttribute("data-value") === val) {
+                        opt.classList.add("active");
+                    } else {
+                        opt.classList.remove("active");
+                    }
+                });
+            });
+
+            // Observe option changes (childList) in select element
+            const observer = new MutationObserver(() => {
+                rebuildCustomOptions();
+            });
+            observer.observe(selectEl, { childList: true, subtree: true });
+        });
+
+        // Close dropdowns when clicking outside anywhere on the document
+        document.addEventListener("click", (e) => {
+            const allDropdowns = settingsMenu.querySelectorAll(".custom-dropdown-container");
+            allDropdowns.forEach(container => {
+                if (!container.contains(e.target)) {
+                    container.classList.remove("open");
+                }
+            });
+        });
+    }
+
+    // Initialize custom dropdowns
+    initCustomDropdowns();
+
+    const subSizeSelect = document.getElementById("preview-sub-size");
+    const subColorSelect = document.getElementById("preview-sub-color");
+    const subBgSelect = document.getElementById("preview-sub-bg");
+    const subPosSelect = document.getElementById("preview-sub-pos");
+
+    [subSizeSelect, subColorSelect, subBgSelect, subPosSelect].forEach(select => {
+        if (select) {
+            select.addEventListener("change", applySubtitleStyles);
+        }
+    });
+
+    const transcriptSearch = document.getElementById("transcript-search");
+    if (transcriptSearch) {
+        transcriptSearch.addEventListener("input", function() {
+            const query = this.value.toLowerCase().trim();
+            const cueEls = document.querySelectorAll(".transcript-item");
+            cueEls.forEach(el => {
+                const text = el.querySelector(".transcript-item-text").textContent.toLowerCase();
+                if (text.includes(query)) {
+                    el.style.display = "";
+                } else {
+                    el.style.display = "none";
+                }
+            });
+        });
+    }
+
+    const videoPipBtn = document.getElementById("video-pip-btn");
+    if (videoPipBtn && previewVideoPlayer) {
+        videoPipBtn.addEventListener("click", async (e) => {
+            e.stopPropagation();
+            try {
+                if (document.pictureInPictureElement) {
+                    await document.exitPictureInPicture();
+                } else if (previewVideoPlayer !== document.pictureInPictureElement) {
+                    await previewVideoPlayer.requestPictureInPicture();
+                }
+            } catch (err) {
+                console.error("Failed to toggle Picture-in-Picture mode:", err);
+            }
+        });
+    }
+
+    // voiceschanged callback to make sure voices list is refreshed
+    if (window.speechSynthesis) {
+        window.speechSynthesis.onvoiceschanged = () => {};
     }
 });
 

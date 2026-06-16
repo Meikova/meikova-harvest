@@ -22,6 +22,47 @@ from flask import Blueprint, Response, jsonify, request, stream_with_context
 
 build_bp = Blueprint('build', __name__)
 
+def ensure_vtt_content(text: str) -> str:
+    if text and ("<transcript" in text or "<timedtext" in text or text.strip().startswith("<?xml")):
+        try:
+            import xml.etree.ElementTree as ET
+            import html
+            root = ET.fromstring(text)
+            vtt_lines = ["WEBVTT", ""]
+            
+            cues = []
+            for elem in root.iter():
+                if elem.tag in ('text', 'p') and 'start' in elem.attrib:
+                    cues.append(elem)
+                    
+            for idx, child in enumerate(cues):
+                start = float(child.attrib.get("start", 0.0))
+                dur = float(child.attrib.get("dur", 0.0))
+                end = start + dur
+                
+                def format_time(secs):
+                    hrs = int(secs // 3600)
+                    mins = int((secs % 3600) // 60)
+                    seconds = secs % 60
+                    ms = int(round((seconds - int(seconds)) * 1000))
+                    return f"{hrs:02d}:{mins:02d}:{int(seconds):02d}.{ms:03d}"
+                
+                start_str = format_time(start)
+                end_str = format_time(end)
+                txt = child.text or ""
+                txt = html.unescape(txt)
+                txt = txt.replace("\n", " ").strip()
+                if txt:
+                    vtt_lines.append(f"{idx + 1}")
+                    vtt_lines.append(f"{start_str} --> {end_str}")
+                    vtt_lines.append(txt)
+                    vtt_lines.append("")
+            if len(vtt_lines) > 2:
+                return "\n".join(vtt_lines)
+        except Exception:
+            pass
+    return text
+
 # ── Active build registry ─────────────────────────────────────────────────────
 _builds: dict[str, dict] = {}  # build_id → {queue, thread, cancelled}
 
@@ -330,3 +371,171 @@ def update_ytdl():
             'status': 'error',
             'message': str(e)
         }), 500
+
+
+@build_bp.route('/api/system/translate-sub', methods=['POST'])
+def translate_subtitle_endpoint():
+    try:
+        data = request.get_json(force=True, silent=True) or {}
+        url = data.get("url")
+        if url and "youtube.com/api/timedtext" in url:
+            import re
+            if "fmt=" in url:
+                url = re.sub(r'fmt=[^&]+', 'fmt=vtt', url)
+            else:
+                url += "&fmt=vtt" if "?" in url else "?fmt=vtt"
+        content = data.get("content")
+        target_lang = data.get("target_lang", "vi")
+        
+        import requests
+        import os
+        import tempfile
+        from utils.ffmpeg import translate_vtt_file
+        
+        # Write to a temporary file
+        with tempfile.NamedTemporaryFile(suffix=".vtt", delete=False, mode="w", encoding="utf-8") as f:
+            temp_path = f.name
+            
+        try:
+            if url:
+                if url.startswith("/api/download/file/"):
+                    # Resolve locally from TEMP_DOWNLOAD_DIR
+                    parts = url.split("/")
+                    download_id = parts[-1].split("?")[0]
+                    from config import TEMP_DOWNLOAD_DIR
+                    local_dir = os.path.join(TEMP_DOWNLOAD_DIR, download_id)
+                    sub_file = None
+                    if os.path.exists(local_dir):
+                        for f_name in os.listdir(local_dir):
+                            if f_name.endswith(".vtt"):
+                                sub_file = os.path.join(local_dir, f_name)
+                                break
+                    if sub_file and os.path.exists(sub_file):
+                        with open(sub_file, "r", encoding="utf-8", errors="ignore") as sf:
+                            with open(temp_path, "w", encoding="utf-8") as tf:
+                                tf.write(sf.read())
+                    else:
+                        return jsonify({"status": "error", "message": "Local subtitle file not found"}), 400
+                else:
+                    resp = requests.get(url, headers={
+                        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
+                    }, verify=False, timeout=15)
+                    if resp.status_code == 200:
+                        vtt_text = ensure_vtt_content(resp.text)
+                        with open(temp_path, "w", encoding="utf-8") as f:
+                            f.write(vtt_text)
+                    else:
+                        return jsonify({"status": "error", "message": f"Failed to download sub from URL (HTTP {resp.status_code})"}), 400
+            elif content:
+                vtt_text = ensure_vtt_content(content)
+                with open(temp_path, "w", encoding="utf-8") as f:
+                    f.write(vtt_text)
+            else:
+                return jsonify({"status": "error", "message": "Missing url or content"}), 400
+                
+            # Translate VTT
+            translate_vtt_file(temp_path, target_lang=target_lang)
+            
+            # Read back translated VTT
+            with open(temp_path, "r", encoding="utf-8", errors="ignore") as f:
+                translated_vtt = f.read()
+                
+            return jsonify({
+                "status": "success",
+                "translated_vtt": translated_vtt
+            })
+        finally:
+            if os.path.exists(temp_path):
+                try:
+                    os.remove(temp_path)
+                except Exception:
+                    pass
+    except Exception as e:
+        return jsonify({"status": "error", "message": str(e)}), 500
+
+
+@build_bp.route('/api/system/proxy-sub', methods=['GET'])
+def proxy_subtitle_endpoint():
+    url = request.args.get("url")
+    if not url:
+        return "Missing url parameter", 400
+    
+    mode = request.args.get("mode", "vtt").lower()
+    client_id = request.args.get("client_id")
+    
+    if "youtube.com/api/timedtext" in url and mode == "vtt":
+        import re
+        if "fmt=" in url:
+            url = re.sub(r'fmt=[^&]+', 'fmt=vtt', url)
+        else:
+            url += "&fmt=vtt" if "?" in url else "?fmt=vtt"
+    try:
+        from flask import make_response
+        import os
+        from config import TEMP_DOWNLOAD_DIR
+        
+        text = ""
+        # Resolve local file if URL is local download stream
+        if url.startswith("/api/download/file/"):
+            parts = url.split("/")
+            download_id = parts[-1].split("?")[0]
+            local_dir = os.path.join(TEMP_DOWNLOAD_DIR, download_id)
+            sub_file = None
+            if os.path.exists(local_dir):
+                for f_name in os.listdir(local_dir):
+                    if f_name.endswith(".vtt") or (mode == "html" and (f_name.endswith(".html") or f_name.endswith(".htm"))):
+                        sub_file = os.path.join(local_dir, f_name)
+                        break
+            if sub_file and os.path.exists(sub_file):
+                with open(sub_file, "r", encoding="utf-8", errors="ignore") as sf:
+                    text = sf.read()
+            else:
+                return "Local file not found", 404
+        else:
+            # External URL proxying
+            # Get user cookies if available
+            cookies_dict = {}
+            if client_id:
+                client_cookies = os.path.join(TEMP_DOWNLOAD_DIR, "cookies", f"cookies_{client_id}.txt")
+                if os.path.exists(client_cookies):
+                    try:
+                        with open(client_cookies, 'r', encoding='utf-8', errors='ignore') as f:
+                            for line in f:
+                                line = line.strip()
+                                if not line or line.startswith('#'):
+                                    continue
+                                parts = line.split('\t')
+                                if len(parts) >= 7:
+                                    cookies_dict[parts[5]] = parts[6]
+                    except Exception as cookie_err:
+                        # Log or pass
+                        pass
+            
+            from extractors.generic import fetch_html
+            headers = {
+                "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
+            }
+            html_content = fetch_html(url, headers=headers, cookies=cookies_dict)
+            if html_content:
+                text = html_content
+            else:
+                # Fallback to requests
+                import requests
+                resp = requests.get(url, headers=headers, cookies=cookies_dict, verify=False, timeout=15)
+                text = resp.text
+        
+        if mode == "vtt":
+            text = ensure_vtt_content(text)
+            content_type = "text/vtt; charset=utf-8"
+        elif mode == "html":
+            content_type = "text/html; charset=utf-8"
+        else:
+            content_type = "text/plain; charset=utf-8"
+            
+        response = make_response(text)
+        response.headers["Content-Type"] = content_type
+        response.headers["Access-Control-Allow-Origin"] = "*"
+        return response
+    except Exception as e:
+        return str(e), 500
+

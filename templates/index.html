@@ -65,7 +65,7 @@
     />
     <link
       rel="stylesheet"
-      href="{{ url_for('static', filename='css/styles.css') }}?v=7.5"
+      href="{{ url_for('static', filename='css/styles.css') }}?v=8.8"
     />
     <script src="https://cdn.jsdelivr.net/npm/hls.js@1.5.8/dist/hls.min.js"></script>
     <script>
@@ -1569,23 +1569,30 @@
       <div class="modal-card modal-card-preview">
         <div class="modal-header">
           <h3 id="preview-title">Media Preview</h3>
-          <button
-            id="preview-modal-close-btn"
-            class="modal-close-btn"
-            title="Close"
-          >
-            <svg
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              stroke-width="2"
-              stroke-linecap="round"
-              stroke-linejoin="round"
+          <div class="modal-header-actions" style="display: flex; align-items: center; gap: 8px;">
+            <button id="modal-fullscreen-btn" class="modal-action-btn" title="Theater Mode (Web Fullscreen)">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="18" height="18">
+                <path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3"></path>
+              </svg>
+            </button>
+            <button
+              id="preview-modal-close-btn"
+              class="modal-close-btn"
+              title="Close"
             >
-              <line x1="18" y1="6" x2="6" y2="18" />
-              <line x1="6" y1="6" x2="18" y2="18" />
-            </svg>
-          </button>
+              <svg
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+              >
+                <line x1="18" y1="6" x2="6" y2="18" />
+                <line x1="6" y1="6" x2="18" y2="18" />
+              </svg>
+            </button>
+          </div>
         </div>
 
         <div class="preview-content-area">
@@ -1602,64 +1609,237 @@
             id="preview-video-container"
             class="preview-player-container hidden"
           >
-            <div class="video-preview-card">
-              <div class="video-wrapper">
-                <video id="preview-video-player"></video>
-                <!-- Custom Video Controls Overlay -->
-                <div class="custom-video-controls hidden-controls">
-                  <div class="video-slider-container">
-                    <input type="range" id="video-seek-slider" class="audio-slider video-slider" min="0" max="100" value="0">
-                    <div class="video-time-row">
-                      <span id="video-time-current">00:00</span>
-                      <span id="video-time-total">00:00</span>
-                    </div>
+            <!-- Left Side: Player & Control Panel -->
+            <div class="preview-video-main">
+              <div class="video-preview-card">
+                <div class="video-wrapper">
+                  <video id="preview-video-player"></video>
+                  <!-- Custom Subtitles Overlay -->
+                  <div id="preview-subtitles-overlay" class="subtitles-overlay pos-bottom hidden">
+                    <div class="subtitles-text-box"></div>
                   </div>
                   
-                  <div class="video-buttons-row">
-                    <div class="video-left-controls">
-                      <button id="video-play-pause-btn" class="audio-btn video-btn" title="Play">
-                        <svg class="play-icon" viewBox="0 0 24 24" fill="currentColor" width="20" height="20"><path d="M8 5v14l11-7z"/></svg>
-                        <svg class="pause-icon hidden" viewBox="0 0 24 24" fill="currentColor" width="20" height="20"><path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"/></svg>
-                      </button>
-                      
-                      <button id="video-loop-btn" class="audio-btn video-btn" title="Repeat (Off)">
-                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                          <polyline points="17 1 21 5 17 9"></polyline>
-                          <path d="M3 11V9a4 4 0 0 1 4-4h14"></path>
-                          <polyline points="7 23 3 19 7 15"></polyline>
-                          <path d="M21 13v2a4 4 0 0 1-4 4H3"></path>
-                        </svg>
-                      </button>
-                      
-                      <div class="video-volume-container">
-                        <button id="video-mute-btn" class="audio-btn video-btn" title="Mute">
-                          <svg class="volume-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="18" height="18">
-                            <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon>
-                            <path class="volume-waves" d="M19.07 4.93a10 10 0 0 1 0 14.14M15.54 8.46a5 5 0 0 1 0 7.07"></path>
-                          </svg>
-                          <svg class="mute-icon hidden" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="18" height="18">
-                            <line x1="23" y1="9" x2="17" y2="15"></line>
-                            <line x1="17" y1="9" x2="23" y2="15"></line>
-                            <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon>
-                          </svg>
-                        </button>
-                        <input type="range" id="video-volume-slider" class="audio-slider volume-slider" min="0" max="1" step="0.05" value="1">
+                  <!-- Video Settings Popover Menu -->
+                  <div id="video-settings-menu" class="video-settings-menu hidden">
+                    <div class="settings-menu-header">
+                      <span>Video Settings</span>
+                      <button id="close-settings-menu-btn" class="settings-close-btn">&times;</button>
+                    </div>
+                    
+                    <div class="settings-menu-content">
+                      <!-- Group 1: Subtitles & Voice -->
+                      <div class="settings-group">
+                        <div class="settings-title">Subtitles & Voiceover</div>
+                        
+                        <div class="settings-row">
+                          <label for="preview-sub-select">Track:</label>
+                          <div class="sub-select-wrapper">
+                            <select id="preview-sub-select" class="custom-select-menu" title="Select Subtitle Track">
+                              <option value="none">None</option>
+                            </select>
+                            <button id="preview-sub-upload-btn" class="btn-menu-action" title="Upload subtitle (.vtt, .srt)">
+                              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="12" height="12"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M17 8l-5-5-5 5M12 3v12"/></svg>
+                            </button>
+                            <input type="file" id="preview-sub-upload-file" accept=".vtt,.srt" style="display:none;">
+                            <button id="preview-sub-download-btn" class="btn-menu-action" title="Download VTT" disabled>
+                              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="12" height="12"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M7 10l5 5 5-5M12 15V3"/></svg>
+                            </button>
+                          </div>
+                        </div>
+
+                        <div class="settings-row">
+                          <label for="preview-sub-trans-select">Translate:</label>
+                          <select id="preview-sub-trans-select" class="custom-select-menu" title="Translate Subtitle">
+                            <option value="none">Original</option>
+                            <option value="vi">Tiếng Việt</option>
+                            <option value="en">English</option>
+                          </select>
+                        </div>
+
+                        <div class="settings-row">
+                          <label for="preview-voiceover-select">Voiceover:</label>
+                          <select id="preview-voiceover-select" class="custom-select-menu" title="Voiceover Language">
+                            <option value="none">None</option>
+                            <option value="vi">Tiếng Việt</option>
+                            <option value="en">English</option>
+                          </select>
+                        </div>
+                      </div>
+
+                      <!-- Group 2: Playback Settings -->
+                      <div class="settings-group">
+                        <div class="settings-title">Playback Options</div>
+                        
+                        <div class="settings-row">
+                          <label for="preview-speed-select">Speed:</label>
+                          <select id="preview-speed-select" class="custom-select-menu" title="Playback Speed">
+                            <option value="0.5">0.5x</option>
+                            <option value="0.75">0.75x</option>
+                            <option value="1.0" selected>1.0x</option>
+                            <option value="1.25">1.25x</option>
+                            <option value="1.5">1.5x</option>
+                            <option value="2.0">2.0x</option>
+                          </select>
+                        </div>
+
+                        <div class="settings-row" style="justify-content: space-between;">
+                          <label for="toggle-ab-loop">A-B Loop:</label>
+                          <label class="switch-toggle">
+                            <input type="checkbox" id="toggle-ab-loop">
+                            <span class="switch-slider"></span>
+                          </label>
+                        </div>
+                        <div id="ab-loop-wrapper" class="ab-loop-wrapper collapsed">
+                          <div class="loop-controls-menu">
+                            <input type="text" id="loop-point-a" class="loop-time-input-menu" placeholder="A (0:00)" title="Loop Start">
+                            <span style="color: rgba(255, 255, 255, 0.4);">-</span>
+                            <input type="text" id="loop-point-b" class="loop-time-input-menu" placeholder="B (End)" title="Loop End">
+                            <button id="btn-loop-a-set" class="btn-menu-action" title="Set Start">Set A</button>
+                            <button id="btn-loop-b-set" class="btn-menu-action" title="Set End">Set B</button>
+                            <button id="btn-loop-clear" class="btn-menu-action btn-menu-clear" title="Clear Loop">×</button>
+                          </div>
+                        </div>
+                      </div>
+
+                      <!-- Group 3: Subtitle Styling -->
+                      <div class="settings-group">
+                        <div class="settings-title">Subtitles Styling</div>
+                        
+                        <div class="settings-row">
+                          <label for="preview-sub-size">Font Size:</label>
+                          <select id="preview-sub-size" class="custom-select-menu" title="Font Size">
+                            <option value="1.1rem">Small</option>
+                            <option value="1.4rem" selected>Medium</option>
+                            <option value="1.8rem">Large</option>
+                            <option value="2.2rem">Extra Large</option>
+                          </select>
+                        </div>
+
+                        <div class="settings-row">
+                          <label for="preview-sub-color">Color:</label>
+                          <select id="preview-sub-color" class="custom-select-menu" title="Font Color">
+                            <option value="#ffffff" selected>White</option>
+                            <option value="#ffff00">Yellow</option>
+                            <option value="#00ff00">Green</option>
+                            <option value="#00ffff">Cyan</option>
+                          </select>
+                        </div>
+
+                        <div class="settings-row">
+                          <label for="preview-sub-bg">Background:</label>
+                          <select id="preview-sub-bg" class="custom-select-menu" title="Background Color">
+                            <option value="rgba(0,0,0,0.5)" selected>Translucent</option>
+                            <option value="rgba(0,0,0,0.85)">Solid Black</option>
+                            <option value="none">None</option>
+                          </select>
+                        </div>
+
+                        <div class="settings-row">
+                          <label for="preview-sub-pos">Position:</label>
+                          <select id="preview-sub-pos" class="custom-select-menu" title="Vertical Position">
+                            <option value="bottom" selected>Bottom</option>
+                            <option value="top">Top</option>
+                          </select>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                  <!-- Custom Video Controls Overlay -->
+                  <div class="custom-video-controls hidden-controls">
+                    <div class="video-slider-container">
+                      <input type="range" id="video-seek-slider" class="audio-slider video-slider" min="0" max="100" value="0">
+                      <div class="video-time-row">
+                        <span id="video-time-current">00:00</span>
+                        <span id="video-time-total">00:00</span>
                       </div>
                     </div>
                     
-                    <div class="video-right-controls">
-                      <div class="video-selector-container">
-                        <select id="video-preview-format-select" class="custom-select" title="Change format/quality">
-                        </select>
+                    <div class="video-buttons-row">
+                      <div class="video-left-controls">
+                        <button id="video-play-pause-btn" class="audio-btn video-btn" title="Play">
+                          <svg class="play-icon" viewBox="0 0 24 24" fill="currentColor" width="20" height="20"><path d="M8 5v14l11-7z"/></svg>
+                          <svg class="pause-icon hidden" viewBox="0 0 24 24" fill="currentColor" width="20" height="20"><path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"/></svg>
+                        </button>
+                        
+                        <button id="video-loop-btn" class="audio-btn video-btn" title="Repeat (Off)">
+                          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <polyline points="17 1 21 5 17 9"></polyline>
+                            <path d="M3 11V9a4 4 0 0 1 4-4h14"></path>
+                            <polyline points="7 23 3 19 7 15"></polyline>
+                            <path d="M21 13v2a4 4 0 0 1-4 4H3"></path>
+                          </svg>
+                        </button>
+                        
+                        <div class="video-volume-container">
+                          <button id="video-mute-btn" class="audio-btn video-btn" title="Mute">
+                            <svg class="volume-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="18" height="18">
+                              <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon>
+                              <path class="volume-waves" d="M19.07 4.93a10 10 0 0 1 0 14.14M15.54 8.46a5 5 0 0 1 0 7.07"></path>
+                            </svg>
+                            <svg class="mute-icon hidden" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="18" height="18">
+                              <line x1="23" y1="9" x2="17" y2="15"></line>
+                              <line x1="17" y1="9" x2="23" y2="15"></line>
+                              <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon>
+                            </svg>
+                          </button>
+                          <input type="range" id="video-volume-slider" class="audio-slider volume-slider" min="0" max="1" step="0.05" value="1">
+                        </div>
                       </div>
-                      <button id="video-fullscreen-btn" class="audio-btn video-btn" title="Fullscreen">
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="18" height="18">
-                          <path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3"></path>
-                        </svg>
-                      </button>
+                      
+                      <div class="video-right-controls">
+                        <div class="video-selector-container">
+                          <select id="video-preview-format-select" class="custom-select" title="Change format/quality">
+                          </select>
+                        </div>
+                        <button id="video-transcript-btn" class="audio-btn video-btn" title="Toggle Interactive Transcript">
+                          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="18" height="18">
+                            <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path>
+                            <line x1="9" y1="10" x2="15" y2="10"></line>
+                            <line x1="9" y1="14" x2="13" y2="14"></line>
+                          </svg>
+                        </button>
+                        <button id="video-settings-btn" class="audio-btn video-btn" title="Settings">
+                          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="18" height="18">
+                            <circle cx="12" cy="12" r="3"></circle>
+                            <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"></path>
+                          </svg>
+                        </button>
+                        <button id="video-pip-btn" class="audio-btn video-btn" title="Picture in Picture">
+                          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="18" height="18">
+                            <rect x="2" y="2" width="20" height="20" rx="2.18" ry="2.18"></rect>
+                            <rect x="14" y="14" width="7" height="5" rx="1" ry="1"></rect>
+                          </svg>
+                        </button>
+                        <button id="video-fullscreen-btn" class="audio-btn video-btn" title="Fullscreen">
+                          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="18" height="18">
+                            <path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3"></path>
+                          </svg>
+                        </button>
+                      </div>
                     </div>
                   </div>
                 </div>
+
+
+              </div>
+            </div>
+
+            <!-- Right Side: Subtitle Transcript Sidebar -->
+            <div id="preview-transcript-sidebar" class="preview-transcript-sidebar hidden">
+              <div class="transcript-header">
+                <div class="transcript-title-row">
+                  <h4>
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="14" height="14">
+                      <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path>
+                    </svg>
+                    <span>Interactive Transcript</span>
+                  </h4>
+                  <button id="close-transcript-sidebar-btn" class="transcript-close-btn" title="Hide Transcript">&times;</button>
+                </div>
+                <input type="text" id="transcript-search" class="transcript-search-input" placeholder="Search transcript...">
+              </div>
+              <div id="transcript-list" class="transcript-list">
+                <!-- Subtitle lines will be dynamically loaded here -->
               </div>
             </div>
           </div>
@@ -1849,6 +2029,15 @@
               </div>
             </div>
           </div>
+
+          <!-- Webpage Preview -->
+          <div
+            id="preview-webpage-container"
+            class="preview-player-container hidden"
+            style="flex-direction: column; width: 100%; height: 100%;"
+          >
+            <iframe id="preview-webpage-iframe" style="width: 100%; height: 100%; min-height: 550px; border: none; background: #ffffff; border-radius: 8px; box-shadow: inset 0 0 10px rgba(0,0,0,0.1);"></iframe>
+          </div>
         </div>
 
         <div class="preview-footer-toolbar">
@@ -1932,6 +2121,6 @@
     </div>
 
     <script src="https://cdnjs.cloudflare.com/ajax/libs/noUiSlider/15.7.1/nouislider.min.js"></script>
-    <script src="{{ url_for('static', filename='js/main.js') }}?v=7.5"></script>
+    <script src="{{ url_for('static', filename='js/main.js') }}?v=8.7"></script>
   </body>
 </html>

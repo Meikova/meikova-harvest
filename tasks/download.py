@@ -125,14 +125,37 @@ def bg_download_task(download_id, url, format_id, ext, quality="192", title="med
             headers = {
                 "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
             }
-            response = requests.get(url, headers=headers, verify=False, timeout=15)
-            response.raise_for_status()
             
+            # Load user cookies if client_id is available
+            cookies_dict = {}
+            if client_id:
+                client_cookies = os.path.join(TEMP_DOWNLOAD_DIR, "cookies", f"cookies_{client_id}.txt")
+                if os.path.exists(client_cookies):
+                    try:
+                        with open(client_cookies, 'r', encoding='utf-8', errors='ignore') as f:
+                            for line in f:
+                                line = line.strip()
+                                if not line or line.startswith('#'):
+                                    continue
+                                parts = line.split('\t')
+                                if len(parts) >= 7:
+                                    cookies_dict[parts[5]] = parts[6]
+                    except Exception as cookie_err:
+                        logger.warning(f"Failed to parse cookies for generic webpage download: {cookie_err}")
+            
+            from extractors.generic import fetch_html
+            html_text = fetch_html(url, headers=headers, cookies=cookies_dict)
+            if not html_text:
+                # Fallback to requests if fetch_html fails
+                response = requests.get(url, headers=headers, cookies=cookies_dict, verify=False, timeout=15)
+                response.raise_for_status()
+                html_text = response.text
+                
             user_filename = generate_smart_filename(title, ext="html")
             filepath = os.path.join(temp_dir, user_filename)
             
             with open(filepath, 'w', encoding='utf-8', errors='ignore') as f:
-                f.write(response.text)
+                f.write(html_text)
                 
             logger.info(f"Task {download_id}: Webpage saved to {filepath}")
             
