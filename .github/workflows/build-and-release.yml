@@ -46,6 +46,21 @@ jobs:
           python build_tool/builder_cli.py --target both --name EveryThingDownloader --version ${{ env.VERSION }} --obfuscate
 
       # =========================================================================
+      # ĐẨY FILE EXE ĐÃ BUILD SANG KHO LƯU TRỮ RIÊNG TƯ (PRIVATE REPOSITORY)
+      # =========================================================================
+      - name: Create GitHub Release and Upload Assets (To Private Repo)
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            dist/EveryThingDownloader.exe
+            dist_electron/EveryThingDownloader-Portable-${{ env.VERSION }}.exe
+            dist_electron/EveryThingDownloader Setup ${{ env.VERSION }}.exe
+          draft: false
+          prerelease: false
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      # =========================================================================
       # ĐẨY FILE EXE ĐÃ BUILD SANG KHO LƯU TRỮ CÔNG KHAI (PUBLIC REPOSITORY)
       # =========================================================================
       - name: Create GitHub Release and Upload Assets (To Public Repo)
