@@ -478,6 +478,7 @@
         width: 42px;
         height: 24px;
         flex-shrink: 0;
+        pointer-events: none;
       }
 
       .toggle input {
@@ -1585,7 +1586,7 @@
                   initial startup)
                 </div>
               </div>
-              <label class="toggle" onclick.stop>
+              <label class="toggle">
                 <input type="checkbox" id="useUpx" />
                 <div class="toggle-track"></div>
                 <div class="toggle-thumb"></div>
@@ -1604,7 +1605,7 @@
                   release)
                 </div>
               </div>
-              <label class="toggle" onclick.stop>
+              <label class="toggle">
                 <input type="checkbox" id="showConsole" />
                 <div class="toggle-track"></div>
                 <div class="toggle-thumb"></div>
@@ -1622,7 +1623,7 @@
                   Package into a single file (slower on first startup)
                 </div>
               </div>
-              <label class="toggle" onclick.stop>
+              <label class="toggle">
                 <input type="checkbox" id="singleFile" checked />
                 <div class="toggle-track"></div>
                 <div class="toggle-thumb"></div>
@@ -2907,7 +2908,7 @@
 
       function getApiUrl(endpoint) {
         // If opened as a local file, fall back to default localhost:5000
-        const base = window.location.protocol === 'file:' ? 'http://localhost:5000' : '';
+        const base = window.location.protocol === 'file:' ? 'http://localhost:18650' : '';
         return base + endpoint;
       }
 
@@ -2930,12 +2931,14 @@
         if (!tagStore[storeKey].includes(value)) {
           tagStore[storeKey].push(value);
           renderTags(storeKey);
+          saveConfigDebounced();
         }
       }
 
       function removeTag(storeKey, idx) {
         tagStore[storeKey].splice(idx, 1);
         renderTags(storeKey);
+        saveConfigDebounced();
       }
 
       function renderTags(storeKey) {
@@ -2979,6 +2982,7 @@
         cb.checked = !cb.checked;
         updateToggleRow(id);
         onToggleChange(id, cb.checked);
+        saveConfigDebounced();
       }
 
       function updateToggleRow(id) {
@@ -3039,6 +3043,7 @@
           .forEach((l) => l.classList.remove("sel"));
         el.classList.add("sel");
         document.getElementById("pyarmorLevel").value = el.dataset.level;
+        saveConfigDebounced();
       }      /* ═══════════════════════════════════════════════════════════════════════════
    PLATFORM SELECTOR & WARNINGS
 ═══════════════════════════════════════════════════════════════════════════ */
@@ -3106,6 +3111,7 @@
         
         // Check platform warning
         checkPlatformWarning(platformVal);
+        saveConfigDebounced();
       }
 
       function checkPlatformWarning(selectedVal) {
@@ -3141,6 +3147,7 @@
         el.querySelector(".tc-check").innerHTML =
           '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" style="width:10px;height:10px"><polyline points="20 6 9 17 4 12"/></svg>';
         document.getElementById("buildTarget").value = el.dataset.target;
+        saveConfigDebounced();
       }
 
       /* ═══════════════════════════════════════════════════════════════════════════
@@ -3465,7 +3472,149 @@
       /* ═══════════════════════════════════════════════════════════════════════════
    INIT
 ═══════════════════════════════════════════════════════════════════════════ */
-      window.addEventListener("load", () => {
+      let isInitialLoad = true;
+      let saveTimeout = null;
+      function saveConfigDebounced() {
+        if (isInitialLoad) return;
+        if (saveTimeout) clearTimeout(saveTimeout);
+        saveTimeout = setTimeout(async () => {
+          try {
+            const cfg = collectConfig();
+            await fetch(getApiUrl("/api/build/config"), {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify(cfg),
+            });
+          } catch (e) {
+            console.error("Auto-save config failed:", e);
+          }
+        }, 1000);
+      }
+
+      function applyConfig(cfg) {
+        if (!cfg || Object.keys(cfg).length === 0) return;
+        const b = cfg.build || {};
+        const o = cfg.obfuscation || {};
+
+        if (b.app_name !== undefined) document.getElementById("appName").value = b.app_name;
+        if (b.version !== undefined) document.getElementById("appVersion").value = b.version;
+        if (b.company !== undefined) document.getElementById("appCompany").value = b.company;
+        if (b.copyright !== undefined) document.getElementById("appCopyright").value = b.copyright;
+        if (b.description !== undefined) document.getElementById("appDesc").value = b.description;
+        if (b.icon_path !== undefined) document.getElementById("iconPath").value = b.icon_path;
+        
+        if (b.use_upx !== undefined) {
+          document.getElementById("useUpx").checked = b.use_upx;
+          updateToggleRow("useUpx");
+        }
+        if (b.console !== undefined) {
+          document.getElementById("showConsole").checked = b.console;
+          updateToggleRow("showConsole");
+        }
+        
+        if (cfg.target !== undefined) {
+          document.getElementById("buildTarget").value = cfg.target;
+          const targetCard = document.querySelector(`.target-card[data-target="${cfg.target}"]`);
+          if (targetCard) {
+            document.querySelectorAll(".target-card").forEach((c) => {
+              c.classList.remove("sel");
+              c.querySelector(".tc-check").innerHTML = "";
+            });
+            targetCard.classList.add("sel");
+            targetCard.querySelector(".tc-check").innerHTML =
+              '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" style="width:10px;height:10px"><polyline points="20 6 9 17 4 12"/></svg>';
+          }
+        }
+        if (cfg.platform !== undefined) {
+          document.getElementById("buildPlatform").value = cfg.platform;
+          const option = document.querySelector(`.custom-select-option[data-value="${cfg.platform}"]`);
+          if (option) {
+            // Update selected text and icon in trigger
+            const nameEl = document.getElementById("selectedPlatformName");
+            const iconContainer = document.getElementById("selectedPlatformIcon");
+            const titleText = option.querySelector(".option-title").textContent;
+            const iconSvg = option.querySelector(".option-icon").innerHTML;
+            if (nameEl) nameEl.textContent = titleText;
+            if (iconContainer) iconContainer.innerHTML = iconSvg;
+            document.querySelectorAll(".custom-select-option").forEach((opt) => opt.classList.remove("selected"));
+            option.classList.add("selected");
+            checkPlatformWarning(cfg.platform);
+          }
+        }
+        if (cfg.enable_obfuscate !== undefined) {
+          document.getElementById("enableObfuscate").checked = cfg.enable_obfuscate;
+          updateToggleRow("enableObfuscate");
+        }
+
+        // Obfuscation
+        if (o.use_pyarmor !== undefined) {
+          document.getElementById("usePyarmor").checked = o.use_pyarmor;
+          updateToggleRow("usePyarmor");
+        }
+        if (o.pyarmor_obf_code !== undefined) {
+          document.getElementById("pyarmorLevel").value = o.pyarmor_obf_code;
+          const levelOpt = document.querySelector(`.level-opt[data-level="${o.pyarmor_obf_code}"]`);
+          if (levelOpt) {
+            document.querySelectorAll(".level-opt").forEach((l) => l.classList.remove("sel"));
+            levelOpt.classList.add("sel");
+          }
+        }
+        if (o.pyarmor_mix_str !== undefined) {
+          document.getElementById("pyarmorMixStr").checked = o.pyarmor_mix_str;
+          updateToggleRow("pyarmorMixStr");
+        }
+        if (o.scramble_names !== undefined) {
+          document.getElementById("scrambleNames").checked = o.scramble_names;
+          updateToggleRow("scrambleNames");
+        }
+        if (o.encode_strings !== undefined) {
+          document.getElementById("encodeStrings").checked = o.encode_strings;
+          updateToggleRow("encodeStrings");
+        }
+        if (o.inject_dead_code !== undefined) {
+          document.getElementById("injectDeadCode").checked = o.inject_dead_code;
+          updateToggleRow("injectDeadCode");
+        }
+        if (o.dead_code_count !== undefined) {
+          document.getElementById("deadCodeCount").value = o.dead_code_count;
+        }
+        if (o.antidebug !== undefined) {
+          document.getElementById("antidebug").checked = o.antidebug;
+          updateToggleRow("antidebug");
+        }
+
+        // Licensing
+        if (o.ip_lock !== undefined) {
+          document.getElementById("enableIpLock").checked = o.ip_lock;
+          updateToggleRow("enableIpLock");
+          onToggleChange("enableIpLock", o.ip_lock);
+        }
+        if (o.allowed_ips !== undefined) {
+          tagStore.ipTags = [...o.allowed_ips];
+          renderTags("ipTags");
+        }
+        if (o.date_expiry !== undefined) {
+          document.getElementById("enableExpiry").checked = o.date_expiry;
+          updateToggleRow("enableExpiry");
+          onToggleChange("enableExpiry", o.date_expiry);
+        }
+        if (o.expiry_date !== undefined) {
+          document.getElementById("expiryDate").value = o.expiry_date;
+        }
+        if (o.machine_id_lock !== undefined) {
+          document.getElementById("enableMachineId").checked = o.machine_id_lock;
+          updateToggleRow("enableMachineId");
+          onToggleChange("enableMachineId", o.machine_id_lock);
+        }
+        if (o.allowed_machine_ids !== undefined) {
+          tagStore.midTags = [...o.allowed_machine_ids];
+          renderTags("midTags");
+        }
+      }
+
+      window.addEventListener("load", async () => {
+        isInitialLoad = true;
+
         // Set default expiry to 1 year from now
         const next = new Date();
         next.setFullYear(next.getFullYear() + 1);
@@ -3474,7 +3623,32 @@
           .split("T")[0];
 
         // Detect host platform and set default selection
-        detectHostPlatform();
+        try {
+          await detectHostPlatform();
+        } catch (e) {
+          console.error("Platform detection error:", e);
+        }
+
+        // Load config from SQLite
+        try {
+          const r = await fetch(getApiUrl("/api/build/config"));
+          const cfg = r.ok ? await r.json() : {};
+          applyConfig(cfg);
+        } catch (e) {
+          console.error("Failed to load last build config:", e);
+        }
+
+        // Bind input/change listeners to all standard inputs for auto-save
+        const autoSaveSelectors = [
+          "input[type='text']", "input[type='number']", "input[type='date']", "textarea", "select"
+        ];
+        document.querySelectorAll(autoSaveSelectors.join(", ")).forEach(el => {
+          el.addEventListener("input", saveConfigDebounced);
+          el.addEventListener("change", saveConfigDebounced);
+        });
+
+        // Enable auto-save after initial setup completes
+        isInitialLoad = false;
       });
     </script>
   </body>

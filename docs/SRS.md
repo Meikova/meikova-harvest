@@ -209,5 +209,5 @@ When a build is triggered via `/api/build/start`, the obfuscation module execute
 
 5. **Compilation Interfaces**:
    - **API / Web Interface**: Initiated via `/api/build/start` HTTP POST request.
-   - **Web Builder GUI**: Launched via `python build_tool/builder_cli.py --gui`. It spawns a local Flask server running on a dynamically allocated port (starting from `5001` upwards) to avoid conflicts with the main application server, and triggers a browser window opening `http://127.0.0.1:<port>/`.
+   - **Web Builder GUI**: Launched via `python build_tool/builder_cli.py --gui`. It spawns a local Flask server running on a dynamically allocated port (starting from `18651` upwards) to avoid conflicts with the main application server, and triggers a browser window opening `http://127.0.0.1:<port>/`.
    - **Interactive CLI Menu Dashboard**: Run via `python build_tool/builder_cli.py` without arguments. Displays a color-coded terminal dashboard where developers can toggle target output systems (Web, Desktop, or Both), target platforms (Windows, macOS, or Auto), configure obfuscation settings (PyArmor, AST scrambling, etc.), set up licensing rules (IP lock, expiration dates like `2027-12-31`, Machine ID whitelist), customize packaging metadata, view the current system Machine ID, load/save configuration profiles, and trigger packaging interactively.

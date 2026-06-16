@@ -339,7 +339,10 @@ class Obfuscator:
         shutil.copytree(src_dir, work_dir, ignore=shutil.ignore_patterns(
             '__pycache__', '*.pyc', '.git', 'venv', 'node_modules',
             'dist', 'dist_electron', 'build', '*.egg-info',
+            'downloads', 'release', '_pyinstaller_build', 'scratch',
+            '_work_obfuscated', '_pyarmor_out',
         ))
+        (work_dir / 'downloads').mkdir(exist_ok=True)
 
     # ── Step 2: inject license guard into app.py ──────────────────────────────
 
@@ -372,7 +375,11 @@ class Obfuscator:
     # ── Step 3: AST transformations (scramble names + encode strings) ─────────
 
     def transform_python_files(self, work_dir: Path) -> None:
-        skip_dirs = {'venv', 'node_modules', '__pycache__', 'build', 'dist'}
+        skip_dirs = {
+            'venv', 'node_modules', '__pycache__', 'build', 'dist',
+            'downloads', 'release', '_pyinstaller_build', 'scratch',
+            '_work_obfuscated', '_pyarmor_out',
+        }
         for py_file in work_dir.rglob('*.py'):
             # Skip files inside excluded dirs
             if any(p in skip_dirs for p in py_file.parts):

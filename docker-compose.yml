@@ -5,9 +5,23 @@ services:
     build: .
     container_name: everythingdownloader
     ports:
-      - "5000:5000"
+      - "18650:18650"
     volumes:
       - ./downloads:/app/downloads
     restart: unless-stopped
     environment:
       - PYTHONUNBUFFERED=1
+
+  builder:
+    build: .
+    container_name: everythingdownloader-builder
+    ports:
+      - "18651:18651"
+    volumes:
+      - .:/app
+    restart: unless-stopped
+    environment:
+      - PYTHONUNBUFFERED=1
+      - DOCKER_CONTAINER=1
+    command: ["python", "build_tool/builder_cli.py", "--gui"]
+

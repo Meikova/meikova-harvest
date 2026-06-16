@@ -26,7 +26,7 @@ npm install
 
 ```bash
 # Open the GUI Builder web interface
-# This launches a dedicated local Flask server on a dynamic port (starting from 5001) and opens it in your default browser
+# This launches a dedicated local Flask server on a dynamic port (starting from 18651) and opens it in your default browser
 python build_tool/builder_cli.py --gui
 ```
 

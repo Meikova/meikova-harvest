@@ -208,12 +208,31 @@ class Packager:
         spec_file.write_text(spec_content, encoding='utf-8')
         return spec_file
 
+
     # ── Check dependencies ────────────────────────────────────────────────────
 
     @staticmethod
+    def get_python_executable() -> str:
+        """Resolve python executable, favoring local venv if present."""
+        is_windows = (platform.system() == 'Windows')
+        if is_windows:
+            venv_python = ROOT_DIR / 'venv' / 'Scripts' / 'python.exe'
+        else:
+            venv_python = ROOT_DIR / 'venv' / 'bin' / 'python'
+        
+        if venv_python.exists():
+            return str(venv_python)
+        
+        if getattr(sys, 'frozen', False):
+            return 'python'
+            
+        return sys.executable
+
+    @staticmethod
     def check_pyinstaller() -> bool:
+        python_exe = Packager.get_python_executable()
         try:
-            subprocess.check_output([sys.executable, '-m', 'PyInstaller', '--version'],
+            subprocess.check_output([python_exe, '-m', 'PyInstaller', '--version'],
                                     stderr=subprocess.STDOUT)
             return True
         except (FileNotFoundError, subprocess.CalledProcessError):
@@ -224,7 +243,8 @@ class Packager:
         msg = '[INSTALL] Installing PyInstaller…'
         if progress_cb: progress_cb(msg)
         else: print(msg)
-        subprocess.check_call([sys.executable, '-m', 'pip', 'install', 'pyinstaller',
+        python_exe = Packager.get_python_executable()
+        subprocess.check_call([python_exe, '-m', 'pip', 'install', 'pyinstaller',
                                 '--quiet', '--no-warn-script-location'])
 
     @staticmethod
@@ -263,10 +283,10 @@ class Packager:
         DIST_DIR.mkdir(exist_ok=True)
 
         self._progress('[BUILD] Building Web Binary (this may take a few minutes)…', progress_cb)
+        python_exe = self.get_python_executable()
         result = subprocess.run(
             [
-                sys.executable, '-m', 'PyInstaller',
-                '--clean',
+                python_exe, '-m', 'PyInstaller',
                 '--distpath', str(DIST_DIR),
                 '--workpath', str(build_dir / '_work'),
                 str(spec_file),
@@ -285,9 +305,10 @@ class Packager:
         self._progress(f'[OK] Web Binary: {exe_path}', progress_cb)
         return exe_path
 
+
     # ── Desktop EXE build ────────────────────────────────────────────────────
 
-    def build_desktop_exe(self, progress_cb=None) -> Path:
+    def build_desktop_exe(self, prebuilt_server: Path | None = None, progress_cb=None) -> Path:
         """
         1. Build Web Binary (Flask server)
         2. Copy to electron/resources/server(.exe)
@@ -304,12 +325,13 @@ class Packager:
         binary_name = 'server.exe' if is_windows else 'server'
 
         # Step 1: Build server binary
-        self._progress(f'[STEP 1/4] Build server Binary…', progress_cb)
-        # Temporarily enable console=False for production server
-        old_console = self.cfg.console
-        self.cfg.console = False
-        server_binary = self.build_web_exe(progress_cb)
-        self.cfg.console = old_console
+        if prebuilt_server and Path(prebuilt_server).exists():
+            self._progress(f'[STEP 1/4] Using prebuilt server binary: {prebuilt_server}', progress_cb)
+            server_binary = Path(prebuilt_server)
+        else:
+            self._progress(f'[STEP 1/4] Build server Binary…', progress_cb)
+            # Build server binary respecting the user's console setting
+            server_binary = self.build_web_exe(progress_cb)
 
         # Step 2: Copy server binary into Electron resources
         self._progress(f'[STEP 2/4] Copying {binary_name} to Electron…', progress_cb)
@@ -327,6 +349,16 @@ class Packager:
 
         shutil.copy2(server_binary, dest)
         self._progress(f'   → {dest}', progress_cb)
+
+        # Write config.json inside the electron directory so it gets packaged in ASAR
+        self._progress(f'   → Writing config.json to Electron…', progress_cb)
+        config_data = {
+            'console': self.cfg.console,
+            'version': self.cfg.version,
+            'app_name': self.cfg.app_name
+        }
+        with open(ELECTRON_DIR / 'config.json', 'w', encoding='utf-8') as f:
+            json.dump(config_data, f, indent=4)
 
         # Step 3: npm install
         self._progress('[STEP 3/4] Installing Node dependencies…', progress_cb)

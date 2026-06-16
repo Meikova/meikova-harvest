@@ -24,11 +24,12 @@ const {
 const path  = require('path');
 const http  = require('http');
 const net   = require('net');
+const fs    = require('fs');
 const { spawn, execSync } = require('child_process');
 
 // ─── Configuration ────────────────────────────────────────────────────────────
 const APP_NAME    = 'EveryThingDownloader';
-const DEFAULT_PORT = 5000;
+const DEFAULT_PORT = 18650;
 const SPLASH_WAIT  = 600;   // ms before showing splash
 const SERVER_TIMEOUT = 60000; // ms to wait for Flask (60 s)
 const isDev = process.argv.includes('--dev') || !app.isPackaged;
@@ -124,11 +125,42 @@ async function startFlaskServer() {
   const serverExe = resolveServerPath();
 
   if (serverExe) {
+    // Read build config if it exists
+    let showConsole = false;
+    try {
+      const cfgPath = path.join(__dirname, 'config.json');
+      if (fs.existsSync(cfgPath)) {
+        const cfg = JSON.parse(fs.readFileSync(cfgPath, 'utf8'));
+        showConsole = !!cfg.console;
+      }
+    } catch (e) {
+      log.error('Failed to read config.json:', e);
+    }
+
+    const isWindows = process.platform === 'win32';
+
     // Production: run bundled server.exe
-    flaskProcess = spawn(serverExe, ['--port', String(serverPort)], {
-      env,
-      windowsHide: true,
-    });
+    if (showConsole && isWindows) {
+      // Run in a new console window on Windows using 'start /wait'
+      flaskProcess = spawn('cmd.exe', [
+        '/c',
+        'start',
+        'EveryThingDownloader Backend Server',
+        '/wait',
+        serverExe,
+        '--port',
+        String(serverPort)
+      ], {
+        env,
+        windowsHide: false,
+      });
+    } else {
+      // Run silently in background
+      flaskProcess = spawn(serverExe, ['--port', String(serverPort)], {
+        env,
+        windowsHide: true,
+      });
+    }
   } else {
     // Development: run app.py via Python
     const pythonExe = resolvePythonPath();

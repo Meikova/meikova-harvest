@@ -68,6 +68,24 @@ _builds: dict[str, dict] = {}  # build_id → {queue, thread, cancelled}
 
 ROOT_DIR = Path(__file__).resolve().parent.parent
 
+def get_python_executable() -> str:
+    """Resolve the python executable, favoring local virtualenv if present."""
+    import platform
+    is_windows = platform.system().lower().startswith("win")
+    if is_windows:
+        venv_python = ROOT_DIR / 'venv' / 'Scripts' / 'python.exe'
+    else:
+        venv_python = ROOT_DIR / 'venv' / 'bin' / 'python'
+        
+    if venv_python.exists():
+        return str(venv_python)
+        
+    if getattr(sys, 'frozen', False):
+        return 'python'
+        
+    return sys.executable
+
+
 # ─────────────────────────────────────────────────────────────────────────────
 # Machine ID
 # ─────────────────────────────────────────────────────────────────────────────
@@ -136,7 +154,8 @@ def _run_build(build_id: str, cfg: dict, log_q: queue.Queue, state: dict):
         build    = cfg.get('build', {})
         do_obf   = cfg.get('enable_obfuscate', False)
 
-        cmd = [sys.executable, str(ROOT_DIR / 'build_tool' / 'builder_cli.py')]
+        python_exe = get_python_executable()
+        cmd = [python_exe, str(ROOT_DIR / 'build_tool' / 'builder_cli.py')]
         cmd += ['--target', target]
         cmd += ['--name',    build.get('app_name', 'EveryThingDownloader')]
         cmd += ['--version', build.get('version', '1.0.0')]
@@ -340,7 +359,8 @@ def update_ytdl():
         import importlib
         
         # Run pip upgrade command
-        cmd = [sys.executable, "-m", "pip", "install", "--upgrade", "yt-dlp"]
+        python_exe = get_python_executable()
+        cmd = [python_exe, "-m", "pip", "install", "--upgrade", "yt-dlp"]
         # Set creationflags to CREATE_NO_WINDOW on Windows to prevent popups
         kwargs = {}
         if sys.platform.startswith("win"):
@@ -538,4 +558,54 @@ def proxy_subtitle_endpoint():
         return response
     except Exception as e:
         return str(e), 500
+
+
+@build_bp.route('/api/build/config', methods=['GET'])
+def get_build_config():
+    import sqlite3
+    from config import DB_PATH
+    try:
+        conn = sqlite3.connect(DB_PATH)
+        cursor = conn.cursor()
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS build_settings (
+                key TEXT PRIMARY KEY,
+                value TEXT
+            )
+        ''')
+        cursor.execute("SELECT value FROM build_settings WHERE key = 'last_config'")
+        row = cursor.fetchone()
+        conn.close()
+        if row:
+            return jsonify(json.loads(row[0]))
+        return jsonify({})
+    except Exception as e:
+        return jsonify({'status': 'error', 'message': str(e)}), 500
+
+
+@build_bp.route('/api/build/config', methods=['POST'])
+def save_build_config():
+    import sqlite3
+    from config import DB_PATH
+    try:
+        config_data = request.json
+        conn = sqlite3.connect(DB_PATH)
+        cursor = conn.cursor()
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS build_settings (
+                key TEXT PRIMARY KEY,
+                value TEXT
+            )
+        ''')
+        cursor.execute(
+            "INSERT INTO build_settings (key, value) VALUES ('last_config', ?) "
+            "ON CONFLICT(key) DO UPDATE SET value = ?",
+            (json.dumps(config_data), json.dumps(config_data))
+        )
+        conn.commit()
+        conn.close()
+        return jsonify({'status': 'success', 'message': 'Configuration saved successfully'})
+    except Exception as e:
+        return jsonify({'status': 'error', 'message': str(e)}), 500
+
 

@@ -61,11 +61,12 @@ def execute_build(obf_cfg: ObfuscationConfig, build_cfg: BuildConfig, target: st
     # ── Run packaging ─────────────────────────────────────────────────────
     packager = Packager(build_cfg)
 
+    prebuilt_exe = None
     if target in ('web', 'both'):
         info('Building Web Binary…')
         try:
-            exe = packager.build_web_exe(progress_cb=info)
-            ok(f'Web Binary: {exe}')
+            prebuilt_exe = packager.build_web_exe(progress_cb=info)
+            ok(f'Web Binary: {exe if "exe" in locals() else prebuilt_exe}')
         except Exception as e:
             error(f'Build Web Binary failed: {e}')
             sys.exit(1)
@@ -73,7 +74,7 @@ def execute_build(obf_cfg: ObfuscationConfig, build_cfg: BuildConfig, target: st
     if target in ('desktop', 'both'):
         info('Building Desktop App…')
         try:
-            exe = packager.build_desktop_exe(progress_cb=info)
+            exe = packager.build_desktop_exe(prebuilt_server=prebuilt_exe, progress_cb=info)
             ok(f'Desktop App: {exe}')
         except Exception as e:
             error(f'Build Desktop App failed: {e}')
@@ -621,22 +622,26 @@ Examples:
         import socket
         import threading
         import time
+        import os
         from flask import Flask
         from flask_cors import CORS
         
-        # Search for a free port starting from 5001
-        def find_free_port(start=5001):
+        in_docker = os.path.exists('/.dockerenv') or os.environ.get('DOCKER_CONTAINER')
+        host = '0.0.0.0' if in_docker else '127.0.0.1'
+        
+        # Search for a free port starting from 18651
+        def find_free_port(start=18651):
             port = start
             while True:
                 with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
                     try:
-                        s.bind(('127.0.0.1', port))
+                        s.bind((host, port))
                         return port
                     except OSError:
                         port += 1
 
-        port = find_free_port(5001)
-        url = f"http://127.0.0.1:{port}/"
+        port = find_free_port(18651)
+        url = f"http://{'localhost' if host == '0.0.0.0' else host}:{port}/"
 
         app = Flask(__name__, static_folder=None)
         CORS(app)
@@ -653,8 +658,9 @@ Examples:
 
         # Auto open browser in a separate thread
         def open_browser():
-            time.sleep(0.5)
-            webbrowser.open(url)
+            if not in_docker:
+                time.sleep(0.5)
+                webbrowser.open(url)
             
         threading.Thread(target=open_browser, daemon=True).start()
         
@@ -668,7 +674,7 @@ Examples:
         log = logging.getLogger('werkzeug')
         log.setLevel(logging.ERROR)
         
-        app.run(host='127.0.0.1', port=port, debug=False)
+        app.run(host=host, port=port, debug=False)
         return
 
     run_build(args)

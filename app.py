@@ -61,4 +61,12 @@ app.register_blueprint(download_bp)
 app.register_blueprint(build_bp)
 
 if __name__ == "__main__":
-    app.run(host="0.0.0.0", port=5000, debug=True)
+    import argparse
+    parser = argparse.ArgumentParser(description="Start Flask Server")
+    parser.add_argument("--port", type=int, default=int(os.environ.get("FLASK_PORT", 18650)))
+    args = parser.parse_known_args()[0]
+
+    # Disable debug mode in production or frozen binaries to avoid Werkzeug reloader spawn loops
+    is_prod = os.environ.get("FLASK_ENV") == "production" or getattr(sys, "frozen", False)
+    logger.info(f"Starting server on port {args.port} (debug={not is_prod})")
+    app.run(host="0.0.0.0", port=args.port, debug=not is_prod)

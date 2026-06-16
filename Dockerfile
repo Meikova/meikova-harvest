@@ -29,8 +29,8 @@ COPY . /app/
 # Ensure the downloads directory exists and has correct permissions
 RUN mkdir -p /app/downloads/cookies
 
-# Expose port 5000 for Flask
-EXPOSE 5000
+# Expose port 18650 for Flask
+EXPOSE 18650
 
 # Set default start command
 CMD ["python", "app.py"]

@@ -65,7 +65,7 @@ To launch only the Flask backend server for web-based access:
   source venv/bin/activate
   python app.py
   ```
-Open a browser and navigate to `http://localhost:5000`.
+Open a browser and navigate to `http://localhost:18650`.
 
 ### 2.2 Electron Desktop Shell (Developer Mode)
 To run the desktop application window mapping to your active Python code:
@@ -77,7 +77,7 @@ To run the desktop application window mapping to your active Python code:
 
 ### 2.3 Packaged Desktop Mode (Production)
 Once you compile the application using the GUI Builder, you can launch the standalone app:
-- **Windows**: Double-click the installer `EveryThingDownloader Setup 1.0.0.exe` to install it, or run `EveryThingDownloader-Portable-1.0.0.exe`. The app will open a splash screen saying *"Starting server..."* while starting the hidden backend server (`server.exe`) on port 5000, then display the main UI.
+- **Windows**: Double-click the installer `EveryThingDownloader Setup 1.0.0.exe` to install it, or run `EveryThingDownloader-Portable-1.0.0.exe`. The app will open a splash screen saying *"Starting server..."* while starting the hidden backend server (`server.exe`) on port 18650, then display the main UI.
 - **macOS**: Install/run the compiled `EveryThingDownloader.dmg` or unpack the `.zip` archive. The app will spawn the hidden backend server (`server`) dynamically and display the UI.
 
 ---
@@ -143,7 +143,7 @@ To access the GUI compiler, launch the dedicated GUI server from your terminal:
 ```bash
 python build_tool/builder_cli.py --gui
 ```
-This launches a separate Flask server on an available port starting from `5001` (to avoid port conflicts with the main backend) and automatically opens your browser.
+This launches a separate Flask server on an available port starting from `18651` (to avoid port conflicts with the main backend) and automatically opens your browser.
 
 ### 4.1 Metadata Properties
 - **Application Name**: Name of the final executable file or application bundle (e.g., `EveryThingDownloader` or `EveryThingDownloader.exe`).
