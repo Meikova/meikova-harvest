@@ -1,7 +1,7 @@
 {
   "name": "everythingdownloader",
-  "version": "1.0.0",
-  "description": "EveryThingDownloader - Media Downloader Desktop App",
+  "version": "1.0.1",
+  "description": "EveryThingDownloader",
   "main": "main.js",
   "author": "EveryThingDownloader",
   "license": "MIT",
@@ -46,18 +46,24 @@
       {
         "from": "../downloads",
         "to": "downloads",
-        "filter": ["**/*"]
+        "filter": [
+          "**/*"
+        ]
       }
     ],
     "win": {
       "target": [
         {
           "target": "nsis",
-          "arch": ["x64"]
+          "arch": [
+            "x64"
+          ]
         },
         {
           "target": "portable",
-          "arch": ["x64"]
+          "arch": [
+            "x64"
+          ]
         }
       ],
       "icon": "resources/icon.ico",
