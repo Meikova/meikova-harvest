@@ -265,3 +265,68 @@ def cancel_build():
                     pass
             return jsonify({'cancelled': True, 'build_id': build_id})
     return jsonify({'cancelled': False, 'message': 'No active build'})
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Engine Self-Updater (yt-dlp)
+# ─────────────────────────────────────────────────────────────────────────────
+
+@build_bp.route('/api/system/engine-version', methods=['GET'])
+def get_engine_version():
+    try:
+        import yt_dlp
+        import importlib
+        try:
+            importlib.reload(yt_dlp)
+        except Exception:
+            pass
+        version = getattr(yt_dlp, '__version__', None) or getattr(getattr(yt_dlp, 'version', None), '__version__', 'unknown')
+        return jsonify({
+            'status': 'success',
+            'yt_dlp_version': version
+        })
+    except Exception as e:
+        return jsonify({
+            'status': 'error',
+            'message': str(e)
+        }), 500
+
+
+@build_bp.route('/api/system/update-ytdl', methods=['POST'])
+def update_ytdl():
+    try:
+        import yt_dlp
+        import importlib
+        
+        # Run pip upgrade command
+        cmd = [sys.executable, "-m", "pip", "install", "--upgrade", "yt-dlp"]
+        # Set creationflags to CREATE_NO_WINDOW on Windows to prevent popups
+        kwargs = {}
+        if sys.platform.startswith("win"):
+            kwargs['creationflags'] = subprocess.CREATE_NO_WINDOW
+            
+        res = subprocess.run(cmd, capture_output=True, text=True, timeout=60, **kwargs)
+        if res.returncode == 0:
+            # Reload module dynamically in the current process
+            try:
+                importlib.reload(yt_dlp)
+                new_version = getattr(yt_dlp, '__version__', None) or getattr(getattr(yt_dlp, 'version', None), '__version__', 'unknown')
+            except Exception:
+                new_version = "updated (restart recommended)"
+            return jsonify({
+                'status': 'success',
+                'message': 'yt-dlp updated successfully!',
+                'output': res.stdout,
+                'version': new_version
+            })
+        else:
+            return jsonify({
+                'status': 'error',
+                'message': f'Failed to update yt-dlp (exit code {res.returncode})',
+                'output': res.stderr or res.stdout
+            }), 500
+    except Exception as e:
+        return jsonify({
+            'status': 'error',
+            'message': str(e)
+        }), 500

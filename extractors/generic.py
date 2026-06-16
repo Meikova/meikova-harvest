@@ -11,6 +11,63 @@ from utils.helpers import get_url_content_length, format_size
 
 logger = logging.getLogger(__name__)
 
+# --- AD or tracking domains to skip during Iframe harvesting ---
+AD_OR_TRACKING_DOMAINS = [
+    "googlesyndication.com", "doubleclick.net", "googleads", "analytics.google.com",
+    "facebook.com/plugins", "facebook.com/v2.", "platform.twitter.com",
+    "disqus.com", "giscus.app", "histats.com", "addthis.com", "sharethis.com",
+    "recaptcha", "google.com/recaptcha", "hcaptcha.com", "adsense", "analytics",
+    "adnxs.com", "adsystem.com", "adservice.google.com", "google-analytics.com"
+]
+
+def check_drm(stream_url, referer=None):
+    if not stream_url:
+        return False
+    try:
+        headers = {
+            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
+        }
+        if referer:
+            headers["Referer"] = referer
+            
+        parsed = urlparse(stream_url)
+        path = parsed.path.lower()
+        query = parsed.query.lower()
+        if not (path.endswith('.m3u8') or '.m3u8' in path or '.m3u8' in query or 
+                path.endswith('.mpd') or '.mpd' in path or '.mpd' in query or 
+                '/player/master/' in path):
+            return False
+            
+        resp = requests.get(stream_url, headers=headers, verify=False, stream=True, timeout=8)
+        if resp.status_code == 200:
+            content = resp.raw.read(30000).decode('utf-8', errors='ignore')
+            
+            # HLS DRM indicators
+            if "#EXT-X-KEY" in content:
+                for line in content.splitlines():
+                    if line.startswith("#EXT-X-KEY:"):
+                        if "METHOD=SAMPLE-AES" in line or "METHOD=SAMPLE-AES-CTR" in line or "METHOD=SAMPLE-AES-CENC" in line:
+                            return True
+                        if any(k in line.lower() for k in ["widevine", "fairplay", "playready", "clearkey"]):
+                            return True
+            if "#EXT-X-SESSION-KEY" in content:
+                return True
+                
+            # DASH DRM indicators
+            if "<mpd" in content.lower() or "<period" in content.lower():
+                if any(uuid in content.lower() for uuid in [
+                    "edef8ba9-79d6-4ace-a3c8-27dcd51d21ed", # Widevine
+                    "9a04f079-9840-4286-ab92-e65be0885f95", # PlayReady
+                    "294b615b-edc3-4a1e-8c38-580718d711d4", # FairPlay
+                    "1077efec-c0b2-4d02-ace3-3c1e52e2fb4b", # ClearKey
+                ]):
+                    return True
+                if "contentprotection" in content.lower() and ("uuid" in content.lower() or "schemeiduri" in content.lower()):
+                    return True
+    except Exception as e:
+        logger.warning(f"Error checking DRM for {stream_url}: {e}")
+    return False
+
 # --- DNS Hijack Bypass Monkeypatch for curl_cffi ---
 doh_cache = {}
 
@@ -248,6 +305,9 @@ def generic_html_link_harvester(url, client_id):
     parsed_url = urlparse(url)
     domain = parsed_url.netloc
     
+    # Track visited iframe URLs to prevent infinite recursion loop
+    visited_iframe_urls = set()
+    
     # Get page path segments
     path_segments = [seg for seg in parsed_url.path.split('/') if seg]
     last_segment = path_segments[-1] if path_segments else ""
@@ -386,7 +446,7 @@ def generic_html_link_harvester(url, client_id):
                     title = title_match.group(1).strip() if title_match else "Web Video"
 
         # Define nested helper function to extract options from a single HTML page
-        def extract_single_page_options(page_html, page_url, page_domain, page_path_segments, page_last_segment):
+        def extract_single_page_options(page_html, page_url, page_domain, page_path_segments, page_last_segment, depth=0):
             opts = []
             seen = set()
             
@@ -721,6 +781,48 @@ def generic_html_link_harvester(url, client_id):
                             "url": link
                         })
                         
+            # 9. Recursive iframe harvesting
+            if depth < 3:
+                iframe_srcs = re.findall(r'<iframe[^>]+(?:src|data-src|data-lazy-src)=["\']([^"\']+)["\']', page_html, re.IGNORECASE)
+                for src in iframe_srcs:
+                    try:
+                        iframe_url = urljoin(page_url, src)
+                        if iframe_url in visited_iframe_urls:
+                            continue
+                        visited_iframe_urls.add(iframe_url)
+                        
+                        parsed_iframe = urlparse(iframe_url)
+                        iframe_domain = parsed_iframe.netloc.lower()
+                        if not iframe_domain or any(ad in iframe_url.lower() for ad in AD_OR_TRACKING_DOMAINS):
+                            continue
+                            
+                        logger.info(f"[Iframe Harvester] Fetching nested iframe at depth {depth+1}: {iframe_url}")
+                        iframe_headers = {
+                            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
+                        }
+                        iframe_html = fetch_html(iframe_url, iframe_headers, cookies=cookies_dict)
+                        if iframe_html:
+                            clean_iframe_html = iframe_html.replace('\\/', '/').replace('\\', '')
+                            iframe_path_segs = [seg for seg in parsed_iframe.path.split('/') if seg]
+                            iframe_last = iframe_path_segs[-1] if iframe_path_segs else ""
+                            
+                            iframe_opts = extract_single_page_options(
+                                clean_iframe_html,
+                                iframe_url,
+                                iframe_domain,
+                                iframe_path_segs,
+                                iframe_last,
+                                depth = depth + 1
+                            )
+                            for opt in iframe_opts:
+                                if not opt.get("server") or opt["server"] == "Direct Link":
+                                    opt["server"] = f"Embed ({iframe_domain})"
+                                if opt["url"] not in seen:
+                                    seen.add(opt["url"])
+                                    opts.append(opt)
+                    except Exception as ex:
+                        logger.warning(f"Failed to fetch/extract iframe {src}: {ex}")
+
             # Filter duplicates for the same (server, episode) to keep only the best working stream
             best_opts = {}
             for opt in opts:
@@ -846,13 +948,22 @@ def generic_html_link_harvester(url, client_id):
                                  actual_url = val
                                  break
 
-                    if actual_url.endswith('.m3u8') or '.m3u8' in actual_url or '/player/master/' in actual_url:
+                    is_hls = (actual_url.endswith('.m3u8') or '.m3u8' in actual_url or '/player/master/' in actual_url)
+                    is_dash = (actual_url.endswith('.mpd') or '.mpd' in actual_url)
+                    
+                    if is_hls:
                         size_bytes = resolve_hls_size(actual_url, url)
+                    elif is_dash:
+                        size_bytes = None
                     else:
                         size_bytes = get_url_content_length(actual_url)
                         
                     if size_bytes and size_bytes >= 1024 * 1024:  # Ignore sizes < 1MB
                         opt["size"] = format_size(size_bytes)
+                        
+                    if is_hls or is_dash:
+                        if check_drm(actual_url, url):
+                            opt["is_drm"] = True
                 except Exception:
                     pass
                     

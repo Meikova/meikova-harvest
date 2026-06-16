@@ -1683,6 +1683,71 @@ body[class*="theme-"] .card {
   height: 14px;
 }
 
+.btn-update-engine {
+  background: rgba(var(--cyan-rgb), 0.06);
+  border: 1px solid rgba(var(--cyan-rgb), 0.25);
+  font-size: 0.78rem;
+  color: var(--cyan);
+  font-family: var(--font-display);
+  font-weight: 600;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 14px;
+  border-radius: var(--radius-xs);
+  transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+.btn-update-engine svg {
+  transition: transform 0.3s ease;
+}
+.btn-update-engine:hover {
+  background: rgba(var(--cyan-rgb), 0.12);
+  border-color: var(--cyan);
+  color: var(--cyan);
+  transform: translateY(-2.5px) scale(1.025);
+  box-shadow:
+    0 0 15px rgba(var(--cyan-rgb), 0.45),
+    0 4px 10px rgba(0, 0, 0, 0.12);
+}
+.btn-update-engine:hover svg {
+  transform: rotate(360deg);
+}
+.btn-update-engine.updating svg {
+  animation: spin 1.2s linear infinite;
+}
+@keyframes spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+.drm-badge {
+  font-size: 0.7rem;
+  color: #fb7185;
+  background: rgba(244, 63, 94, 0.12);
+  border: 1px solid rgba(244, 63, 94, 0.25);
+  padding: 2px 7px;
+  border-radius: 6px;
+  white-space: nowrap;
+  flex-shrink: 0;
+  font-weight: 600;
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  margin-left: 6px;
+}
+.drm-badge svg {
+  width: 10px;
+  height: 10px;
+  stroke: currentColor;
+}
+.light-theme .drm-badge {
+  color: #e11d48;
+  background: rgba(225, 29, 72, 0.08);
+  border-color: rgba(225, 29, 72, 0.2);
+}
+
 .cookies-panel {
   background: rgba(255, 255, 255, 0.015);
   border: 1px solid rgba(255, 255, 255, 0.05);

@@ -792,6 +792,66 @@ document.addEventListener("DOMContentLoaded", () => {
         });
     }
 
+    // Update Engine Logic
+    const updateEngineBtn = document.getElementById("update-engine-btn");
+    if (updateEngineBtn) {
+        // Query engine version on load to show in title
+        fetch("/api/system/engine-version")
+            .then(res => res.json())
+            .then(data => {
+                if (data.status === "success") {
+                    updateEngineBtn.setAttribute("title", `Current yt-dlp version: ${data.yt_dlp_version}`);
+                }
+            })
+            .catch(err => console.error("Error fetching engine version:", err));
+
+        updateEngineBtn.addEventListener("click", () => {
+            showConfirm({
+                title: "Update Downloader Engine",
+                message: "Do you want to update the main downloader engine (yt-dlp) to the latest version? This process may take a minute.",
+                yesText: "Update Now",
+                noText: "Cancel",
+                onYes: () => {
+                    updateEngineBtn.classList.add("updating");
+                    updateEngineBtn.disabled = true;
+                    const btnSpan = updateEngineBtn.querySelector("span");
+                    if (btnSpan) btnSpan.textContent = "Updating...";
+
+                    fetch("/api/system/update-ytdl", { method: "POST" })
+                        .then(res => res.json())
+                        .then(data => {
+                            updateEngineBtn.classList.remove("updating");
+                            updateEngineBtn.disabled = false;
+                            if (btnSpan) btnSpan.textContent = "Update Engine";
+
+                            if (data.status === "success") {
+                                updateEngineBtn.setAttribute("title", `Current yt-dlp version: ${data.version}`);
+                                showConfirm({
+                                    title: "Update Succeeded!",
+                                    message: `Downloader engine updated successfully to version: ${data.version}.`,
+                                    yesText: "Great",
+                                    noText: "Close"
+                                });
+                            } else {
+                                showConfirm({
+                                    title: "Update Failed",
+                                    message: `Error: ${data.message}\n\nOutput: ${data.output}`,
+                                    yesText: "Ok",
+                                    noText: "Close"
+                                });
+                            }
+                        })
+                        .catch(err => {
+                            updateEngineBtn.classList.remove("updating");
+                            updateEngineBtn.disabled = false;
+                            if (btnSpan) btnSpan.textContent = "Update Engine";
+                            alert("Connection error while updating engine: " + err.message);
+                        });
+                }
+            });
+        });
+    }
+
     // Cookie Dropzone Drag and Drop Handlers
     if (cookieDropzone && cookieFileInput) {
         cookieDropzone.addEventListener("click", () => {
@@ -2851,11 +2911,13 @@ document.addEventListener("DOMContentLoaded", () => {
                         const row = document.createElement("div");
                         row.className = "format-row video-row";
                         const sizeBadge = option.size ? `<span class="format-size">${option.size}</span>` : '';
+                        const drmBadge = option.is_drm ? `<span class="drm-badge" title="Định dạng này được mã hóa bảo vệ bản quyền DRM. Tải xuống có thể bị lỗi."><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:10px; height:10px; display:inline-block; vertical-align:middle; margin-right:2px;"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>DRM</span>` : '';
                         row.innerHTML = `
                             <div class="format-left">
                                 ${videoSvg}
                                 <span class="format-name">${option.label}</span>
                                 ${sizeBadge}
+                                ${drmBadge}
                             </div>
                             <div class="format-actions">
                                 <button class="btn-preview" data-id="${option.format_id}" data-ext="${option.ext}" data-label="${option.label}" data-quality="${option.quality || ''}" data-url="${option.url || ''}">
@@ -2901,11 +2963,13 @@ document.addEventListener("DOMContentLoaded", () => {
                             }
                         }
 
+                        const drmBadge = option.is_drm ? `<span class="drm-badge" title="Định dạng này được mã hóa bảo vệ bản quyền DRM. Tải xuống có thể bị lỗi."><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:10px; height:10px; display:inline-block; vertical-align:middle; margin-right:2px;"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>DRM</span>` : '';
                         row.innerHTML = `
                             <div class="format-left">
                                 ${videoSvg}
                                 <span class="format-name">${displayLabel}</span>
                                 ${sizeBadge}
+                                ${drmBadge}
                             </div>
                             <div class="format-actions">
                                 <button class="btn-preview" data-id="${option.format_id}" data-ext="${option.ext}" data-label="${option.label}" data-quality="${option.quality || ''}" data-url="${option.url || ''}" data-episode="${option.episode || ''}" data-server="${option.server || ''}">
@@ -3138,7 +3202,29 @@ document.addEventListener("DOMContentLoaded", () => {
                     window.open(customUrl, "_blank");
                     return;
                 }
-                triggerDownload(btn, formatId, ext, label, quality, customUrl, episode, server);
+                
+                // DRM warning intercept
+                let isDrm = false;
+                if (activeMetadata && activeMetadata.video_options) {
+                    const matchedOpt = activeMetadata.video_options.find(o => o.format_id === formatId);
+                    if (matchedOpt && matchedOpt.is_drm) {
+                        isDrm = true;
+                    }
+                }
+                
+                if (isDrm) {
+                    showConfirm({
+                        title: "Cảnh báo Bản quyền DRM",
+                        message: "Video này sử dụng công nghệ mã hóa DRM (Digital Rights Management). Quá trình tải xuống có khả năng lớn sẽ bị lỗi hoặc không giải mã được. Bạn vẫn muốn tiếp tục thử tải?",
+                        yesText: "Tiếp tục",
+                        noText: "Hủy bỏ",
+                        onYes: () => {
+                            triggerDownload(btn, formatId, ext, label, quality, customUrl, episode, server);
+                        }
+                    });
+                } else {
+                    triggerDownload(btn, formatId, ext, label, quality, customUrl, episode, server);
+                }
             });
         });
 
