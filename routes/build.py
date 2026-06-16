@@ -624,11 +624,17 @@ def publish_build():
     _builds[build_id] = {'queue': log_q, 'state': state}
 
     version = cfg.get('build', {}).get('version', '1.0.0')
+    app_name = cfg.get('build', {}).get('app_name', 'EveryThingDownloader')
+
+    pub_cfg = cfg.get('publish', {})
+    tag = pub_cfg.get('tag')
+    commit_msg = pub_cfg.get('commit_msg')
+    changelog = pub_cfg.get('changelog')
 
     # Run git release in background thread
     t = threading.Thread(
         target=_run_publish,
-        args=(build_id, version, log_q, state),
+        args=(build_id, version, app_name, tag, commit_msg, changelog, log_q, state),
         daemon=True,
     )
     t.start()
@@ -637,7 +643,7 @@ def publish_build():
     return jsonify({'build_id': build_id})
 
 
-def _run_publish(build_id: str, version: str, log_q: queue.Queue, state: dict):
+def _run_publish(build_id: str, version: str, app_name: str, tag: str | None, commit_msg: str | None, changelog: str | None, log_q: queue.Queue, state: dict):
     def push(text: str, level: str = 'dim', done=False, success=False):
         msg = {'text': text, 'level': level}
         if done:
@@ -654,7 +660,15 @@ def _run_publish(build_id: str, version: str, log_q: queue.Queue, state: dict):
         def progress_cb(msg, level):
             push(msg, level)
 
-        success = publish_git_release(ROOT_DIR, version, progress_cb=progress_cb)
+        success = publish_git_release(
+            ROOT_DIR,
+            version=version,
+            app_name=app_name,
+            tag=tag,
+            commit_msg=commit_msg,
+            changelog=changelog,
+            progress_cb=progress_cb
+        )
         if success:
             push('[SUCCESS] Git publication complete! GitHub Actions will now build the release in the cloud.', 'ok', done=True, success=True)
         else:

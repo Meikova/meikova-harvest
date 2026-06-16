@@ -142,6 +142,7 @@ def run_build(args: argparse.Namespace):
     if args.copyright:
         build_cfg.copyright = args.copyright
 
+    data = {}
     # ── Load from JSON config file if provided ────────────────────────────
     if args.config:
         cfg_path = Path(args.config)
@@ -164,7 +165,21 @@ def run_build(args: argparse.Namespace):
             elif level == 'ok': ok(msg)
             elif level == 'warn': warn(msg)
             elif level == 'error': error(msg)
-        success = publish_git_release(ROOT_DIR, build_cfg.version, progress_cb=cb)
+
+        publish_cfg = data.get('publish', {})
+        tag = getattr(args, 'publish_tag', None) or publish_cfg.get('tag')
+        commit_msg = getattr(args, 'publish_commit_msg', None) or publish_cfg.get('commit_msg')
+        changelog = getattr(args, 'publish_changelog', None) or publish_cfg.get('changelog')
+
+        success = publish_git_release(
+            ROOT_DIR,
+            version=build_cfg.version,
+            app_name=build_cfg.app_name,
+            tag=tag,
+            commit_msg=commit_msg,
+            changelog=changelog,
+            progress_cb=cb
+        )
         sys.exit(0 if success else 1)
 
     execute_build(obf_cfg, build_cfg, args.target, args.obfuscate)
@@ -616,6 +631,9 @@ Examples:
                         help='Load configuration from a JSON file')
     parser.add_argument('--publish', action='store_true',
                         help='Automatically update update.json, create git tag and push to GitHub remote origin')
+    parser.add_argument('--publish-tag', help='Git tag name override for publishing')
+    parser.add_argument('--publish-commit-msg', help='Commit message override for publishing')
+    parser.add_argument('--publish-changelog', help='Changelog text override for publishing update.json')
     parser.add_argument('--machine-id-info', action='store_true',
                         help='Display this machine\'s Machine ID and exit')
     parser.add_argument('--gui', action='store_true',

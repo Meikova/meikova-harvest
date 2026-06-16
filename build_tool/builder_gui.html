@@ -2441,6 +2441,61 @@
             </div>
           </div>
 
+          <!-- GitHub Release & Publish Settings -->
+          <div class="card" style="margin-bottom: 24px">
+            <div class="card-header">
+              <div class="card-icon blue">
+                <svg
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="2"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                >
+                  <path d="M9 19c-5 1.5-5-2.5-7-3m14 6v-3.87a3.37 3.37 0 0 0-.94-2.61c3.14-.35 6.44-1.54 6.44-7A5.44 5.44 0 0 0 20 4.77 5.07 5.07 0 0 0 19.91 1S18.73.65 16 2.48a13.38 13.38 0 0 0-7 0C6.27.65 5.09 1 5.09 1A5.07 5.07 0 0 0 5 4.77a5.44 5.44 0 0 0-1.5 3.78c0 5.42 3.3 6.61 6.44 7A3.37 3.37 0 0 0 9 18.13V22" />
+                </svg>
+              </div>
+              <div>
+                <div class="card-title">GitHub Release &amp; Publish Settings</div>
+                <div class="card-subtitle">
+                  Configure tag, commit message and update changelog for publishing
+                </div>
+              </div>
+            </div>
+            <div class="card-body" style="padding: 16px 20px;">
+              <div class="form-grid">
+                <div class="form-group">
+                  <label class="form-label">Release Tag</label>
+                  <input
+                    type="text"
+                    id="githubTag"
+                    value="v1.0.0"
+                    placeholder="e.g. v1.0.0"
+                  />
+                </div>
+                <div class="form-group">
+                  <label class="form-label">Commit Message</label>
+                  <input
+                    type="text"
+                    id="githubCommitMsg"
+                    value="release: publish version v1.0.0"
+                    placeholder="e.g. release: publish version v1.0.0"
+                  />
+                </div>
+                <div class="form-group span2">
+                  <label class="form-label">Changelog Description (for update.json)</label>
+                  <textarea
+                    id="githubChangelog"
+                    rows="3"
+                    placeholder="Enter update description..."
+                    style="width: 100%; min-height: 80px; padding: 10px; background: var(--bg-input); border: 1px solid var(--border-color); border-radius: var(--radius-sm); color: var(--text-color); font-family: inherit; font-size: 14px; resize: vertical;"
+                  >Phiên bản mới nhất v1.0.0 được phát hành qua Build Tool.</textarea>
+                </div>
+              </div>
+            </div>
+          </div>
+
           <!-- Build controls -->
           <div class="card">
             <div class="card-header">
@@ -3261,6 +3316,9 @@
 ═══════════════════════════════════════════════════════════════════════════ */
       let buildRunning = false;
       let buildEventSource = null;
+      let isGithubTagManuallyEdited = false;
+      let isGithubCommitMsgManuallyEdited = false;
+      let isGithubChangelogManuallyEdited = false;
 
       function collectConfig() {
         return {
@@ -3296,6 +3354,11 @@
           target: document.getElementById("buildTarget").value,
           platform: document.getElementById("buildPlatform").value,
           enable_obfuscate: document.getElementById("enableObfuscate").checked,
+          publish: {
+            tag: document.getElementById("githubTag").value,
+            commit_msg: document.getElementById("githubCommitMsg").value,
+            changelog: document.getElementById("githubChangelog").value,
+          },
         };
       }
 
@@ -3723,6 +3786,68 @@
           tagStore.midTags = [...o.allowed_machine_ids];
           renderTags("midTags");
         }
+
+        // Restore GitHub publish settings
+        const pub = cfg.publish || {};
+        if (pub.tag !== undefined) {
+          document.getElementById("githubTag").value = pub.tag;
+          isGithubTagManuallyEdited = true;
+        }
+        if (pub.commit_msg !== undefined) {
+          document.getElementById("githubCommitMsg").value = pub.commit_msg;
+          isGithubCommitMsgManuallyEdited = true;
+        }
+        if (pub.changelog !== undefined) {
+          document.getElementById("githubChangelog").value = pub.changelog;
+          isGithubChangelogManuallyEdited = true;
+        }
+        if (!cfg.publish) {
+          const ver = b.version || "1.0.0";
+          document.getElementById("githubTag").value = `v${ver}`;
+          document.getElementById("githubCommitMsg").value = `release: publish version v${ver}`;
+          document.getElementById("githubChangelog").value = `Phiên bản mới nhất v${ver} được phát hành qua Build Tool.`;
+          isGithubTagManuallyEdited = false;
+          isGithubCommitMsgManuallyEdited = false;
+          isGithubChangelogManuallyEdited = false;
+        }
+      }
+
+      function setupGithubSync() {
+        const appVersionEl = document.getElementById("appVersion");
+        const appNameEl = document.getElementById("appName");
+        const githubTagEl = document.getElementById("githubTag");
+        const githubCommitMsgEl = document.getElementById("githubCommitMsg");
+        const githubChangelogEl = document.getElementById("githubChangelog");
+
+        appVersionEl.addEventListener("input", (e) => {
+          const ver = e.target.value;
+          if (!isGithubTagManuallyEdited) {
+            githubTagEl.value = `v${ver}`;
+          }
+          if (!isGithubCommitMsgManuallyEdited) {
+            githubCommitMsgEl.value = `release: publish version v${ver}`;
+          }
+          if (!isGithubChangelogManuallyEdited) {
+            githubChangelogEl.value = `Phiên bản mới nhất v${ver} được phát hành qua Build Tool.`;
+          }
+        });
+
+        appNameEl.addEventListener("input", (e) => {
+          const ver = appVersionEl.value;
+          if (!isGithubChangelogManuallyEdited) {
+            githubChangelogEl.value = `Phiên bản mới nhất v${ver} được phát hành qua Build Tool.`;
+          }
+        });
+
+        githubTagEl.addEventListener("input", () => {
+          isGithubTagManuallyEdited = true;
+        });
+        githubCommitMsgEl.addEventListener("input", () => {
+          isGithubCommitMsgManuallyEdited = true;
+        });
+        githubChangelogEl.addEventListener("input", () => {
+          isGithubChangelogManuallyEdited = true;
+        });
       }
 
       window.addEventListener("load", async () => {
@@ -3759,6 +3884,9 @@
           el.addEventListener("input", saveConfigDebounced);
           el.addEventListener("change", saveConfigDebounced);
         });
+
+        // Initialize GitHub Publish synchronizer
+        setupGithubSync();
 
         // Enable auto-save after initial setup completes
         isInitialLoad = false;

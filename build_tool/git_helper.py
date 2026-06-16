@@ -16,7 +16,15 @@ def get_github_repo_path(root_dir: Path) -> str | None:
         pass
     return None
 
-def publish_git_release(root_dir: Path, version: str, progress_cb=None) -> bool:
+def publish_git_release(
+    root_dir: Path,
+    version: str,
+    app_name: str = 'EveryThingDownloader',
+    tag: str = None,
+    commit_msg: str = None,
+    changelog: str = None,
+    progress_cb=None
+) -> bool:
     def log(msg, level='info'):
         if progress_cb:
             progress_cb(msg, level)
@@ -28,15 +36,23 @@ def publish_git_release(root_dir: Path, version: str, progress_cb=None) -> bool:
         log('Git repository or GitHub remote origin not found in .git/config.', 'error')
         return False
 
-    tag = f'v{version}'
+    if not tag:
+        tag = f'v{version}'
+    if not commit_msg:
+        commit_msg = f'release: publish version {tag}'
+    if not changelog:
+        changelog = f'Phiên bản mới nhất {tag} được phát hành qua Build Tool.'
+    if not app_name:
+        app_name = 'EveryThingDownloader'
+
     log(f'Preparing release for repository: {repo} (Tag: {tag})', 'info')
 
     # 1. Update update.json in the root folder
     update_file = root_dir / 'update.json'
     update_data = {
         'version': version,
-        'url': f'https://github.com/{repo}/releases/download/{tag}/EveryThingDownloader-Portable-{version}.exe',
-        'changelog': f'Phiên bản mới nhất {tag} được phát hành qua Build Tool.'
+        'url': f'https://github.com/{repo}/releases/download/{tag}/{app_name}-Portable-{version}.exe',
+        'changelog': changelog
     }
     
     try:
@@ -59,7 +75,7 @@ def publish_git_release(root_dir: Path, version: str, progress_cb=None) -> bool:
         # Check if there are changes staged
         diff_check = subprocess.run(['git', 'diff', '--cached', '--quiet'], cwd=str(root_dir))
         if diff_check.returncode != 0:
-            subprocess.run(['git', 'commit', '-m', f'release: publish version {tag}'], cwd=str(root_dir), check=True)
+            subprocess.run(['git', 'commit', '-m', commit_msg], cwd=str(root_dir), check=True)
             log(f'Committed all changes to local repository under tag {tag}.', 'ok')
         else:
             log('No local changes to commit.', 'info')
