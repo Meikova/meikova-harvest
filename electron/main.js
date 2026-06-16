@@ -441,6 +441,100 @@ function getAppIcon() {
   return nativeImage.createEmpty();
 }
 
+const https = require('https');
+
+function isNewerVersion(latest, current) {
+  const parse = (v) => v.replace(/^v/, '').split('.').map(Number);
+  const a = parse(latest);
+  const b = parse(current);
+  for (let i = 0; i < Math.max(a.length, b.length); i++) {
+    const v1 = a[i] || 0;
+    const v2 = b[i] || 0;
+    if (v1 > v2) return true;
+    if (v1 < v2) return false;
+  }
+  return false;
+}
+
+function checkForUpdates(manual = false) {
+  log.info('Checking for updates...');
+  // A configuration URL that returns a JSON detailing the latest version and download URL.
+  const updateUrl = 'https://raw.githubusercontent.com/kiem-dev/EveryThingDownloader/main/update.json'; 
+
+  const req = https.get(updateUrl, { timeout: 10000 }, (res) => {
+    let data = '';
+    res.on('data', chunk => data += chunk);
+    res.on('end', () => {
+      try {
+        if (res.statusCode !== 200) {
+          throw new Error(`HTTP Status ${res.statusCode}`);
+        }
+        const info = JSON.parse(data);
+        const latestVersion = info.version;
+        const currentVersion = app.getVersion();
+        
+        if (isNewerVersion(latestVersion, currentVersion)) {
+          dialog.showMessageBox(mainWindow, {
+            type: 'info',
+            title: 'Update Available',
+            message: `A new version (${latestVersion}) is available!`,
+            detail: info.changelog || 'No release notes available.',
+            buttons: ['Download Now', 'Later'],
+            defaultId: 0,
+            cancelId: 1
+          }).then(({ response }) => {
+            if (response === 0 && info.url) {
+              shell.openExternal(info.url);
+            }
+          });
+        } else {
+          if (manual) {
+            dialog.showMessageBox(mainWindow, {
+              type: 'info',
+              title: 'No Updates',
+              message: 'You are running the latest version.',
+              detail: `Current Version: ${currentVersion}`,
+              buttons: ['OK']
+            });
+          }
+        }
+      } catch (err) {
+        log.error('Update check failed parse:', err.message);
+        if (manual) {
+          dialog.showErrorBox('Update Check Failed', `Could not check for updates.\n\nError: ${err.message}`);
+        }
+      }
+    });
+  });
+  
+  req.on('error', (err) => {
+    log.error('Update check request error:', err.message);
+    if (manual) {
+      dialog.showErrorBox('Update Check Failed', `Could not check for updates. Please check your network connection.\n\nError: ${err.message}`);
+    }
+  });
+}
+
+function restartBackendServer() {
+  log.info('Restarting backend server...');
+  killFlaskServer();
+  setTimeout(async () => {
+    try {
+      await startFlaskServer();
+      log.info('Flask server restarted successfully.');
+      dialog.showMessageBox(mainWindow, {
+        type: 'info',
+        title: 'Server Restarted',
+        message: 'The internal Flask backend server has been restarted.',
+        buttons: ['OK']
+      });
+    } catch (err) {
+      log.error('Failed to restart Flask server:', err);
+      dialog.showErrorBox('Restart Failed', `Failed to restart backend server.\n\nError: ${err.message}`);
+    }
+  }, 1000);
+}
+
 // ─── System Tray ─────────────────────────────────────────────────────────────
 
 function createTray() {
@@ -448,9 +542,11 @@ function createTray() {
   tray = new Tray(icon.isEmpty() ? nativeImage.createEmpty() : icon);
   tray.setToolTip(APP_NAME);
 
+  const autoStart = app.getLoginItemSettings().openAtLogin;
+
   const contextMenu = Menu.buildFromTemplate([
     {
-      label: `${APP_NAME}`,
+      label: `${APP_NAME} (v${app.getVersion()})`,
       enabled: false,
     },
     { type: 'separator' },
@@ -464,12 +560,43 @@ function createTray() {
       },
     },
     {
+      label: 'Open in Default Browser',
+      click: () => {
+        shell.openExternal(`http://127.0.0.1:${serverPort}/`);
+      },
+    },
+    {
       label: 'Open Downloads Folder',
       click: () => {
         const downloadsDir = app.isPackaged
           ? path.join(process.resourcesPath, 'downloads')
           : path.join(__dirname, '..', 'downloads');
         shell.openPath(downloadsDir);
+      },
+    },
+    { type: 'separator' },
+    {
+      label: 'Start with Windows',
+      type: 'checkbox',
+      checked: autoStart,
+      click: () => {
+        const currentSettings = app.getLoginItemSettings();
+        app.setLoginItemSettings({
+          openAtLogin: !currentSettings.openAtLogin,
+          path: process.execPath,
+        });
+      },
+    },
+    {
+      label: 'Restart Backend Server',
+      click: () => {
+        restartBackendServer();
+      },
+    },
+    {
+      label: 'Check for Updates',
+      click: () => {
+        checkForUpdates(true);
       },
     },
     { type: 'separator' },

@@ -2499,6 +2499,32 @@
                 >Start Build
               </button>
               <button
+                class="btn btn-primary"
+                id="publishBtn"
+                onclick="publishRelease()"
+                style="background: linear-gradient(135deg, var(--blue), var(--pink)); border: none;"
+              >
+                <svg
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="2"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  style="
+                    width: 16px;
+                    height: 16px;
+                    display: inline-block;
+                    vertical-align: middle;
+                    margin-right: 6px;
+                  "
+                >
+                  <path d="M21.2 15c.6-1.2 1-2.5 1-3.9 0-4.9-4-8.9-8.9-8.9-3.8 0-7.1 2.4-8.4 5.9C2.2 8.5 0 10.9 0 13.9c0 3.3 2.7 6 6 6h13c2.8 0 5.1-2.2 5.1-5 0-1.7-.8-3.2-2.1-4c-.7-.4-1.2-1.1-1.3-1.9z" />
+                  <polyline points="16 12 12 8 8 12" />
+                  <line x1="12" y1="8" x2="12" y2="18" />
+                </svg>Publish to GitHub
+              </button>
+              <button
                 class="btn btn-secondary"
                 id="stopBtn"
                 onclick="stopBuild()"
@@ -3365,9 +3391,96 @@
         finishBuild(false, []);
       }
 
+      async function publishRelease() {
+        if (buildRunning) return;
+        buildRunning = true;
+
+        // Switch to build tab if not there
+        document.querySelector('[data-tab="build"]').click();
+
+        clearLog();
+        document.getElementById("buildBtn").disabled = true;
+        document.getElementById("publishBtn").disabled = true;
+        document.getElementById("stopBtn").style.display = "";
+        document.getElementById("progressWrap").style.display = "";
+        document.getElementById("progressBar").className =
+          "progress-bar indeterminate";
+        document.getElementById("outputSection").style.display = "none";
+        setStatus("running", "Publishing...");
+
+        const cfg = collectConfig();
+        const version = cfg.build.version;
+        appendLog("═".repeat(54), "dim");
+        appendLog(`[GIT] Publishing release version: v${version}`, "info");
+        appendLog(`[GIT] This will commit update.json, tag, and push to GitHub.`, "dim");
+        appendLog("═".repeat(54), "dim");
+
+        try {
+          const resp = await fetch(getApiUrl("/api/build/publish"), {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(cfg),
+            signal: AbortSignal.timeout(10000),
+          });
+
+          if (!resp.ok) throw new Error("Backend did not respond");
+          const data = await resp.json();
+
+          buildEventSource = new EventSource(
+            getApiUrl(`/api/build/log/${data.build_id}`),
+          );
+          buildEventSource.onmessage = (e) => {
+            const msg = JSON.parse(e.data);
+            appendLog(msg.text, msg.level || "dim");
+            if (msg.done) {
+              if (buildEventSource) {
+                buildEventSource.close();
+                buildEventSource = null;
+              }
+              finishPublish(msg.success);
+            }
+          };
+          buildEventSource.onerror = () => {
+            if (buildRunning) {
+              appendLog("[WARN] Connection to build server lost.", "warn");
+              if (buildEventSource) {
+                buildEventSource.close();
+                buildEventSource = null;
+              }
+              finishPublish(false);
+            }
+          };
+        } catch (err) {
+          appendLog(`[ERROR] Publish failed: ${err.message}`, "error");
+          finishPublish(false);
+        }
+      }
+
+      function finishPublish(success) {
+        buildRunning = false;
+        document.getElementById("buildBtn").disabled = false;
+        document.getElementById("publishBtn").disabled = false;
+        document.getElementById("stopBtn").style.display = "none";
+        document.getElementById("progressBar").className = "progress-bar";
+        document.getElementById("progressBar").style.width = success
+          ? "100%"
+          : "0%";
+
+        if (success === true) {
+          setStatus("success", "Publish succeeded!");
+        } else if (success === false) {
+          setStatus("error", "Publish failed");
+        } else {
+          setStatus("", "Ready");
+        }
+      }
+
       function finishBuild(success, outputs) {
         buildRunning = false;
         document.getElementById("buildBtn").disabled = false;
+        if (document.getElementById("publishBtn")) {
+          document.getElementById("publishBtn").disabled = false;
+        }
         document.getElementById("stopBtn").style.display = "none";
         document.getElementById("progressBar").className = "progress-bar";
         document.getElementById("progressBar").style.width = success

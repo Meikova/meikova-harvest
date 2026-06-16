@@ -156,6 +156,17 @@ def run_build(args: argparse.Namespace):
         obf_cfg.allowed_machine_ids = [mid]
         info(f'Auto-detected Machine ID: {mid}')
 
+    if getattr(args, 'publish', False):
+        info('Publishing release to GitHub...')
+        from build_tool.git_helper import publish_git_release
+        def cb(msg, level):
+            if level == 'info': info(msg)
+            elif level == 'ok': ok(msg)
+            elif level == 'warn': warn(msg)
+            elif level == 'error': error(msg)
+        success = publish_git_release(ROOT_DIR, build_cfg.version, progress_cb=cb)
+        sys.exit(0 if success else 1)
+
     execute_build(obf_cfg, build_cfg, args.target, args.obfuscate)
 
 
@@ -603,6 +614,8 @@ Examples:
     # Misc
     parser.add_argument('--config', metavar='FILE',
                         help='Load configuration from a JSON file')
+    parser.add_argument('--publish', action='store_true',
+                        help='Automatically update update.json, create git tag and push to GitHub remote origin')
     parser.add_argument('--machine-id-info', action='store_true',
                         help='Display this machine\'s Machine ID and exit')
     parser.add_argument('--gui', action='store_true',

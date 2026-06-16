@@ -1,5 +1,5 @@
 {
-    "console": true,
+    "console": false,
     "version": "1.0.0",
     "app_name": "EveryThingDownloader"
 }

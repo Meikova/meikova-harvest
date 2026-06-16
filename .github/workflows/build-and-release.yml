@@ -1,0 +1,78 @@
+name: Build and Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  contents: write
+
+jobs:
+  build-and-release:
+    runs-on: windows-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: 'pip'
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install Python dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: Extract version from tag
+        shell: bash
+        run: |
+          TAG_NAME=${{ github.ref_name }}
+          VERSION=${TAG_NAME#v}
+          echo "VERSION=$VERSION" >> $GITHUB_ENV
+
+      - name: Run build tool
+        run: |
+          python build_tool/builder_cli.py --target both --name EveryThingDownloader --version ${{ env.VERSION }} --obfuscate
+
+      - name: Create GitHub Release and Upload Assets
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            dist/EveryThingDownloader.exe
+            dist_electron/EveryThingDownloader-Portable-${{ env.VERSION }}.exe
+            dist_electron/EveryThingDownloader Setup ${{ env.VERSION }}.exe
+          draft: false
+          prerelease: false
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Update update.json
+        shell: bash
+        run: |
+          cat <<EOF > update.json
+          {
+            "version": "${{ env.VERSION }}",
+            "url": "https://github.com/${{ github.repository }}/releases/download/${{ github.ref_name }}/EveryThingDownloader-Portable-${{ env.VERSION }}.exe",
+            "changelog": "Phiên bản mới nhất ${{ github.ref_name }} đã được phát hành tự động qua GitHub Actions. Xem chi tiết tại mục Releases trên GitHub."
+          }
+          EOF
+
+      - name: Commit and push update.json
+        shell: bash
+        run: |
+          git config --global user.name "github-actions[bot]"
+          git config --global user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add update.json
+          git commit -m "chore: update update.json to ${{ github.ref_name }} [skip ci]" || echo "No changes to commit"
+          git push origin HEAD:main

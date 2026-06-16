@@ -609,3 +609,57 @@ def save_build_config():
         return jsonify({'status': 'error', 'message': str(e)}), 500
 
 
+# ─────────────────────────────────────────────────────────────────────────────
+# Publish Git Release (Tag & Push to GitHub)
+# ─────────────────────────────────────────────────────────────────────────────
+
+@build_bp.route('/api/build/publish', methods=['POST'])
+def publish_build():
+    cfg = request.get_json(force=True, silent=True) or {}
+    build_id = str(uuid.uuid4())[:8]
+
+    log_q = queue.Queue()
+    state = {'cancelled': False, 'done': False}
+    _builds[build_id] = {'queue': log_q, 'state': state}
+
+    version = cfg.get('build', {}).get('version', '1.0.0')
+
+    # Run git release in background thread
+    t = threading.Thread(
+        target=_run_publish,
+        args=(build_id, version, log_q, state),
+        daemon=True,
+    )
+    t.start()
+    _builds[build_id]['thread'] = t
+
+    return jsonify({'build_id': build_id})
+
+
+def _run_publish(build_id: str, version: str, log_q: queue.Queue, state: dict):
+    def push(text: str, level: str = 'dim', done=False, success=False):
+        msg = {'text': text, 'level': level}
+        if done:
+            msg['done']    = True
+            msg['success'] = success
+        log_q.put(msg)
+
+    try:
+        import importlib
+        import build_tool.git_helper
+        importlib.reload(build_tool.git_helper)
+        from build_tool.git_helper import publish_git_release
+        
+        def progress_cb(msg, level):
+            push(msg, level)
+
+        success = publish_git_release(ROOT_DIR, version, progress_cb=progress_cb)
+        if success:
+            push('[SUCCESS] Git publication complete! GitHub Actions will now build the release in the cloud.', 'ok', done=True, success=True)
+        else:
+            push('[ERROR] Git publication failed. Check console log above.', 'error', done=True, success=False)
+    except Exception as e:
+        push(f'[ERROR] Error: {e}', 'error', done=True, success=False)
+
+
+
