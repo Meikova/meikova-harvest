@@ -81,7 +81,11 @@ class PersistentDownloadStatus(dict):
                 ("dongphim.co", "dongphim"),
                 ("ophim.co", "ophim"),
                 ("ophim.cc", "ophim"),
-                ("ophim.org", "ophim")
+                ("ophim.org", "ophim"),
+                ("guphim.com", "guphim"),
+                ("guphim.co", "guphim"),
+                ("guphim.net", "guphim"),
+                ("guphim.org", "guphim")
             ]
             for dom, reason in pre_seeded:
                 cursor.execute(

@@ -537,15 +537,14 @@ def generic_html_link_harvester(url, client_id):
         # Clean up backslashes
         clean_html = html.replace('\\/', '/').replace('\\', '')
 
-        # Check if the page is a movie landing page (not a player page itself)
-        # Landing pages don't have player option components but link to episode pages.
         has_player = ("dooplay_player_option" in clean_html or 
                       "streaming-server" in clean_html or 
                       "chooseStreamingServer" in clean_html or
                       "class=\"play-video\" data-link=" in clean_html or
                       "class='play-video' data-link=" in clean_html or
                       "player_option" in clean_html or
-                      "embed_player" in clean_html)
+                      "embed_player" in clean_html or
+                      ("/xem-phim-" in url.lower() and "guphim" in domain.lower()))
                       
         if not has_player:
             # Try to find the first episode link or a watch movie link
@@ -583,6 +582,99 @@ def generic_html_link_harvester(url, client_id):
         def extract_single_page_options(page_html, page_url, page_domain, page_path_segments, page_last_segment, depth=0):
             opts = []
             seen = set()
+            
+            # Custom GuPhim.com Extractor
+            if "guphim" in page_domain.lower():
+                try:
+                    # 1. Parse cdnHost from page_html
+                    cdn_host_m = re.search(r'cdnHost\s*=\s*["\']([^"\']*)["\']', page_html)
+                    cdn_host = cdn_host_m.group(1) if cdn_host_m else ""
+                    if not cdn_host or cdn_host.startswith("/"):
+                        cdn_host = "https://guphim.com"
+                    
+                    # 2. Extract slug from page_url
+                    parsed_path = urlparse(page_url).path
+                    slug_match = re.search(r'(.*?)-(\w{5})-tap-', parsed_path)
+                    if slug_match:
+                        slug_path = slug_match.group(0)[:-5]
+                    else:
+                        slug_path = parsed_path
+                    
+                    slug = slug_path.split("/xem-phim-")[-1]
+                    
+                    # 3. Find active episode hash from page_url or the HTML
+                    ep_slug_m = re.search(r'[a-z0-9]{5}-tap-([a-zA-Z0-9-]+)', parsed_path)
+                    target_ep_slug = ep_slug_m.group(1) if ep_slug_m else None
+                    
+                    a_tags = re.findall(r'<a\s+[^>]*class="[^"]*retrieve-ep[^"]*"[^>]*>', page_html)
+                    if not a_tags:
+                        a_tags = re.findall(r'<a\s+[^>]*data-ep="[^"]+"[^>]*>', page_html)
+                        
+                    ep_list = []
+                    for tag in a_tags:
+                        ep_m = re.search(r'data-ep="([^"]+)"', tag)
+                        slug_m = re.search(r'data-ep_slug="([^"]+)"', tag)
+                        if ep_m and slug_m:
+                            ep_list.append((ep_m.group(1), slug_m.group(1)))
+                    
+                    active_ep_hash = None
+                    if target_ep_slug and ep_list:
+                        for ep_hash, ep_slug_val in ep_list:
+                            if ep_slug_val == target_ep_slug:
+                                active_ep_hash = ep_hash
+                                break
+                    if not active_ep_hash and ep_list:
+                        active_ep_hash = ep_list[0][0]
+                    if not active_ep_hash:
+                        ep_general_m = re.search(r'data-ep="([^"]+)"', page_html)
+                        if ep_general_m:
+                            active_ep_hash = ep_general_m.group(1)
+                    
+                    if active_ep_hash:
+                        api_url = f"{cdn_host}/api/v1/link/{slug}?e={active_ep_hash}"
+                        logger.info(f"[GuPhim Extractor] Calling API: {api_url}")
+                        
+                        api_headers = {
+                            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+                            "Referer": page_url,
+                            "Accept": "application/json, text/javascript, */*; q=0.01",
+                            "X-Requested-With": "XMLHttpRequest"
+                        }
+                        
+                        from curl_cffi import requests as curl_requests
+                        api_resp = curl_requests.get(
+                            api_url,
+                            headers=api_headers,
+                            cookies=cookies_dict,
+                            impersonate="chrome",
+                            verify=False,
+                            timeout=15
+                        )
+                        if api_resp.status_code == 200:
+                            res_json = api_resp.json()
+                            link_m3u8 = res_json.get("link_m3u8")
+                            link_embed = res_json.get("link_embed")
+                            title_val = res_json.get("title", target_ep_slug or "Full")
+                            
+                            stream_url = link_m3u8 or link_embed
+                            type_suffix = " [M3U8]" if link_m3u8 else " [EMBED]"
+                            
+                            if stream_url:
+                                label_name = f"Server: GuPhim{type_suffix} (Episode {title_val})"
+                                opts.append({
+                                    "format_id": "",
+                                    "resolution": "Auto Stream",
+                                    "ext": "mp4",
+                                    "type": "video",
+                                    "size": "Unknown Size",
+                                    "label": label_name,
+                                    "episode": title_val,
+                                    "server": f"Server: GuPhim{type_suffix}",
+                                    "url": stream_url
+                                })
+                                return opts
+                except Exception as ex:
+                    logger.warning(f"GuPhim Extractor failed: {ex}")
             
             # Determine title for current page
             t_match = re.search(r'<title>(.*?)</title>', page_html, re.IGNORECASE)

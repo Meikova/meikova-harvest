@@ -996,6 +996,7 @@ body[class*="theme-"] .card {
 .format-panel {
   position: relative;
   min-height: 0;
+  min-width: 0;
 }
 .format-list {
   position: absolute;
@@ -3666,6 +3667,7 @@ body.theme-vimeo {
   border: 1px solid rgba(255, 255, 255, 0.04);
   border-radius: var(--radius-sm);
   box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.02);
+  min-width: 0;
 }
 .welcome-header {
   text-align: center;
@@ -3919,6 +3921,7 @@ body.theme-vimeo {
   display: flex;
   flex-direction: column;
   gap: 8px;
+  min-width: 0;
 }
 .welcome-history-header {
   display: flex;
@@ -3962,6 +3965,7 @@ body.theme-vimeo {
   max-height: 260px;
   overflow-y: auto;
   padding-right: 4px;
+  min-width: 0;
 }
 .history-list::-webkit-scrollbar {
   width: 4px;
