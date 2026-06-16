@@ -46,7 +46,7 @@ jobs:
           python build_tool/builder_cli.py --target both --name EveryThingDownloader --version ${{ env.VERSION }} --company EveryThingDownloader --description EveryThingDownloader --copyright "© 2026 EveryThingDownloader" --obfuscate --pyarmor-level 2
 
       # =========================================================================
-      # TÍNH TOÁN SHA-256 VÀ TẠO MẪU RELEASE NOTES CHUYÊN NGHIỆP
+      # TÍNH TOÁN SHA-256 VÀ TỰ ĐỘNG TRÍCH XUẤT CHANGELOG ĐỂ TẠO RELEASE NOTES RIÊNG BIỆT
       # =========================================================================
       - name: Calculate SHA-256 & Generate Release Notes
         shell: bash
@@ -56,19 +56,34 @@ jobs:
           SETUP_HASH=$(sha256sum "dist_electron/EveryThingDownloader Setup ${{ env.VERSION }}.exe" | awk '{print $1}')
           WEB_HASH=$(sha256sum "dist/EveryThingDownloader.exe" | awk '{print $1}')
           
-          # 2. Tạo nội dung tệp release_notes.md
+          # 2. Lấy thông tin tin nhắn mô tả của tag (Tag Message) hoặc commit mới nhất
+          TAG_MSG=$(git tag -l -n99 ${{ github.ref_name }} | sed "s/^${{ github.ref_name }} //g" | sed 's/^[ \t]*//')
+          if [ -z "$TAG_MSG" ] || [ "$TAG_MSG" = "Release ${{ github.ref_name }}" ] || [ "$TAG_MSG" = "${{ github.ref_name }}" ]; then
+            TAG_MSG=$(git log -1 --pretty=format:"%B")
+          fi
+          
+          # 3. Lấy danh sách các commits (Changelog) giữa phiên bản cũ và phiên bản mới này
+          PREV_TAG=$(git describe --tags --abbrev=0 ${{ github.ref_name }}^ 2>/dev/null || true)
+          if [ -n "$PREV_TAG" ]; then
+            CHANGELOG=$(git log ${PREV_TAG}..${{ github.ref_name }} --pretty=format:"* %s (%h)")
+          else
+            CHANGELOG=$(git log -n 15 --pretty=format:"* %s (%h)")
+          fi
+          
+          # 4. Ghi nội dung động vào tệp release_notes.md
           cat <<EOF > release_notes.md
-          # 🚀 EveryThingDownloader v${{ env.VERSION }}
+          # 🚀 EveryThingDownloader ${{ github.ref_name }}
           
           Giải pháp tải đa phương tiện toàn năng, bảo mật tối đa và tự động hóa phát hành vượt trội.
           
-          ### 🌟 Tính năng nổi bật trong bản phát hành này:
-          * **Mã hóa bảo mật cao**: Toàn bộ mã nguồn backend được bảo vệ nâng cao bằng công nghệ PyArmor Level 2 và AST Scrambling.
-          * **Tự động dịch phụ đề**: Hỗ trợ bóc tách phụ đề đa nguồn và tự động dịch sang Tiếng Việt thông minh.
-          * **Tiện ích Tray cao cấp**: Chạy ẩn dưới khay hệ thống, bật/tắt khởi động cùng Windows, khởi động lại backend server bằng 1-click.
+          ### 📝 Chi tiết phát hành (Release Message):
+          $TAG_MSG
+          
+          ### 🔍 Nhật ký thay đổi (What's Changed):
+          $CHANGELOG
           
           ### 📦 Thông tin các file cài đặt (Assets Info):
-          * **EveryThingDownloader-Portable-${{ env.VERSION }}.exe**: Bản di động (Portable), chạy ngay không cần cài đặt. (Khuyên dùng)
+          * **EveryThingDownloader-Portable-${{ env.VERSION }}.exe**: Bản di động (Portable), chạy ngay không cần cài đặt (Khuyên dùng).
           * **EveryThingDownloader Setup ${{ env.VERSION }}.exe**: Bản cài đặt đầy đủ (Installer) hỗ trợ gỡ cài đặt tiện lợi.
           * **EveryThingDownloader.exe**: Bản Web Binary độc lập chạy trên trình duyệt web.
           
@@ -80,7 +95,7 @@ jobs:
           | \`EveryThingDownloader.exe\` | \`${WEB_HASH}\` |
           
           ---
-          > ⚠️ **Lưu ý quan trọng**: Do mã nguồn được bảo vệ bằng các thuật toán xáo trộn code và đóng gói nhị phân (PyArmor), một số phần mềm diệt virus (bao gồm Windows Defender) có thể cảnh báo nhầm (False Positive). Đây là hiện tượng bình thường đối với các phần mềm đóng gói bằng PyInstaller + PyArmor. Hãy yên tâm bỏ qua hoặc thêm tệp vào danh sách loại trừ để sử dụng ổn định.
+          > ⚠️ **Lưu ý quan trọng**: Do mã nguồn được bảo vệ bằng các thuật toán xáo trộn code và đóng gói nhị phân (PyArmor), một số phần mềm diệt virus (bao gồm Windows Defender) có thể cảnh báo nhầm (False Positive). Hãy yên tâm bỏ qua hoặc thêm tệp vào danh sách loại trừ để sử dụng ổn định.
           EOF
 
       # =========================================================================
