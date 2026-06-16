@@ -45,6 +45,53 @@ def strip_ansi_codes(text):
 
 
 
+def save_bypass_domain(domain, reason="auto_learned"):
+    if not domain or domain.replace('.', '').isdigit() or domain in ['localhost', '127.0.0.1']:
+        return
+    import sqlite3
+    import time
+    from config import DB_PATH
+    try:
+        domain_clean = domain.lower().lstrip("www.")
+        conn = sqlite3.connect(DB_PATH, timeout=5.0)
+        cursor = conn.cursor()
+        cursor.execute(
+            "INSERT OR IGNORE INTO bypass_domains (domain, bypass_reason, timestamp) VALUES (?, ?, ?)",
+            (domain_clean, reason, time.time())
+        )
+        conn.commit()
+        conn.close()
+    except Exception as e:
+        logger.warning(f"Failed to save bypass domain {domain} to DB: {e}")
+
+def should_bypass_ytdl(url):
+    import urllib.parse
+    import sqlite3
+    try:
+        parsed = urllib.parse.urlparse(url)
+        domain = parsed.netloc.lower()
+        if ":" in domain:
+            domain = domain.split(":")[0]
+        if not domain:
+            return False
+            
+        domain_clean = domain.lstrip("www.")
+        
+        # Query database
+        from config import DB_PATH
+        conn = sqlite3.connect(DB_PATH, timeout=5.0)
+        cursor = conn.cursor()
+        cursor.execute("SELECT 1 FROM bypass_domains WHERE domain = ? OR ? LIKE '%' || domain", (domain_clean, domain_clean))
+        row = cursor.fetchone()
+        conn.close()
+        if row:
+            return True
+            
+    except Exception as e:
+        logger.warning(f"Error checking bypass domains: {e}")
+    return False
+
+
 def generic_html_link_harvester(url, client_id):
     from extractors.generic import generic_html_link_harvester as _harvester
     return _harvester(url, client_id)
@@ -257,6 +304,22 @@ def get_info():
                     "status": "error",
                     "message": "This TikTok Video or Slideshow requires account cookies or the system IP is blocked (captcha encountered). Please log in to TikTok in your browser, export and upload a J2TEAM cookie file (Netscape or JSON format) to continue."
                 }), 400
+
+    # Direct bypass for movie/streaming sites to avoid slow yt-dlp timeout delays
+    if should_bypass_ytdl(url):
+        logger.info(f"Movie/streaming site detected via bypass rule: {url}. Bypassing yt-dlp and routing directly to generic harvester.")
+        harvester_info = generic_html_link_harvester(url, client_id)
+        if harvester_info:
+            video_opts = harvester_info.get("video_options", [])
+            has_streams = any(opt.get("format_id") != "generic_fallback" for opt in video_opts)
+            if has_streams:
+                try:
+                    parsed_h = urllib.parse.urlparse(url)
+                    domain_h = parsed_h.netloc.lower().split(":")[0].lstrip("www.")
+                    save_bypass_domain(domain_h, "successful_harvest")
+                except Exception:
+                    pass
+            return jsonify(harvester_info)
 
     is_instagram = "instagram.com" in url.lower() or "instagr.am" in url.lower()
 
@@ -542,7 +605,16 @@ def get_info():
 
                 harvester_info = generic_html_link_harvester(url, client_id)
                 if harvester_info:
-                    logger.info(f"Generic HTML link harvester succeeded for {url} (nocookie_e). Found {len(harvester_info.get('video_options', []))} options.")
+                    video_opts = harvester_info.get("video_options", [])
+                    has_streams = any(opt.get("format_id") != "generic_fallback" for opt in video_opts)
+                    if has_streams:
+                        try:
+                            parsed_h = urllib.parse.urlparse(url)
+                            domain_h = parsed_h.netloc.lower().split(":")[0].lstrip("www.")
+                            save_bypass_domain(domain_h, "successful_harvest")
+                        except Exception:
+                            pass
+                    logger.info(f"Generic HTML link harvester succeeded for {url} (nocookie_e). Found {len(video_opts)} options.")
                     return jsonify(harvester_info)
                 return jsonify({
                     "status": "error",
@@ -595,7 +667,16 @@ def get_info():
 
             harvester_info = generic_html_link_harvester(url, client_id)
             if harvester_info:
-                logger.info(f"Generic HTML link harvester succeeded for {url} (not info). Found {len(harvester_info.get('video_options', []))} options.")
+                video_opts = harvester_info.get("video_options", [])
+                has_streams = any(opt.get("format_id") != "generic_fallback" for opt in video_opts)
+                if has_streams:
+                    try:
+                        parsed_h = urllib.parse.urlparse(url)
+                        domain_h = parsed_h.netloc.lower().split(":")[0].lstrip("www.")
+                        save_bypass_domain(domain_h, "successful_harvest")
+                    except Exception:
+                        pass
+                logger.info(f"Generic HTML link harvester succeeded for {url} (not info). Found {len(video_opts)} options.")
                 return jsonify(harvester_info)
             return jsonify({
                 "status": "error",

@@ -647,6 +647,37 @@ document.addEventListener("DOMContentLoaded", () => {
     const previewTitle = document.getElementById("preview-title");
     const previewLoader = document.getElementById("preview-loader");
     const previewLoaderText = document.getElementById("preview-loader-text");
+    const previewLoaderSpinner = previewLoader ? previewLoader.querySelector(".preview-loader-spinner") : null;
+    const previewLoaderErrorIcon = document.getElementById("preview-loader-error-icon");
+
+    function showPreviewLoader(text, isError = false) {
+        if (!previewLoader) return;
+        if (previewLoaderText) {
+            previewLoaderText.textContent = text;
+            previewLoaderText.style.color = isError ? "#ff5555" : "";
+        }
+        if (previewLoaderSpinner) {
+            if (isError) {
+                previewLoaderSpinner.classList.add("hidden");
+            } else {
+                previewLoaderSpinner.classList.remove("hidden");
+            }
+        }
+        if (previewLoaderErrorIcon) {
+            if (isError) {
+                previewLoaderErrorIcon.classList.remove("hidden");
+            } else {
+                previewLoaderErrorIcon.classList.add("hidden");
+            }
+        }
+        previewLoader.classList.remove("hidden");
+    }
+
+    function hidePreviewLoader() {
+        if (previewLoader) {
+            previewLoader.classList.add("hidden");
+        }
+    }
     const previewVideoContainer = document.getElementById("preview-video-container");
     const previewVideoPlayer = document.getElementById("preview-video-player");
     const previewAudioContainer = document.getElementById("preview-audio-container");
@@ -804,6 +835,9 @@ document.addEventListener("DOMContentLoaded", () => {
             .then(data => {
                 if (data.status === "success") {
                     updateEngineBtn.setAttribute("title", `Current yt-dlp version: ${data.yt_dlp_version}`);
+                    if (data.is_frozen) {
+                        updateEngineBtn.style.display = "none";
+                    }
                 }
             })
             .catch(err => console.error("Error fetching engine version:", err));
@@ -2161,15 +2195,14 @@ document.addEventListener("DOMContentLoaded", () => {
 
         if (previewImageElement) {
             previewImageContainer.classList.add("hidden");
-            previewLoader.classList.remove("hidden");
-            previewLoaderText.textContent = "Loading image...";
+            showPreviewLoader("Loading image...");
 
             previewImageElement.onload = () => {
-                previewLoader.classList.add("hidden");
+                hidePreviewLoader();
                 previewImageContainer.classList.remove("hidden");
             };
             previewImageElement.onerror = () => {
-                previewLoaderText.textContent = "Failed to load image preview.";
+                showPreviewLoader("Failed to load image preview.", true);
             };
             previewImageElement.src = finalUrl;
         }
@@ -4214,8 +4247,7 @@ document.addEventListener("DOMContentLoaded", () => {
         previewSubtitleContainer.classList.add("hidden");
         if (previewWebpageContainer) previewWebpageContainer.classList.add("hidden");
         if (previewWebpageIframe) previewWebpageIframe.removeAttribute("src");
-        previewLoader.classList.remove("hidden");
-        previewLoaderText.textContent = "Connecting to source & preparing stream...";
+        showPreviewLoader("Connecting to source & preparing stream...");
 
         previewTitle.textContent = label;
         previewMetaInfo.textContent = `Type: ${ext.toUpperCase()} ${quality ? `| Quality: ${quality}` : ""}`;
@@ -4348,11 +4380,11 @@ document.addEventListener("DOMContentLoaded", () => {
             if (previewImageElement) {
                 previewImageElement.src = finalUrl;
                 previewImageElement.onload = () => {
-                    previewLoader.classList.add("hidden");
+                    hidePreviewLoader();
                     previewImageContainer.classList.remove("hidden");
                 };
                 previewImageElement.onerror = () => {
-                    previewLoaderText.textContent = "Failed to load image preview.";
+                    showPreviewLoader("Failed to load image preview.", true);
                 };
             }
             return;
@@ -4371,17 +4403,16 @@ document.addEventListener("DOMContentLoaded", () => {
             
             if (isHtmlPage && previewWebpageContainer && previewWebpageIframe) {
                 previewWebpageContainer.classList.remove("hidden");
-                previewLoader.classList.remove("hidden");
-                previewLoaderText.textContent = "Loading webpage view...";
+                showPreviewLoader("Loading webpage view...");
                 
                 const proxyUrl = `/api/system/proxy-sub?url=${encodeURIComponent(streamUrl)}&mode=html&client_id=${encodeURIComponent(clientId)}`;
                 previewWebpageIframe.src = proxyUrl;
                 
                 previewWebpageIframe.onload = () => {
-                    previewLoader.classList.add("hidden");
+                    hidePreviewLoader();
                 };
                 previewWebpageIframe.onerror = () => {
-                    previewLoaderText.textContent = "Failed to render webpage preview.";
+                    showPreviewLoader("Failed to render webpage preview.", true);
                 };
             } else if (previewSubText) {
                 if (previewSubLang) previewSubLang.textContent = label;
@@ -4393,11 +4424,11 @@ document.addEventListener("DOMContentLoaded", () => {
                 fetch(proxyUrl)
                     .then(res => res.text())
                     .then(text => {
-                        previewLoader.classList.add("hidden");
+                        hidePreviewLoader();
                         previewSubText.textContent = text || "No content found.";
                     })
                     .catch(err => {
-                        previewLoader.classList.add("hidden");
+                        showPreviewLoader("Failed to fetch content from this source.", true);
                         previewSubText.textContent = "Failed to fetch content from this source.";
                     });
             }
@@ -4428,14 +4459,13 @@ document.addEventListener("DOMContentLoaded", () => {
 
             const proxyStreamUrl = `/api/proxy/stream?url=${encodeURIComponent(streamUrl)}&client_id=${encodeURIComponent(clientId)}`;
 
-            previewLoader.classList.add("hidden");
+            hidePreviewLoader();
 
             if (ext === "mp3" || ext === "m4a" || type === "audio") {
                 if (previewAudioPlayer) {
                     previewAudioPlayer.onerror = () => {
                         console.warn("HTML5 Audio Error");
-                        previewLoaderText.textContent = "Cannot play this audio stream directly. Please download the format instead using the button below.";
-                        previewLoader.classList.remove("hidden");
+                        showPreviewLoader("Cannot play this audio stream directly. Please download the format instead using the button below.", true);
                         previewAudioContainer.classList.add("hidden");
                         stopAllPreviewPlaybacks();
                     };
@@ -4451,8 +4481,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
                     previewVideoPlayer.onerror = () => {
                         console.warn("HTML5 Video Error");
-                        previewLoaderText.textContent = "Cannot play this source directly. Please select another Server (e.g. Server #1) or click the Download button below.";
-                        previewLoader.classList.remove("hidden");
+                        showPreviewLoader("Cannot play this source directly. Please select another Server (e.g. Server #1) or click the Download button below.", true);
                         previewVideoContainer.classList.add("hidden");
                         stopAllPreviewPlaybacks();
                     };
@@ -4470,8 +4499,7 @@ document.addEventListener("DOMContentLoaded", () => {
                         hls.on(Hls.Events.ERROR, function (event, data) {
                             if (data.fatal) {
                                 console.warn("HLS fatal error:", data.type);
-                                previewLoaderText.textContent = "This server's source is encrypted by the provider and cannot be previewed directly. Please select another Server (e.g. Server #1) or click the Download button below.";
-                                previewLoader.classList.remove("hidden");
+                                showPreviewLoader("This server's source is encrypted by the provider and cannot be previewed directly. Please select another Server (e.g. Server #1) or click the Download button below.", true);
                                 previewVideoContainer.classList.add("hidden");
                                 stopAllPreviewPlaybacks();
                             }
@@ -4510,7 +4538,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
             const data = await response.json();
             if (!response.ok || data.status === "error") {
-                previewLoaderText.textContent = `Error: ${data.message || "Failed to start preview task."}`;
+                showPreviewLoader(`Error: ${data.message || "Failed to start preview task."}`, true);
                 return;
             }
 
@@ -4542,7 +4570,7 @@ document.addEventListener("DOMContentLoaded", () => {
                             previewActivePollInterval = null;
                         }
                         clearInterval(modalCheckTimer);
-                        previewLoader.classList.add("hidden");
+                        hidePreviewLoader();
 
                         const previewStreamUrl = `/api/download/file/${downloadId}?preview=true`;
 
@@ -4550,8 +4578,7 @@ document.addEventListener("DOMContentLoaded", () => {
                             if (previewAudioPlayer) {
                                 previewAudioPlayer.onerror = () => {
                                     console.warn("HTML5 Audio Error");
-                                    previewLoaderText.textContent = "Cannot play this audio file. Please try downloading the format instead using the button below.";
-                                    previewLoader.classList.remove("hidden");
+                                    showPreviewLoader("Cannot play this audio file. Please try downloading the format instead using the button below.", true);
                                     previewAudioContainer.classList.add("hidden");
                                     stopAllPreviewPlaybacks();
                                 };
@@ -4574,7 +4601,7 @@ document.addEventListener("DOMContentLoaded", () => {
                             if (previewWebpageContainer && previewWebpageIframe) {
                                 previewWebpageContainer.classList.remove("hidden");
                                 previewWebpageIframe.src = previewStreamUrl;
-                                previewLoader.classList.add("hidden");
+                                hidePreviewLoader();
                             }
                         } else {
                             if (previewVideoPlayer) {
@@ -4590,7 +4617,7 @@ document.addEventListener("DOMContentLoaded", () => {
                             previewActivePollInterval = null;
                         }
                         clearInterval(modalCheckTimer);
-                        previewLoaderText.textContent = `Preview failed: ${statusData.error || "Unknown server error."}`;
+                        showPreviewLoader(`Preview failed: ${statusData.error || "Unknown server error."}`, true);
                     } else {
                         const progress = statusData.progress || 0;
                         let msg = statusData.message || "Downloading stream components...";
@@ -4599,7 +4626,7 @@ document.addEventListener("DOMContentLoaded", () => {
                         } else if (statusData.speed) {
                             msg += ` | Speed: ${statusData.speed}`;
                         }
-                        previewLoaderText.textContent = `[${progress}%] ${msg}`;
+                        showPreviewLoader(`[${progress}%] ${msg}`);
                     }
                 } catch (err) {
                     console.error("Error handling preview SSE progress:", err);
@@ -4612,12 +4639,12 @@ document.addEventListener("DOMContentLoaded", () => {
                     previewActivePollInterval = null;
                 }
                 clearInterval(modalCheckTimer);
-                previewLoaderText.textContent = "Connection to preview progress server lost.";
+                showPreviewLoader("Connection to preview progress server lost.", true);
             };
 
         } catch (err) {
             console.error(err);
-            previewLoaderText.textContent = "Connection failed. Unable to start preview.";
+            showPreviewLoader("Connection failed. Unable to start preview.", true);
         }
     }
 
@@ -5479,8 +5506,7 @@ document.addEventListener("DOMContentLoaded", () => {
                     return;
                 }
                 
-                previewLoader.classList.remove("hidden");
-                previewLoaderText.textContent = "Translating subtitles...";
+                showPreviewLoader("Translating subtitles...");
                 
                 const resp = await fetch("/api/system/translate-sub", {
                     method: "POST",
@@ -5488,7 +5514,7 @@ document.addEventListener("DOMContentLoaded", () => {
                     body: JSON.stringify(payload)
                 });
                 const resData = await resp.json();
-                previewLoader.classList.add("hidden");
+                hidePreviewLoader();
                 
                 if (resData.status === "success" && resData.translated_vtt) {
                     loadSubtitle(resData.translated_vtt, true);
@@ -5498,7 +5524,7 @@ document.addEventListener("DOMContentLoaded", () => {
                 }
             } catch (e) {
                 console.error("Subtitle translation error:", e);
-                previewLoader.classList.add("hidden");
+                hidePreviewLoader();
                 this.value = "none";
             }
         });

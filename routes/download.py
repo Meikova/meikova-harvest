@@ -456,15 +456,28 @@ def proxy_stream():
         if is_hls:
             manifest_text = resp.text
             from urllib.parse import urljoin
+            import re
             lines = []
             for line in manifest_text.splitlines():
                 line = line.strip()
-                if line and not line.startswith("#"):
+                if not line:
+                    lines.append("")
+                    continue
+                if line.startswith("#"):
+                    # Rewrite encryption key URIs if present so the browser player can fetch the decryption keys through our proxy
+                    if line.startswith("#EXT-X-KEY:") or line.startswith("#EXT-X-SESSION-KEY:"):
+                        uri_match = re.search(r'URI="([^"]+)"', line)
+                        if uri_match:
+                            original_uri = uri_match.group(1)
+                            abs_uri = urljoin(url, original_uri)
+                            client_suffix = f"&client_id={quote(client_id)}" if client_id else ""
+                            proxy_uri = f"/api/proxy/stream?url={quote(abs_uri)}{client_suffix}"
+                            line = line.replace(f'URI="{original_uri}"', f'URI="{proxy_uri}"')
+                    lines.append(line)
+                else:
                     absolute_url = urljoin(url, line)
                     client_suffix = f"&client_id={quote(client_id)}" if client_id else ""
                     lines.append(f"/api/proxy/stream?url={quote(absolute_url)}{client_suffix}")
-                else:
-                    lines.append(line)
                     
             resp_headers = {
                 "Content-Type": "application/x-mpegURL",

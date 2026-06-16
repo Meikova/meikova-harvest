@@ -38,9 +38,10 @@ def check_drm(stream_url, referer=None):
                 '/player/master/' in path):
             return False
             
-        resp = requests.get(stream_url, headers=headers, verify=False, stream=True, timeout=8)
+        from curl_cffi import requests as curl_requests
+        resp = curl_requests.get(stream_url, headers=headers, impersonate="chrome", verify=False, stream=True, timeout=3)
         if resp.status_code == 200:
-            content = resp.raw.read(30000).decode('utf-8', errors='ignore')
+            content = resp.content[:30000].decode('utf-8', errors='ignore')
             
             # HLS DRM indicators
             if "#EXT-X-KEY" in content:
@@ -71,45 +72,109 @@ def check_drm(stream_url, referer=None):
 # --- DNS Hijack Bypass Monkeypatch for curl_cffi ---
 doh_cache = {}
 
+DOH_IP_MAP = {
+    "cloudflare-dns.com": "1.1.1.1",
+    "dns.google": "8.8.8.8",
+    "dns.adguard.com": "94.140.14.14",
+    "doh.opendns.com": "208.67.222.222"
+}
+
+def test_ip_connection(ip):
+    try:
+        s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        s.settimeout(0.4)  # 400ms timeout
+        s.connect((ip, 443))
+        s.close()
+        return ip, True
+    except Exception:
+        return ip, False
+
+def prioritize_ips(ips):
+    if len(ips) <= 1:
+        return ips
+    working_ips = []
+    blocked_ips = []
+    # Fast parallel check for working IPs
+    with ThreadPoolExecutor(max_workers=len(ips)) as executor:
+        results = list(executor.map(test_ip_connection, ips))
+        for ip, is_working in results:
+            if is_working:
+                working_ips.append(ip)
+            else:
+                blocked_ips.append(ip)
+    return working_ips + blocked_ips
+
 def resolve_doh_helper(domain):
-    # Skip DoH for localhost or IP addresses
-    if not domain or domain.replace('.', '').isdigit() or domain in ['localhost', '127.0.0.1', '::1']:
+    if not domain:
+        return []
+    if domain in DOH_IP_MAP:
+        return [DOH_IP_MAP[domain]]
+    if domain.replace('.', '').isdigit() or domain in ['localhost', '127.0.0.1', '::1']:
         return []
     if domain in doh_cache:
         return doh_cache[domain]
         
-    # Try Cloudflare DoH
+    from curl_cffi import requests as curl_requests
+    ips = []
+    
+    # 1. Try Cloudflare DoH
     try:
         url = f"https://cloudflare-dns.com/dns-query?name={domain}&type=A"
         headers = {"Accept": "application/dns-json"}
-        resp = requests.get(url, headers=headers, timeout=4)
+        resp = curl_requests.get(url, headers=headers, impersonate="chrome", timeout=4)
         if resp.status_code == 200:
             data = resp.json()
-            ips = []
             for answer in data.get("Answer", []):
                 if answer.get("type") == 1: # A record
                     ips.append(answer.get("data"))
-            if ips:
-                doh_cache[domain] = ips
-                return ips
     except Exception:
         pass
         
-    # Try Google DoH as fallback
-    try:
-        url = f"https://dns.google/resolve?name={domain}&type=A"
-        resp = requests.get(url, timeout=4)
-        if resp.status_code == 200:
-            data = resp.json()
-            ips = []
-            for answer in data.get("Answer", []):
-                if answer.get("type") == 1: # A record
-                    ips.append(answer.get("data"))
-            if ips:
-                doh_cache[domain] = ips
-                return ips
-    except Exception:
-        pass
+    # 2. Try Google DoH
+    if not ips:
+        try:
+            url = f"https://dns.google/resolve?name={domain}&type=A"
+            resp = curl_requests.get(url, impersonate="chrome", timeout=4)
+            if resp.status_code == 200:
+                data = resp.json()
+                for answer in data.get("Answer", []):
+                    if answer.get("type") == 1: # A record
+                        ips.append(answer.get("data"))
+        except Exception:
+            pass
+        
+    # 3. Try AdGuard DoH
+    if not ips:
+        try:
+            url = f"https://dns.adguard.com/resolve?name={domain}&type=A"
+            resp = curl_requests.get(url, impersonate="chrome", timeout=4)
+            if resp.status_code == 200:
+                data = resp.json()
+                for answer in data.get("Answer", []):
+                    if answer.get("type") == 1: # A record
+                        ips.append(answer.get("data"))
+        except Exception:
+            pass
+
+    # 4. Try OpenDNS DoH
+    if not ips:
+        try:
+            url = f"https://doh.opendns.com/dns-query?name={domain}&type=A"
+            headers = {"Accept": "application/dns-json"}
+            resp = curl_requests.get(url, headers=headers, impersonate="chrome", timeout=4)
+            if resp.status_code == 200:
+                data = resp.json()
+                for answer in data.get("Answer", []):
+                    if answer.get("type") == 1: # A record
+                        ips.append(answer.get("data"))
+        except Exception:
+            pass
+        
+    if ips:
+        # Prioritize working IPs first to eliminate timeout issues on blocked IPs
+        ips = prioritize_ips(ips)
+        doh_cache[domain] = ips
+        return ips
         
     return []
 
@@ -128,25 +193,26 @@ try:
                     domain = domain.split(":")[0]
                     
                 if domain:
+                    if domain in DOH_IP_MAP:
+                        # Direct static IP override for DoH providers to prevent infinite recursion and bypass hijacking
+                        resolve_list = [
+                            f"{domain}:80:{DOH_IP_MAP[domain]}".encode('utf-8'),
+                            f"{domain}:443:{DOH_IP_MAP[domain]}".encode('utf-8')
+                        ]
+                        original_setopt(self, CurlOpt.RESOLVE, resolve_list)
+                        return original_setopt(self, opt, value)
+                        
                     # Resolve via DoH first
                     real_ips = resolve_doh_helper(domain)
                     
-                    # Check system DNS resolution
-                    is_hijacked = False
-                    try:
-                        addr_info = socket.getaddrinfo(domain, 443)
-                        system_ips = [info[4][0] for info in addr_info]
-                        if "127.0.0.1" in system_ips or "::1" in system_ips:
-                            is_hijacked = True
-                        elif real_ips and not any(sip in real_ips for sip in system_ips):
-                            is_hijacked = True
-                    except Exception:
-                        is_hijacked = True
-                        
-                    if is_hijacked and real_ips:
-                        # Apply CURLOPT_RESOLVE
-                        resolve_list = [f"{domain}:443:{real_ips[0]}".encode('utf-8')]
-                        logger.info(f"[DNS Hijack Bypass] Overriding resolution for {domain} to {real_ips[0]}")
+                    if real_ips:
+                        # Apply CURLOPT_RESOLVE for the single, working IP to bypass local DNS resolution entirely
+                        working_ip = real_ips[0]
+                        resolve_list = [
+                            f"{domain}:80:{working_ip}".encode('utf-8'),
+                            f"{domain}:443:{working_ip}".encode('utf-8')
+                        ]
+                        logger.info(f"[DNS Bypass] Overriding resolution for {domain} to {working_ip}")
                         original_setopt(self, CurlOpt.RESOLVE, resolve_list)
             except Exception as e:
                 logger.warning(f"DNS hijack intercept setopt failed: {e}")
@@ -157,6 +223,31 @@ try:
     logger.info("curl_cffi DNS hijack monkeypatch installed successfully.")
 except Exception as e:
     logger.warning(f"Failed to install curl_cffi DNS hijack monkeypatch: {e}")
+
+# --- Global DNS-over-HTTPS monkeypatch for python socket ---
+original_getaddrinfo = socket.getaddrinfo
+
+def custom_getaddrinfo(host, port, family=0, type=0, proto=0, flags=0):
+    if host and host not in ['localhost', '127.0.0.1', '::1'] and not host.replace('.', '').isdigit():
+        try:
+            real_ips = resolve_doh_helper(host)
+            if real_ips:
+                results = []
+                for ip in real_ips:
+                    try:
+                        res = original_getaddrinfo(ip, port, family, type, proto, flags)
+                        results.extend(res)
+                    except Exception:
+                        pass
+                if results:
+                    return results
+        except Exception:
+            pass
+    return original_getaddrinfo(host, port, family, type, proto, flags)
+
+socket.getaddrinfo = custom_getaddrinfo
+logger.info("Global socket.getaddrinfo DNS hijack monkeypatch installed successfully.")
+
 
 
 def fetch_html(url, headers=None, cookies=None):
@@ -200,39 +291,12 @@ def fetch_html(url, headers=None, cookies=None):
     except Exception as e:
         logger.warning(f"curl_cffi fetch_html failed: {e}. Trying standard requests fallback...")
         
-    # Fallback to standard requests (with manual redirect loop & temporary monkeypatched DNS)
-    original_getaddrinfo = socket.getaddrinfo
+    # Fallback to standard requests (with manual redirect loop)
     try:
         current_url = url
         max_redirects = 5
         
         for redirect_hop in range(max_redirects):
-            parsed = urlparse(current_url)
-            domain = parsed.netloc
-            if ":" in domain:
-                domain = domain.split(":")[0]
-                
-            real_ips = resolve_doh_helper(domain)
-            is_hijacked = False
-            try:
-                addr_info = original_getaddrinfo(domain, 443)
-                system_ips = [info[4][0] for info in addr_info]
-                if "127.0.0.1" in system_ips or "::1" in system_ips:
-                    is_hijacked = True
-                elif real_ips and not any(sip in real_ips for sip in system_ips):
-                    is_hijacked = True
-            except Exception:
-                is_hijacked = True
-                
-            if is_hijacked and real_ips:
-                def custom_getaddrinfo(host, port, family=0, type=0, proto=0, flags=0):
-                    if host == domain:
-                        return original_getaddrinfo(real_ips[0], port, family, type, proto, flags)
-                    return original_getaddrinfo(host, port, family, type, proto, flags)
-                socket.getaddrinfo = custom_getaddrinfo
-            else:
-                socket.getaddrinfo = original_getaddrinfo
-                
             resp = requests.get(current_url, headers=headers, cookies=cookies, verify=False, allow_redirects=False, timeout=15)
             if resp.status_code in [301, 302, 307, 308]:
                 location = resp.headers.get("Location")
@@ -245,10 +309,70 @@ def fetch_html(url, headers=None, cookies=None):
             break
     except Exception as e:
         logger.error(f"Standard requests fallback fetch failed for {url}: {e}")
-    finally:
-        socket.getaddrinfo = original_getaddrinfo
         
     return ""
+
+def fetch_html_with_redirect(url, headers=None, cookies=None):
+    if not headers:
+        headers = {
+            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
+        }
+    current_url = url
+    try:
+        from curl_cffi import requests as curl_requests
+        max_redirects = 5
+        html_content = ""
+        
+        for redirect_hop in range(max_redirects):
+            resp = curl_requests.get(
+                current_url,
+                headers=headers,
+                cookies=cookies,
+                impersonate="chrome",
+                verify=False,
+                allow_redirects=False,
+                timeout=15
+            )
+            if resp.status_code in [301, 302, 307, 308]:
+                location = resp.headers.get("Location")
+                if location:
+                    current_url = urljoin(current_url, location)
+                    continue
+            
+            if resp.status_code == 200:
+                html_content = resp.text
+            else:
+                html_content = resp.text
+            break
+            
+        if html_content:
+            return html_content, current_url
+            
+    except Exception as e:
+        logger.warning(f"curl_cffi fetch_html_with_redirect failed: {e}. Trying standard requests fallback...")
+        
+    # Fallback to standard requests
+    try:
+        max_redirects = 5
+        html_content = ""
+        for redirect_hop in range(max_redirects):
+            resp = requests.get(current_url, headers=headers, cookies=cookies, verify=False, allow_redirects=False, timeout=15)
+            if resp.status_code in [301, 302, 307, 308]:
+                location = resp.headers.get("Location")
+                if location:
+                    current_url = urljoin(current_url, location)
+                    continue
+            
+            if resp.status_code == 200:
+                html_content = resp.text
+            else:
+                html_content = resp.text
+            break
+            
+        return html_content, current_url
+    except Exception as e:
+        logger.warning(f"Fallback requests fetch_html_with_redirect failed: {e}")
+        return "", current_url
 
 def resolve_hls_size(m3u8_url, referer=None):
     try:
@@ -258,7 +382,8 @@ def resolve_hls_size(m3u8_url, referer=None):
         if referer:
             headers["Referer"] = referer
             
-        resp = requests.get(m3u8_url, headers=headers, verify=False, timeout=12)
+        from curl_cffi import requests as curl_requests
+        resp = curl_requests.get(m3u8_url, headers=headers, impersonate="chrome", verify=False, timeout=10)
         if resp.status_code != 200:
             return None
             
@@ -287,11 +412,13 @@ def resolve_hls_size(m3u8_url, referer=None):
         if not target_segment.startswith("http"):
             target_segment = urljoin(m3u8_url, target_segment)
             
-        seg_resp = requests.head(target_segment, headers=headers, verify=False, timeout=12)
+        from curl_cffi import requests as curl_requests
+        seg_resp = curl_requests.head(target_segment, headers=headers, impersonate="chrome", verify=False, timeout=10)
         content_len = seg_resp.headers.get("Content-Length")
         # If HEAD returned no Content-Length or a dummy/tiny content length (e.g. < 1000 bytes), fall back to GET
         if not content_len or int(content_len) < 1000:
-            seg_resp = requests.get(target_segment, headers=headers, verify=False, stream=True, timeout=12)
+            from curl_cffi import requests as curl_requests
+            seg_resp = curl_requests.get(target_segment, headers=headers, impersonate="chrome", verify=False, stream=True, timeout=12)
             content_len = seg_resp.headers.get("Content-Length")
             
         if content_len:
@@ -341,8 +468,15 @@ def generic_html_link_harvester(url, client_id):
         headers = {
             "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
         }
-        # Fetch raw HTML using our curl-cffi helper with cookies
-        html = fetch_html(url, headers, cookies=cookies_dict)
+        # Fetch raw HTML and resolve the final redirected URL
+        html, final_url = fetch_html_with_redirect(url, headers, cookies=cookies_dict)
+        if final_url:
+            url = final_url
+            parsed_url = urlparse(url)
+            domain = parsed_url.netloc
+            path_segments = [seg for seg in parsed_url.path.split('/') if seg]
+            last_segment = path_segments[-1] if path_segments else ""
+            
         if not html:
             fetch_error_msg = "Failed to fetch HTML content (Connection error or Cloudflare protection)"
     except Exception as e:
@@ -516,7 +650,16 @@ def generic_html_link_harvester(url, client_id):
                                 "type": dtype
                             }
                             
-                            ajax_resp = requests.post(ajax_url, headers=ajax_headers, data=ajax_data, cookies=cookies_dict, verify=False, timeout=15)
+                            from curl_cffi import requests as curl_requests
+                            ajax_resp = curl_requests.post(
+                                ajax_url,
+                                headers=ajax_headers,
+                                data=ajax_data,
+                                cookies=cookies_dict,
+                                impersonate="chrome",
+                                verify=False,
+                                timeout=15
+                            )
                             if ajax_resp.status_code == 200:
                                 res_json = ajax_resp.json()
                                 embed_url = res_json.get("embed_url")
@@ -536,7 +679,15 @@ def generic_html_link_harvester(url, client_id):
                                             break
                                     
                                     if not resolved:
-                                        embed_resp = requests.get(embed_url, headers={"User-Agent": headers["User-Agent"], "Referer": page_url}, cookies=cookies_dict, verify=False, timeout=15)
+                                        from curl_cffi import requests as curl_requests
+                                        embed_resp = curl_requests.get(
+                                            embed_url,
+                                            headers={"User-Agent": headers["User-Agent"], "Referer": page_url},
+                                            cookies=cookies_dict,
+                                            impersonate="chrome",
+                                            verify=False,
+                                            timeout=15
+                                        )
                                         if embed_resp.status_code == 200:
                                             embed_html = embed_resp.text
                                             obf_match = re.search(r'id=["\']player["\'][^>]+data-obf=["\']([^"\']+)["\']', embed_html) or \
@@ -618,7 +769,15 @@ def generic_html_link_harvester(url, client_id):
                                      stream_url.endswith('.mp4') or '.mp4' in stream_url)
                                      
                         if not resolved and not is_direct:
-                            embed_resp = requests.get(embed_url, headers={"User-Agent": headers["User-Agent"], "Referer": page_url}, cookies=cookies_dict, verify=False, timeout=15)
+                            from curl_cffi import requests as curl_requests
+                            embed_resp = curl_requests.get(
+                                embed_url,
+                                headers={"User-Agent": headers["User-Agent"], "Referer": page_url},
+                                cookies=cookies_dict,
+                                impersonate="chrome",
+                                verify=False,
+                                timeout=15
+                            )
                             if embed_resp.status_code == 200:
                                 embed_html = embed_resp.text
                                 obf_match = re.search(r'id=["\']player["\'][^>]+data-obf=["\']([^"\']+)["\']', embed_html) or \
@@ -787,6 +946,8 @@ def generic_html_link_harvester(url, client_id):
                 for src in iframe_srcs:
                     try:
                         iframe_url = urljoin(page_url, src)
+                        if not iframe_url.startswith("http"):
+                            continue
                         if iframe_url in visited_iframe_urls:
                             continue
                         visited_iframe_urls.add(iframe_url)
@@ -860,6 +1021,8 @@ def generic_html_link_harvester(url, client_id):
         # Regex to find links that look like tap-1, tap-2, tap-10, episode-1, ep-1, etc.
         for match in re.findall(r'href=["\']([^"\']*(?:/episodes/|/tap-|/episode-|/ep-|[-_]tap-)[^"\']*)["\']', clean_html, re.IGNORECASE):
             full_ep_url = urljoin(url, match)
+            if not full_ep_url.startswith("http"):
+                continue
             if full_ep_url not in seen_ep_urls:
                 ep_num = get_episode_num(full_ep_url)
                 if ep_num != 999999:
@@ -967,7 +1130,7 @@ def generic_html_link_harvester(url, client_id):
                 except Exception:
                     pass
                     
-            with ThreadPoolExecutor(max_workers=min(15, len(video_options))) as executor:
+            with ThreadPoolExecutor(max_workers=min(30, len(video_options))) as executor:
                 list(executor.map(resolve_opt_size, video_options))
                 
             # Final deduplication on the combined video_options list (now that sizes are resolved!)

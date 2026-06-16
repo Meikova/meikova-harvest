@@ -343,7 +343,8 @@ def get_engine_version():
         version = getattr(yt_dlp, '__version__', None) or getattr(getattr(yt_dlp, 'version', None), '__version__', 'unknown')
         return jsonify({
             'status': 'success',
-            'yt_dlp_version': version
+            'yt_dlp_version': version,
+            'is_frozen': getattr(sys, 'frozen', False)
         })
     except Exception as e:
         return jsonify({

@@ -48,6 +48,46 @@ class PersistentDownloadStatus(dict):
                     timestamp REAL
                 )
             ''')
+            cursor.execute('''
+                CREATE TABLE IF NOT EXISTS bypass_domains (
+                    domain TEXT PRIMARY KEY,
+                    bypass_reason TEXT,
+                    timestamp REAL
+                )
+            ''')
+            # Pre-seed popular custom streaming domains
+            pre_seeded = [
+                ("motchilltv.lt", "motchill"),
+                ("motchilltv.pm", "motchill"),
+                ("motchilltv.to", "motchill"),
+                ("motchilltv.co", "motchill"),
+                ("motchill.co", "motchill"),
+                ("motchill.org", "motchill"),
+                ("ghienphim.co", "ghienphim"),
+                ("ghienphim.org", "ghienphim"),
+                ("ghienphim3.co", "ghienphim"),
+                ("phimmoi.net", "phimmoi"),
+                ("phimmoichill.net", "phimmoi"),
+                ("phimmoichill.org", "phimmoi"),
+                ("phimmoichill.co", "phimmoi"),
+                ("phim1080.in", "phim1080"),
+                ("phim1080.org", "phim1080"),
+                ("phim1080.net", "phim1080"),
+                ("bilutv.link", "bilutv"),
+                ("bilutv.org", "bilutv"),
+                ("bilutv.co", "bilutv"),
+                ("dongphim.com", "dongphim"),
+                ("dongphim.net", "dongphim"),
+                ("dongphim.co", "dongphim"),
+                ("ophim.co", "ophim"),
+                ("ophim.cc", "ophim"),
+                ("ophim.org", "ophim")
+            ]
+            for dom, reason in pre_seeded:
+                cursor.execute(
+                    "INSERT OR IGNORE INTO bypass_domains (domain, bypass_reason, timestamp) VALUES (?, ?, ?)",
+                    (dom, reason, time.time())
+                )
             conn.commit()
             conn.close()
 

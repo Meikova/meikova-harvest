@@ -459,7 +459,7 @@ function isNewerVersion(latest, current) {
 function checkForUpdates(manual = false) {
   log.info('Checking for updates...');
   // A configuration URL that returns a JSON detailing the latest version and download URL.
-  const updateUrl = 'https://raw.githubusercontent.com/kiem-dev/EveryThingDownloader/main/update.json'; 
+  const updateUrl = 'https://raw.githubusercontent.com/m3iK18dp/EveryThingDownloader-Tool/main/update.json'; 
 
   const req = https.get(updateUrl, { timeout: 10000 }, (res) => {
     let data = '';
@@ -537,21 +537,17 @@ function restartBackendServer() {
 
 // ─── System Tray ─────────────────────────────────────────────────────────────
 
-function createTray() {
-  const icon = getAppIcon();
-  tray = new Tray(icon.isEmpty() ? nativeImage.createEmpty() : icon);
-  tray.setToolTip(APP_NAME);
-
+function buildTrayMenu() {
   const autoStart = app.getLoginItemSettings().openAtLogin;
 
   const contextMenu = Menu.buildFromTemplate([
     {
-      label: `${APP_NAME} (v${app.getVersion()})`,
+      label: `✨ ${APP_NAME} (v${app.getVersion()})`,
       enabled: false,
     },
     { type: 'separator' },
     {
-      label: 'Open Application',
+      label: '📥 Open Application',
       click: () => {
         if (mainWindow) {
           mainWindow.show();
@@ -560,13 +556,13 @@ function createTray() {
       },
     },
     {
-      label: 'Open in Default Browser',
+      label: '🌐 Open in Default Browser',
       click: () => {
         shell.openExternal(`http://127.0.0.1:${serverPort}/`);
       },
     },
     {
-      label: 'Open Downloads Folder',
+      label: '📂 Open Downloads Folder',
       click: () => {
         const downloadsDir = app.isPackaged
           ? path.join(process.resourcesPath, 'downloads')
@@ -576,32 +572,32 @@ function createTray() {
     },
     { type: 'separator' },
     {
-      label: 'Start with Windows',
-      type: 'checkbox',
-      checked: autoStart,
+      label: autoStart ? '⚙️ Start with Windows (Enabled)' : '⚙️ Start with Windows (Disabled)',
       click: () => {
         const currentSettings = app.getLoginItemSettings();
+        const nextState = !currentSettings.openAtLogin;
         app.setLoginItemSettings({
-          openAtLogin: !currentSettings.openAtLogin,
+          openAtLogin: nextState,
           path: process.execPath,
         });
+        buildTrayMenu();
       },
     },
     {
-      label: 'Restart Backend Server',
+      label: '🔄 Restart Backend Server',
       click: () => {
         restartBackendServer();
       },
     },
     {
-      label: 'Check for Updates',
+      label: '🔔 Check for Updates',
       click: () => {
         checkForUpdates(true);
       },
     },
     { type: 'separator' },
     {
-      label: 'Quit',
+      label: '🛑 Quit',
       click: () => {
         app.isQuitting = true;
         app.quit();
@@ -609,7 +605,19 @@ function createTray() {
     },
   ]);
 
-  tray.setContextMenu(contextMenu);
+  if (tray) {
+    tray.setContextMenu(contextMenu);
+  }
+  return contextMenu;
+}
+
+function createTray() {
+  const icon = getAppIcon();
+  tray = new Tray(icon.isEmpty() ? nativeImage.createEmpty() : icon);
+  tray.setToolTip(APP_NAME);
+
+  buildTrayMenu();
+
   tray.on('double-click', () => {
     if (mainWindow) {
       mainWindow.show();

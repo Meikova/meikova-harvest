@@ -42,7 +42,7 @@ logger.info("Cleaning up leftover temporary downloads...")
 try:
     if os.path.exists(TEMP_DOWNLOAD_DIR):
         for item in os.listdir(TEMP_DOWNLOAD_DIR):
-            if item == "cookies":
+            if item in ["cookies", "downloads.db", "downloads.db-wal", "downloads.db-shm"]:
                 continue
             item_path = os.path.join(TEMP_DOWNLOAD_DIR, item)
             if os.path.isdir(item_path):
