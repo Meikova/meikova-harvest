@@ -46,11 +46,50 @@ jobs:
           python build_tool/builder_cli.py --target both --name EveryThingDownloader --version ${{ env.VERSION }} --company EveryThingDownloader --description EveryThingDownloader --copyright "© 2026 EveryThingDownloader" --obfuscate --pyarmor-level 2
 
       # =========================================================================
+      # TÍNH TOÁN SHA-256 VÀ TẠO MẪU RELEASE NOTES CHUYÊN NGHIỆP
+      # =========================================================================
+      - name: Calculate SHA-256 & Generate Release Notes
+        shell: bash
+        run: |
+          # 1. Tính toán mã băm SHA-256 của các tệp thực thi đã build
+          PORTABLE_HASH=$(sha256sum "dist_electron/EveryThingDownloader-Portable-${{ env.VERSION }}.exe" | awk '{print $1}')
+          SETUP_HASH=$(sha256sum "dist_electron/EveryThingDownloader Setup ${{ env.VERSION }}.exe" | awk '{print $1}')
+          WEB_HASH=$(sha256sum "dist/EveryThingDownloader.exe" | awk '{print $1}')
+          
+          # 2. Tạo nội dung tệp release_notes.md
+          cat <<EOF > release_notes.md
+          # 🚀 EveryThingDownloader v${{ env.VERSION }}
+          
+          Giải pháp tải đa phương tiện toàn năng, bảo mật tối đa và tự động hóa phát hành vượt trội.
+          
+          ### 🌟 Tính năng nổi bật trong bản phát hành này:
+          * **Mã hóa bảo mật cao**: Toàn bộ mã nguồn backend được bảo vệ nâng cao bằng công nghệ PyArmor Level 2 và AST Scrambling.
+          * **Tự động dịch phụ đề**: Hỗ trợ bóc tách phụ đề đa nguồn và tự động dịch sang Tiếng Việt thông minh.
+          * **Tiện ích Tray cao cấp**: Chạy ẩn dưới khay hệ thống, bật/tắt khởi động cùng Windows, khởi động lại backend server bằng 1-click.
+          
+          ### 📦 Thông tin các file cài đặt (Assets Info):
+          * **EveryThingDownloader-Portable-${{ env.VERSION }}.exe**: Bản di động (Portable), chạy ngay không cần cài đặt. (Khuyên dùng)
+          * **EveryThingDownloader Setup ${{ env.VERSION }}.exe**: Bản cài đặt đầy đủ (Installer) hỗ trợ gỡ cài đặt tiện lợi.
+          * **EveryThingDownloader.exe**: Bản Web Binary độc lập chạy trên trình duyệt web.
+          
+          ### 🛡️ Mã băm bảo mật (SHA-256 Checksums):
+          | File Asset | SHA-256 Checksum |
+          |---|---|
+          | \`EveryThingDownloader-Portable-${{ env.VERSION }}.exe\` | \`${PORTABLE_HASH}\` |
+          | \`EveryThingDownloader Setup ${{ env.VERSION }}.exe\` | \`${SETUP_HASH}\` |
+          | \`EveryThingDownloader.exe\` | \`${WEB_HASH}\` |
+          
+          ---
+          > ⚠️ **Lưu ý quan trọng**: Do mã nguồn được bảo vệ bằng các thuật toán xáo trộn code và đóng gói nhị phân (PyArmor), một số phần mềm diệt virus (bao gồm Windows Defender) có thể cảnh báo nhầm (False Positive). Đây là hiện tượng bình thường đối với các phần mềm đóng gói bằng PyInstaller + PyArmor. Hãy yên tâm bỏ qua hoặc thêm tệp vào danh sách loại trừ để sử dụng ổn định.
+          EOF
+
+      # =========================================================================
       # ĐẨY FILE EXE ĐÃ BUILD SANG KHO LƯU TRỮ RIÊNG TƯ (PRIVATE REPOSITORY)
       # =========================================================================
       - name: Create GitHub Release and Upload Assets (To Private Repo)
         uses: softprops/action-gh-release@v2
         with:
+          body_path: release_notes.md
           files: |
             dist/EveryThingDownloader.exe
             dist_electron/EveryThingDownloader-Portable-${{ env.VERSION }}.exe
@@ -68,6 +107,7 @@ jobs:
         with:
           repository: m3iK18dp/EveryThingDownloader-Tool # Kho lưu trữ công khai của bạn
           token: ${{ secrets.RELEASE_TOKEN }}           # PAT cấu hình trong Secrets của Private Repo
+          body_path: release_notes.md
           files: |
             dist/EveryThingDownloader.exe
             dist_electron/EveryThingDownloader-Portable-${{ env.VERSION }}.exe
