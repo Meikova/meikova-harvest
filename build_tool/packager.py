@@ -162,7 +162,14 @@ class Packager:
         if cb:
             cb(msg)
         else:
-            print(msg)
+            try:
+                print(msg)
+            except UnicodeEncodeError:
+                try:
+                    encoding = sys.stdout.encoding or 'utf-8'
+                    print(msg.encode(encoding, errors='replace').decode(encoding))
+                except Exception:
+                    print(msg.encode('ascii', errors='replace').decode('ascii'))
 
     def _version_tuple(self):
         parts = self.cfg.version.split('.')
@@ -359,6 +366,34 @@ class Packager:
         }
         with open(ELECTRON_DIR / 'config.json', 'w', encoding='utf-8') as f:
             json.dump(config_data, f, indent=4)
+
+        # Update electron/package.json with current version and app metadata
+        self._progress(f'   → Updating package.json in Electron…', progress_cb)
+        package_json_path = ELECTRON_DIR / 'package.json'
+        try:
+            with open(package_json_path, 'r', encoding='utf-8') as f:
+                pkg = json.load(f)
+            
+            pkg['version'] = self.cfg.version
+            pkg['description'] = self.cfg.description or pkg.get('description', '')
+            pkg['author'] = self.cfg.company or pkg.get('author', '')
+            
+            if 'build' not in pkg:
+                pkg['build'] = {}
+            pkg['build']['productName'] = self.cfg.app_name
+            pkg['build']['appId'] = f"com.{self.cfg.app_name.lower().replace(' ', '')}.app"
+            
+            if 'nsis' in pkg['build']:
+                pkg['build']['nsis']['shortcutName'] = self.cfg.app_name
+            
+            if 'portable' in pkg['build']:
+                pkg['build']['portable']['artifactName'] = f"{self.cfg.app_name}-Portable-${{version}}.exe"
+            
+            with open(package_json_path, 'w', encoding='utf-8') as f:
+                json.dump(pkg, f, indent=2)
+            self._progress(f'   → package.json version updated to {self.cfg.version}', progress_cb)
+        except Exception as e:
+            self._progress(f'[WARN] Failed to update package.json: {e}', progress_cb)
 
         # Step 3: npm install
         self._progress('[STEP 3/4] Installing Node dependencies…', progress_cb)

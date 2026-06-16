@@ -1,5 +1,5 @@
 {
-    "console": false,
-    "version": "1.0.0",
-    "app_name": "EveryThingDownloader"
+    "console": true,
+    "version": "9.9.9",
+    "app_name": "MegaDownloader"
 }
