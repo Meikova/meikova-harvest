@@ -227,8 +227,9 @@ jobs:
             "url": "https://github.com/m3iK18dp/EveryThingDownloader-Tool/releases/download/${{ github.ref_name }}/EveryThingDownloader-Setup-${{ env.VERSION }}.exe",
             "platforms": {
               "win32": "https://github.com/m3iK18dp/EveryThingDownloader-Tool/releases/download/${{ github.ref_name }}/EveryThingDownloader-Setup-${{ env.VERSION }}.exe",
-              "darwin": "https://github.com/m3iK18dp/EveryThingDownloader-Tool/releases/download/${{ github.ref_name }}/EveryThingDownloader-${{ env.VERSION }}.dmg",
-              "linux": "https://github.com/m3iK18dp/EveryThingDownloader-Tool/releases/download/${{ github.ref_name }}/EveryThingDownloader-${{ env.VERSION }}.AppImage"
+              "darwin_arm64": "https://github.com/m3iK18dp/EveryThingDownloader-Tool/releases/download/${{ github.ref_name }}/EveryThingDownloader-${{ env.VERSION }}-arm64.dmg",
+              "darwin_x64": "https://github.com/m3iK18dp/EveryThingDownloader-Tool/releases/download/${{ github.ref_name }}/EveryThingDownloader-${{ env.VERSION }}-x64.dmg",
+              "linux_x64": "https://github.com/m3iK18dp/EveryThingDownloader-Tool/releases/download/${{ github.ref_name }}/EveryThingDownloader-${{ env.VERSION }}-x64.AppImage"
             },
             "changelog": "Phiên bản mới nhất ${{ github.ref_name }} đã được phát hành tự động. Xem chi tiết tại mục Releases trên GitHub."
           }

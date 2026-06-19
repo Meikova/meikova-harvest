@@ -54,8 +54,9 @@ def publish_git_release(
         'url': f'https://github.com/{repo}/releases/download/{tag}/{app_name}-Setup-{version}.exe',
         'platforms': {
             'win32': f'https://github.com/{repo}/releases/download/{tag}/{app_name}-Setup-{version}.exe',
-            'darwin': f'https://github.com/{repo}/releases/download/{tag}/{app_name}-{version}.dmg',
-            'linux': f'https://github.com/{repo}/releases/download/{tag}/{app_name}-{version}.AppImage'
+            'darwin_arm64': f'https://github.com/{repo}/releases/download/{tag}/{app_name}-{version}-arm64.dmg',
+            'darwin_x64': f'https://github.com/{repo}/releases/download/{tag}/{app_name}-{version}-x64.dmg',
+            'linux_x64': f'https://github.com/{repo}/releases/download/{tag}/{app_name}-{version}-x64.AppImage'
         },
         'changelog': changelog
     }

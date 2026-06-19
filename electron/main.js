@@ -573,9 +573,9 @@ function startAutoUpdate(url, version) {
   
   let destName = 'EveryThingDownloader-Setup-' + version + '.exe';
   if (process.platform === 'darwin') {
-    destName = 'EveryThingDownloader-' + version + '.dmg';
+    destName = 'EveryThingDownloader-' + version + '-' + process.arch + '.dmg';
   } else if (process.platform === 'linux') {
-    destName = 'EveryThingDownloader-' + version + '.AppImage';
+    destName = 'EveryThingDownloader-' + version + '-' + process.arch + '.AppImage';
   }
   const destPath = path.join(app.getPath('temp'), destName);
   
@@ -694,8 +694,9 @@ function checkForUpdates(manual = false) {
             cancelId: 2
           }).then(({ response }) => {
             let platformUrl = info.url;
-            if (info.platforms && info.platforms[process.platform]) {
-              platformUrl = info.platforms[process.platform];
+            if (info.platforms) {
+              const platformKey = process.platform + '_' + process.arch;
+              platformUrl = info.platforms[platformKey] || info.platforms[process.platform] || info.url;
             }
             if (response === 0 && platformUrl) {
               startAutoUpdate(platformUrl, latestVersion);

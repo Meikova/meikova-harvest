@@ -108,16 +108,22 @@
       "artifactName": "EveryThingDownloader-Portable-${version}.exe"
     },
     "dmg": {
-      "artifactName": "EveryThingDownloader-${version}.dmg"
+      "artifactName": "EveryThingDownloader-${version}-${arch}.dmg"
     },
     "pkg": {
-      "artifactName": "EveryThingDownloader-${version}.pkg"
+      "artifactName": "EveryThingDownloader-${version}-${arch}.pkg"
     },
     "deb": {
-      "artifactName": "EveryThingDownloader-${version}.deb"
+      "artifactName": "EveryThingDownloader-${version}-${arch}.deb"
     },
     "rpm": {
-      "artifactName": "EveryThingDownloader-${version}.rpm"
+      "artifactName": "EveryThingDownloader-${version}-${arch}.rpm"
+    },
+    "zip": {
+      "artifactName": "EveryThingDownloader-${version}-${arch}.zip"
+    },
+    "tar.gz": {
+      "artifactName": "EveryThingDownloader-${version}-${arch}.tar.gz"
     }
   }
 }
