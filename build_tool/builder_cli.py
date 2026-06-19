@@ -55,8 +55,10 @@ def execute_build(obf_cfg: ObfuscationConfig, build_cfg: BuildConfig, target: st
         subprocess.run(['taskkill', '/f', '/im', 'EveryThingDownloader.exe'], capture_output=True, shell=True)
     elif host_sys in ('Darwin', 'Linux'):
         info('Terminating running app/server instances to release file locks…')
-        subprocess.run(['pkill', '-f', 'server'], capture_output=True)
-        subprocess.run(['pkill', '-f', 'EveryThingDownloader'], capture_output=True)
+        # Use -x (exact name match) instead of -f to prevent the build script from
+        # matching its own command line arguments and terminating itself (exit code 143)
+        subprocess.run(['pkill', '-x', 'server'], capture_output=True)
+        subprocess.run(['pkill', '-x', 'EveryThingDownloader'], capture_output=True)
 
     # ── Run obfuscation ───────────────────────────────────────────────────
     protected_src = ROOT_DIR
