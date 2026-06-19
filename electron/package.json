@@ -5,6 +5,7 @@
   "main": "main.js",
   "author": "m3iK18dp",
   "license": "MIT",
+  "homepage": "https://github.com/m3iK18dp/EveryThingDownloader-Tool",
   "scripts": {
     "start": "electron .",
     "dev": "electron . --dev",
