@@ -89,6 +89,17 @@ jobs:
           pattern: build-artifacts-*
           merge-multiple: true
 
+      - name: Flatten artifact directory structure
+        shell: bash
+        run: |
+          # Move all files from subdirectories to the root of all_assets/
+          find ./all_assets -mindepth 2 -type f -exec mv -t ./all_assets/ {} +
+          # Remove now-empty subdirectories
+          find ./all_assets -mindepth 1 -type d -delete
+          # Debug: list all files
+          echo "=== Files in all_assets/ ==="
+          ls -lah ./all_assets/
+
       - name: Extract version from tag
         shell: bash
         run: |
