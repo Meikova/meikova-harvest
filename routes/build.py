@@ -81,7 +81,8 @@ def get_python_executable() -> str:
         return str(venv_python)
         
     if getattr(sys, 'frozen', False):
-        return 'python'
+        import platform
+        return 'python' if platform.system().lower().startswith("win") else 'python3'
         
     return sys.executable
 
@@ -179,10 +180,18 @@ def _run_build(build_id: str, cfg: dict, log_q: queue.Queue, state: dict):
             cmd.append('--console')
         if not obf.get('use_pyarmor', True):
             cmd.append('--no-pyarmor')
+        if obf.get('pyarmor_obf_code') is not None:
+            cmd += ['--pyarmor-level', str(obf['pyarmor_obf_code'])]
+        if not obf.get('pyarmor_mix_str', True):
+            cmd.append('--no-pyarmor-mix-str')
         if not obf.get('scramble_names', True):
             cmd.append('--no-scramble')
         if not obf.get('encode_strings', True):
             cmd.append('--no-encode-strings')
+        if not obf.get('inject_dead_code', True):
+            cmd.append('--no-dead-code')
+        if obf.get('dead_code_count') is not None:
+            cmd += ['--dead-code-count', str(obf['dead_code_count'])]
         if not obf.get('antidebug', True):
             cmd.append('--no-antidebug')
         if obf.get('ip_lock') and obf.get('allowed_ips'):
@@ -257,11 +266,13 @@ def _run_build(build_id: str, cfg: dict, log_q: queue.Queue, state: dict):
                     else:
                         if d == 'dist':
                             app_name = cfg.get('build', {}).get('app_name', 'EveryThingDownloader')
-                            if f.name == app_name:
+                            version = cfg.get('build', {}).get('version', '1.0.0')
+                            expected_name = f'{app_name}-Web-{version}'
+                            if f.name == expected_name:
                                 size_mb = f.stat().st_size / 1024 / 1024
                                 outputs.append({'path': str(f), 'size': f'{size_mb:.1f} MB'})
                         elif d == 'dist_electron':
-                            if f.suffix.lower() in ('.dmg', '.zip'):
+                            if f.suffix.lower() in ('.dmg', '.zip', '.appimage', '.gz'):
                                 size_mb = f.stat().st_size / 1024 / 1024
                                 outputs.append({'path': str(f), 'size': f'{size_mb:.1f} MB'})
 

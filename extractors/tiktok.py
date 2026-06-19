@@ -6,7 +6,7 @@ from datetime import datetime
 from concurrent.futures import ThreadPoolExecutor
 
 from config import TEMP_DOWNLOAD_DIR
-from utils.helpers import get_url_content_length, format_size, format_duration
+from utils.helpers import get_url_content_length, format_size, format_duration, get_gallery_dl_path
 
 logger = logging.getLogger(__name__)
 
@@ -15,9 +15,7 @@ def extract_tiktok_slideshow_via_gallery_dl(url, client_id):
     Invokes gallery-dl via subprocess to extract TikTok slideshows.
     Reuses the client's uploaded cookies if available.
     """
-    gallery_dl_path = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "venv", "Scripts", "gallery-dl.exe")
-    if not os.path.exists(gallery_dl_path):
-        gallery_dl_path = "gallery-dl"
+    gallery_dl_path = get_gallery_dl_path()
         
     # Strip query parameters to avoid 403 Forbidden and parser bugs in gallery-dl
     if "?" in url:

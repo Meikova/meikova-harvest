@@ -8,7 +8,7 @@ from datetime import datetime
 from concurrent.futures import ThreadPoolExecutor
 
 from config import TEMP_DOWNLOAD_DIR
-from utils.helpers import get_url_content_length, format_size, format_duration, format_number
+from utils.helpers import get_url_content_length, format_size, format_duration, format_number, get_gallery_dl_path
 
 logger = logging.getLogger(__name__)
 
@@ -41,9 +41,7 @@ def extract_twitter_via_gallery_dl(url, client_id):
     Reuses the client's uploaded J2TEAM cookies if available.
     """
     # Locate gallery-dl executable
-    gallery_dl_path = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "venv", "Scripts", "gallery-dl.exe")
-    if not os.path.exists(gallery_dl_path):
-        gallery_dl_path = "gallery-dl" # Fallback to path
+    gallery_dl_path = get_gallery_dl_path()
         
     command = [gallery_dl_path, "--dump-json"]
     

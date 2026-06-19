@@ -1,9 +1,10 @@
 # User Requirements Document (URD) - EveryThingDownloader
 
 ## 1. Executive Summary & Scope
-EveryThingDownloader is a self-hosted, universal media download utility designed to extract, convert, and package video, audio, image, and subtitle assets from major online social and media platforms. The application operates in two distinct delivery models:
+EveryThingDownloader is a self-hosted, universal media download utility designed to extract, convert, and package video, audio, image, and subtitle assets from major online social and media platforms. The application operates in three distinct delivery models:
 1. **Self-Hosted Web Application**: A lightweight, multi-client web utility accessible from local and network browsers.
-2. **Standalone Desktop Application**: A high-fidelity, packaged desktop shell wrapping the core server on Windows and macOS, requiring zero external runtime dependencies (Python/Node.js) or command-line execution from the end-user.
+2. **Standalone Desktop Application**: A high-fidelity, packaged desktop shell wrapping the core server on **Windows, macOS, and Linux**, requiring zero external runtime dependencies (Python/Node.js) or command-line execution from the end-user.
+3. **Docker Container**: A containerized deployment option for headless web-server operation and build-tool access without local environment setup.
 
 This document details the user needs, target user personas, functional and non-functional requirement mappings, and UI/UX design systems to align developers and stakeholders on the project's behavioral specifications.
 
@@ -30,15 +31,15 @@ This document details the user needs, target user personas, functional and non-f
 | ID | Category | Requirement Description | Priority |
 | :--- | :--- | :--- | :--- |
 | **FR-01** | Extraction | Support YouTube standard videos, YouTube Shorts, and complete Playlists. | High |
-| **FR-02** | Extraction | Support social platforms: Facebook (post, watch, albums), Instagram (reels, IGTV), TikTok, Twitter/X, Threads, Reddit, Pinterest, SoundCloud, and Motchill (WordPress DooPlay sites). | High |
+| **FR-02** | Extraction | Support social platforms: Facebook (post, watch, albums), Instagram (reels, IGTV), TikTok, Twitter/X, Threads, Reddit, Pinterest, SoundCloud, and movie sites (MotChill, GhienPhim, LuPhim — WordPress DooPlay / Moviking sites). | High |
 | **FR-03** | Processing | Extract separate video/audio streams and merge (mux) them into a single MP4/MKV. | High |
 | **FR-04** | Trimming | Provide a visual timeline slider to crop start/end timestamps before downloading. | High |
 | **FR-05** | Image Extraction | Detect and extract individual images from galleries/albums with multi-select batch downloads. | Medium |
 | **FR-06** | Subtitles | Download or copy subtitle tracks as raw text or VTT format. | Medium |
 | **FR-07** | Session Bypass | Upload Netscape-formatted cookie files to bypass age restrictions and login walls. | High |
-| **FR-08** | Packaging | Compile server and Electron shell into single-file binaries, installers, app bundles, and portables for Windows and macOS. | High |
-| **FR-09** | Obfuscation | AST code scrambling, string literal encryption, anti-debugging, and binary shielding. | High |
-| **FR-10** | Licensing | Apply IP whitelist locks, date-based expiry limits, and Machine ID hardware locks. | High |
+| **FR-08** | Packaging | Compile server and Electron shell into single-file binaries, installers, app bundles, and portables for **Windows, macOS, and Linux**. Specific outputs: NSIS Setup + Portable (Windows), DMG + ZIP (macOS), AppImage + tar.gz (Linux). | High |
+| **FR-09** | Obfuscation | AST code scrambling, string literal encryption, dead code injection, anti-debugging, and binary shielding via PyArmor. | High |
+| **FR-10** | Licensing | Apply IP whitelist locks, date-based expiry limits, and Machine ID hardware locks (CSPRODUCT UUID on Windows, SHA256 fingerprint on macOS, `/etc/machine-id` on Linux). | High |
 | **FR-11** | Preview | Render fallback webpage (HTML) formats inside an interactive sandbox/iframe using a CORS-safe proxy instead of displaying raw text. | Medium |
 | **FR-12** | Fullscreen | Enable a 3-mode preview fullscreen layout (Normal, Web Fullscreen, Native Fullscreen) for all formats with 3s mouse-inactivity auto-hiding for header/controls/cursor. | High |
 | **FR-13** | Session Bypass | Bypass IP blocks and Cloudflare protection on webpage preview/download using curl_cffi Chrome impersonator and whitelisted cookies. | High |
@@ -46,6 +47,9 @@ This document details the user needs, target user personas, functional and non-f
 | **FR-15** | Subtitles | Aggressively deduplicate and collapse rolling subtitles (YouTube-style captions) by matching sequences and containment. | High |
 | **FR-16** | Subtitles | Align and shift subtitle timestamps automatically when downloading a trimmed video segment. | High |
 | **FR-17** | Subtitles | Automatically split long sentences in translated subtitles into shorter blocks of max 10 words per slide. | Medium |
+| **FR-18** | Auto-Update | Desktop app checks for updates from the public GitHub repository's `update.json`, downloads and installs new versions automatically with progress bar. | High |
+| **FR-19** | CI/CD | GitHub Actions workflow builds for all 3 platforms (Windows, macOS, Linux) in parallel, publishes releases with SHA-256 checksums, and updates `update.json` automatically. | High |
+| **FR-20** | Docker | Support Docker/Docker Compose deployment for the web server and build tool GUI without local environment setup. | Medium |
 | **NFR-01** | Clean-up | Automatically delete temporary files immediately after completion or cancellation. | High |
 | **NFR-02** | Performance | Dynamic multi-threaded download segments to maximize bandwidth utilization. | High |
 
@@ -86,6 +90,9 @@ Scrollbars must be styled to match the dark-neon aesthetics:
 - **Track**: Transparent or deep blue-black (`rgba(10, 15, 29, 0.5)`)
 - **Thumb**: Thin 5px width, rounded, utilizing a linear gradient of `#00f2fe` to `#9b51e0` with a glow effect on hover.
 
+### 4.5 Custom Dialogs
+All confirmation and alert dialogs use a custom-built glassmorphic modal system (`showConfirm()`) instead of native browser `confirm()`/`alert()` dialogs, ensuring visual consistency with the dark-neon design language across all platforms.
+
 ---
 
 ## 5. User Scenarios & Error Recovery
@@ -105,3 +112,8 @@ Scrollbars must be styled to match the dark-neon aesthetics:
    - The UI blocks the download trigger and highlights the slider track in red.
    - A tooltip displays: *"Trim range must be within the video duration (00:03:00)."*
    - Slider endpoints are automatically clamped to the video duration limit.
+
+### 5.3 Scenario C: Auto-Update Flow (Desktop App)
+1. **System Behavior**: On startup, the Electron app fetches `update.json` from the public GitHub repository.
+2. **Update Available**: A dialog appears showing the new version and changelog with three options: *Update Automatically (Recommended)*, *Download Manually*, or *Later*.
+3. **Auto-Install**: If the user selects automatic update, a progress window displays download progress with percentage, transferred/total MB. After download completes, the installer is launched and the app quits for installation.

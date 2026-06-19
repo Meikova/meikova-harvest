@@ -131,3 +131,20 @@ def get_url_content_length(url, cookies_file=None):
     except Exception:
         pass
     return None
+
+
+def get_gallery_dl_path():
+    """Resolve the path to the gallery-dl binary based on operating system."""
+    import platform
+    base_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    is_windows = platform.system().lower().startswith("win")
+    if is_windows:
+        venv_path = os.path.join(base_dir, "venv", "Scripts", "gallery-dl.exe")
+    else:
+        venv_path = os.path.join(base_dir, "venv", "bin", "gallery-dl")
+        
+    if os.path.exists(venv_path):
+        return venv_path
+        
+    return "gallery-dl" # Fallback to global PATH
+

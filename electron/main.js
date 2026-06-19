@@ -105,7 +105,7 @@ function resolvePythonPath() {
     require('fs').accessSync(venvPy);
     return venvPy;
   } catch {
-    return 'python'; // fall back to system Python
+    return isWindows ? 'python' : 'python3'; // fall back to system Python
   }
 }
 
@@ -443,6 +443,180 @@ function getAppIcon() {
 
 const https = require('https');
 
+function downloadFile(url, destPath, onProgress, onComplete, onError) {
+  const request = https.get(url, {
+    headers: {
+      'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
+    }
+  }, (response) => {
+    // Handle HTTP Redirects (e.g. GitHub release downloads redirecting to AWS S3)
+    if (response.statusCode >= 300 && response.statusCode < 400 && response.headers.location) {
+      log.info('Redirecting to: ' + response.headers.location);
+      return downloadFile(response.headers.location, destPath, onProgress, onComplete, onError);
+    }
+
+    if (response.statusCode !== 200) {
+      onError(new Error('Failed to download: Status Code ' + response.statusCode));
+      return;
+    }
+
+    const totalBytes = parseInt(response.headers['content-length'], 10) || 0;
+    let downloadedBytes = 0;
+    const fileStream = fs.createWriteStream(destPath);
+
+    response.on('data', (chunk) => {
+      downloadedBytes += chunk.length;
+      fileStream.write(chunk);
+      if (totalBytes > 0) {
+        const percent = Math.round((downloadedBytes / totalBytes) * 100);
+        const transferred = (downloadedBytes / (1024 * 1024)).toFixed(1);
+        const totalMB = (totalBytes / (1024 * 1024)).toFixed(1);
+        onProgress({ percent, transferred, total: totalMB });
+      }
+    });
+
+    response.on('end', () => {
+      fileStream.end();
+      onComplete();
+    });
+
+    response.on('error', (err) => {
+      fileStream.end();
+      fs.unlink(destPath, () => {});
+      onError(err);
+    });
+  });
+
+  request.on('error', (err) => {
+    fs.unlink(destPath, () => {});
+    onError(err);
+  });
+}
+
+function startAutoUpdate(url, version) {
+  log.info('Starting auto update. Downloading from ' + url);
+  
+  const progressWindow = new BrowserWindow({
+    width: 420,
+    height: 160,
+    parent: mainWindow || undefined,
+    modal: true,
+    resizable: false,
+    minimizable: false,
+    maximizable: false,
+    title: 'Downloading Update...',
+    webPreferences: {
+      nodeIntegration: true,
+      contextIsolation: false
+    }
+  });
+  progressWindow.setMenu(null);
+  
+  const htmlContent = 
+    '<!DOCTYPE html>' +
+    '<html>' +
+    '<head>' +
+    '  <meta charset="UTF-8">' +
+    '  <style>' +
+    '    body {' +
+    '      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;' +
+    '      margin: 20px;' +
+    '      background-color: #0f0f15;' +
+    '      color: #ffffff;' +
+    '      overflow: hidden;' +
+    '    }' +
+    '    h3 { margin-top: 0; font-size: 15px; font-weight: 500; color: #ff527b; }' +
+    '    .progress-bar-container {' +
+    '      width: 100%;' +
+    '      background-color: #252530;' +
+    '      border-radius: 6px;' +
+    '      overflow: hidden;' +
+    '      margin-top: 12px;' +
+    '    }' +
+    '    .progress-bar {' +
+    '      width: 0%;' +
+    '      height: 12px;' +
+    '      background: linear-gradient(90deg, #ff527b, #ff7e5f);' +
+    '      border-radius: 6px;' +
+    '      transition: width 0.1s ease-in-out;' +
+    '    }' +
+    '    .status-text {' +
+    '      margin-top: 8px;' +
+    '      font-size: 12px;' +
+    '      color: #a0a0b0;' +
+    '      display: flex;' +
+    '      justify-content: space-between;' +
+    '    }' +
+    '  </style>' +
+    '</head>' +
+    '<body>' +
+    '  <h3>Downloading EveryThingDownloader Setup v' + version + '...</h3>' +
+    '  <div class="progress-bar-container">' +
+    '    <div id="bar" class="progress-bar"></div>' +
+    '  </div>' +
+    '  <div class="status-text">' +
+    '    <span id="pct">Connecting...</span>' +
+    '    <span id="stats">0.0 / 0.0 MB</span>' +
+    '  </div>' +
+    '  <script>' +
+    '    const { ipcRenderer } = require("electron");' +
+    '    ipcRenderer.on("progress", (event, data) => {' +
+    '      document.getElementById("bar").style.width = data.percent + "%";' +
+    '      document.getElementById("pct").innerText = data.percent + "%";' +
+    '      document.getElementById("stats").innerText = data.transferred + " / " + data.total + " MB";' +
+    '    });' +
+    '  </script>' +
+    '</body>' +
+    '</html>';
+  
+  progressWindow.loadURL('data:text/html;charset=utf-8,' + encodeURIComponent(htmlContent));
+  
+  const destName = 'EveryThingDownloader-Setup-' + version + '.exe';
+  const destPath = path.join(app.getPath('temp'), destName);
+  
+  downloadFile(url, destPath, 
+    (prog) => {
+      if (!progressWindow.isDestroyed()) {
+        progressWindow.webContents.send('progress', prog);
+      }
+    },
+    () => {
+      if (!progressWindow.isDestroyed()) {
+        progressWindow.close();
+      }
+      
+      dialog.showMessageBox(mainWindow || undefined, {
+        type: 'info',
+        title: 'Ready to Install',
+        message: 'Download complete!',
+        detail: 'The app will now close to install the update. Please follow the installation prompts.',
+        buttons: ['Install Now']
+      }).then(() => {
+        log.info('Launching installer: ' + destPath);
+        try {
+          const child = spawn(destPath, [], {
+            detached: true,
+            stdio: 'ignore'
+          });
+          child.unref();
+          log.info('Quitting app for update installation...');
+          app.quit();
+        } catch (e) {
+          log.error('Failed to launch installer: ' + e.message);
+          dialog.showErrorBox('Installation Failed', 'Failed to start the installer: ' + e.message + '\n\nPlease run the installer manually from:\n' + destPath);
+        }
+      });
+    },
+    (err) => {
+      if (!progressWindow.isDestroyed()) {
+        progressWindow.close();
+      }
+      log.error('Auto update failed: ' + err.message);
+      dialog.showErrorBox('Download Failed', 'Could not download the update automatically.\n\nError: ' + err.message + '\n\nPlease try updating manually or check your internet connection.');
+    }
+  );
+}
+
 function isNewerVersion(latest, current) {
   const parse = (v) => v.replace(/^v/, '').split('.').map(Number);
   const a = parse(latest);
@@ -458,7 +632,6 @@ function isNewerVersion(latest, current) {
 
 function checkForUpdates(manual = false) {
   log.info('Checking for updates...');
-  // A configuration URL that returns a JSON detailing the latest version and download URL.
   const updateUrl = 'https://raw.githubusercontent.com/m3iK18dp/EveryThingDownloader-Tool/main/update.json'; 
 
   const req = https.get(updateUrl, { timeout: 10000 }, (res) => {
@@ -467,7 +640,7 @@ function checkForUpdates(manual = false) {
     res.on('end', () => {
       try {
         if (res.statusCode !== 200) {
-          throw new Error(`HTTP Status ${res.statusCode}`);
+          throw new Error('HTTP Status ' + res.statusCode);
         }
         const info = JSON.parse(data);
         const latestVersion = info.version;
@@ -479,11 +652,13 @@ function checkForUpdates(manual = false) {
             title: 'Update Available',
             message: `A new version (${latestVersion}) is available!`,
             detail: info.changelog || 'No release notes available.',
-            buttons: ['Download Now', 'Later'],
+            buttons: ['Update Automatically (Recommended)', 'Download Manually', 'Later'],
             defaultId: 0,
-            cancelId: 1
+            cancelId: 2
           }).then(({ response }) => {
             if (response === 0 && info.url) {
+              startAutoUpdate(info.url, latestVersion);
+            } else if (response === 1 && info.url) {
               shell.openExternal(info.url);
             }
           });

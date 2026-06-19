@@ -5047,20 +5047,27 @@ document.addEventListener("DOMContentLoaded", () => {
 
     const clearDownloadsBtn = document.getElementById("clear-downloads-btn");
     if (clearDownloadsBtn) {
-        clearDownloadsBtn.addEventListener("click", async () => {
-            if (!confirm("Are you sure you want to clear all download history? This cannot be undone.")) return;
-            try {
-                const response = await fetch("/api/download/history/clear", { method: "POST" });
-                const data = await response.json();
-                if (data.status === "success") {
-                    loadDownloadHistory();
-                } else {
-                    alert("Failed to clear download history: " + data.message);
+        clearDownloadsBtn.addEventListener("click", () => {
+            showConfirm({
+                title: "Clear History",
+                message: "Are you sure you want to clear all download history? This cannot be undone.",
+                yesText: "Confirm",
+                noText: "Cancel",
+                onYes: async () => {
+                    try {
+                        const response = await fetch("/api/download/history/clear", { method: "POST" });
+                        const data = await response.json();
+                        if (data.status === "success") {
+                            loadDownloadHistory();
+                        } else {
+                            alert("Failed to clear download history: " + data.message);
+                        }
+                    } catch (e) {
+                        console.error("Error clearing downloads history:", e);
+                        alert("Error clearing history");
+                    }
                 }
-            } catch (e) {
-                console.error("Error clearing downloads history:", e);
-                alert("Error clearing history");
-            }
+            });
         });
     }
 

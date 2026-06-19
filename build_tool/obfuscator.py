@@ -52,7 +52,8 @@ def _get_machine_id() -> str:
         parts.append(str(uuid.getnode()))          # MAC address
         parts.append(platform.node())              # hostname
         parts.append(platform.processor())         # CPU string
-        if platform.system() == 'Windows':
+        sys_type = platform.system()
+        if sys_type == 'Windows':
             try:
                 out = subprocess.check_output(
                     'wmic csproduct get uuid', shell=True, stderr=subprocess.DEVNULL
@@ -64,6 +65,26 @@ def _get_machine_id() -> str:
                         break
             except Exception:
                 pass
+        elif sys_type == 'Darwin':
+            try:
+                out = subprocess.check_output(
+                    'ioreg -rd1 -c IOPlatformExpertDevice', shell=True, stderr=subprocess.DEVNULL
+                ).decode()
+                import re
+                match = re.search(r'"IOPlatformUUID"\s*=\s*"([^"]+)"', out)
+                if match:
+                    parts.append(match.group(1))
+            except Exception:
+                pass
+        elif sys_type == 'Linux':
+            for path in ['/var/lib/dbus/machine-id', '/etc/machine-id']:
+                try:
+                    if os.path.exists(path):
+                        with open(path, 'r') as f:
+                            parts.append(f.read().strip())
+                        break
+                except Exception:
+                    pass
     except Exception:
         pass
     raw = '|'.join(parts)
@@ -72,7 +93,7 @@ def _get_machine_id() -> str:
 
 # ─── License guard code templates ─────────────────────────────────────────────
 
-_LICENSE_HEADER_TEMPLATE = '''
+_LICENSE_HEADER_TEMPLATE = r'''
 # === LICENSE GUARD — DO NOT MODIFY ===
 import sys as _sys
 import hashlib as _hashlib
@@ -170,7 +191,8 @@ def __{fn}_check_license():
                 _parts.append(str(_uuid.getnode()))
                 _parts.append(_platform.node())
                 _parts.append(_platform.processor())
-                if _platform.system() == 'Windows':
+                _sys_type = _platform.system()
+                if _sys_type == 'Windows':
                     try:
                         _out = _subprocess.check_output(
                             'wmic csproduct get uuid', shell=True,
@@ -182,6 +204,28 @@ def __{fn}_check_license():
                                 _parts.append(_ln); break
                     except Exception:
                         pass
+                elif _sys_type == 'Darwin':
+                    try:
+                        _out = _subprocess.check_output(
+                            'ioreg -rd1 -c IOPlatformExpertDevice', shell=True,
+                            stderr=_subprocess.DEVNULL
+                        ).decode()
+                        import re as _re
+                        _match = _re.search(r'"IOPlatformUUID"\s*=\s*"([^"]+)"', _out)
+                        if _match:
+                            _parts.append(_match.group(1))
+                    except Exception:
+                        pass
+                elif _sys_type == 'Linux':
+                    for _path in ['/var/lib/dbus/machine-id', '/etc/machine-id']:
+                        try:
+                            import os as _os
+                            if _os.path.exists(_path):
+                                with open(_path, 'r') as _f:
+                                    _parts.append(_f.read().strip())
+                                break
+                        except Exception:
+                            pass
             except Exception:
                 pass
             return _hashlib.sha256('|'.join(_parts).encode()).hexdigest()

@@ -8,12 +8,15 @@ The system components are bound by the following version requirements and runtim
 | :--- | :--- | :--- | :--- |
 | **Backend Runtime** | Python interpreter | `3.12.x` | Dev, packaged server, standalone web |
 | **Web Server** | Flask framework | `3.0.3` | WSGI local server instance |
-| **Desktop Shell** | Electron, Node.js | Electron `31.7.7` | Client desktop window container |
-| **Media Downloader** | `yt-dlp` | Active Master | Subprocess core download engine |
+| **Desktop Shell** | Electron, Node.js | Electron `31.x` | Client desktop window container |
+| **Media Downloader** | `yt-dlp` | `>=2026.3.17` | Subprocess core download engine |
 | **Image Downloader** | `gallery-dl` | Active Master | Subprocess photo/gallery scraper |
 | **Muxer / Trimmer** | FFmpeg binaries | Static `7.x` | Binary wrapper via `static-ffmpeg` |
-| **Compiler** | PyInstaller | `6.x` | Compiler GUI backend execution |
+| **JS Runtime** | QuickJS | Active | JavaScript engine for yt-dlp signature handling |
+| **HTTP Engine** | `curl-cffi` | Latest | Chrome-impersonating HTTP client for anti-bot bypass |
+| **Compiler** | PyInstaller | `6.x` | Compiler for server binary packaging |
 | **Obfuscator Shield** | PyArmor | `8.x` (Free tier) | AST/Binary packer shielding |
+| **Supported Platforms** | Windows, macOS, Linux | — | All build targets and CI/CD runners |
 
 ---
 
@@ -21,9 +24,16 @@ The system components are bound by the following version requirements and runtim
 
 In Desktop mode, Electron functions as a Chromium-based UI frame while spawning and managing the Python server process lifecycle:
 
-1. **Process Spawn**: Electron's `main.js` executes the backend server binary (located at `resources/server.exe` on Windows or `resources/server` on macOS) as a headless background process using Node's `child_process.spawn`.
-2. **Health Probe**: The main process polls `/api/machine-id` until it receives a valid JSON response (maximum 15 retries), verifying the server is up before rendering the main `BrowserWindow`.
-3. **Shutdown Event**: When the Electron window is closed, the main process fires a termination signal (`SIGTERM` on macOS/Linux, or `taskkill`/`SIGTERM` on Windows) to the PID of the server binary to guarantee no orphaned server processes are left in memory.
+1. **Process Spawn**: Electron's `main.js` executes the backend server binary as a headless background process using Node's `child_process.spawn`.
+   - On Windows: spawns `resources/server.exe`
+   - On macOS: spawns `resources/server` (with `chmod +x` applied dynamically)
+   - On Linux: spawns `resources/server` (with `chmod +x` applied dynamically)
+2. **Port Discovery**: The main process finds a free TCP port starting from `18650` using `net.createServer()` and passes the discovered port to the backend via the `FLASK_PORT` environment variable.
+3. **Health Probe**: The main process polls `http://127.0.0.1:<port>/` at 500ms intervals until it receives a valid response with status code < 500 (maximum 60-second timeout), verifying the server is up before rendering the main `BrowserWindow`.
+4. **Shutdown Event**: When the Electron window is closed, the main process fires a termination signal:
+   - On Windows: `taskkill /pid <PID> /f /t` to kill the entire process tree.
+   - On macOS/Linux: `SIGTERM` to the server process PID.
+5. **Minimize to Tray**: Closing the window hides it to system tray instead of quitting. The app can be restored via double-clicking the tray icon.
 
 ---
 
@@ -183,7 +193,7 @@ The webpage preview renders inside the main preview modal:
 
 ### 4.5 Security & Obfuscation Build Pipeline
 
-When a build is triggered via `/api/build/start`, the obfuscation module executes the following steps:
+When a build is triggered via `/api/build/start` (Web GUI) or CLI commands, the obfuscation module executes the following steps:
 
 1. **AST Scrambling**:
    The code parses Python sources into Abstract Syntax Trees using Python's `ast` module. It renames local variables, functions, and class definitions to randomized hashes (e.g. `_0x8f2a1b`) while preserving standard keywords, built-ins, and external API symbols.
@@ -203,11 +213,39 @@ When a build is triggered via `/api/build/start`, the obfuscation module execute
    - **IP Lock**: Queries `api.ipify.org` on startup and terminates if the public IP is not in the compiled whitelist.
    - **Expiry Limit**: Compares local system time (and optionally queries an NTP server to prevent local clock tampering) against the compiled expiration date.
    - **Machine ID Lock**: Checks the local system fingerprint:
-     - On Windows, extracts CSPRODUCT UUID: `wmic csproduct get uuid`
-     - On macOS, computes a custom SHA256 hardware fingerprint based on the MAC address, hostname, and CPU processor strings.
+     - On Windows: extracts CSPRODUCT UUID via `wmic csproduct get uuid`.
+     - On macOS: computes a custom SHA256 hardware fingerprint based on the MAC address, hostname, and CPU processor strings.
+     - On Linux: reads `/etc/machine-id` or falls back to DMI product UUID via `dmidecode`.
      - Terminates if it does not match the whitelisted Machine IDs.
 
 5. **Compilation Interfaces**:
    - **API / Web Interface**: Initiated via `/api/build/start` HTTP POST request.
    - **Web Builder GUI**: Launched via `python build_tool/builder_cli.py --gui`. It spawns a local Flask server running on a dynamically allocated port (starting from `18651` upwards) to avoid conflicts with the main application server, and triggers a browser window opening `http://127.0.0.1:<port>/`.
-   - **Interactive CLI Menu Dashboard**: Run via `python build_tool/builder_cli.py` without arguments. Displays a color-coded terminal dashboard where developers can toggle target output systems (Web, Desktop, or Both), target platforms (Windows, macOS, or Auto), configure obfuscation settings (PyArmor, AST scrambling, etc.), set up licensing rules (IP lock, expiration dates like `2027-12-31`, Machine ID whitelist), customize packaging metadata, view the current system Machine ID, load/save configuration profiles, and trigger packaging interactively.
+   - **Interactive CLI Menu Dashboard**: Run via `python build_tool/builder_cli.py` without arguments. Displays a color-coded terminal dashboard where developers can toggle target output systems (Web, Desktop, or Both), configure obfuscation settings (PyArmor, AST scrambling, etc.), set up licensing rules (IP lock, expiration dates like `2027-12-31`, Machine ID whitelist), customize packaging metadata, view the current system Machine ID, load/save configuration profiles, and trigger packaging interactively.
+   - **Non-Interactive CLI**: Run via `python build_tool/builder_cli.py --target <web|desktop|both> [options]`. Suitable for scripting and CI/CD integration.
+
+### 4.6 Multi-Platform CI/CD Pipeline
+
+The GitHub Actions workflow (`.github/workflows/build-and-release.yml`) automates multi-platform builds:
+
+1. **Matrix Strategy**: Runs builds in parallel on `windows-latest`, `macos-latest`, and `ubuntu-latest`.
+2. **Build Steps per Runner**:
+   - Python 3.12 + Node.js 20 setup with dependency caching
+   - Version extraction from git tag
+   - Full build (`--target both --obfuscate`) producing Web Binary + Desktop App
+   - Web Binary renaming with platform suffix (e.g., `-Windows.exe`, `-macOS`, `-Linux`)
+3. **Release Job**:
+   - Downloads all build artifacts from all 3 platform runners
+   - Calculates SHA-256 checksums for each file
+   - Generates detailed release notes with changelog, asset descriptions, and checksum table
+   - Publishes release to both private and public repositories
+   - Updates `update.json` in the public repository for auto-update integration
+
+### 4.7 Docker Deployment
+
+The project provides Docker support for running the web server and build tool in containers:
+
+- **Dockerfile**: Based on `python:3.10-slim`, installs FFmpeg, Deno (for yt-dlp), and all Python dependencies.
+- **docker-compose.yml**: Defines two services:
+  - `app`: Runs the Flask web server on port `18650` with downloads volume mount.
+  - `builder`: Runs the Build Tool GUI on port `18651` with full project volume mount.

@@ -51,7 +51,7 @@ def publish_git_release(
     update_file = root_dir / 'update.json'
     update_data = {
         'version': version,
-        'url': f'https://github.com/{repo}/releases/download/{tag}/{app_name}-Portable-{version}.exe',
+        'url': f'https://github.com/{repo}/releases/download/{tag}/{app_name}-Setup-{version}.exe',
         'changelog': changelog
     }
     

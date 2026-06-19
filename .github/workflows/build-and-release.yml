@@ -9,8 +9,11 @@ permissions:
   contents: write
 
 jobs:
-  build-and-release:
-    runs-on: windows-latest
+  build:
+    strategy:
+      matrix:
+        os: [windows-latest, macos-latest, ubuntu-latest]
+    runs-on: ${{ matrix.os }}
 
     steps:
       - name: Checkout repository
@@ -45,24 +48,67 @@ jobs:
         run: |
           python build_tool/builder_cli.py --target both --name EveryThingDownloader --version ${{ env.VERSION }} --company EveryThingDownloader --description EveryThingDownloader --copyright "© 2026 EveryThingDownloader" --obfuscate --pyarmor-level 2
 
+      - name: Rename Web Binary for platform identification
+        shell: bash
+        run: |
+          if [ "${{ matrix.os }}" = "windows-latest" ]; then
+            mv dist/EveryThingDownloader-Web-${{ env.VERSION }}.exe dist/EveryThingDownloader-Web-${{ env.VERSION }}-Windows.exe || true
+          elif [ "${{ matrix.os }}" = "macos-latest" ]; then
+            mv dist/EveryThingDownloader-Web-${{ env.VERSION }} dist/EveryThingDownloader-Web-${{ env.VERSION }}-macOS || true
+          elif [ "${{ matrix.os }}" = "ubuntu-latest" ]; then
+            mv dist/EveryThingDownloader-Web-${{ env.VERSION }} dist/EveryThingDownloader-Web-${{ env.VERSION }}-Linux || true
+          fi
+
+      - name: Upload build artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: build-artifacts-${{ matrix.os }}
+          path: |
+            dist/EveryThingDownloader*
+            dist_electron/*.exe
+            dist_electron/*.dmg
+            dist_electron/*.zip
+            dist_electron/*.AppImage
+            dist_electron/*.tar.gz
+          if-no-files-found: ignore
+
+  release:
+    needs: build
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Download all build artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: ./all_assets
+          pattern: build-artifacts-*
+          merge-multiple: true
+
+      - name: Extract version from tag
+        shell: bash
+        run: |
+          TAG_NAME=${{ github.ref_name }}
+          VERSION=${TAG_NAME#v}
+          echo "VERSION=$VERSION" >> $GITHUB_ENV
+
       # =========================================================================
       # TÍNH TOÁN SHA-256 VÀ TỰ ĐỘNG TRÍCH XUẤT CHANGELOG ĐỂ TẠO RELEASE NOTES RIÊNG BIỆT
       # =========================================================================
       - name: Calculate SHA-256 & Generate Release Notes
         shell: bash
         run: |
-          # 1. Tính toán mã băm SHA-256 của các tệp thực thi đã build
-          PORTABLE_HASH=$(sha256sum "dist_electron/EveryThingDownloader-Portable-${{ env.VERSION }}.exe" | awk '{print $1}')
-          SETUP_HASH=$(sha256sum "dist_electron/EveryThingDownloader Setup ${{ env.VERSION }}.exe" | awk '{print $1}')
-          WEB_HASH=$(sha256sum "dist/EveryThingDownloader.exe" | awk '{print $1}')
-          
-          # 2. Lấy thông tin tin nhắn mô tả của tag (Tag Message) hoặc commit mới nhất
+          # 1. Lấy thông tin tin nhắn mô tả của tag (Tag Message) hoặc commit mới nhất
           TAG_MSG=$(git tag -l -n99 ${{ github.ref_name }} | sed "s/^${{ github.ref_name }} //g" | sed 's/^[ \t]*//')
           if [ -z "$TAG_MSG" ] || [ "$TAG_MSG" = "Release ${{ github.ref_name }}" ] || [ "$TAG_MSG" = "${{ github.ref_name }}" ]; then
             TAG_MSG=$(git log -1 --pretty=format:"%B")
           fi
           
-          # 3. Lấy danh sách các commits (Changelog) giữa phiên bản cũ và phiên bản mới này
+          # 2. Lấy danh sách các commits (Changelog) giữa phiên bản cũ và phiên bản mới này
           PREV_TAG=$(git describe --tags --abbrev=0 ${{ github.ref_name }}^ 2>/dev/null || true)
           if [ -n "$PREV_TAG" ]; then
             CHANGELOG=$(git log ${PREV_TAG}..${{ github.ref_name }} --pretty=format:"* %s (%h)")
@@ -70,11 +116,11 @@ jobs:
             CHANGELOG=$(git log -n 15 --pretty=format:"* %s (%h)")
           fi
           
-          # 4. Ghi nội dung động vào tệp release_notes.md
+          # 3. Tạo file release_notes.md ban đầu
           cat <<EOF > release_notes.md
           # 🚀 EveryThingDownloader ${{ github.ref_name }}
           
-          Giải pháp tải đa phương tiện toàn năng, bảo mật tối đa và tự động hóa phát hành vượt trội.
+          Giải pháp tải đa phương tiện toàn năng, hỗ trợ đa nền tảng (Windows, macOS, Linux), bảo mật tối đa và tự động phát hành.
           
           ### 📝 Chi tiết phát hành (Release Message):
           $TAG_MSG
@@ -83,16 +129,28 @@ jobs:
           $CHANGELOG
           
           ### 📦 Thông tin các file cài đặt (Assets Info):
-          * **EveryThingDownloader-Portable-${{ env.VERSION }}.exe**: Bản di động (Portable), chạy ngay không cần cài đặt (Khuyên dùng).
-          * **EveryThingDownloader Setup ${{ env.VERSION }}.exe**: Bản cài đặt đầy đủ (Installer) hỗ trợ gỡ cài đặt tiện lợi.
-          * **EveryThingDownloader.exe**: Bản Web Binary độc lập chạy trên trình duyệt web.
+          * **EveryThingDownloader-Portable-${{ env.VERSION }}.exe**: Bản di động cho Windows (Portable), chạy ngay không cần cài đặt.
+          * **EveryThingDownloader-Setup-${{ env.VERSION }}.exe**: Bản cài đặt đầy đủ cho Windows (Setup) hỗ trợ gỡ cài đặt tiện lợi.
+          * **EveryThingDownloader-${{ env.VERSION }}.dmg / .zip**: Bản cài đặt cho macOS.
+          * **EveryThingDownloader-${{ env.VERSION }}.AppImage / .tar.gz**: Bản cài đặt cho Linux.
+          * **EveryThingDownloader-Web-${{ env.VERSION }}-<Platform>**: Bản Web Binary độc lập chạy trên các hệ điều hành tương ứng.
           
           ### 🛡️ Mã băm bảo mật (SHA-256 Checksums):
           | File Asset | SHA-256 Checksum |
           |---|---|
-          | \`EveryThingDownloader-Portable-${{ env.VERSION }}.exe\` | \`${PORTABLE_HASH}\` |
-          | \`EveryThingDownloader Setup ${{ env.VERSION }}.exe\` | \`${SETUP_HASH}\` |
-          | \`EveryThingDownloader.exe\` | \`${WEB_HASH}\` |
+          EOF
+
+          # 4. Tính toán và append SHA-256 của từng file vào bảng
+          cd all_assets
+          for file in *; do
+            if [ -f "$file" ]; then
+              hash=$(sha256sum "$file" | awk '{print $1}')
+              echo "| \`$file\` | \`${hash}\` |" >> ../release_notes.md
+            fi
+          done
+          cd ..
+
+          cat <<EOF >> release_notes.md
           
           ---
           > ⚠️ **Lưu ý quan trọng**: Do mã nguồn được bảo vệ bằng các thuật toán xáo trộn code và đóng gói nhị phân (PyArmor), một số phần mềm diệt virus (bao gồm Windows Defender) có thể cảnh báo nhầm (False Positive). Hãy yên tâm bỏ qua hoặc thêm tệp vào danh sách loại trừ để sử dụng ổn định.
@@ -106,9 +164,7 @@ jobs:
         with:
           body_path: release_notes.md
           files: |
-            dist/EveryThingDownloader.exe
-            dist_electron/EveryThingDownloader-Portable-${{ env.VERSION }}.exe
-            dist_electron/EveryThingDownloader Setup ${{ env.VERSION }}.exe
+            all_assets/*
           draft: false
           prerelease: false
         env:
@@ -124,9 +180,7 @@ jobs:
           token: ${{ secrets.RELEASE_TOKEN }}           # PAT cấu hình trong Secrets của Private Repo
           body_path: release_notes.md
           files: |
-            dist/EveryThingDownloader.exe
-            dist_electron/EveryThingDownloader-Portable-${{ env.VERSION }}.exe
-            dist_electron/EveryThingDownloader Setup ${{ env.VERSION }}.exe
+            all_assets/*
           draft: false
           prerelease: false
 
@@ -144,7 +198,7 @@ jobs:
           cat <<EOF > update.json
           {
             "version": "${{ env.VERSION }}",
-            "url": "https://github.com/m3iK18dp/EveryThingDownloader-Tool/releases/download/${{ github.ref_name }}/EveryThingDownloader-Portable-${{ env.VERSION }}.exe",
+            "url": "https://github.com/m3iK18dp/EveryThingDownloader-Tool/releases/download/${{ github.ref_name }}/EveryThingDownloader-Setup-${{ env.VERSION }}.exe",
             "changelog": "Phiên bản mới nhất ${{ github.ref_name }} đã được phát hành tự động. Xem chi tiết tại mục Releases trên GitHub."
           }
           EOF

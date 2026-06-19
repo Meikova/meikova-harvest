@@ -205,13 +205,13 @@ class Packager:
         spec_content = PYINSTALLER_SPEC.format(
             entry_point=str(entry_point).replace('\\', '/'),
             root_dir=str(src_root).replace('\\', '/'),
-            app_name=self.cfg.app_name,
+            app_name=f'{self.cfg.app_name}-Web-{self.cfg.version}',
             use_upx=str(self.cfg.use_upx),
             console=str(self.cfg.console),
             icon_line=icon_line,
             version_line=version_line,
         )
-        spec_file = build_dir / f'{self.cfg.app_name}.spec'
+        spec_file = build_dir / f'{self.cfg.app_name}-Web-{self.cfg.version}.spec'
         spec_file.write_text(spec_content, encoding='utf-8')
         return spec_file
 
@@ -305,7 +305,7 @@ class Packager:
             raise RuntimeError(f'PyInstaller failed:\n{result.stdout[-2000:]}\n{result.stderr[-2000:]}')
 
         suffix = '.exe' if platform.system() == 'Windows' else ''
-        exe_path = DIST_DIR / f'{self.cfg.app_name}{suffix}'
+        exe_path = DIST_DIR / f'{self.cfg.app_name}-Web-{self.cfg.version}{suffix}'
         if not exe_path.exists():
             raise FileNotFoundError(f'Expected output not found: {exe_path}')
 
@@ -355,6 +355,11 @@ class Packager:
                 pass
 
         shutil.copy2(server_binary, dest)
+        if not is_windows:
+            try:
+                os.chmod(dest, 0o755)
+            except Exception:
+                pass
         self._progress(f'   → {dest}', progress_cb)
 
         # Write config.json inside the electron directory so it gets packaged in ASAR
@@ -410,7 +415,15 @@ class Packager:
         self._progress('[STEP 4/4] Building Electron Desktop App…', progress_cb)
         DIST_ELECTRON.mkdir(exist_ok=True)
         
-        builder_flag = '--win' if is_windows else '--mac'
+        current_platform = platform.system()
+        if current_platform == 'Windows':
+            builder_flag = '--win'
+        elif current_platform == 'Darwin':
+            builder_flag = '--mac'
+        elif current_platform == 'Linux':
+            builder_flag = '--linux'
+        else:
+            builder_flag = '--win'
         
         result = subprocess.run(
             ['npx', 'electron-builder', builder_flag],
@@ -423,14 +436,22 @@ class Packager:
             raise RuntimeError(f'electron-builder failed:\n{result.stdout[-2000:]}\n{result.stderr[-2000:]}')
 
         # Find output installer
-        if is_windows:
+        if current_platform == 'Windows':
             candidates = list(DIST_ELECTRON.glob('*.exe'))
             if not candidates:
                 raise FileNotFoundError('electron-builder output .exe not found in dist_electron/')
-        else:
+        elif current_platform == 'Darwin':
             candidates = list(DIST_ELECTRON.glob('*.dmg')) + list(DIST_ELECTRON.glob('*.zip'))
             if not candidates:
                 raise FileNotFoundError('electron-builder output .dmg or .zip not found in dist_electron/')
+        elif current_platform == 'Linux':
+            candidates = list(DIST_ELECTRON.glob('*.AppImage')) + list(DIST_ELECTRON.glob('*.tar.gz'))
+            if not candidates:
+                raise FileNotFoundError('electron-builder output .AppImage or .tar.gz not found in dist_electron/')
+        else:
+            candidates = list(DIST_ELECTRON.glob('*'))
+            if not candidates:
+                raise FileNotFoundError('electron-builder output not found in dist_electron/')
 
         installer = max(candidates, key=lambda p: p.stat().st_mtime)
         self._progress(f'[OK] Desktop App: {installer}', progress_cb)

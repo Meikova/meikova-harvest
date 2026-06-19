@@ -575,7 +575,7 @@ Examples:
 
     parser.add_argument('--target', choices=['web', 'desktop', 'both'],
                         default='web', help='Output type to build')
-    parser.add_argument('--platform', choices=['windows', 'macos', 'auto'],
+    parser.add_argument('--platform', choices=['windows', 'macos', 'linux', 'auto'],
                         default='auto', help='Target platform to build for')
 
     # Obfuscation options
@@ -590,16 +590,21 @@ Examples:
                      help='PyArmor obfuscation level (0=off, 1=standard, 2=advanced)')
     obf.add_argument('--pyarmor-mix-str', action='store_true', default=True,
                      help='Scramble string literals with PyArmor')
+    obf.add_argument('--no-pyarmor-mix-str', dest='pyarmor_mix_str', action='store_false')
     obf.add_argument('--scramble', action='store_true', default=True,
                      help='Scramble variable/function names (AST)')
+    obf.add_argument('--no-scramble', dest='scramble', action='store_false')
     obf.add_argument('--encode-strings', action='store_true', default=True,
                      help='Encode string literals')
+    obf.add_argument('--no-encode-strings', dest='encode_strings', action='store_false')
     obf.add_argument('--dead-code', action='store_true', default=True,
                      help='Inject dead code to confuse analysis')
+    obf.add_argument('--no-dead-code', dest='dead_code', action='store_false')
     obf.add_argument('--dead-code-count', type=int, default=15,
                      help='Number of dead code blocks per file')
     obf.add_argument('--antidebug', action='store_true', default=True,
                      help='Add anti-debug checks')
+    obf.add_argument('--no-antidebug', dest='antidebug', action='store_false')
 
     # License restrictions
     lic = parser.add_argument_group('Usage Restrictions')

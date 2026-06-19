@@ -13,7 +13,7 @@ const fs   = require('fs');
 const os   = require('os');
 
 const ROOT_DIR     = path.resolve(__dirname, '..');
-const ELECTRON_DIR = __dirname;
+const ELECTRON_DIR = path.join(ROOT_DIR, 'electron');
 
 function log(msg)  { console.log(`\x1b[36m[BUILD]\x1b[0m ${msg}`); }
 function ok(msg)   { console.log(`\x1b[32m[OK   ]\x1b[0m ${msg}`); }
@@ -73,8 +73,12 @@ function installDeps() {
 
 function buildElectron(args = []) {
   const isWindows = process.platform === 'win32';
-  let cmd = isWindows ? 'npx electron-builder --win' : 'npx electron-builder --mac';
+  const isMac = process.platform === 'darwin';
+  const isLinux = process.platform === 'linux';
+  
+  let cmd = 'npx electron-builder';
   if (isWindows) {
+    cmd += ' --win';
     if (args.includes('--portable')) {
       cmd += ' --win portable';
       log('Mode: Portable EXE');
@@ -84,8 +88,14 @@ function buildElectron(args = []) {
     } else {
       log('Mode: Both NSIS Installer + Portable');
     }
-  } else {
+  } else if (isMac) {
+    cmd += ' --mac';
     log('Mode: macOS DMG / ZIP');
+  } else if (isLinux) {
+    cmd += ' --linux';
+    log('Mode: Linux AppImage / Tar');
+  } else {
+    cmd += ' --win'; // fallback
   }
 
   run(cmd);
@@ -94,8 +104,18 @@ function buildElectron(args = []) {
 function printOutputs() {
   const distDir = path.join(ROOT_DIR, 'dist_electron');
   if (!fs.existsSync(distDir)) return;
+  
   const isWindows = process.platform === 'win32';
-  const extensions = isWindows ? ['.exe', '.msi'] : ['.dmg', '.zip'];
+  const isMac = process.platform === 'darwin';
+  let extensions = ['.exe', '.msi'];
+  if (isMac) {
+    extensions = ['.dmg', '.zip'];
+  } else if (process.platform === 'linux') {
+    extensions = ['.AppImage', '.tar.gz'];
+  } else {
+    extensions = ['.dmg', '.zip', '.AppImage', '.tar.gz'];
+  }
+
   const files = fs.readdirSync(distDir)
     .filter(f => extensions.some(ext => f.endsWith(ext)))
     .map(f => {

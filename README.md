@@ -5,7 +5,7 @@
 <h1 align="center">🚀 EveryThingDownloader</h1>
 
 <p align="center">
-  <strong>Giải pháp tải đa phương tiện toàn năng, bảo mật tối đa và tự động hóa phát hành vượt trội</strong>
+  <strong>Giải pháp tải đa phương tiện toàn năng, đa nền tảng, bảo mật tối đa và tự động hóa phát hành vượt trội</strong>
 </p>
 
 <p align="center">
@@ -13,13 +13,13 @@
     <img src="https://img.shields.io/github/v/release/m3iK18dp/EveryThingDownloader?style=for-the-badge&color=00f2fe" alt="Latest Version">
   </a>
   <a href="#">
-    <img src="https://img.shields.io/badge/Platform-Windows-0078d7?style=for-the-badge&logo=windows&logoColor=white" alt="Platform">
+    <img src="https://img.shields.io/badge/Platform-Windows%20%7C%20macOS%20%7C%20Linux-0078d7?style=for-the-badge&logo=windows&logoColor=white" alt="Platform">
   </a>
   <a href="#">
     <img src="https://img.shields.io/badge/Python-3.12-blue?style=for-the-badge&logo=python&logoColor=yellow" alt="Python Version">
   </a>
   <a href="#">
-    <img src="https://img.shields.io/badge/Electron-20.x-477280?style=for-the-badge&logo=electron&logoColor=white" alt="Electron Version">
+    <img src="https://img.shields.io/badge/Electron-31.x-477280?style=for-the-badge&logo=electron&logoColor=white" alt="Electron Version">
   </a>
   <a href="LICENSE">
     <img src="https://img.shields.io/github/license/m3iK18dp/EveryThingDownloader?style=for-the-badge&color=f39c12" alt="License">
@@ -32,7 +32,9 @@
 
 **EveryThingDownloader** không chỉ đơn thuần là một công cụ tải video. Đây là một **hệ sinh thái tải đa phương tiện hoàn chỉnh và bảo mật**, kết hợp hoàn hảo giữa hiệu năng xử lý mạnh mẽ của Backend Python (Flask) và trải nghiệm giao diện người dùng Desktop mượt mà, trực quan của Electron.
 
-Bên cạnh khả năng giải mã và tải xuống từ hàng loạt nền tảng lớn (Facebook, TikTok, Youtube, GhienPhim, MotChill...), dự án còn được trang bị **Build Tool độc quyền** hỗ trợ xáo trộn mã nguồn (AST Obfuscation), mã hóa nhị phân (PyArmor) và quản lý bản quyền (IP Lock, Expiry Date Lock, Hardware Fingerprint). Điều này cho phép bạn đóng gói ứng dụng thành tệp thực thi thương mại độc lập `.exe` một cách an toàn nhất.
+Ứng dụng **hỗ trợ đa nền tảng**: Windows, macOS và Linux — với quy trình CI/CD tự động hóa đóng gói và phát hành cho cả 3 hệ điều hành thông qua GitHub Actions.
+
+Bên cạnh khả năng giải mã và tải xuống từ hàng loạt nền tảng lớn (Facebook, TikTok, Youtube, Instagram, Twitter/X, Reddit, Pinterest, Threads, GhienPhim, MotChill, LuPhim...), dự án còn được trang bị **Build Tool độc quyền** hỗ trợ xáo trộn mã nguồn (AST Obfuscation), mã hóa nhị phân (PyArmor) và quản lý bản quyền (IP Lock, Expiry Date Lock, Hardware Fingerprint). Điều này cho phép bạn đóng gói ứng dụng thành tệp thực thi thương mại độc lập một cách an toàn nhất.
 
 ---
 
@@ -44,7 +46,7 @@ Bên cạnh khả năng giải mã và tải xuống từ hàng loạt nền t�
   * **TikTok**: Tự động bóc tách và tải video không logo (No Watermark), tải file nhạc nền riêng biệt.
   * **Instagram**: Hỗ trợ Reels, Stories, IGTV và bài viết hình ảnh chất lượng gốc.
   * **Twitter (X)** / **Pinterest** / **Reddit** / **Threads**: Tự động gộp luồng hình ảnh, video và âm thanh riêng lẻ thành tệp MP4 chất lượng cao nhất thông qua FFmpeg.
-* 🎬 **Giải mã Web phim (GhienPhim, MotChill...)**: Tích hợp trình duyệt ảo ngầm (Headless Browser/Iframe Resolver) để giải mã các đường dẫn phim được giấu sâu sau nhiều lớp Iframe quảng cáo hoặc các luồng phát dạng HLS/DASH (M3U8/MPD) mã hóa nhẹ.
+* 🎬 **Giải mã Web phim (GhienPhim, MotChill, LuPhim...)**: Tích hợp trình duyệt ảo ngầm (Headless Browser/Iframe Resolver) để giải mã các đường dẫn phim được giấu sâu sau nhiều lớp Iframe quảng cáo hoặc các luồng phát dạng HLS/DASH (M3U8/MPD) mã hóa nhẹ.
 * 📝 **Xử lý phụ đề thông minh**:
   * Tự động phát hiện, trích xuất phụ đề gốc.
   * Chuyển đổi định dạng phụ đề linh hoạt (ví dụ: YouTube TimedText sang WebVTT).
@@ -56,15 +58,19 @@ Bên cạnh khả năng giải mã và tải xuống từ hàng loạt nền t�
 * 🎫 **Ràng buộc bản quyền (Licensing)**:
   * **IP Address Lock**: Khóa cứng ứng dụng chỉ được phép hoạt động trên các địa chỉ IP được cấp phép.
   * **Expiry Date Lock**: Thiết lập thời hạn dùng thử (Trial period). App sẽ tự động khóa và hiển thị thông báo hết hạn khi vượt mốc thời gian cấu hình.
-  * **Hardware Fingerprint (Machine ID)**: Đăng ký bản quyền dựa trên dấu vân tay phần cứng duy nhất (Mainboard UUID, CPU ID). Ngăn chặn hành vi phân phối lậu hoặc sao chép phần mềm sang máy tính khác.
+  * **Hardware Fingerprint (Machine ID)**: Đăng ký bản quyền dựa trên dấu vân tay phần cứng duy nhất. Ngăn chặn hành vi phân phối lậu hoặc sao chép phần mềm sang máy tính khác.
+    * Windows: CSPRODUCT UUID (`wmic csproduct get uuid`)
+    * macOS: SHA256 custom fingerprint (MAC + hostname + CPU)
+    * Linux: `/etc/machine-id` hoặc DMI product UUID
 
 ### 💻 3. Electron Desktop UX/UI Cao Cấp
 * 🎨 **Giao diện Frameless**: Cửa sổ không viền hiện đại, bo góc thời thượng theo phong cách Windows 11 cùng hệ màu Dark Mode lôi cuốn.
 * 📥 **Khay hệ thống (System Tray) đa năng**:
   * Khi nhấn nút đóng (X), ứng dụng sẽ thu nhỏ chạy ẩn dưới khay hệ thống giúp tiết kiệm tài nguyên và giữ kết nối tải xuống liên tục.
-  * Bật/Tắt nhanh tính năng khởi động cùng Windows (Start with Windows) thông qua Registry tự động.
+  * Bật/Tắt nhanh tính năng khởi động cùng hệ thống (Start with System) thông qua cấu hình Login Item tự động.
   * Menu chuột phải tiện ích: Khởi động lại máy chủ ngầm (Restart Backend) chỉ với 1 click khi gặp sự cố mạng, mở nhanh thư mục tải xuống, mở giao diện trên trình duyệt mặc định.
-* 🔄 **Single-Instance Restoring**: Ngăn chặn chạy trùng lặp nhiều tiến trình app. Nhấp đúp vào file `.exe` hoặc icon khay hệ thống khi ứng dụng đang chạy ngầm sẽ tự động khôi phục và đưa giao diện lên trên cùng.
+* 🔄 **Single-Instance Restoring**: Ngăn chặn chạy trùng lặp nhiều tiến trình app. Nhấp đúp vào file thực thi hoặc icon khay hệ thống khi ứng dụng đang chạy ngầm sẽ tự động khôi phục và đưa giao diện lên trên cùng.
+* 🔔 **Auto-Update**: Kiểm tra phiên bản mới từ kho công khai, tải và cài đặt tự động với thanh tiến trình trực quan.
 
 ---
 
@@ -73,7 +79,7 @@ Bên cạnh khả năng giải mã và tải xuống từ hàng loạt nền t�
 ```mermaid
 graph TD
     A[Electron Frontend - Giao diện Desktop] <-->|IPC / Local API Port: 18650| B[Python Backend - Flask Server]
-    B --> C[Extractors - Facebook, TikTok, GhienPhim...]
+    B --> C[Extractors - Facebook, TikTok, Instagram, Twitter/X, Reddit, Pinterest, Threads, GhienPhim, MotChill, LuPhim]
     B --> D[FFmpeg Utility - Gộp & chuyển đổi định dạng]
     B --> E[Subtitle Translator - Tự động dịch phụ đề]
     
@@ -88,10 +94,12 @@ graph TD
 
 ## ⚙️ Công Nghệ Sử Dụng
 
-* **Core Backend**: Python 3.12, Flask, Flask-CORS, SQLite (lưu cấu hình), PyInstaller, PyArmor.
-* **Core Frontend**: Electron (v28+), HTML5, Vanilla CSS (Thiết kế giao diện Dark Mode cao cấp), JavaScript (ES6+).
-* **Công cụ bổ trợ**: FFmpeg (xử lý media), Playwright/Puppeteer-like Headless parser (giải mã iframe).
-* **Phát hành & Tự động hóa**: GitHub Actions (CI/CD), Electron Builder, NSIS Installer.
+* **Core Backend**: Python 3.12, Flask 3.0.3, Flask-CORS, SQLite (lưu lịch sử tải), PyInstaller, PyArmor.
+* **Core Frontend**: Electron (v31+), HTML5, Vanilla CSS (Thiết kế giao diện Dark Mode cao cấp), JavaScript (ES6+).
+* **Download Engine**: `yt-dlp` (video/audio), `gallery-dl` (ảnh/gallery), `curl-cffi` (bypass Cloudflare/anti-bot).
+* **Công cụ bổ trợ**: FFmpeg/FFprobe (xử lý media qua `static-ffmpeg`), QuickJS (JS runtime cho yt-dlp).
+* **Phát hành & Tự động hóa**: GitHub Actions (CI/CD multi-platform), Electron Builder, NSIS Installer (Windows), DMG/ZIP (macOS), AppImage/tar.gz (Linux).
+* **Containerization**: Docker + Docker Compose hỗ trợ triển khai Web Server và Build GUI trên container.
 
 ---
 
@@ -100,7 +108,7 @@ graph TD
 ### Yêu cầu hệ thống
 * **Python**: `3.12.x` trở lên
 * **Node.js**: `20.x` hoặc `22.x`
-* **FFmpeg**: Đã được cài đặt và thêm vào đường dẫn môi trường (PATH) của hệ thống.
+* **FFmpeg**: Được tự động cài đặt qua thư viện `static-ffmpeg` (không cần cài đặt thủ công).
 
 ### Thiết lập môi trường chạy thử (Dev Mode)
 
@@ -126,18 +134,31 @@ graph TD
    npm run dev
    ```
 
+### 🐳 Triển khai bằng Docker
+
+```bash
+# Khởi chạy Web Server
+docker-compose up app
+
+# Khởi chạy Build Tool GUI
+docker-compose up builder
+
+# Khởi chạy cả hai
+docker-compose up
+```
+
 ---
 
 ## 📦 Đóng Gói & Phát Hành (Production Build)
 
-EveryThingDownloader tích hợp bộ công cụ đóng gói thông minh hỗ trợ cả giao diện đồ họa Web GUI trực quan lẫn dòng lệnh CLI mạnh mẽ.
+EveryThingDownloader tích hợp bộ công cụ đóng gói thông minh hỗ trợ cả giao diện đồ họa Web GUI trực quan lẫn dòng lệnh CLI mạnh mẽ, và menu tương tác (Interactive CLI Dashboard).
 
 ### Cách 1: Sử dụng Web Build GUI (Khuyên dùng)
 1. Khởi chạy máy chủ Build GUI:
    ```bash
    python build_tool/builder_cli.py --gui
    ```
-2. Truy cập địa chỉ `http://127.0.0.1:18651/` bằng trình duyệt web.
+2. Truy cập địa chỉ hiển thị trên màn hình (mặc định `http://127.0.0.1:18651/`) bằng trình duyệt web.
 3. Tùy chỉnh các tham số bảo mật:
    - **Obfuscate Code**: Bật xáo trộn mã nguồn.
    - **IP Lock / Expiry Date / Machine ID**: Nhập cấu hình bản quyền tương ứng.
@@ -148,23 +169,46 @@ EveryThingDownloader tích hợp bộ công cụ đóng gói thông minh hỗ tr
 # Chỉ build bản chạy trên trình duyệt Web (Web Target) có xáo trộn code
 python build_tool/builder_cli.py --target web --obfuscate
 
-# Build đầy đủ bản Desktop App (.exe Setup & Portable)
+# Build đầy đủ bản Desktop App (Installer + Portable trên Windows, DMG/ZIP trên macOS, AppImage/tar.gz trên Linux)
 python build_tool/builder_cli.py --target desktop --obfuscate --name EveryThingDownloader --version 1.0.0
+
+# Build cả Web Binary lẫn Desktop App
+python build_tool/builder_cli.py --target both --obfuscate
 ```
+
+### Cách 3: Sử dụng Interactive CLI Menu Dashboard
+```bash
+# Khởi chạy menu tương tác không cần tham số
+python build_tool/builder_cli.py
+```
+Hiển thị bảng điều khiển color-coded cho phép:
+- Chọn mục tiêu build (Web / Desktop / Both)
+- Cấu hình Code Protection (PyArmor, AST Scrambling, Dead Code, Anti-Debug...)
+- Thiết lập Licensing (IP Lock, Expiry Date, Machine ID Lock)
+- Tùy chỉnh metadata (App Name, Version, Company, Icon...)
+- Lưu / Tải cấu hình từ JSON file
+- Xem Hardware Machine ID của máy hiện tại
+
+> **Lưu ý**: PyInstaller không hỗ trợ cross-compilation. Cần build trên hệ điều hành gốc tương ứng (Windows build trên Windows, macOS build trên macOS, Linux build trên Linux). GitHub Actions CI/CD tự động hóa quy trình này cho cả 3 nền tảng.
 
 ---
 
 ## ☁️ Quy Trình Tự Động Hóa Phát Hành (Automated Release CI/CD)
 
-Dự án sử dụng **GitHub Actions** để tự động hóa hoàn toàn quy trình đóng gói và phát hành ứng dụng mỗi khi có phiên bản mới:
+Dự án sử dụng **GitHub Actions** để tự động hóa hoàn toàn quy trình đóng gói và phát hành ứng dụng trên **cả 3 nền tảng** (Windows, macOS, Linux) mỗi khi có phiên bản mới:
 
 1. **Gắn thẻ phiên bản**:
    ```bash
    git tag v1.0.1
    git push origin v1.0.1
    ```
-2. **Biên dịch trên mây**: GitHub Actions sẽ tự động kích hoạt một máy ảo Windows trên GitHub, tải mã nguồn, cài đặt môi trường, biên dịch backend sang `.exe`, đóng gói Electron installer, và tải lên mục **Releases** của kho lưu trữ công khai.
-3. **Đẩy cập nhật**: Hệ thống tự động cập nhật file `update.json` công khai chứa thông tin phiên bản mới nhất cùng đường dẫn tải về. Ứng dụng của người dùng sẽ tự động nhận diện bản cập nhật tiếp theo.
+2. **Biên dịch đa nền tảng trên mây**: GitHub Actions sử dụng **matrix strategy** để song song kích hoạt 3 máy ảo (`windows-latest`, `macos-latest`, `ubuntu-latest`), mỗi máy tự động:
+   - Tải mã nguồn, cài đặt Python 3.12 và Node.js 20
+   - Biên dịch backend thành binary (`.exe` trên Windows, binary trên macOS/Linux)
+   - Đóng gói Electron installer/portable cho từng nền tảng
+   - Đổi tên Web Binary kèm hậu tố nền tảng (ví dụ: `EveryThingDownloader-Web-1.0.0-Windows.exe`, `-macOS`, `-Linux`)
+3. **Tạo Release tự động**: Tổng hợp toàn bộ artifact từ 3 nền tảng, tính SHA-256 checksum cho từng file, tạo Release Notes chi tiết và đẩy lên cả kho riêng tư (Private) lẫn kho công khai (Public).
+4. **Đẩy cập nhật**: Hệ thống tự động cập nhật file `update.json` trên kho công khai chứa thông tin phiên bản mới nhất cùng đường dẫn tải về. Ứng dụng Electron của người dùng sẽ tự động nhận diện bản cập nhật tiếp theo thông qua tính năng **Auto-Update** tích hợp sẵn.
 
 ---
 

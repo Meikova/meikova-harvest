@@ -772,6 +772,10 @@ def get_info():
 
             title = info.get("title", "Unknown Title")
 
+            # Strip trailing duplicate file markers (e.g., (1), (2))
+            if title and title != "Unknown Title":
+                title = re.sub(r"\s*\(\d+\)\s*$", "", title).strip()
+
             # Clean up SEO marketing text and site brand suffixes from title
             if title and title != "Unknown Title":
                 # 1. Remove brand suffixes
@@ -1480,8 +1484,22 @@ def get_info():
                 elif is_direct_video:
                     platform_label = "Video File"
                 else:
-                    raw_platform = info.get("extractor_key", "Video")
-                    platform_label = raw_platform.capitalize() if raw_platform else "Video"
+                    raw_platform = info.get("extractor_key") or info.get("extractor") or ""
+                    if not raw_platform or raw_platform.lower() in ["generic", "html5mediaembed", "video", "default"]:
+                        try:
+                            from urllib.parse import urlparse
+                            parsed_url = urlparse(url)
+                            netloc = parsed_url.netloc.lower()
+                            if netloc.startswith("www."):
+                                netloc = netloc[4:]
+                            if netloc:
+                                platform_label = netloc.capitalize()
+                            else:
+                                platform_label = "Web Video"
+                        except Exception:
+                            platform_label = "Web Video"
+                    else:
+                        platform_label = raw_platform.capitalize()
                 platform_class = "default"
 
             # --- Extract images / thumbnails ---

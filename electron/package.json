@@ -1,6 +1,6 @@
 {
   "name": "everythingdownloader",
-  "version": "1.0.3",
+  "version": "1.0.4",
   "description": "EveryThingDownloader",
   "main": "main.js",
   "author": "m3iK18dp",
@@ -76,6 +76,13 @@
       ],
       "icon": "resources/icon.png"
     },
+    "linux": {
+      "target": [
+        "AppImage",
+        "tar.gz"
+      ],
+      "icon": "resources/icon.png"
+    },
     "nsis": {
       "oneClick": false,
       "allowToChangeInstallationDirectory": true,
@@ -85,7 +92,8 @@
       "installerIcon": "resources/icon.ico",
       "uninstallerIcon": "resources/icon.ico",
       "installerHeader": "resources/icon.ico",
-      "license": "resources/license.txt"
+      "license": "resources/license.txt",
+      "artifactName": "EveryThingDownloader-Setup-${version}.exe"
     },
     "portable": {
       "artifactName": "EveryThingDownloader-Portable-${version}.exe"

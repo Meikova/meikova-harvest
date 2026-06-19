@@ -1,6 +1,6 @@
 # Operating and Usage Guide (Operating Guide) - EveryThingDownloader
 
-This guide provides exhaustive operational, development, packaging, and troubleshooting instructions for the EveryThingDownloader system on Windows and macOS environments.
+This guide provides exhaustive operational, development, packaging, and troubleshooting instructions for the EveryThingDownloader system on **Windows, macOS, and Linux** environments.
 
 ---
 
@@ -25,7 +25,7 @@ This guide provides exhaustive operational, development, packaging, and troubles
    ```bash
    pip install -r requirements.txt
    ```
-   *Note: This installs Flask, flask-cors, yt-dlp, static-ffmpeg, requests, and other necessary libraries.*
+   *Note: This installs Flask, flask-cors, yt-dlp, static-ffmpeg, curl-cffi, gallery-dl, quickjs, requests, pyinstaller, pyarmor, and other necessary libraries.*
 
 ### 1.2 Electron Development Environment
 1. Install Node.js (v20+ recommended) on your machine.
@@ -76,9 +76,33 @@ To run the desktop application window mapping to your active Python code:
    ```
 
 ### 2.3 Packaged Desktop Mode (Production)
-Once you compile the application using the GUI Builder, you can launch the standalone app:
-- **Windows**: Double-click the installer `EveryThingDownloader Setup 1.0.0.exe` to install it, or run `EveryThingDownloader-Portable-1.0.0.exe`. The app will open a splash screen saying *"Starting server..."* while starting the hidden backend server (`server.exe`) on port 18650, then display the main UI.
-- **macOS**: Install/run the compiled `EveryThingDownloader.dmg` or unpack the `.zip` archive. The app will spawn the hidden backend server (`server`) dynamically and display the UI.
+Once you compile the application using the Build Tool, you can launch the standalone app:
+- **Windows**: 
+  - Double-click the installer `EveryThingDownloader-Setup-{version}.exe` to install it, or run `EveryThingDownloader-Portable-{version}.exe` directly.
+  - The app will open a splash screen saying *"Starting server..."* while starting the hidden backend server (`server.exe`) on a dynamically discovered port starting from 18650, then display the main UI.
+- **macOS**: 
+  - Install/run the compiled `EveryThingDownloader-{version}.dmg` or unpack the `.zip` archive.
+  - The app will spawn the hidden backend server (`server`) dynamically and display the UI.
+  - Note: On first launch, macOS Gatekeeper may block the unsigned app. Right-click → "Open" to bypass, or run `xattr -cr /Applications/EveryThingDownloader.app`.
+- **Linux**: 
+  - Run the `EveryThingDownloader-{version}.AppImage` directly (make it executable first: `chmod +x *.AppImage`), or extract the `.tar.gz` archive.
+  - The app will spawn the hidden backend server (`server`) dynamically and display the UI.
+
+### 2.4 Docker Deployment
+For headless web server deployment without local environment setup:
+```bash
+# Start the web server only
+docker-compose up app
+
+# Start the Build Tool GUI only
+docker-compose up builder
+
+# Start both services
+docker-compose up
+```
+- **Web Server**: Accessible at `http://localhost:18650`
+- **Build Tool GUI**: Accessible at `http://localhost:18651`
+- Downloads are persisted via volume mount at `./downloads:/app/downloads`.
 
 ---
 
@@ -137,47 +161,65 @@ EveryThingDownloader features a highly optimized caption translation engine that
 
 ---
 
-## 4. Packing the App (GUI Builder Operations)
+## 4. Packing the App (Build Tool Operations)
 
+### 4.1 GUI Builder
 To access the GUI compiler, launch the dedicated GUI server from your terminal:
 ```bash
 python build_tool/builder_cli.py --gui
 ```
 This launches a separate Flask server on an available port starting from `18651` (to avoid port conflicts with the main backend) and automatically opens your browser.
 
-### 4.1 Metadata Properties
-- **Application Name**: Name of the final executable file or application bundle (e.g., `EveryThingDownloader` or `EveryThingDownloader.exe`).
-- **Version**: Version string compiled into the file resources (e.g., `1.0.0`).
+### 4.2 Interactive CLI Dashboard
+To use the terminal-based interactive menu:
+```bash
+python build_tool/builder_cli.py
+```
+This renders a color-coded dashboard with numbered menu options for configuring all build parameters.
+
+### 4.3 Metadata Properties
+- **Application Name**: Name of the final executable file or application bundle (e.g., `EveryThingDownloader`).
+- **Version**: Version string compiled into the file resources (e.g., `1.0.0`). This is also written to `electron/package.json` during the build.
 - **Company Name / Copyright / Description**: On Windows, compiled directly into the PE header (which determines how the process is named and grouped inside the **Windows Task Manager**). On macOS, compiled into the application bundle's Info.plist properties.
 
-### 4.2 Code Protection Options
+### 4.4 Code Protection Options
 - **AST Scrambling**: Scrambles local variable/function identifiers in python source files.
 - **String Encryption**: Encrypts string literals in python source code.
-- **PyArmor Protection**: Packages files with binary shields to prevent reverse engineering.
+- **Dead Code Injection**: Injects dummy code blocks to confuse analysis (configurable count per file).
+- **Anti-Debug**: Terminates execution if a debugger is detected.
+- **PyArmor Protection**: Packages files with binary shields to prevent reverse engineering. Supports 3 levels (0=off, 1=standard, 2=advanced) and optional string mixing.
 
-### 4.3 Execution Licensing Restrictions
-- **IP Lock**: Restricts execution. Add your authorized public IP address list (retrieved by clicking **Add current IP**).
+### 4.5 Execution Licensing Restrictions
+- **IP Lock**: Restricts execution. Add your authorized public IP address list (retrieved by clicking **Add current IP** in the GUI).
 - **Date Expiry**: Select an expiration date. The packaged application will verify the date and exit if it has expired (ensure the date is set to `2027-12-31` or later as the current system year is 2026).
 - **Machine ID Lock**: Click **Get Current Machine ID** to fetch your hardware fingerprint. Whitelist this ID to restrict execution to that specific computer.
-  - On Windows, this is fetched using the CSPRODUCT UUID.
-  - On macOS, this is a custom SHA256 fingerprint generated from the MAC address, hostname, and CPU processor strings.
+  - On Windows: fetched using the CSPRODUCT UUID (`wmic csproduct get uuid`).
+  - On macOS: a custom SHA256 fingerprint generated from the MAC address, hostname, and CPU processor strings.
+  - On Linux: reads `/etc/machine-id` or falls back to DMI product UUID.
 
-### 4.4 Interactive CLI Builder Menu
-Instead of utilizing the browser-based Web GUI, developers can run the build tool directly within their preferred terminal.
-1. Open your terminal (PowerShell/CMD on Windows, Terminal on macOS).
-2. Launch the script:
-   ```bash
-   python build_tool/builder_cli.py
-   ```
-3. A color-coded terminal dashboard will render displaying current settings:
-   - **Target Output**: Toggle compiled targets between Web, Desktop, or Both.
-   - **Target Platform**: Toggle target platform between `windows`, `macos`, or `auto` (auto-detects the host). *Note: PyInstaller does not support cross-compilation; packaging must be performed on the native host platform.*
-   - **Code Protection**: Configure PyArmor levels, AST identifier scrambling, string encryption, dead code injection (custom block counts), and anti-debug guards.
-   - **Licensing & Expiry**: Configure IP white-listing, set system expiry date constraints (e.g., `2027-12-31`), and check/add hardware Machine ID locks.
-   - **Package Metadata**: Customize headers (App Name, Version, Company Name, Copyright, File Description, custom Icon path, and UPX compression).
-   - **Config Profile Management**: Save/load settings directly from configuration JSON files.
-4. Press `B` to trigger the build pipeline using the selected parameters.
+### 4.6 Build Output Artifacts
 
+| Platform | Target | Output File |
+| :--- | :--- | :--- |
+| **Windows** | Web Binary | `dist/EveryThingDownloader-Web-{version}.exe` |
+| **Windows** | Desktop Setup | `dist_electron/EveryThingDownloader-Setup-{version}.exe` |
+| **Windows** | Desktop Portable | `dist_electron/EveryThingDownloader-Portable-{version}.exe` |
+| **macOS** | Web Binary | `dist/EveryThingDownloader-Web-{version}` |
+| **macOS** | Desktop DMG | `dist_electron/EveryThingDownloader-{version}.dmg` |
+| **macOS** | Desktop ZIP | `dist_electron/EveryThingDownloader-{version}.zip` |
+| **Linux** | Web Binary | `dist/EveryThingDownloader-Web-{version}` |
+| **Linux** | Desktop AppImage | `dist_electron/EveryThingDownloader-{version}.AppImage` |
+| **Linux** | Desktop Archive | `dist_electron/EveryThingDownloader-{version}.tar.gz` |
+
+### 4.7 Publishing & Auto-Update
+After building, you can publish releases via:
+- **CLI**: `python build_tool/builder_cli.py --publish --publish-tag v1.0.0`
+- **CI/CD**: Push a git tag (`git tag v1.0.0 && git push origin v1.0.0`) to trigger the automated GitHub Actions pipeline.
+
+The Electron desktop app includes built-in **Auto-Update** functionality:
+1. Periodically checks `update.json` from the public repository.
+2. Displays a dialog with version info and changelog.
+3. Offers automatic download with progress bar, followed by installer launch.
 
 ---
 
@@ -186,11 +228,13 @@ Instead of utilizing the browser-based Web GUI, developers can run the build too
 | Error / Log Pattern | Root Cause | Resolution Step |
 | :--- | :--- | :--- |
 | `TLS connect error / OPENSSL_internal` | Conflict between `curl-cffi` OpenSSL DLLs on Windows and other system libraries. | The backend automatically forces `yt-dlp` to bypass `curl-cffi` and fall back to the python native `urllib` legacy handler on Windows platforms. |
-| `PyArmor not found` | The `pyarmor` library is missing from the active virtual environment. | **Windows**: Run `.\venv\Scripts\pip install pyinstaller pyarmor`. <br>**macOS**: Run `./venv/bin/pip install pyinstaller pyarmor`. |
+| `PyArmor not found` | The `pyarmor` library is missing from the active virtual environment. | **Windows**: Run `.\venv\Scripts\pip install pyinstaller pyarmor`. <br>**macOS/Linux**: Run `./venv/bin/pip install pyinstaller pyarmor`. |
 | `â€¦` instead of `…` in build logs | The subprocess logs are decoded in system CP1252 instead of UTF-8. | Resolved. The log streamer now explicitly decodes subprocess stdout using `encoding='utf-8'` and strips ANSI color escape codes before sending lines to the client. |
 | Installer build failed: `cannot find specified resource "resources/license.txt"` | The Electron packaging script is missing a license document. | Resolved. We have created a standard license file at `electron/resources/license.txt` to enable NSIS builds. |
-| `server.exe` or `server` file not found during Electron packaging | Incorrect relative path inside `electron/package.json` or checking for Windows binary on macOS. | Resolved. Changed the resource mapping to `resources/server.exe` (Windows) and `resources/server` (macOS). The packaging scripts are platform-aware. |
+| `server.exe` or `server` file not found during Electron packaging | Incorrect relative path inside `electron/package.json` or checking for Windows binary on macOS/Linux. | Resolved. Changed the resource mapping to `resources/server.exe` (Windows) and `resources/server` (macOS/Linux). The packaging scripts are platform-aware. |
 | Black CMD windows flashing on desktop during analysis or download | Subprocess commands (like curl or gallery-dl) executed on Windows spawn a console window by default. | Resolved. Injected a global monkey-patch in `app.py` that intercepts all `subprocess.Popen` calls and sets `creationflags=subprocess.CREATE_NO_WINDOW` automatically on Windows. |
-| Permission denied when launching server binary inside packaged App | The embedded `server` binary copied into the Electron resources folder doesn't have executable permissions on macOS. | Resolved. Electron's `main.js` dynamically executes `chmod +x` on the embedded server binary before spawning it on macOS. |
+| Permission denied when launching server binary inside packaged App | The embedded `server` binary copied into the Electron resources folder doesn't have executable permissions on macOS/Linux. | Resolved. Electron's `main.js` dynamically executes `chmod +x` on the embedded server binary before spawning it on macOS and Linux. |
 | macOS Gatekeeper: "EveryThingDownloader" cannot be opened because the developer cannot be verified | Packaged macOS app is unsigned. | Right-click (or Control-click) the application, select "Open", and click "Open" in the dialog, or run `xattr -cr /Applications/EveryThingDownloader.app` in the Terminal. |
 | `activate: command not found` on macOS/Linux | Attempting to run Windows activation scripts (`.ps1` or `.bat`) on a Unix shell. | Use `source venv/bin/activate` to activate the python virtual environment. |
+| Linux: `SUID sandbox helper binary was found, but is not configured correctly` | Electron AppImage requires `--no-sandbox` flag or proper sysctl configuration on some Linux distributions. | Run the AppImage with `--no-sandbox` flag, or configure the kernel parameter: `sudo sysctl kernel.unprivileged_userns_clone=1`. |
+| Docker: `yt-dlp` signature extraction fails | Missing JavaScript engine for yt-dlp's signature decryption. | Resolved. Dockerfile includes Deno installation (`COPY --from=denoland/deno:bin /deno /usr/local/bin/deno`) as the JS runtime for yt-dlp. |
