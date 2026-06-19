@@ -78,6 +78,7 @@
       "icon": "resources/icon.png"
     },
     "linux": {
+      "maintainer": "EveryThingDownloader <contact@everythingdownloader.com>",
       "target": [
         "AppImage",
         "tar.gz",
