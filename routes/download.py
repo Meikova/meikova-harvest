@@ -444,17 +444,27 @@ def proxy_stream():
                 logger.warning(f"Failed to parse cookies for proxy stream: {cookie_err}")
                 
     try:
-        resp = requests.get(url, headers=headers, cookies=cookies_dict, stream=True, verify=False, timeout=12)
+        from curl_cffi import requests as curl_requests
+        resp = curl_requests.get(url, headers=headers, cookies=cookies_dict, stream=True, verify=False, impersonate="chrome", timeout=12)
         
         content_type = resp.headers.get("Content-Type", "")
         from urllib.parse import urlparse
-        url_path = urlparse(url).path
-        is_hls = ("mpegurl" in content_type.lower() or 
-                  "application/vnd.apple.mpegurl" in content_type.lower() or 
-                  url_path.endswith(".m3u8"))
+        parsed_url = urlparse(url)
+        url_path = parsed_url.path.lower()
+        url_query = parsed_url.query.lower()
+        
+        is_hls_by_url = (".m3u8" in url_path or ".m3u8" in url_query or 
+                         "mpegurl" in content_type.lower() or 
+                         "application/vnd.apple.mpegurl" in content_type.lower())
+                         
+        first_chunk = next(resp.iter_content(chunk_size=1024), b"")
+        is_hls = is_hls_by_url or first_chunk.startswith(b"#EXTM3U")
                   
         if is_hls:
-            manifest_text = resp.text
+            chunks = [first_chunk]
+            for chunk in resp.iter_content(chunk_size=65536):
+                chunks.append(chunk)
+            manifest_text = b"".join(chunks).decode("utf-8", errors="ignore")
             from urllib.parse import urljoin
             import re
             lines = []
@@ -488,6 +498,8 @@ def proxy_stream():
         # For HLS segments or binary video streams
         def generate():
             try:
+                if first_chunk:
+                    yield first_chunk
                 for chunk in resp.iter_content(chunk_size=65536):
                     yield chunk
             except Exception as stream_err:

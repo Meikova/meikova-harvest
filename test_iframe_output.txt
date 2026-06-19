@@ -1,0 +1,17 @@
+No matches for player
+Matches for play:
+  'display: flex;'
+  'me id="embedIframe" style="display: none; position: fixed; top:'
+No matches for source
+No matches for m3u8
+No matches for mp4
+No matches for api
+No matches for hls
+No matches for vidoza
+No matches for vidhide
+Matches for stream:
+  '<script src="/Content/JS/streamLib.js?e=1"></script>'
+  'dIframe").attr(\'src\', cdn + "/streaming?id=" + videoId + "&subId="'
+Matches for url:
+  'SentData("/geturl", formData, function (data) {'
+No matches for file

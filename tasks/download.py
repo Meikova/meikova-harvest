@@ -554,8 +554,16 @@ def bg_download_task(download_id, url, format_id, ext, quality="192", title="med
                             })
 
     is_youtube = any(domain in url.lower() for domain in ["youtube.com", "youtu.be"])
+    referer = get_referer_by_url(url)
+    headers = {
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
+    }
+    if referer:
+        headers["Referer"] = referer
+        
     ydl_opts = {
         "outtmpl": os.path.join(temp_dir, "media.%(ext)s"),
+        "http_headers": headers,
         "nocheckcertificate": True,
         "verbose": is_youtube,
         "quiet": False,
@@ -572,6 +580,9 @@ def bg_download_task(download_id, url, format_id, ext, quality="192", title="med
         "extractor_args": {
             "youtube": {
                 "player_client": ["ios", "android", "web_creator", "mweb", "default"],
+            },
+            "generic": {
+                "impersonate": [""]
             }
         },
     }

@@ -1,9 +1,9 @@
 {
   "name": "everythingdownloader",
-  "version": "1.0.1",
+  "version": "1.0.3",
   "description": "EveryThingDownloader",
   "main": "main.js",
-  "author": "EveryThingDownloader",
+  "author": "m3iK18dp",
   "license": "MIT",
   "scripts": {
     "start": "electron .",

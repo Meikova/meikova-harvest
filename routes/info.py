@@ -12,7 +12,7 @@ try:
 except ImportError:
     ImpersonateTarget = None
 
-from config import TEMP_DOWNLOAD_DIR
+from config import BASE_DIR, TEMP_DOWNLOAD_DIR
 from utils.helpers import format_duration, format_size, get_referer_by_url, get_url_content_length
 from utils.ytdl import create_ydl_instance, should_use_impersonate
 
@@ -103,6 +103,20 @@ def get_info():
     if "tiktok.com" in url.lower() and "/photo/" in url.lower():
         url = re.sub(r'/photo/', '/video/', url, flags=re.IGNORECASE)
     client_id = data.get("client_id")
+    
+    original_pexels_url = None
+    if "pexels.com" in url.lower():
+        match_px_v = re.search(r"/download/video/(\d+)", url)
+        if match_px_v:
+            original_pexels_url = url
+            url = f"https://www.pexels.com/video/{match_px_v.group(1)}/"
+            logger.info(f"Normalizing Pexels download URL to video page: {url}")
+        else:
+            match_px_p = re.search(r"/download/photo/(\d+)", url)
+            if match_px_p:
+                original_pexels_url = url
+                url = f"https://www.pexels.com/photo/{match_px_p.group(1)}/"
+                logger.info(f"Normalizing Pexels download URL to photo page: {url}")
 
     if not url:
         return jsonify({"status": "error", "message": "Link URL is required."}), 400
@@ -352,6 +366,9 @@ def get_info():
         "extractor_args": {
             "youtube": {
                 "player_client": ["ios", "android", "web_creator", "mweb", "default"],
+            },
+            "generic": {
+                "impersonate": [""]
             }
         },
     }
@@ -379,10 +396,20 @@ def get_info():
                     info = ydl.extract_info(url, download=False)
         except Exception as e:
             first_err = e
-            if is_facebook:
-                logger.warning(f"Facebook metadata extraction without cookies failed: {e}. Will retry with cookies...")
-            else:
-                logger.warning(f"Metadata extraction with cookies failed: {e}. Retrying without cookies...")
+            if original_pexels_url:
+                logger.warning(f"Failed to extract from normalized Pexels page: {e}. Reverting to original download URL: {original_pexels_url}")
+                url = original_pexels_url
+                try:
+                    with create_ydl_instance(ydl_opts, url, client_id) as ydl:
+                        info = ydl.extract_info(url, download=False)
+                except Exception as pex_e:
+                    logger.warning(f"Pexels download link extraction with cookies failed: {pex_e}")
+            
+            if not info:
+                if is_facebook:
+                    logger.warning(f"Facebook metadata extraction without cookies failed: {e}. Will retry with cookies...")
+                else:
+                    logger.warning(f"Metadata extraction with cookies failed: {e}. Retrying without cookies...")
 
         # Check if Facebook info is low quality (partial extraction)
         if info and is_facebook:
@@ -684,6 +711,18 @@ def get_info():
             }), 400
 
         if True:
+            if info and not is_instagram and info.get("entries"):
+                logger.info("Non-Instagram playlist/multi-entry response detected. Promoting first entry as primary media info.")
+                entries = info.get("entries", [])
+                if entries and entries[0]:
+                    main_title = info.get("title")
+                    main_thumb = info.get("thumbnail")
+                    info = entries[0]
+                    if not info.get("title") and main_title:
+                        info["title"] = main_title
+                    if not info.get("thumbnail") and main_thumb:
+                        info["thumbnail"] = main_thumb
+
             if is_instagram and info:
                 formats_list = info.get("formats", [])
                 entries = info.get("entries", [])
@@ -732,9 +771,61 @@ def get_info():
             extractor = info.get("extractor_key", "").lower() if info.get("extractor_key") else ""
 
             title = info.get("title", "Unknown Title")
+
+            # Clean up SEO marketing text and site brand suffixes from title
+            if title and title != "Unknown Title":
+                # 1. Remove brand suffixes
+                brand_suffixes = [
+                    r"\s*-\s*Pikbest", r"\s*\|\s*Pikbest",
+                    r"\s*-\s*Pixabay", r"\s*\|\s*Pixabay",
+                    r"\s*-\s*YouTube", r"\s*\|\s*YouTube",
+                ]
+                for pattern in brand_suffixes:
+                    title = re.compile(pattern, re.IGNORECASE).sub("", title)
+                
+                # 2. Clean up Pikbest specific prefixes/suffixes
+                if "pikbest" in url.lower() or "pikbest" in title.lower():
+                    pikbest_prefixes = [
+                        r"^Tải\s+miễn\s+phí\s+mẫu\s*",
+                        r"^Tải\s+mẫu\s*",
+                        r"^Mẫu\s*\|\s*",
+                        r"^Mẫu\s*",
+                        r"^Tải\s+miễn\s+phí\s*",
+                    ]
+                    for pattern in pikbest_prefixes:
+                        title = re.compile(pattern, re.IGNORECASE).sub("", title)
+                    
+                    title = re.compile(r"\s*Video\s+(PRPROJ|AEP|PSD|AI|CDR|MAX|C4D|PPT|DOC|XLS)\s*$", re.IGNORECASE).sub("", title)
+                
+                # 3. Clean up Pexels generic names
+                if "pexels.com" in url.lower() or "pexels" in original_url.lower() or "pexels" in title.lower():
+                    url_to_check = original_pexels_url or original_url or url
+                    url_id_match = re.search(r"/(?:video|photo|download/video|download/photo)/(\d+)", url_to_check)
+                    if url_id_match:
+                        url_id = url_id_match.group(1)
+                        if "photo" in url_to_check.lower():
+                            title = f"Pexels Photo {url_id}"
+                        else:
+                            title = f"Pexels Video {url_id}"
+                    else:
+                        if re.match(r"^pexels-photo-\d+$", title, re.IGNORECASE):
+                            title = "Pexels Photo " + title.split("-")[-1]
+                        elif re.match(r"^\d+_\d+_\d+_\d+fps$", title, re.IGNORECASE):
+                            title = "Pexels Video " + title.split("_")[0]
+                        elif re.match(r"^\d+-[a-zA-Z0-9_]+$", title, re.IGNORECASE):
+                            title = "Pexels Video " + title.split("-")[0]
+
             duration_sec = info.get("duration", 0)
             duration = format_duration(duration_sec)
-            uploader = info.get("uploader", "Unknown Channel")
+
+            uploader = info.get("uploader")
+            if not uploader or uploader == "Unknown Channel":
+                try:
+                    import urllib.parse
+                    parsed = urllib.parse.urlparse(url)
+                    uploader = parsed.netloc.lower().lstrip("www.")
+                except Exception:
+                    uploader = "Unknown Channel"
             thumbnail = info.get("thumbnail") or (
                 info.get("thumbnails")[-1].get("url") if info.get("thumbnails") else None
             )
@@ -888,6 +979,11 @@ def get_info():
 
             images = []
             formats_list = info.get("formats", [])
+            ext_lower = (info.get("ext") or "").lower()
+            is_generic = (extractor == "generic" or info.get("extractor_key") == "Generic" or not extractor)
+            is_direct_image = is_generic and ext_lower in ["jpg", "jpeg", "png", "webp", "gif", "bmp", "tiff", "svg"]
+            is_direct_audio = is_generic and ext_lower in ["mp3", "wav", "m4a", "flac", "aac", "ogg", "opus"]
+            is_direct_video = is_generic and ext_lower in ["mp4", "mkv", "webm", "avi", "mov", "flv"]
             is_shorts = "/shorts/" in url or (info.get("duration", 0) and info.get("duration", 0) <= 60)
 
             video_options = []
@@ -994,8 +1090,10 @@ def get_info():
                     best_url = info.get("url")
                     if not best_url and formats_list:
                         best_url = formats_list[-1].get("url") if formats_list else None
+                    is_fallback_direct = best_url and best_url.startswith("http") and best_url != url
+                    fmt_id = "direct_video" if is_fallback_direct else "bestvideo+bestaudio/best"
                     video_options.append({
-                        "format_id": "bestvideo+bestaudio/best",
+                        "format_id": fmt_id,
                         "resolution": "Best",
                         "ext": "mp4",
                         "type": "video",
@@ -1004,171 +1102,278 @@ def get_info():
                         "url": best_url
                     })
             else:
-                # --- Find best audio stream for size estimation ---
-                best_audio_format = None
-                for f in formats_list:
-                    if f.get("vcodec") == "none" and f.get("acodec") != "none":
-                        if not best_audio_format or (f.get("tbr") or 0) > (best_audio_format.get("tbr") or 0):
-                            best_audio_format = f
-
-                best_audio_size = 0
-                if best_audio_format:
-                    best_audio_size = best_audio_format.get("filesize") or best_audio_format.get("filesize_approx") or 0
-                    if not best_audio_size and duration_sec and best_audio_format.get("tbr"):
-                        best_audio_size = int(duration_sec * best_audio_format.get("tbr") * 1000 / 8)
-                if not best_audio_size and duration_sec:
-                    best_audio_size = int(duration_sec * 128 * 1000 / 8)
-
-                # --- Build video options ---
-                added_resolutions = set()
-
-                is_tiktok = "tiktok" in extractor or "tiktok" in url.lower()
-                has_non_wm = False
-                if is_tiktok:
-                    for f in formats_list:
-                        if f.get("vcodec") != "none":
-                            f_id = str(f.get("format_id") or "").lower()
-                            f_note = str(f.get("format_note") or "").lower()
-                            is_wm = False
-                            if "watermark" in f_id or "watermark" in f_note:
-                                if "unwatermark" not in f_note:
-                                    is_wm = True
-                            if "wm_play" in f_id or f_id.startswith("wm-") or f_id.startswith("wm_"):
-                                is_wm = True
-                            if not is_wm:
-                                has_non_wm = True
-                                break
-
-                target_formats = reversed(formats_list) if is_tiktok else formats_list
-
-                for f in target_formats:
-                    height = f.get("height")
-                    vcodec = f.get("vcodec")
-                    if height and vcodec and vcodec != "none":
-                        if is_tiktok and has_non_wm:
-                            f_id = str(f.get("format_id") or "").lower()
-                            f_note = str(f.get("format_note") or "").lower()
-                            is_wm = False
-                            if "watermark" in f_id or "watermark" in f_note:
-                                if "unwatermark" not in f_note:
-                                    is_wm = True
-                            if "wm_play" in f_id or f_id.startswith("wm-") or f_id.startswith("wm_"):
-                                is_wm = True
-                            if is_wm:
-                                continue
-
-                        res_label = f"{height}p"
-                        if res_label not in added_resolutions:
-                            v_size = f.get("filesize") or f.get("filesize_approx") or 0
-                            if not v_size and duration_sec and f.get("tbr"):
-                                v_size = int(duration_sec * f.get("tbr") * 1000 / 8)
-                                
-                            acodec = f.get("acodec")
-                            has_audio = acodec and acodec != "none" and acodec != "unknown"
+                if is_direct_image:
+                    thumbnail = url
+                    category = "Image File"
+                    img_size = info.get("filesize") or info.get("filesize_approx") or 0
+                    video_options.append({
+                        "format_id": "direct_image",
+                        "resolution": "Original",
+                        "ext": ext_lower,
+                        "type": "image",
+                        "size": format_size(img_size) if img_size else "Unknown Size",
+                        "label": f"Image File ({ext_lower.upper()})",
+                        "url": url
+                    })
+                    images.append({
+                        "label": "Image File",
+                        "url": url,
+                        "ext": ext_lower
+                    })
+                else:
+                    if is_direct_video:
+                        category = "Video File"
+                        # Generate thumbnail dynamically using ffmpeg if not already cached
+                        try:
+                            import hashlib
+                            import static_ffmpeg
                             
-                            if is_tiktok or has_audio:
-                                total_size = v_size
-                                fmt_id = f.get("format_id")
+                            video_stream_url = info.get("url")
+                            if not video_stream_url and formats_list:
+                                video_stream_url = formats_list[-1].get("url")
+                            if not video_stream_url:
+                                video_stream_url = url
+                            
+                            static_thumb_dir = os.path.join(BASE_DIR, "static", "thumbnails")
+                            os.makedirs(static_thumb_dir, exist_ok=True)
+                            
+                            url_hash = hashlib.md5(video_stream_url.encode('utf-8')).hexdigest()
+                            thumb_filename = f"thumb_{url_hash}.jpg"
+                            thumb_filepath = os.path.join(static_thumb_dir, thumb_filename)
+                            thumb_web_url = f"/static/thumbnails/{thumb_filename}"
+                            
+                            if os.path.exists(thumb_filepath):
+                                thumbnail = thumb_web_url
                             else:
-                                total_size = (v_size + best_audio_size) if v_size else 0
-                                fmt_id = f"bestvideo[height={height}]+bestaudio[ext=m4a]/bestvideo[height={height}]+bestaudio/best[height={height}]"
+                                logger.info(f"Generating thumbnail for direct video {video_stream_url} via ffmpeg...")
+                                static_ffmpeg.add_paths()
+                                
+                                headers_opt = []
+                                http_headers = info.get("http_headers") or {}
+                                
+                                # Extract cookies from ydl or ydl_nocookies if present in local scope
+                                cookie_list = []
+                                ydl_obj = None
+                                if "ydl" in locals() and locals()["ydl"]:
+                                    ydl_obj = locals()["ydl"]
+                                elif "ydl_nocookies" in locals() and locals()["ydl_nocookies"]:
+                                    ydl_obj = locals()["ydl_nocookies"]
+                                    
+                                if ydl_obj and hasattr(ydl_obj, "cookiejar"):
+                                    for cookie in ydl_obj.cookiejar:
+                                        cookie_list.append(f"{cookie.name}={cookie.value}")
+                                        
+                                headers_dict = http_headers.copy()
+                                if cookie_list:
+                                    headers_dict["Cookie"] = "; ".join(cookie_list)
+                                    
+                                if headers_dict:
+                                    headers_str = "".join(f"{k}: {v}\r\n" for k, v in headers_dict.items())
+                                    headers_opt = ["-headers", headers_str]
+                                    
+                                res = subprocess.run([
+                                    "ffmpeg",
+                                    "-y",
+                                    *headers_opt,
+                                    "-i", video_stream_url,
+                                    "-vf", "scale=640:-2",
+                                    "-map", "0:v:0",
+                                    "-vframes", "1",
+                                    "-q:v", "4",
+                                    thumb_filepath
+                                ], capture_output=True, timeout=15)
+                                
+                                if res.returncode != 0 or not os.path.exists(thumb_filepath):
+                                    logger.warning(f"ffmpeg scaled thumbnail generation failed (code {res.returncode}). Retrying without scale filter...")
+                                    subprocess.run([
+                                        "ffmpeg",
+                                        "-y",
+                                        *headers_opt,
+                                        "-i", video_stream_url,
+                                        "-map", "0:v:0",
+                                        "-vframes", "1",
+                                        "-q:v", "4",
+                                        thumb_filepath
+                                    ], capture_output=True, timeout=10)
+                                if os.path.exists(thumb_filepath):
+                                    thumbnail = thumb_web_url
+                                    logger.info(f"Successfully generated thumbnail at {thumb_filepath}")
+                        except Exception as e:
+                            logger.warning(f"Failed to generate thumbnail for direct video: {e}")
 
-                            opt_dict = {
+                    # --- Find best audio stream for size estimation ---
+                    best_audio_format = None
+                    for f in formats_list:
+                        if f.get("vcodec") == "none" and f.get("acodec") != "none":
+                            if not best_audio_format or (f.get("tbr") or 0) > (best_audio_format.get("tbr") or 0):
+                                best_audio_format = f
+
+                    best_audio_size = 0
+                    if best_audio_format:
+                        best_audio_size = best_audio_format.get("filesize") or best_audio_format.get("filesize_approx") or 0
+                        if not best_audio_size and duration_sec and best_audio_format.get("tbr"):
+                            best_audio_size = int(duration_sec * best_audio_format.get("tbr") * 1000 / 8)
+                    if not best_audio_size and duration_sec:
+                        best_audio_size = int(duration_sec * 128 * 1000 / 8)
+
+                    # --- Build video options ---
+                    if not is_direct_audio:
+                        added_resolutions = set()
+
+                        is_tiktok = "tiktok" in extractor or "tiktok" in url.lower()
+                        has_non_wm = False
+                        if is_tiktok:
+                            for f in formats_list:
+                                if f.get("vcodec") != "none":
+                                    f_id = str(f.get("format_id") or "").lower()
+                                    f_note = str(f.get("format_note") or "").lower()
+                                    is_wm = False
+                                    if "watermark" in f_id or "watermark" in f_note:
+                                        if "unwatermark" not in f_note:
+                                            is_wm = True
+                                    if "wm_play" in f_id or f_id.startswith("wm-") or f_id.startswith("wm_"):
+                                        is_wm = True
+                                    if not is_wm:
+                                        has_non_wm = True
+                                        break
+
+                        target_formats = reversed(formats_list) if is_tiktok else formats_list
+
+                        for f in target_formats:
+                            height = f.get("height")
+                            vcodec = f.get("vcodec")
+                            if height and vcodec and vcodec != "none":
+                                if is_tiktok and has_non_wm:
+                                    f_id = str(f.get("format_id") or "").lower()
+                                    f_note = str(f.get("format_note") or "").lower()
+                                    is_wm = False
+                                    if "watermark" in f_id or "watermark" in f_note:
+                                        if "unwatermark" not in f_note:
+                                            is_wm = True
+                                    if "wm_play" in f_id or f_id.startswith("wm-") or f_id.startswith("wm_"):
+                                        is_wm = True
+                                    if is_wm:
+                                        continue
+
+                                res_label = f"{height}p"
+                                if res_label not in added_resolutions:
+                                    v_size = f.get("filesize") or f.get("filesize_approx") or 0
+                                    if not v_size and duration_sec and f.get("tbr"):
+                                        v_size = int(duration_sec * f.get("tbr") * 1000 / 8)
+                                        
+                                    acodec = f.get("acodec")
+                                    has_audio = acodec and acodec != "none" and acodec != "unknown"
+                                    
+                                    if is_tiktok or has_audio:
+                                        total_size = v_size
+                                        fmt_id = f.get("format_id")
+                                    else:
+                                        total_size = (v_size + best_audio_size) if v_size else 0
+                                        fmt_id = f"bestvideo[height={height}]+bestaudio[ext=m4a]/bestvideo[height={height}]+bestaudio/best[height={height}]"
+
+                                    opt_dict = {
+                                        "format_id": fmt_id,
+                                        "resolution": res_label,
+                                        "ext": "mp4",
+                                        "type": "video",
+                                        "size": format_size(total_size) if total_size else "Unknown Size",
+                                        "label": f"Video {res_label}",
+                                        "url": f.get("url")
+                                    }
+                                    video_options.append(opt_dict)
+                                    added_resolutions.add(res_label)
+
+                        video_options.sort(key=lambda x: int(x["resolution"].replace("p", "")), reverse=True)
+
+                        # Resolve sizes of single video formats in parallel if they are Unknown Size or missing
+                        is_twitter = "twitter.com" in url.lower() or "x.com" in url.lower()
+                        is_tiktok = "tiktok.com" in url.lower()
+                        is_instagram = "instagram.com" in url.lower()
+                        is_reddit = "reddit.com" in url.lower() or "redd.it" in url.lower()
+                        
+                        if video_options and (is_twitter or is_tiktok or is_instagram or is_reddit):
+                            from concurrent.futures import ThreadPoolExecutor
+                            client_cookies = os.path.join(TEMP_DOWNLOAD_DIR, "cookies", f"cookies_{client_id}.txt") if client_id else None
+                            
+                            def resolve_single_format_size(opt):
+                                if opt.get("size") == "Unknown Size" or not opt.get("size"):
+                                    url_to_check = opt.get("url") or info.get("url")
+                                    if opt.get("format_id"):
+                                        for f in info.get("formats", []):
+                                            if f.get("format_id") == opt.get("format_id") and f.get("url"):
+                                                url_to_check = f.get("url")
+                                                break
+                                    if url_to_check and url_to_check.startswith("http"):
+                                        s_bytes = get_url_content_length(url_to_check, cookies_file=client_cookies)
+                                        if s_bytes:
+                                            opt["size"] = format_size(s_bytes)
+                                            
+                            with ThreadPoolExecutor(max_workers=min(10, len(video_options))) as executor:
+                                list(executor.map(resolve_single_format_size, video_options))
+
+                        if not video_options:
+                            best_url = info.get("url")
+                            if not best_url and formats_list:
+                                best_url = formats_list[-1].get("url") if formats_list else None
+                            v_size = None
+                            if is_direct_video and best_url:
+                                s_bytes = get_url_content_length(best_url)
+                                if s_bytes:
+                                    v_size = format_size(s_bytes)
+                            is_fallback_direct = best_url and best_url.startswith("http") and best_url != url
+                            fmt_id = "direct_video" if is_fallback_direct else "bestvideo+bestaudio/best"
+                            video_options.append({
                                 "format_id": fmt_id,
-                                "resolution": res_label,
+                                "resolution": "Best",
                                 "ext": "mp4",
                                 "type": "video",
-                                "size": format_size(total_size) if total_size else "Unknown Size",
-                                "label": f"Video {res_label}",
-                                "url": f.get("url")
-                            }
-                            video_options.append(opt_dict)
-                            added_resolutions.add(res_label)
+                                "size": v_size,
+                                "label": "Video (Best Quality)",
+                                "url": best_url
+                            })
 
-                video_options.sort(key=lambda x: int(x["resolution"].replace("p", "")), reverse=True)
+                    # --- Build audio options ---
+                    est_m4a_size = format_size(best_audio_size) if best_audio_size else None
+                    audio_url = None
+                    if best_audio_format:
+                        audio_url = best_audio_format.get("url")
+                    if not audio_url:
+                        for f in formats_list:
+                            if f.get("acodec") != "none" and f.get("url"):
+                                audio_url = f.get("url")
+                                break
+                    if not audio_url:
+                        audio_url = info.get("url")
+                    if not audio_url and formats_list:
+                        audio_url = formats_list[-1].get("url")
 
-                # Resolve sizes of single video formats in parallel if they are Unknown Size or missing
-                is_twitter = "twitter.com" in url.lower() or "x.com" in url.lower()
-                is_tiktok = "tiktok.com" in url.lower()
-                is_instagram = "instagram.com" in url.lower()
-                is_reddit = "reddit.com" in url.lower() or "redd.it" in url.lower()
-                
-                if video_options and (is_twitter or is_tiktok or is_instagram or is_reddit):
-                    from concurrent.futures import ThreadPoolExecutor
-                    client_cookies = os.path.join(TEMP_DOWNLOAD_DIR, "cookies", f"cookies_{client_id}.txt") if client_id else None
-                    
-                    def resolve_single_format_size(opt):
-                        if opt.get("size") == "Unknown Size" or not opt.get("size"):
-                            url_to_check = opt.get("url") or info.get("url")
-                            if opt.get("format_id"):
-                                for f in info.get("formats", []):
-                                    if f.get("format_id") == opt.get("format_id") and f.get("url"):
-                                        url_to_check = f.get("url")
-                                        break
-                            if url_to_check and url_to_check.startswith("http"):
-                                s_bytes = get_url_content_length(url_to_check, cookies_file=client_cookies)
-                                if s_bytes:
-                                    opt["size"] = format_size(s_bytes)
-                                    
-                    with ThreadPoolExecutor(max_workers=min(10, len(video_options))) as executor:
-                        list(executor.map(resolve_single_format_size, video_options))
-
-                if not video_options:
-                    best_url = info.get("url")
-                    if not best_url and formats_list:
-                        best_url = formats_list[-1].get("url") if formats_list else None
-                    video_options.append({
-                        "format_id": "bestvideo+bestaudio/best",
-                        "resolution": "Best",
-                        "ext": "mp4",
-                        "type": "video",
-                        "size": None,
-                        "label": "Video (Best Quality)",
-                        "url": best_url
-                    })
-
-                # --- Build audio options ---
-                est_m4a_size = format_size(best_audio_size) if best_audio_size else None
-                audio_url = None
-                if best_audio_format:
-                    audio_url = best_audio_format.get("url")
-                if not audio_url:
-                    for f in formats_list:
-                        if f.get("acodec") != "none" and f.get("url"):
-                            audio_url = f.get("url")
-                            break
-                if not audio_url:
-                    audio_url = info.get("url")
-                if not audio_url and formats_list:
-                    audio_url = formats_list[-1].get("url")
-
-                audio_options.append({
-                    "format_id": "bestaudio[ext=m4a]/bestaudio",
-                    "resolution": "Audio",
-                    "ext": "m4a",
-                    "type": "audio",
-                    "size": est_m4a_size,
-                    "label": "M4A AAC (Original Quality - Fast)",
-                    "url": audio_url
-                })
-
-                qualities = [
-                    ("320", "Ultra", "320kbps"),
-                    ("192", "High", "192kbps"),
-                    ("128", "Standard", "128kbps"),
-                ]
-                for q_val, q_name, q_label in qualities:
-                    est_size = format_size(int(duration_sec * int(q_val) * 1000 / 8)) if duration_sec else None
                     audio_options.append({
-                        "format_id": "bestaudio/best",
+                        "format_id": "bestaudio[ext=m4a]/bestaudio",
                         "resolution": "Audio",
-                        "ext": "mp3",
+                        "ext": "m4a",
                         "type": "audio",
-                        "quality": q_val,
-                        "size": est_size,
-                        "label": f"MP3 {q_name} ({q_label})",
+                        "size": est_m4a_size,
+                        "label": "M4A AAC (Original Quality - Fast)",
                         "url": audio_url
                     })
+
+                    qualities = [
+                        ("320", "Ultra", "320kbps"),
+                        ("192", "High", "192kbps"),
+                        ("128", "Standard", "128kbps"),
+                    ]
+                    for q_val, q_name, q_label in qualities:
+                        est_size = format_size(int(duration_sec * int(q_val) * 1000 / 8)) if duration_sec else None
+                        audio_options.append({
+                            "format_id": "bestaudio/best",
+                            "resolution": "Audio",
+                            "ext": "mp3",
+                            "type": "audio",
+                            "quality": q_val,
+                            "size": est_size,
+                            "label": f"MP3 {q_name} ({q_label})",
+                            "url": audio_url
+                        })
 
             # --- Detect platform and source ---
             platform_class = "default"
@@ -1268,8 +1473,15 @@ def get_info():
                 platform_label = "Vimeo"
                 platform_class = "vimeo"
             else:
-                raw_platform = info.get("extractor_key", "Video")
-                platform_label = raw_platform.capitalize() if raw_platform else "Video"
+                if is_direct_image:
+                    platform_label = "Image File"
+                elif is_direct_audio:
+                    platform_label = "Audio File"
+                elif is_direct_video:
+                    platform_label = "Video File"
+                else:
+                    raw_platform = info.get("extractor_key", "Video")
+                    platform_label = raw_platform.capitalize() if raw_platform else "Video"
                 platform_class = "default"
 
             # --- Extract images / thumbnails ---

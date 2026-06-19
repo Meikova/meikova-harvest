@@ -1,0 +1,34 @@
+HTML Length: 53743
+
+--- Searching for script tags containing source or iframe ---
+Total scripts found: 12
+Script 10 (length 863):
+  document.addEventListener("DOMContentLoaded", function () {
+  const popup = document.getElementById("filmPopupOverlay");
+  const closeBtn = document.getElementById("closeFilmPopup");
+  // Náº¿u chÆ°a hiá»ƒn thá»‹ trong session nÃ y
+  if (!sessionStorage.getItem("homePopupShown")) {
+  popup.style.display = "flex";
+  // ÄÃ¡nh dáº¥u Ä‘Ã£ hiá»ƒn thá»‹
+  sessionStorage.setItem("homePopupShown", "true");
+  }
+  closeBtn.addEventListener("click", function () {
+  popup.style.display = "none";
+  });
+  popup.addEventListener("click", function (e) {
+  if (e.target === popup) {
+  popup.style.display = "none";
+  }
+  });
+  });
+  ...
+
+--- Searching for iframe or video tags ---
+Matches for <iframe>:
+  <iframe id="iframeStream" src="https://moviking.neuronix.sbs/embed?id=02a22ba461dc4fd0bf7f895b4836f3d4&amp;web=luphim.com&amp;lang=vi" allowfullscreen>
+
+--- Searching for raw API URLs or stream links in HTML ---
+Found 0 stream-related URLs:
+
+--- Searching for player option buttons or server lists ---
+  <a class="nav-link active" id="tab-episodes" data-bs-toggle="tab" href="#tabpane-episodes" role="tab" aria-controls="tabpane-episodes" aria-selected="true">Tập phim</a>

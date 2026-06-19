@@ -68,6 +68,9 @@ def get_referer_by_url(url):
         return "https://vimeo.com/"
     elif "youtube" in url_lower or "googlevideo" in url_lower:
         return "https://www.youtube.com/"
+    elif "codexa.fun" in url_lower:
+        return "https://moviking.neuronix.sbs/"
+        
         
     try:
         from urllib.parse import urlparse

@@ -7,7 +7,7 @@ from urllib.parse import urlparse, urljoin, parse_qs
 from concurrent.futures import ThreadPoolExecutor
 import socket
 
-from utils.helpers import get_url_content_length, format_size
+from utils.helpers import get_url_content_length, format_size, get_referer_by_url
 
 logger = logging.getLogger(__name__)
 
@@ -544,7 +544,7 @@ def generic_html_link_harvester(url, client_id):
                       "class='play-video' data-link=" in clean_html or
                       "player_option" in clean_html or
                       "embed_player" in clean_html or
-                      ("/xem-phim-" in url.lower() and "guphim" in domain.lower()))
+                      ("/xem-phim" in url.lower() and ("guphim" in domain.lower() or "luphim" in domain.lower())))
                       
         if not has_player:
             # Try to find the first episode link or a watch movie link
@@ -583,6 +583,126 @@ def generic_html_link_harvester(url, client_id):
             opts = []
             seen = set()
             
+            # Custom LuPhim.com Extractor
+            if "luphim" in page_domain.lower():
+                try:
+                    # Extract iframe id="iframeStream" or any src with "moviking"
+                    iframe_match = re.search(r'<iframe[^>]+id="iframeStream"[^>]+src="([^"]+)"', page_html)
+                    if not iframe_match:
+                        iframe_match = re.search(r'<iframe[^>]+src="([^"]+moviking[^"]+)"', page_html)
+                    if iframe_match:
+                        import html as html_lib
+                        raw_src = iframe_match.group(1)
+                        unescaped_src = html_lib.unescape(raw_src)
+                        iframe_url = urljoin(page_url, unescaped_src)
+                        logger.info(f"[LuPhim Extractor] Found unescaped iframe URL: {iframe_url}")
+                        
+                        iframe_headers = {
+                            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+                            "Referer": page_url
+                        }
+                        iframe_html = fetch_html(iframe_url, headers=iframe_headers, cookies=cookies_dict)
+                        if iframe_html:
+                            videoId_m = re.search(r"var videoId\s*=\s*['\"]([^'\"]*)['\"]", iframe_html)
+                            videoId = videoId_m.group(1) if videoId_m else None
+                            
+                            cdn_m = re.search(r"var cdn\s*=\s*['\"]([^'\"]*)['\"]", iframe_html)
+                            cdn = cdn_m.group(1) if cdn_m else "https://cdn3.codexa.fun"
+                            
+                            web_m = re.search(r"var web\s*=\s*['\"]([^'\"]*)['\"]", iframe_html)
+                            web = web_m.group(1) if web_m else "luphim.com"
+                            
+                            lang_m = re.search(r"var lang\s*=\s*['\"]([^'\"]*)['\"]", iframe_html)
+                            lang = lang_m.group(1) if lang_m else "vi"
+                            
+                            domain_m = re.search(r"var domain\s*=\s*['\"]([^'\"]*)['\"]", iframe_html)
+                            domain = domain_m.group(1) if domain_m else "https://luphim.com/"
+                            
+                            if videoId:
+                                import random
+                                visitor_id = "".join(random.choices("0123456789abcdef", k=32))
+                                
+                                api_url = "https://moviking.neuronix.sbs/geturl"
+                                api_headers = {
+                                    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+                                    "Referer": iframe_url,
+                                    "Origin": "https://moviking.neuronix.sbs",
+                                    "X-Requested-With": "XMLHttpRequest"
+                                }
+                                api_data = {
+                                    "renderer": "ANGLE (Intel, Intel(R) UHD Graphics 620 Direct3D11 vs_5_0 ps_5_0)",
+                                    "id": visitor_id,
+                                    "videoId": videoId,
+                                    "domain": domain
+                                }
+                                
+                                from curl_cffi import requests as curl_requests
+                                api_resp = curl_requests.post(
+                                    api_url,
+                                    headers=api_headers,
+                                    data=api_data,
+                                    cookies=cookies_dict,
+                                    impersonate="chrome",
+                                    verify=False,
+                                    timeout=15
+                                )
+                                if api_resp.status_code == 200:
+                                    api_response = api_resp.text
+                                    
+                                    # Fetch player streaming page
+                                    player_url = f"{cdn}/streaming?id={videoId}&subId=&web={web}&{api_response}&cdn={cdn}&lang={lang}"
+                                    logger.info(f"[LuPhim Extractor] Fetching player URL: {player_url}")
+                                    
+                                    player_headers = {
+                                        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+                                        "Referer": "https://moviking.neuronix.sbs/"
+                                    }
+                                    player_html = fetch_html(player_url, headers=player_headers, cookies=cookies_dict)
+                                    if player_html:
+                                        stream_match = re.search(r"var url\s*=\s*['\"]([^'\"]*)['\"]\s*\+\s*videoId\s*\+\s*['\"]([^'\"]*)['\"]", player_html)
+                                        if stream_match:
+                                            stream_url = f"{stream_match.group(1)}{videoId}{stream_match.group(2)}"
+                                            
+                                            # Parse subtitles if any
+                                            sub_list = []
+                                            tracks_match = re.search(r"tracks:\s*(\[.*?\])", player_html)
+                                            if tracks_match:
+                                                try:
+                                                    import json
+                                                    tracks = json.loads(tracks_match.group(1))
+                                                    for track in tracks:
+                                                        if track.get("kind") == "captions" and track.get("file"):
+                                                            sub_list.append({
+                                                                "url": track.get("file"),
+                                                                "ext": "vtt",
+                                                                "name": track.get("label", "Sub")
+                                                            })
+                                                except Exception:
+                                                    pass
+                                                    
+                                            if stream_url:
+                                                if "?" in stream_url:
+                                                    stream_url += "&ext=.m3u8"
+                                                else:
+                                                    stream_url += "?ext=.m3u8"
+                                                    
+                                            opts.append({
+                                                "format_id": "",
+                                                "resolution": "Auto Stream",
+                                                "ext": "mp4",
+                                                "type": "video",
+                                                "size": "Unknown Size",
+                                                "label": "Server: Moviking [M3U8]",
+                                                "episode": "Full",
+                                                "server": "Server: Moviking",
+                                                "url": stream_url,
+                                                "referer": "https://moviking.neuronix.sbs/",
+                                                "subtitles": sub_list
+                                            })
+                                            return opts
+                except Exception as ex:
+                    logger.warning(f"LuPhim Extractor failed: {ex}")
+
             # Custom GuPhim.com Extractor
             if "guphim" in page_domain.lower():
                 try:
@@ -1207,7 +1327,8 @@ def generic_html_link_harvester(url, client_id):
                     is_dash = (actual_url.endswith('.mpd') or '.mpd' in actual_url)
                     
                     if is_hls:
-                        size_bytes = resolve_hls_size(actual_url, url)
+                        referer_to_use = opt.get("referer") or get_referer_by_url(actual_url) or url
+                        size_bytes = resolve_hls_size(actual_url, referer_to_use)
                     elif is_dash:
                         size_bytes = None
                     else:
@@ -1217,7 +1338,8 @@ def generic_html_link_harvester(url, client_id):
                         opt["size"] = format_size(size_bytes)
                         
                     if is_hls or is_dash:
-                        if check_drm(actual_url, url):
+                        referer_to_use = opt.get("referer") or get_referer_by_url(actual_url) or url
+                        if check_drm(actual_url, referer_to_use):
                             opt["is_drm"] = True
                 except Exception:
                     pass

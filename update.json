@@ -1,5 +1,5 @@
 {
-    "version": "1.0.2",
-    "url": "https://github.com/m3iK18dp/EveryThingDownloader/releases/download/v1.0.2/EveryThingDownloader-Portable-1.0.2.exe",
-    "changelog": "Add support for guphim.* domains and a custom GuPhim extractor in generic_html_link_harvester: update pre-seeded domain mappings in config.py to include guphim.com/.co/.net/.org, detect GuPhim landing pages, parse cdnHost/slug/episode hashes from page HTML/URL, call the GuPhim API to obtain stream links (using curl_cffi), and return a formatted stream option. Also adjust player detection to consider GuPhim page patterns. Tidy up UI layout by adding min-width: 0 to several selectors in static/css/styles.css to prevent overflow issues."
+    "version": "1.0.3",
+    "url": "https://github.com/m3iK18dp/EveryThingDownloader/releases/download/v1.0.3/EveryThingDownloader-Portable-1.0.3.exe",
+    "changelog": "Add support for LuPhim site: update config to recognize luphim domains and add a custom LuPhim extractor in extractors/generic.py that parses iframe/embed (moviking) HTML, extracts videoId, calls moviking geturl API, builds streaming (m3u8) URLs and subtitle tracks, and returns an options entry. Use curl_cffi for API calls and add referer handling when resolving HLS/DASH size and DRM checks by introducing get_referer_by_url usage. Add multiple LuPhim HTML fixtures (luphim_page.html, luphim_iframe.html, luphim_streaming.html), test assets, thumbnails and analysis output. Also update helper imports (utils/helpers.py), adjust routes (routes/download.py, routes/info.py), static JS (static/js/main.js, streamLib.js) and task download logic (tasks/download.py) to support the new flow. Small safety/fallbacks and logging added; includes sample test files for debugging."
 }

@@ -724,6 +724,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
     function getProxiedImageUrl(url) {
         if (!url) return "";
+        if (url.startsWith("/")) return url;
         // Reject Reddit placeholder strings like 'image', 'self', 'default', 'nsfw', 'spoiler'
         if (!url.startsWith("http")) return "";
         // Reddit CDN (redd.it, redditmedia.com, redditstatic.com) blocks server-side
