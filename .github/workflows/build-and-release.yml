@@ -209,35 +209,9 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       # =========================================================================
-      # ĐẨY FILE EXE ĐÃ BUILD SANG KHO LƯU TRỮ CÔNG KHAI (PUBLIC REPOSITORY)
+      # CẬP NHẬT FILE update.json VÀ TAG TRÊN KHO LƯU TRỮ CÔNG KHAI (PUBLIC REPOSITORY)
       # =========================================================================
-      - name: Clean existing assets (Public Repo)
-        shell: bash
-        run: |
-          echo "Listing assets in public repo for tag ${{ github.ref_name }}..."
-          assets=$(gh release view ${{ github.ref_name }} --repo m3iK18dp/EveryThingDownloader-Tool --json assets --jq '.assets[].name' 2>/dev/null || true)
-          for asset in $assets; do
-            echo "Deleting asset: $asset"
-            gh release delete-asset ${{ github.ref_name }} "$asset" --repo m3iK18dp/EveryThingDownloader-Tool -y
-          done
-        env:
-          GH_TOKEN: ${{ secrets.RELEASE_TOKEN }}
-
-      - name: Create GitHub Release and Upload Assets (To Public Repo)
-        uses: softprops/action-gh-release@v2
-        with:
-          repository: m3iK18dp/EveryThingDownloader-Tool # Kho lưu trữ công khai của bạn
-          token: ${{ secrets.RELEASE_TOKEN }}           # PAT cấu hình trong Secrets của Private Repo
-          body_path: release_notes.md
-          files: |
-            all_assets/*
-          draft: false
-          prerelease: false
-
-      # =========================================================================
-      # CẬP NHẬT FILE update.json TRÊN KHO LƯU TRỮ CÔNG KHAI (PUBLIC REPOSITORY)
-      # =========================================================================
-      - name: Update update.json in Public Repo
+      - name: Update update.json and tag in Public Repo
         shell: bash
         run: |
           # 1. Clone repo công khai về thư mục tạm bằng PAT
@@ -259,9 +233,42 @@ jobs:
           }
           EOF
           
-          # 3. Cấu hình git agent và push
+          # 3. Cấu hình git agent và commit
           git config --global user.name "github-actions[bot]"
           git config --global user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add update.json
           git commit -m "chore: update update.json to ${{ github.ref_name }} [skip ci]" || echo "No changes to commit"
+          
+          # 4. Push commit lên main branch của public repo
           git push origin HEAD:main
+          
+          # 5. Tạo tag trùng tên phiên bản trong public repo trỏ tới commit này và force-push tag lên public repo!
+          git tag -f ${{ github.ref_name }}
+          git push origin -f ${{ github.ref_name }}
+
+      # =========================================================================
+      # ĐẨY FILE EXE ĐÃ BUILD SANG KHO LƯU TRỮ CÔNG KHAI (PUBLIC REPOSITORY)
+      # =========================================================================
+      - name: Clean existing assets (Public Repo)
+        shell: bash
+        run: |
+          echo "Listing assets in public repo for tag ${{ github.ref_name }}..."
+          assets=$(gh release view ${{ github.ref_name }} --repo m3iK18dp/EveryThingDownloader-Tool --json assets --jq '.assets[].name' 2>/dev/null || true)
+          for asset in $assets; do
+            echo "Deleting asset: $asset"
+            gh release delete-asset ${{ github.ref_name }} "$asset" --repo m3iK18dp/EveryThingDownloader-Tool -y
+          done
+        env:
+          GH_TOKEN: ${{ secrets.RELEASE_TOKEN }}
+
+      - name: Create GitHub Release and Upload Assets (To Public Repo)
+        uses: softprops/action-gh-release@v2
+        with:
+          repository: m3iK18dp/EveryThingDownloader-Tool # Kho lưu trữ công khai của bạn
+          token: ${{ secrets.RELEASE_TOKEN }}           # PAT cấu hình trong Secrets của Private Repo
+          tag_name: ${{ github.ref_name }}
+          body_path: release_notes.md
+          files: |
+            all_assets/*
+          draft: false
+          prerelease: false

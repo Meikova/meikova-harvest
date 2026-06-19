@@ -633,11 +633,12 @@ function startAutoUpdate(url, version) {
           } else {
             // Windows
             log.info('Spawning delayed installer launcher on Windows...');
+            const appExeName = path.basename(process.execPath);
             // Wait 2 seconds (via ping) to allow graceful exit, then kill any lingering processes, then start installer
             const cmd = 'cmd.exe';
             const args = [
               '/c',
-              `ping 127.0.0.1 -n 3 > nul && taskkill /f /im server.exe /t 2>nul && taskkill /f /im EveryThingDownloader.exe /t 2>nul && start "" "${destPath}"`
+              `ping 127.0.0.1 -n 3 > nul && taskkill /f /im server.exe /t 2>nul && taskkill /f /im "${appExeName}" /t 2>nul && start "" "${destPath}"`
             ];
             const child = spawn(cmd, args, {
               detached: true,
