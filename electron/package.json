@@ -55,15 +55,19 @@
       "target": [
         {
           "target": "nsis",
-          "arch": [
-            "x64"
-          ]
+          "arch": ["x64"]
         },
         {
           "target": "portable",
-          "arch": [
-            "x64"
-          ]
+          "arch": ["x64"]
+        },
+        {
+          "target": "msi",
+          "arch": ["x64"]
+        },
+        {
+          "target": "zip",
+          "arch": ["x64"]
         }
       ],
       "icon": "resources/icon.ico",
@@ -72,16 +76,20 @@
     "mac": {
       "target": [
         "dmg",
-        "zip"
+        "zip",
+        "pkg"
       ],
       "icon": "resources/icon.png"
     },
     "linux": {
       "target": [
         "AppImage",
-        "tar.gz"
+        "tar.gz",
+        "deb",
+        "rpm"
       ],
-      "icon": "resources/icon.png"
+      "icon": "resources/icon.png",
+      "category": "Utility"
     },
     "nsis": {
       "oneClick": false,
@@ -95,8 +103,23 @@
       "license": "resources/license.txt",
       "artifactName": "EveryThingDownloader-Setup-${version}.exe"
     },
+    "msi": {
+      "artifactName": "EveryThingDownloader-${version}.msi"
+    },
     "portable": {
       "artifactName": "EveryThingDownloader-Portable-${version}.exe"
+    },
+    "dmg": {
+      "artifactName": "EveryThingDownloader-${version}.dmg"
+    },
+    "pkg": {
+      "artifactName": "EveryThingDownloader-${version}.pkg"
+    },
+    "deb": {
+      "artifactName": "EveryThingDownloader-${version}.deb"
+    },
+    "rpm": {
+      "artifactName": "EveryThingDownloader-${version}.rpm"
     }
   }
 }

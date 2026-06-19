@@ -51,10 +51,9 @@ python build_tool/builder_cli.py --target web
 
 ### Build Desktop App
 ```bash
-# Packages the server binary and Electron app. Output:
-# Windows → dist_electron/EveryThingDownloader-Setup-1.0.0.exe (NSIS) + EveryThingDownloader-Portable-1.0.0.exe
-# macOS   → dist_electron/EveryThingDownloader-1.0.0.dmg + .zip
-# Linux   → dist_electron/EveryThingDownloader-1.0.0.AppImage + .tar.gz
+# Windows → dist_electron/EveryThingDownloader-Setup-1.0.0.exe (NSIS), EveryThingDownloader-Portable-1.0.0.exe, EveryThingDownloader-1.0.0.msi, EveryThingDownloader-1.0.0-win.zip
+# macOS   → dist_electron/EveryThingDownloader-1.0.0.dmg, EveryThingDownloader-1.0.0-mac.zip, EveryThingDownloader-1.0.0.pkg
+# Linux   → dist_electron/EveryThingDownloader-1.0.0.AppImage, EveryThingDownloader-1.0.0.tar.gz, EveryThingDownloader-1.0.0.deb, EveryThingDownloader-1.0.0.rpm
 python build_tool/builder_cli.py --target desktop
 ```
 

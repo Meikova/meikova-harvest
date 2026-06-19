@@ -37,7 +37,7 @@ This document details the user needs, target user personas, functional and non-f
 | **FR-05** | Image Extraction | Detect and extract individual images from galleries/albums with multi-select batch downloads. | Medium |
 | **FR-06** | Subtitles | Download or copy subtitle tracks as raw text or VTT format. | Medium |
 | **FR-07** | Session Bypass | Upload Netscape-formatted cookie files to bypass age restrictions and login walls. | High |
-| **FR-08** | Packaging | Compile server and Electron shell into single-file binaries, installers, app bundles, and portables for **Windows, macOS, and Linux**. Specific outputs: NSIS Setup + Portable (Windows), DMG + ZIP (macOS), AppImage + tar.gz (Linux). | High |
+| **FR-08** | Packaging | Compile server and Electron shell into single-file binaries, installers, app bundles, and portables for **Windows, macOS, and Linux**. Specific outputs: NSIS Setup + Portable + MSI + ZIP (Windows), DMG + ZIP + PKG (macOS), AppImage + tar.gz + DEB + RPM (Linux). | High |
 | **FR-09** | Obfuscation | AST code scrambling, string literal encryption, dead code injection, anti-debugging, and binary shielding via PyArmor. | High |
 | **FR-10** | Licensing | Apply IP whitelist locks, date-based expiry limits, and Machine ID hardware locks (CSPRODUCT UUID on Windows, SHA256 fingerprint on macOS, `/etc/machine-id` on Linux). | High |
 | **FR-11** | Preview | Render fallback webpage (HTML) formats inside an interactive sandbox/iframe using a CORS-safe proxy instead of displaying raw text. | Medium |

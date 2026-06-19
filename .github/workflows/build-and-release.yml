@@ -66,10 +66,14 @@ jobs:
           path: |
             dist/EveryThingDownloader*
             dist_electron/*.exe
+            dist_electron/*.msi
             dist_electron/*.dmg
             dist_electron/*.zip
+            dist_electron/*.pkg
             dist_electron/*.AppImage
             dist_electron/*.tar.gz
+            dist_electron/*.deb
+            dist_electron/*.rpm
           if-no-files-found: ignore
 
   release:
@@ -140,11 +144,22 @@ jobs:
           $CHANGELOG
           
           ### 📦 Thông tin các file cài đặt (Assets Info):
-          * **EveryThingDownloader-Portable-${{ env.VERSION }}.exe**: Bản di động cho Windows (Portable), chạy ngay không cần cài đặt.
-          * **EveryThingDownloader-Setup-${{ env.VERSION }}.exe**: Bản cài đặt đầy đủ cho Windows (Setup) hỗ trợ gỡ cài đặt tiện lợi.
-          * **EveryThingDownloader-${{ env.VERSION }}.dmg / .zip**: Bản cài đặt cho macOS.
-          * **EveryThingDownloader-${{ env.VERSION }}.AppImage / .tar.gz**: Bản cài đặt cho Linux.
-          * **EveryThingDownloader-Web-${{ env.VERSION }}-<Platform>**: Bản Web Binary độc lập chạy trên các hệ điều hành tương ứng.
+          #### 🪟 Windows:
+          * **EveryThingDownloader-Setup-${{ env.VERSION }}.exe**: Bản cài đặt đầy đủ (NSIS Setup) hỗ trợ gỡ cài đặt tiện lợi.
+          * **EveryThingDownloader-Portable-${{ env.VERSION }}.exe**: Bản di động (Portable), chạy ngay không cần cài đặt.
+          * **EveryThingDownloader-${{ env.VERSION }}.msi**: Bản cài đặt Windows Installer (MSI) dành cho doanh nghiệp/Group Policy.
+          * **EveryThingDownloader-${{ env.VERSION }}-win.zip**: Bản nén ZIP cho Windows.
+          #### 🍎 macOS:
+          * **EveryThingDownloader-${{ env.VERSION }}.dmg**: Bản cài đặt Disk Image cho macOS.
+          * **EveryThingDownloader-${{ env.VERSION }}-mac.zip**: Bản nén ZIP cho macOS.
+          * **EveryThingDownloader-${{ env.VERSION }}.pkg**: Bản cài đặt Package Installer cho macOS.
+          #### 🐧 Linux:
+          * **EveryThingDownloader-${{ env.VERSION }}.AppImage**: Bản di động cho Linux, chạy trực tiếp.
+          * **EveryThingDownloader-${{ env.VERSION }}.tar.gz**: Bản nén Archive cho Linux.
+          * **EveryThingDownloader-${{ env.VERSION }}.deb**: Bản cài đặt cho Ubuntu/Debian.
+          * **EveryThingDownloader-${{ env.VERSION }}.rpm**: Bản cài đặt cho Fedora/RHEL/CentOS.
+          #### 🌐 Web Binary (Standalone Server):
+          * **EveryThingDownloader-Web-${{ env.VERSION }}-\<Platform\>**: Bản Web Binary độc lập chạy trên các hệ điều hành tương ứng.
           
           ### 🛡️ Mã băm bảo mật (SHA-256 Checksums):
           | File Asset | SHA-256 Checksum |

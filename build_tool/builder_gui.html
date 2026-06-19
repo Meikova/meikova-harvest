@@ -2261,7 +2261,7 @@
                         <span class="platform-icon" id="selectedPlatformIcon">
                           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:16px;height:16px;"><path d="M4 4h7v7H4zM13 4h7v7h-7zM4 13h7v7H4zM13 13h7v7h-7z"/></svg>
                         </span>
-                        <span class="platform-name" id="selectedPlatformName">Windows (.exe / NSIS)</span>
+                        <span class="platform-name" id="selectedPlatformName">Windows (.exe / NSIS / MSI / ZIP)</span>
                       </div>
                       <div class="custom-select-arrow">
                         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="width: 12px; height: 12px;"><polyline points="6 9 12 15 18 9"/></svg>
@@ -2273,7 +2273,7 @@
                           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:16px;height:16px;"><path d="M4 4h7v7H4zM13 4h7v7h-7zM4 13h7v7H4zM13 13h7v7h-7z"/></svg>
                         </span>
                         <div class="option-text">
-                          <span class="option-title">Windows (.exe / NSIS)</span>
+                          <span class="option-title">Windows (.exe / NSIS / MSI / ZIP)</span>
                           <span class="option-desc">Compile for Windows systems</span>
                         </div>
                       </div>
@@ -2282,7 +2282,7 @@
                           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:16px;height:16px;"><rect x="2" y="3" width="20" height="14" rx="2" ry="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>
                         </span>
                         <div class="option-text">
-                          <span class="option-title">macOS (Unix / DMG / ZIP)</span>
+                          <span class="option-title">macOS (DMG / ZIP / PKG)</span>
                           <span class="option-desc">Compile for Apple macOS systems</span>
                         </div>
                       </div>
@@ -2291,7 +2291,7 @@
                           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:16px;height:16px;"><polyline points="4 17 10 11 4 5"/><line x1="12" y1="19" x2="20" y2="19"/></svg>
                         </span>
                         <div class="option-text">
-                          <span class="option-title">Linux (Unix / AppImage / Tar)</span>
+                          <span class="option-title">Linux (AppImage / DEB / RPM / tar.gz)</span>
                           <span class="option-desc">Compile for Linux systems</span>
                         </div>
                       </div>
@@ -2717,7 +2717,7 @@
                   <strong>Restrictions Tab</strong> — Configure IP lock, time-lock expiry, and authorized machine IDs
                 </li>
                 <li>
-                  <strong>Build &amp; Export Tab</strong> — Select target platform (Windows/macOS), target output type (Web Server, Desktop, or Both), and click Start Build
+                  <strong>Build &amp; Export Tab</strong> — Select target platform (Windows/macOS/Linux), target output type (Web Server, Desktop, or Both), and click Start Build
                 </li>
               </ol>
             </div>
@@ -2802,7 +2802,7 @@
                   </tr>
                   <tr style="border-bottom: 1px solid var(--border);">
                     <td style="padding: 8px; font-family: monospace; color: var(--accent3);">--platform</td>
-                    <td style="padding: 8px;"><code>windows</code>, <code>macos</code>, <code>auto</code></td>
+                    <td style="padding: 8px;"><code>windows</code>, <code>macos</code>, <code>linux</code>, <code>auto</code></td>
                     <td style="padding: 8px;">Target OS format. <code>auto</code> autodetects host OS. Cross-compilation is not supported.</td>
                   </tr>
                   <tr style="border-bottom: 1px solid var(--border);">
@@ -2896,14 +2896,32 @@
               <ul style="padding-left: 20px; margin-bottom: 10px;">
                 <li><strong>Web Binary (Flask server only):</strong>
                   <ul>
-                    <li>Windows: <code>dist/EveryThingDownloader.exe</code> (standalone server binary)</li>
-                    <li>macOS: <code>dist/EveryThingDownloader</code> (standalone Unix server binary)</li>
+                    <li>Windows: <code>dist/EveryThingDownloader-Web-[version].exe</code></li>
+                    <li>macOS: <code>dist/EveryThingDownloader-Web-[version]</code> (Unix binary)</li>
+                    <li>Linux: <code>dist/EveryThingDownloader-Web-[version]</code> (Unix binary)</li>
                   </ul>
                 </li>
-                <li><strong>Desktop Application:</strong>
+                <li><strong>Desktop Application — Windows:</strong>
                   <ul>
-                    <li>Windows: <code>dist_electron/EveryThingDownloader Setup [version].exe</code> (NSIS Installer) and <code>dist_electron/EveryThingDownloader-Portable-[version].exe</code></li>
-                    <li>macOS: <code>dist_electron/EveryThingDownloader-[version].dmg</code> (Apple disk image installer) and <code>dist_electron/EveryThingDownloader-Portable-[version].zip</code></li>
+                    <li><code>EveryThingDownloader-Setup-[version].exe</code> — NSIS Installer</li>
+                    <li><code>EveryThingDownloader-Portable-[version].exe</code> — Portable (no install)</li>
+                    <li><code>EveryThingDownloader-[version].msi</code> — Windows Installer (MSI)</li>
+                    <li><code>EveryThingDownloader-[version]-win.zip</code> — ZIP archive</li>
+                  </ul>
+                </li>
+                <li><strong>Desktop Application — macOS:</strong>
+                  <ul>
+                    <li><code>EveryThingDownloader-[version].dmg</code> — Disk Image installer</li>
+                    <li><code>EveryThingDownloader-[version]-mac.zip</code> — ZIP archive</li>
+                    <li><code>EveryThingDownloader-[version].pkg</code> — Package installer</li>
+                  </ul>
+                </li>
+                <li><strong>Desktop Application — Linux:</strong>
+                  <ul>
+                    <li><code>EveryThingDownloader-[version].AppImage</code> — Portable AppImage</li>
+                    <li><code>EveryThingDownloader-[version].tar.gz</code> — Archive</li>
+                    <li><code>EveryThingDownloader-[version].deb</code> — Debian/Ubuntu package</li>
+                    <li><code>EveryThingDownloader-[version].rpm</code> — Fedora/RHEL package</li>
                   </ul>
                 </li>
               </ul>

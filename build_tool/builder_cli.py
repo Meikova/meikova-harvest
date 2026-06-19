@@ -74,8 +74,12 @@ def execute_build(obf_cfg: ObfuscationConfig, build_cfg: BuildConfig, target: st
     if target in ('desktop', 'both'):
         info('Building Desktop App…')
         try:
-            exe = packager.build_desktop_exe(prebuilt_server=prebuilt_exe, progress_cb=info)
-            ok(f'Desktop App: {exe}')
+            exes = packager.build_desktop_exe(prebuilt_server=prebuilt_exe, progress_cb=info)
+            if isinstance(exes, list):
+                for e in exes:
+                    ok(f'Desktop App: {e}')
+            else:
+                ok(f'Desktop App: {exes}')
         except Exception as e:
             error(f'Build Desktop App failed: {e}')
             sys.exit(1)
@@ -190,9 +194,9 @@ def select_target_menu(current_target: str) -> str:
         print("\n" + "-" * 50)
         print(_color("  Select Build Target", "1;35"))
         print("-" * 50)
-        print("1. Web Binary (Standalone Backend for browser-based UI)")
-        print("2. Desktop App (Backend + Electron Installer/App)")
-        print("3. Both Targets (Web Binary and Desktop App)")
+        print("1. Web Binary (Standalone Backend server for browser-based UI)")
+        print("2. Desktop App (Backend + Electron: NSIS/MSI/ZIP/Portable, DMG/ZIP/PKG, AppImage/DEB/RPM/tar.gz)")
+        print("3. Both Targets (Web Binary + Desktop App — all formats)")
         print("0. Back to Main Menu")
         print(f"Current target: {_color(current_target.upper(), '1;32')}")
         
@@ -462,8 +466,24 @@ def run_interactive_menu():
         import platform as plt
         host_sys = plt.system().lower()
         host_platform = 'macOS' if host_sys == 'darwin' else ('Windows' if host_sys == 'windows' else host_sys.capitalize())
+        
+        # Show platform-specific output formats
+        if host_sys == 'windows':
+            formats_web = '.exe'
+            formats_desktop = 'NSIS Setup + Portable + MSI + ZIP'
+        elif host_sys == 'darwin':
+            formats_web = 'Unix binary'
+            formats_desktop = 'DMG + ZIP + PKG'
+        else:
+            formats_web = 'Unix binary'
+            formats_desktop = 'AppImage + tar.gz + DEB + RPM'
+        
         print(f"Target OS Platform:     {_color(host_platform, '1;32')} (Natively Compiled)")
         print(f"[{_color('1', '33')}] Target Output:        {_color(target.upper(), '1;32')}")
+        if target in ('web', 'both'):
+            print(f"    - Web Binary:  {formats_web}")
+        if target in ('desktop', 'both'):
+            print(f"    - Desktop App: {formats_desktop}")
         
         obf_status = _color("ENABLED", "1;32") if obfuscate else _color("DISABLED", "1;30")
         print(f"[{_color('2', '33')}] Code Protection:     {obf_status}")

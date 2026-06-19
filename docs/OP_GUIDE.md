@@ -204,12 +204,17 @@ This renders a color-coded dashboard with numbered menu options for configuring 
 | **Windows** | Web Binary | `dist/EveryThingDownloader-Web-{version}.exe` |
 | **Windows** | Desktop Setup | `dist_electron/EveryThingDownloader-Setup-{version}.exe` |
 | **Windows** | Desktop Portable | `dist_electron/EveryThingDownloader-Portable-{version}.exe` |
+| **Windows** | Desktop MSI | `dist_electron/EveryThingDownloader-{version}.msi` |
+| **Windows** | Desktop ZIP | `dist_electron/EveryThingDownloader-{version}-win.zip` |
 | **macOS** | Web Binary | `dist/EveryThingDownloader-Web-{version}` |
 | **macOS** | Desktop DMG | `dist_electron/EveryThingDownloader-{version}.dmg` |
-| **macOS** | Desktop ZIP | `dist_electron/EveryThingDownloader-{version}.zip` |
+| **macOS** | Desktop ZIP | `dist_electron/EveryThingDownloader-{version}-mac.zip` |
+| **macOS** | Desktop PKG | `dist_electron/EveryThingDownloader-{version}.pkg` |
 | **Linux** | Web Binary | `dist/EveryThingDownloader-Web-{version}` |
 | **Linux** | Desktop AppImage | `dist_electron/EveryThingDownloader-{version}.AppImage` |
 | **Linux** | Desktop Archive | `dist_electron/EveryThingDownloader-{version}.tar.gz` |
+| **Linux** | Desktop DEB | `dist_electron/EveryThingDownloader-{version}.deb` |
+| **Linux** | Desktop RPM | `dist_electron/EveryThingDownloader-{version}.rpm` |
 
 ### 4.7 Publishing & Auto-Update
 After building, you can publish releases via:

@@ -107,13 +107,13 @@ function printOutputs() {
   
   const isWindows = process.platform === 'win32';
   const isMac = process.platform === 'darwin';
-  let extensions = ['.exe', '.msi'];
+  let extensions = ['.exe', '.msi', '.zip'];
   if (isMac) {
-    extensions = ['.dmg', '.zip'];
+    extensions = ['.dmg', '.zip', '.pkg'];
   } else if (process.platform === 'linux') {
-    extensions = ['.AppImage', '.tar.gz'];
+    extensions = ['.AppImage', '.tar.gz', '.deb', '.rpm'];
   } else {
-    extensions = ['.dmg', '.zip', '.AppImage', '.tar.gz'];
+    extensions = ['.exe', '.msi', '.zip', '.dmg', '.pkg', '.AppImage', '.tar.gz', '.deb', '.rpm'];
   }
 
   const files = fs.readdirSync(distDir)

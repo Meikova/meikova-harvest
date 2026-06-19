@@ -250,31 +250,23 @@ def _run_build(build_id: str, cfg: dict, log_q: queue.Queue, state: dict):
         if target in ('desktop', 'both'):
             dirs_to_scan.append('dist_electron')
 
-        import platform
-        is_windows = (platform.system() == 'Windows')
-
         for d in dirs_to_scan:
             dist_dir = ROOT_DIR / d
             if dist_dir.exists():
                 for f in dist_dir.iterdir():
                     if f.is_dir():
                         continue
-                    if is_windows:
-                        if f.suffix.lower() == '.exe':
+                    if d == 'dist':
+                        app_name = cfg.get('build', {}).get('app_name', 'EveryThingDownloader')
+                        version = cfg.get('build', {}).get('version', '1.0.0')
+                        expected_prefix = f'{app_name}-Web-{version}'
+                        if f.name.startswith(expected_prefix):
                             size_mb = f.stat().st_size / 1024 / 1024
                             outputs.append({'path': str(f), 'size': f'{size_mb:.1f} MB'})
-                    else:
-                        if d == 'dist':
-                            app_name = cfg.get('build', {}).get('app_name', 'EveryThingDownloader')
-                            version = cfg.get('build', {}).get('version', '1.0.0')
-                            expected_name = f'{app_name}-Web-{version}'
-                            if f.name == expected_name:
-                                size_mb = f.stat().st_size / 1024 / 1024
-                                outputs.append({'path': str(f), 'size': f'{size_mb:.1f} MB'})
-                        elif d == 'dist_electron':
-                            if f.suffix.lower() in ('.dmg', '.zip', '.appimage', '.gz'):
-                                size_mb = f.stat().st_size / 1024 / 1024
-                                outputs.append({'path': str(f), 'size': f'{size_mb:.1f} MB'})
+                    elif d == 'dist_electron':
+                        if f.suffix.lower() in ('.exe', '.msi', '.zip', '.dmg', '.pkg', '.appimage', '.gz', '.deb', '.rpm'):
+                            size_mb = f.stat().st_size / 1024 / 1024
+                            outputs.append({'path': str(f), 'size': f'{size_mb:.1f} MB'})
 
         if success:
             push('[SUCCESS] Build completed!', 'ok', done=True, success=True, outputs=outputs)

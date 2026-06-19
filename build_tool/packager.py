@@ -315,7 +315,7 @@ class Packager:
 
     # ── Desktop EXE build ────────────────────────────────────────────────────
 
-    def build_desktop_exe(self, prebuilt_server: Path | None = None, progress_cb=None) -> Path:
+    def build_desktop_exe(self, prebuilt_server: Path | None = None, progress_cb=None) -> list[Path]:
         """
         1. Build Web Binary (Flask server)
         2. Copy to electron/resources/server(.exe)
@@ -323,6 +323,8 @@ class Packager:
         4. Run electron-builder to create installer/app
         Returns path to the output.
         """
+        import time
+        build_start_time = time.time()
         if not self.check_node():
             raise EnvironmentError(
                 'Node.js not found. Please install Node.js before building the Desktop App.'
@@ -390,9 +392,25 @@ class Packager:
             
             if 'nsis' in pkg['build']:
                 pkg['build']['nsis']['shortcutName'] = self.cfg.app_name
+                pkg['build']['nsis']['artifactName'] = f"{self.cfg.app_name}-Setup-${{version}}.exe"
             
             if 'portable' in pkg['build']:
                 pkg['build']['portable']['artifactName'] = f"{self.cfg.app_name}-Portable-${{version}}.exe"
+            
+            if 'msi' in pkg['build']:
+                pkg['build']['msi']['artifactName'] = f"{self.cfg.app_name}-${{version}}.msi"
+            
+            if 'dmg' in pkg['build']:
+                pkg['build']['dmg']['artifactName'] = f"{self.cfg.app_name}-${{version}}.dmg"
+            
+            if 'pkg' in pkg['build']:
+                pkg['build']['pkg']['artifactName'] = f"{self.cfg.app_name}-${{version}}.pkg"
+            
+            if 'deb' in pkg['build']:
+                pkg['build']['deb']['artifactName'] = f"{self.cfg.app_name}-${{version}}.deb"
+            
+            if 'rpm' in pkg['build']:
+                pkg['build']['rpm']['artifactName'] = f"{self.cfg.app_name}-${{version}}.rpm"
             
             with open(package_json_path, 'w', encoding='utf-8') as f:
                 json.dump(pkg, f, indent=2)
@@ -437,25 +455,37 @@ class Packager:
 
         # Find output installer
         if current_platform == 'Windows':
-            candidates = list(DIST_ELECTRON.glob('*.exe'))
+            candidates = (list(DIST_ELECTRON.glob('*.exe'))
+                         + list(DIST_ELECTRON.glob('*.msi'))
+                         + list(DIST_ELECTRON.glob('*.zip')))
             if not candidates:
-                raise FileNotFoundError('electron-builder output .exe not found in dist_electron/')
+                raise FileNotFoundError('electron-builder output not found in dist_electron/')
         elif current_platform == 'Darwin':
-            candidates = list(DIST_ELECTRON.glob('*.dmg')) + list(DIST_ELECTRON.glob('*.zip'))
+            candidates = (list(DIST_ELECTRON.glob('*.dmg'))
+                         + list(DIST_ELECTRON.glob('*.zip'))
+                         + list(DIST_ELECTRON.glob('*.pkg')))
             if not candidates:
-                raise FileNotFoundError('electron-builder output .dmg or .zip not found in dist_electron/')
+                raise FileNotFoundError('electron-builder output not found in dist_electron/')
         elif current_platform == 'Linux':
-            candidates = list(DIST_ELECTRON.glob('*.AppImage')) + list(DIST_ELECTRON.glob('*.tar.gz'))
+            candidates = (list(DIST_ELECTRON.glob('*.AppImage'))
+                         + list(DIST_ELECTRON.glob('*.tar.gz'))
+                         + list(DIST_ELECTRON.glob('*.deb'))
+                         + list(DIST_ELECTRON.glob('*.rpm')))
             if not candidates:
-                raise FileNotFoundError('electron-builder output .AppImage or .tar.gz not found in dist_electron/')
+                raise FileNotFoundError('electron-builder output not found in dist_electron/')
         else:
             candidates = list(DIST_ELECTRON.glob('*'))
             if not candidates:
                 raise FileNotFoundError('electron-builder output not found in dist_electron/')
 
-        installer = max(candidates, key=lambda p: p.stat().st_mtime)
-        self._progress(f'[OK] Desktop App: {installer}', progress_cb)
-        return installer
+        # Filter candidates by modification time to only return files built in this session
+        new_outputs = [p for p in candidates if p.stat().st_mtime >= build_start_time - 10]
+        if not new_outputs:
+            new_outputs = candidates  # Fallback if filesystem clock is out of sync
+        
+        for out_path in new_outputs:
+            self._progress(f'[OK] Desktop App: {out_path}', progress_cb)
+        return new_outputs
 
 
 # ─── CLI entry ────────────────────────────────────────────────────────────────
