@@ -400,27 +400,11 @@ class Packager:
             if 'msi' in pkg['build']:
                 pkg['build']['msi']['artifactName'] = f"{self.cfg.app_name}-${{version}}.msi"
             
-            if 'dmg' in pkg['build']:
-                pkg['build']['dmg']['artifactName'] = f"{self.cfg.app_name}-${{version}}-${{arch}}.dmg"
+            if 'mac' in pkg['build']:
+                pkg['build']['mac']['artifactName'] = f"{self.cfg.app_name}-${{version}}-${{arch}}.${{ext}}"
             
-            if 'pkg' in pkg['build']:
-                pkg['build']['pkg']['artifactName'] = f"{self.cfg.app_name}-${{version}}-${{arch}}.pkg"
-            
-            if 'deb' in pkg['build']:
-                pkg['build']['deb']['artifactName'] = f"{self.cfg.app_name}-${{version}}-${{arch}}.deb"
-            
-            if 'rpm' in pkg['build']:
-                pkg['build']['rpm']['artifactName'] = f"{self.cfg.app_name}-${{version}}-${{arch}}.rpm"
-
-            if 'zip' in pkg['build']:
-                pkg['build']['zip']['artifactName'] = f"{self.cfg.app_name}-${{version}}-${{arch}}.zip"
-            else:
-                pkg['build']['zip'] = {"artifactName": f"{self.cfg.app_name}-${{version}}-${{arch}}.zip"}
-
-            if 'tar.gz' in pkg['build']:
-                pkg['build']['tar.gz']['artifactName'] = f"{self.cfg.app_name}-${{version}}-${{arch}}.tar.gz"
-            else:
-                pkg['build']['tar.gz'] = {"artifactName": f"{self.cfg.app_name}-${{version}}-${{arch}}.tar.gz"}
+            if 'linux' in pkg['build']:
+                pkg['build']['linux']['artifactName'] = f"{self.cfg.app_name}-${{version}}-${{arch}}.${{ext}}"
             
             with open(package_json_path, 'w', encoding='utf-8') as f:
                 json.dump(pkg, f, indent=2)

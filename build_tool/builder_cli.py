@@ -60,6 +60,31 @@ def execute_build(obf_cfg: ObfuscationConfig, build_cfg: BuildConfig, target: st
         subprocess.run(['pkill', '-x', 'server'], capture_output=True)
         subprocess.run(['pkill', '-x', 'EveryThingDownloader'], capture_output=True)
 
+    # ── Clean up previous build assets ────────────────────────────────────
+    import shutil
+    info('Cleaning up previous build assets…')
+    dist_dir = ROOT_DIR / 'dist'
+    dist_electron_dir = ROOT_DIR / 'dist_electron'
+    for path in (dist_dir, dist_electron_dir):
+        if path.exists():
+            try:
+                shutil.rmtree(path)
+                info(f'   → Deleted directory: {path}')
+            except Exception as e:
+                warn(f'   → Failed to delete directory {path}: {e}')
+                info('   → Attempting to delete individual files inside…')
+                for item in path.iterdir():
+                    if item.name == '_protected':
+                        continue
+                    try:
+                        if item.is_dir():
+                            shutil.rmtree(item)
+                        else:
+                            item.unlink()
+                        info(f'     → Deleted: {item.name}')
+                    except Exception as err:
+                        warn(f'     → Failed to delete {item.name}: {err}')
+
     # ── Run obfuscation ───────────────────────────────────────────────────
     protected_src = ROOT_DIR
     if obfuscate:

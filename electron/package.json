@@ -76,7 +76,8 @@
         "zip",
         "pkg"
       ],
-      "icon": "resources/icon.png"
+      "icon": "resources/icon.png",
+      "artifactName": "EveryThingDownloader-${version}-${arch}.${ext}"
     },
     "linux": {
       "maintainer": "EveryThingDownloader <contact@everythingdownloader.com>",
@@ -87,7 +88,8 @@
         "rpm"
       ],
       "icon": "resources/icon.png",
-      "category": "Utility"
+      "category": "Utility",
+      "artifactName": "EveryThingDownloader-${version}-${arch}.${ext}"
     },
     "nsis": {
       "oneClick": false,
@@ -106,24 +108,6 @@
     },
     "portable": {
       "artifactName": "EveryThingDownloader-Portable-${version}.exe"
-    },
-    "dmg": {
-      "artifactName": "EveryThingDownloader-${version}-${arch}.dmg"
-    },
-    "pkg": {
-      "artifactName": "EveryThingDownloader-${version}-${arch}.pkg"
-    },
-    "deb": {
-      "artifactName": "EveryThingDownloader-${version}-${arch}.deb"
-    },
-    "rpm": {
-      "artifactName": "EveryThingDownloader-${version}-${arch}.rpm"
-    },
-    "zip": {
-      "artifactName": "EveryThingDownloader-${version}-${arch}.zip"
-    },
-    "tar.gz": {
-      "artifactName": "EveryThingDownloader-${version}-${arch}.tar.gz"
     }
   }
 }
