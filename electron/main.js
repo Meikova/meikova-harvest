@@ -613,7 +613,9 @@ function startAutoUpdate(url, version) {
             if (destPath.endsWith('.AppImage')) {
               try {
                 fs.chmodSync(destPath, 0o755);
-                const child = spawn(destPath, [], {
+                log.info('Spawning delayed AppImage launcher on Linux...');
+                // Wait 2 seconds (via sleep) to allow graceful exit and avoid port conflicts
+                const child = spawn('bash', ['-c', `sleep 2 && exec "${destPath}"`], {
                   detached: true,
                   stdio: 'ignore'
                 });
@@ -630,9 +632,17 @@ function startAutoUpdate(url, version) {
             }
           } else {
             // Windows
-            const child = spawn(destPath, [], {
+            log.info('Spawning delayed installer launcher on Windows...');
+            // Wait 2 seconds (via ping) to allow graceful exit, then kill any lingering processes, then start installer
+            const cmd = 'cmd.exe';
+            const args = [
+              '/c',
+              `ping 127.0.0.1 -n 3 > nul && taskkill /f /im server.exe /t 2>nul && taskkill /f /im EveryThingDownloader.exe /t 2>nul && start "" "${destPath}"`
+            ];
+            const child = spawn(cmd, args, {
               detached: true,
-              stdio: 'ignore'
+              stdio: 'ignore',
+              shell: true
             });
             child.unref();
             log.info('Quitting app for update installation...');
