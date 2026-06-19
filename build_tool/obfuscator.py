@@ -379,8 +379,26 @@ class Obfuscator:
 
     def prepare_workdir(self, src_dir: Path, work_dir: Path) -> None:
         if work_dir.exists():
-            shutil.rmtree(work_dir)
-        shutil.copytree(src_dir, work_dir, ignore=shutil.ignore_patterns(
+            import stat
+            def remove_readonly(func, path, excinfo):
+                try:
+                    os.chmod(path, stat.S_IWRITE)
+                    func(path)
+                except Exception:
+                    pass
+            try:
+                shutil.rmtree(work_dir, onerror=remove_readonly)
+            except TypeError:
+                shutil.rmtree(work_dir, onexc=remove_readonly)
+            
+            # Wait for OS to release folder handle on Windows
+            import time
+            retries = 20
+            while work_dir.exists() and retries > 0:
+                time.sleep(0.1)
+                retries -= 1
+
+        shutil.copytree(src_dir, work_dir, dirs_exist_ok=True, ignore=shutil.ignore_patterns(
             '__pycache__', '*.pyc', '.git', 'venv', 'node_modules',
             'dist', 'dist_electron', 'build', '*.egg-info',
             'downloads', 'release', '_pyinstaller_build', 'scratch',

@@ -45,6 +45,19 @@ def error(msg): print(_color(f'[ERROR] {msg}', '31'))
 
 
 def execute_build(obf_cfg: ObfuscationConfig, build_cfg: BuildConfig, target: str, obfuscate: bool):
+    # ── Terminate running instances to release file locks ─────────────────
+    import platform
+    import subprocess
+    host_sys = platform.system()
+    if host_sys == 'Windows':
+        info('Terminating running app/server instances to release file locks…')
+        subprocess.run(['taskkill', '/f', '/im', 'server.exe'], capture_output=True, shell=True)
+        subprocess.run(['taskkill', '/f', '/im', 'EveryThingDownloader.exe'], capture_output=True, shell=True)
+    elif host_sys in ('Darwin', 'Linux'):
+        info('Terminating running app/server instances to release file locks…')
+        subprocess.run(['pkill', '-f', 'server'], capture_output=True)
+        subprocess.run(['pkill', '-f', 'EveryThingDownloader'], capture_output=True)
+
     # ── Run obfuscation ───────────────────────────────────────────────────
     protected_src = ROOT_DIR
     if obfuscate:

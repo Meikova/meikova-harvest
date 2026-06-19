@@ -47,7 +47,7 @@ This document details the user needs, target user personas, functional and non-f
 | **FR-15** | Subtitles | Aggressively deduplicate and collapse rolling subtitles (YouTube-style captions) by matching sequences and containment. | High |
 | **FR-16** | Subtitles | Align and shift subtitle timestamps automatically when downloading a trimmed video segment. | High |
 | **FR-17** | Subtitles | Automatically split long sentences in translated subtitles into shorter blocks of max 10 words per slide. | Medium |
-| **FR-18** | Auto-Update | Desktop app checks for updates from the public GitHub repository's `update.json`, downloads and installs new versions automatically with progress bar. | High |
+| **FR-18** | Auto-Update | Desktop app checks for updates from public GitHub `update.json`, downloads platform-specific format (.exe for Windows, .dmg for macOS, .AppImage for Linux), and performs native installation. | High |
 | **FR-19** | CI/CD | GitHub Actions workflow builds for all 3 platforms (Windows, macOS, Linux) in parallel, publishes releases with SHA-256 checksums, and updates `update.json` automatically. | High |
 | **FR-20** | Docker | Support Docker/Docker Compose deployment for the web server and build tool GUI without local environment setup. | Medium |
 | **NFR-01** | Clean-up | Automatically delete temporary files immediately after completion or cancellation. | High |
@@ -116,4 +116,8 @@ All confirmation and alert dialogs use a custom-built glassmorphic modal system 
 ### 5.3 Scenario C: Auto-Update Flow (Desktop App)
 1. **System Behavior**: On startup, the Electron app fetches `update.json` from the public GitHub repository.
 2. **Update Available**: A dialog appears showing the new version and changelog with three options: *Update Automatically (Recommended)*, *Download Manually*, or *Later*.
-3. **Auto-Install**: If the user selects automatic update, a progress window displays download progress with percentage, transferred/total MB. After download completes, the installer is launched and the app quits for installation.
+3. **Auto-Install**: If the user selects automatic update, the app resolves the platform-specific download URL (under the `platforms` key: `win32`, `darwin`, or `linux`) and shows a progress window displaying percentages and download size.
+4. **Platform Execution**: Once the download completes, the app quits and installs the update:
+   - **Windows**: Executes the downloaded `.exe` setup installer in a separate process.
+   - **macOS**: Automatically mounts the `.dmg` installer using `shell.openPath` and quits so the user can drag-and-drop the application into the Applications folder.
+   - **Linux**: Applies `chmod +x` to the downloaded `.AppImage` file and spawns it, or opens the downloads directory for other packages.

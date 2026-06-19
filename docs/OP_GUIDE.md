@@ -224,7 +224,13 @@ After building, you can publish releases via:
 The Electron desktop app includes built-in **Auto-Update** functionality:
 1. Periodically checks `update.json` from the public repository.
 2. Displays a dialog with version info and changelog.
-3. Offers automatic download with progress bar, followed by installer launch.
+3. Offers automatic download with progress bar:
+   - Evaluates the client platform and pulls the matching package URL from the `platforms` key (`win32` for Windows `.exe`, `darwin` for macOS `.dmg`, `linux` for Linux `.AppImage`).
+   - Downloads the package into a local temporary folder.
+4. Performs native installation:
+   - **Windows**: Executes the installer `.exe` in a separate process and quits.
+   - **macOS**: Automatically mounts the `.dmg` via `shell.openPath` and quits, enabling easy drag-and-drop replacement.
+   - **Linux**: Permissions the `.AppImage` with executable attributes (`chmod +x`) and executes it, or opens the folder for other archive/package formats.
 
 ---
 

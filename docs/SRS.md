@@ -239,7 +239,7 @@ The GitHub Actions workflow (`.github/workflows/build-and-release.yml`) automate
    - Calculates SHA-256 checksums for each file
    - Generates detailed release notes with changelog, asset descriptions, and checksum table
    - Publishes release to both private and public repositories
-   - Updates `update.json` in the public repository for auto-update integration
+   - Updates `update.json` in the public repository with multi-platform URLs (`win32`, `darwin`, `linux` keys under `platforms`) for auto-update integration
 
 ### 4.7 Docker Deployment
 

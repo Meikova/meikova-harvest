@@ -453,6 +453,24 @@ class Packager:
         if result.returncode != 0:
             raise RuntimeError(f'electron-builder failed:\n{result.stdout[-2000:]}\n{result.stderr[-2000:]}')
 
+        if current_platform == 'Windows':
+            unpacked_dir = DIST_ELECTRON / 'win-unpacked'
+            if unpacked_dir.exists():
+                zip_out_name = f'{self.cfg.app_name}-{self.cfg.version}.zip'
+                zip_out_path = DIST_ELECTRON / zip_out_name
+                self._progress(f'   → Manually archiving win-unpacked to {zip_out_name}…', progress_cb)
+                try:
+                    import zipfile
+                    with zipfile.ZipFile(zip_out_path, 'w', zipfile.ZIP_DEFLATED) as zipf:
+                        for root, dirs, files in os.walk(unpacked_dir):
+                            for file in files:
+                                file_path = Path(root) / file
+                                arcname = file_path.relative_to(unpacked_dir)
+                                zipf.write(file_path, arcname)
+                    self._progress(f'   → Successfully created zip archive manually: {zip_out_path}', progress_cb)
+                except Exception as zip_err:
+                    self._progress(f'[WARN] Failed to create manual zip archive: {zip_err}', progress_cb)
+
         # Find output installer
         if current_platform == 'Windows':
             candidates = (list(DIST_ELECTRON.glob('*.exe'))

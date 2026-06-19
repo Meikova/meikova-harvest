@@ -52,6 +52,11 @@ def publish_git_release(
     update_data = {
         'version': version,
         'url': f'https://github.com/{repo}/releases/download/{tag}/{app_name}-Setup-{version}.exe',
+        'platforms': {
+            'win32': f'https://github.com/{repo}/releases/download/{tag}/{app_name}-Setup-{version}.exe',
+            'darwin': f'https://github.com/{repo}/releases/download/{tag}/{app_name}-{version}.dmg',
+            'linux': f'https://github.com/{repo}/releases/download/{tag}/{app_name}-{version}.AppImage'
+        },
         'changelog': changelog
     }
     

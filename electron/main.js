@@ -571,7 +571,12 @@ function startAutoUpdate(url, version) {
   
   progressWindow.loadURL('data:text/html;charset=utf-8,' + encodeURIComponent(htmlContent));
   
-  const destName = 'EveryThingDownloader-Setup-' + version + '.exe';
+  let destName = 'EveryThingDownloader-Setup-' + version + '.exe';
+  if (process.platform === 'darwin') {
+    destName = 'EveryThingDownloader-' + version + '.dmg';
+  } else if (process.platform === 'linux') {
+    destName = 'EveryThingDownloader-' + version + '.AppImage';
+  }
   const destPath = path.join(app.getPath('temp'), destName);
   
   downloadFile(url, destPath, 
@@ -589,18 +594,50 @@ function startAutoUpdate(url, version) {
         type: 'info',
         title: 'Ready to Install',
         message: 'Download complete!',
-        detail: 'The app will now close to install the update. Please follow the installation prompts.',
-        buttons: ['Install Now']
+        detail: process.platform === 'darwin'
+          ? 'The update has been downloaded. The app will now close and open the installer disk image.'
+          : 'The app will now close to install the update.',
+        buttons: ['Install/Open Now']
       }).then(() => {
         log.info('Launching installer: ' + destPath);
         try {
-          const child = spawn(destPath, [], {
-            detached: true,
-            stdio: 'ignore'
-          });
-          child.unref();
-          log.info('Quitting app for update installation...');
-          app.quit();
+          if (process.platform === 'darwin') {
+            shell.openPath(destPath).then((err) => {
+              if (err) {
+                log.error('Failed to open DMG: ' + err);
+                shell.showItemInFolder(destPath);
+              }
+              app.quit();
+            });
+          } else if (process.platform === 'linux') {
+            if (destPath.endsWith('.AppImage')) {
+              try {
+                fs.chmodSync(destPath, 0o755);
+                const child = spawn(destPath, [], {
+                  detached: true,
+                  stdio: 'ignore'
+                });
+                child.unref();
+                app.quit();
+              } catch (chmodErr) {
+                log.error('Failed to make AppImage executable: ' + chmodErr.message);
+                shell.showItemInFolder(destPath);
+                app.quit();
+              }
+            } else {
+              shell.showItemInFolder(destPath);
+              app.quit();
+            }
+          } else {
+            // Windows
+            const child = spawn(destPath, [], {
+              detached: true,
+              stdio: 'ignore'
+            });
+            child.unref();
+            log.info('Quitting app for update installation...');
+            app.quit();
+          }
         } catch (e) {
           log.error('Failed to launch installer: ' + e.message);
           dialog.showErrorBox('Installation Failed', 'Failed to start the installer: ' + e.message + '\n\nPlease run the installer manually from:\n' + destPath);
@@ -656,10 +693,14 @@ function checkForUpdates(manual = false) {
             defaultId: 0,
             cancelId: 2
           }).then(({ response }) => {
-            if (response === 0 && info.url) {
-              startAutoUpdate(info.url, latestVersion);
-            } else if (response === 1 && info.url) {
-              shell.openExternal(info.url);
+            let platformUrl = info.url;
+            if (info.platforms && info.platforms[process.platform]) {
+              platformUrl = info.platforms[process.platform];
+            }
+            if (response === 0 && platformUrl) {
+              startAutoUpdate(platformUrl, latestVersion);
+            } else if (response === 1 && platformUrl) {
+              shell.openExternal(platformUrl);
             }
           });
         } else {
@@ -742,6 +783,13 @@ function buildTrayMenu() {
         const downloadsDir = app.isPackaged
           ? path.join(process.resourcesPath, 'downloads')
           : path.join(__dirname, '..', 'downloads');
+        if (!fs.existsSync(downloadsDir)) {
+          try {
+            fs.mkdirSync(downloadsDir, { recursive: true });
+          } catch (e) {
+            log.error('Failed to create downloads folder:', e);
+          }
+        }
         shell.openPath(downloadsDir);
       },
     },
@@ -820,6 +868,13 @@ ipcMain.on('open-downloads-folder', () => {
   const downloadsDir = app.isPackaged
     ? path.join(process.resourcesPath, 'downloads')
     : path.join(__dirname, '..', 'downloads');
+  if (!fs.existsSync(downloadsDir)) {
+    try {
+      fs.mkdirSync(downloadsDir, { recursive: true });
+    } catch (e) {
+      log.error('Failed to create downloads folder:', e);
+    }
+  }
   shell.openPath(downloadsDir);
 });
 

@@ -24,6 +24,7 @@
   "build": {
     "appId": "com.everythingdownloader.app",
     "productName": "EveryThingDownloader",
+    "compression": "normal",
     "directories": {
       "output": "../dist_electron"
     },
@@ -42,32 +43,27 @@
           "license.txt",
           "icon.png"
         ]
-      },
-      {
-        "from": "../downloads",
-        "to": "downloads",
-        "filter": [
-          "**/*"
-        ]
       }
     ],
     "win": {
       "target": [
         {
           "target": "nsis",
-          "arch": ["x64"]
+          "arch": [
+            "x64"
+          ]
         },
         {
           "target": "portable",
-          "arch": ["x64"]
+          "arch": [
+            "x64"
+          ]
         },
         {
           "target": "msi",
-          "arch": ["x64"]
-        },
-        {
-          "target": "zip",
-          "arch": ["x64"]
+          "arch": [
+            "x64"
+          ]
         }
       ],
       "icon": "resources/icon.ico",

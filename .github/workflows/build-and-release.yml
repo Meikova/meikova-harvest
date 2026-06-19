@@ -225,6 +225,11 @@ jobs:
           {
             "version": "${{ env.VERSION }}",
             "url": "https://github.com/m3iK18dp/EveryThingDownloader-Tool/releases/download/${{ github.ref_name }}/EveryThingDownloader-Setup-${{ env.VERSION }}.exe",
+            "platforms": {
+              "win32": "https://github.com/m3iK18dp/EveryThingDownloader-Tool/releases/download/${{ github.ref_name }}/EveryThingDownloader-Setup-${{ env.VERSION }}.exe",
+              "darwin": "https://github.com/m3iK18dp/EveryThingDownloader-Tool/releases/download/${{ github.ref_name }}/EveryThingDownloader-${{ env.VERSION }}.dmg",
+              "linux": "https://github.com/m3iK18dp/EveryThingDownloader-Tool/releases/download/${{ github.ref_name }}/EveryThingDownloader-${{ env.VERSION }}.AppImage"
+            },
             "changelog": "Phiên bản mới nhất ${{ github.ref_name }} đã được phát hành tự động. Xem chi tiết tại mục Releases trên GitHub."
           }
           EOF
