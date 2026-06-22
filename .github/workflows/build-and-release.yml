@@ -96,7 +96,7 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Debug: list downloaded files
+      - name: "Debug: list downloaded files"
         run: |
           echo "=== Files in all_assets/ ==="
           ls -lah ./all_assets/
