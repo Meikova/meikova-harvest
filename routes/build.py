@@ -539,6 +539,10 @@ def proxy_subtitle_endpoint():
             headers = {
                 "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
             }
+            from utils.helpers import get_referer_by_url
+            referer = get_referer_by_url(url)
+            if referer:
+                headers["Referer"] = referer
             html_content = fetch_html(url, headers=headers, cookies=cookies_dict)
             if html_content:
                 text = html_content

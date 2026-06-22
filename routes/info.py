@@ -1679,3 +1679,4 @@ def analyze_video_scenes():
     except Exception as e:
         logger.error(f"Error in analyze_video_scenes: {e}")
         return jsonify({"status": "error", "message": str(e)}), 500
+    

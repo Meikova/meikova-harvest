@@ -14,6 +14,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
   // Window controls
   minimizeWindow: () => ipcRenderer.send('window-minimize'),
   maximizeWindow: () => ipcRenderer.send('window-maximize'),
+  setMaximize: (maximize) => ipcRenderer.send('window-maximize-set', maximize),
   closeWindow: () => ipcRenderer.send('window-close'),
   
   // Server status

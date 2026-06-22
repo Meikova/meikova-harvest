@@ -65,7 +65,7 @@
     />
     <link
       rel="stylesheet"
-      href="{{ url_for('static', filename='css/styles.css') }}?v=8.8"
+      href="{{ url_for('static', filename='css/styles.css') }}?v=11.0"
     />
     <script src="https://cdn.jsdelivr.net/npm/hls.js@1.5.8/dist/hls.min.js"></script>
     <script>
@@ -73,6 +73,36 @@
         const savedTheme = localStorage.getItem("theme");
         if (savedTheme === "light") {
           document.documentElement.classList.add("light-theme");
+        }
+        const savedAccent = localStorage.getItem("customizer-accent") || "default";
+        if (savedAccent !== "default" && savedAccent !== "custom") {
+          document.documentElement.classList.add("accent-theme-" + savedAccent);
+        } else if (savedAccent === "custom") {
+          const shorthandRegex = /^#?([a-f\d])([a-f\d])([a-f\d])$/i;
+          
+          // Primary Accent
+          const savedCustomColor = localStorage.getItem("customizer-custom-color") || "#00f2fe";
+          const hex = savedCustomColor.replace(shorthandRegex, (m, r, g, b) => r + r + g + g + b + b);
+          const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
+          if (result) {
+            const r = parseInt(result[1], 16);
+            const g = parseInt(result[2], 16);
+            const b = parseInt(result[3], 16);
+            document.documentElement.style.setProperty('--cyan', savedCustomColor);
+            document.documentElement.style.setProperty('--cyan-rgb', `${r}, ${g}, ${b}`);
+          }
+          
+          // Secondary Accent
+          const savedCustomColor2 = localStorage.getItem("customizer-custom-color-2") || "#fe0979";
+          const hex2 = savedCustomColor2.replace(shorthandRegex, (m, r, g, b) => r + r + g + g + b + b);
+          const result2 = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex2);
+          if (result2) {
+            const r2 = parseInt(result2[1], 16);
+            const g2 = parseInt(result2[2], 16);
+            const b2 = parseInt(result2[3], 16);
+            document.documentElement.style.setProperty('--purple', savedCustomColor2);
+            document.documentElement.style.setProperty('--purple-rgb', `${r2}, ${g2}, ${b2}`);
+          }
         }
       })();
     </script>
@@ -190,8 +220,8 @@
           </button>
 
           <!-- Settings Dropdown Panel -->
-          <div id="settings-dropdown" class="settings-dropdown hidden">
-            <div class="settings-dropdown-header">
+          <div id="settings-dropdown" class="settings-dropdown hidden" style="width: 320px; padding: 18px;">
+            <div class="settings-dropdown-header" style="margin-bottom: 15px;">
               <svg
                 viewBox="0 0 24 24"
                 fill="none"
@@ -205,82 +235,28 @@
                   d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"
                 />
               </svg>
-              <span>Advanced Options</span>
+              <span>Global Settings</span>
             </div>
-            <!-- Trim Media -->
-            <div class="trim-section">
-              <div
-                id="trim-preview-container"
-                class="hidden"
-                style="margin-top: 15px"
-              >
-                <video
-                  id="trim-preview-player"
-                  style="width: 100%; border-radius: 8px; margin-bottom: 15px"
-                  controls
-                ></video>
-              </div>
-              <label class="advanced-label">
-                <input type="checkbox" id="trim-checkbox" />
+
+            <!-- Clipboard Auto-Detect -->
+            <div style="margin-bottom: 15px;">
+              <label class="advanced-label" style="display: flex; align-items: center; gap: 10px; cursor: pointer;">
+                <input type="checkbox" id="clipboard-detect-checkbox" checked />
                 <span class="custom-checkbox"></span>
-                <span>Trim Media</span>
+                <span style="font-size: 0.85rem; font-weight: 500;">Clipboard Auto-Detect</span>
               </label>
-              <div
-                id="trim-slider-container"
-                class="hidden"
-                style="margin-top: 15px; margin-bottom: 10px"
-              >
-                <div
-                  id="trim-range-slider"
-                  style="margin: 10px 10px 20px 10px"
-                ></div>
-              </div>
-              <div id="trim-inputs-container" class="trim-inputs hidden">
-                <div class="trim-field">
-                  <span>Start:</span>
-                  <input
-                    type="text"
-                    id="trim-start"
-                    value="00:00:00"
-                    placeholder="hh:mm:ss"
-                  />
-                </div>
-                <div class="trim-field">
-                  <span>End:</span>
-                  <input
-                    type="text"
-                    id="trim-end"
-                    value="00:00:10"
-                    placeholder="hh:mm:ss"
-                  />
-                </div>
+              <div style="font-size: 0.72rem; color: var(--text-muted); margin-left: 28px; margin-top: 4px;">
+                Automatically monitor clipboard and parse video/audio URLs.
               </div>
             </div>
-            <!-- Subtitles Translation -->
-            <div
-              class="subtitle-translate-section hidden"
-              id="sub-translate-container"
-            >
-              <label class="advanced-label">
-                <input type="checkbox" id="translate-subs-checkbox" />
-                <span class="custom-checkbox"></span>
-                <span>Auto-translate subtitles to English</span>
-              </label>
-            </div>
-            <!-- Export Format Option -->
-            <div
-              class="export-section"
-              style="
-                margin-top: 15px;
-                border-top: 1px solid rgba(255, 255, 255, 0.05);
-                padding-top: 15px;
-              "
-            >
-              <label class="advanced-label">
-                <span>Export Format:</span>
+
+            <!-- Default Download Quality -->
+            <div style="margin-bottom: 15px; border-top: 1px solid rgba(255, 255, 255, 0.05); padding-top: 15px;">
+              <label class="advanced-label" style="display: block; margin-bottom: 5px;">
+                <span style="font-size: 0.85rem; font-weight: 500;">Default Quality:</span>
               </label>
               <select
-                id="export-type-select"
+                id="global-default-quality"
                 style="
                   width: 100%;
                   padding: 8px 12px;
@@ -290,144 +266,23 @@
                   color: var(--text);
                   font-family: var(--font);
                   outline: none;
-                  margin-top: 5px;
                   cursor: pointer;
                 "
               >
-                <option value="default">Default format</option>
-                <option value="gif">Looping GIF</option>
-                <option value="shorts">Vertical video (Shorts/TikTok 9:16)</option>
+                <option value="best">Best Quality</option>
+                <option value="1080p">1080p Full HD</option>
+                <option value="720p">720p HD</option>
+                <option value="480p">480p SD</option>
+                <option value="audio">Audio Only (MP3)</option>
               </select>
             </div>
-            <!-- Cinematic Filters -->
-            <div
-              class="filter-section"
-              style="
-                margin-top: 15px;
-                border-top: 1px solid rgba(255, 255, 255, 0.05);
-                padding-top: 15px;
-              "
-            >
-              <label class="advanced-label">
-                <span>Cinematic Filter:</span>
+
+            <!-- Telegram Bot Config (Global) -->
+            <div style="margin-bottom: 15px; border-top: 1px solid rgba(255, 255, 255, 0.05); padding-top: 15px;">
+              <label class="advanced-label" style="display: block; margin-bottom: 5px;">
+                <span style="font-size: 0.85rem; font-weight: 500;">Telegram Cloud Sync:</span>
               </label>
-              <select
-                id="color-filter-select"
-                style="
-                  width: 100%;
-                  padding: 8px 12px;
-                  background: rgba(0, 0, 0, 0.3);
-                  border: 1px solid var(--glass-border);
-                  border-radius: 8px;
-                  color: var(--text);
-                  font-family: var(--font);
-                  outline: none;
-                  margin-top: 5px;
-                  cursor: pointer;
-                "
-              >
-                <option value="none">Original</option>
-                <option value="cyberpunk">Cyberpunk (Cyan/Purple)</option>
-                <option value="vintage">Vintage Warm</option>
-                <option value="noir">Noir High Contrast</option>
-                <option value="enhance">
-                  Denoise & Sharpen
-                </option>
-              </select>
-            </div>
-            <!-- AI Voiceover -->
-            <div
-              class="voiceover-section"
-              id="voiceover-container"
-              style="
-                margin-top: 15px;
-                border-top: 1px solid rgba(255, 255, 255, 0.05);
-                padding-top: 15px;
-              "
-            >
-              <label class="advanced-label">
-                <input type="checkbox" id="voiceover-checkbox" />
-                <span class="custom-checkbox"></span>
-                <span>AI Voiceover</span>
-              </label>
-              <div
-                id="voiceover-select-container"
-                class="hidden"
-                style="margin-top: 8px"
-              >
-                <select
-                  id="voiceover-voice-select"
-                  style="
-                    width: 100%;
-                    padding: 8px 12px;
-                    background: rgba(0, 0, 0, 0.3);
-                    border: 1px solid var(--glass-border);
-                    border-radius: 8px;
-                    color: var(--text);
-                    font-family: var(--font);
-                    outline: none;
-                    cursor: pointer;
-                  "
-                >
-                  <option value="vi-VN-HoaiMyNeural">
-                    Hoai My (Warm Female)
-                  </option>
-                  <option value="vi-VN-NamMinhNeural">
-                    Nam Minh (Expressive Male)
-                  </option>
-                </select>
-                <div style="display: flex; gap: 15px; margin-top: 10px;">
-                  <div style="flex: 1;">
-                    <span style="font-size: 11px; color: var(--text-muted); display: block; margin-bottom: 4px;">Speed: <span id="voiceover-rate-val" style="color: var(--cyan); font-weight: 500;">Normal</span></span>
-                    <input type="range" id="voiceover-rate-slider" min="-50" max="100" value="0" style="width: 100%; accent-color: var(--cyan); background: rgba(255,255,255,0.05); border-radius: 4px; height: 6px; cursor: pointer;" />
-                  </div>
-                  <div style="flex: 1;">
-                    <span style="font-size: 11px; color: var(--text-muted); display: block; margin-bottom: 4px;">Pitch: <span id="voiceover-pitch-val" style="color: var(--purple); font-weight: 500;">Normal</span></span>
-                    <input type="range" id="voiceover-pitch-slider" min="-50" max="50" value="0" style="width: 100%; accent-color: var(--purple); background: rgba(255,255,255,0.05); border-radius: 4px; height: 6px; cursor: pointer;" />
-                  </div>
-                </div>
-              </div>
-            </div>
-            <!-- Cloud Sync Options -->
-            <div
-              class="cloud-sync-section"
-              style="
-                margin-top: 15px;
-                border-top: 1px solid rgba(255, 255, 255, 0.05);
-                padding-top: 15px;
-              "
-            >
-              <label class="advanced-label">
-                <span>Cloud Sync:</span>
-              </label>
-              <select
-                id="cloud-sync-select"
-                style="
-                  width: 100%;
-                  padding: 8px 12px;
-                  background: rgba(0, 0, 0, 0.3);
-                  border: 1px solid var(--glass-border);
-                  border-radius: 8px;
-                  color: var(--text);
-                  font-family: var(--font);
-                  outline: none;
-                  margin-top: 5px;
-                  cursor: pointer;
-                "
-              >
-                <option value="local">Local Download</option>
-                <option value="telegram">Send via Telegram Bot</option>
-              </select>
-              <div
-                id="telegram-config-inputs"
-                class="hidden"
-                style="
-                  margin-top: 10px;
-                  display: flex;
-                  flex-direction: column;
-                  gap: 8px;
-                "
-              >
+              <div style="display: flex; flex-direction: column; gap: 8px; margin-top: 5px;">
                 <input
                   type="text"
                   id="tg-bot-token"
@@ -440,7 +295,7 @@
                     border-radius: 8px;
                     color: var(--text);
                     font-family: var(--font);
-                    font-size: 0.85rem;
+                    font-size: 0.82rem;
                   "
                 />
                 <input
@@ -455,10 +310,169 @@
                     border-radius: 8px;
                     color: var(--text);
                     font-family: var(--font);
-                    font-size: 0.85rem;
+                    font-size: 0.82rem;
                   "
                 />
               </div>
+            </div>
+
+            <!-- Cookies & Engine (Global Settings) -->
+            <div style="margin-bottom: 15px; border-top: 1px solid rgba(255, 255, 255, 0.05); padding-top: 15px;">
+              <div
+                id="active-cookies-badge"
+                class="active-cookies-badge hidden"
+                style="margin: 0 0 10px 0; width: 100%; display: flex; justify-content: space-between; align-items: center;"
+              >
+                <div style="display: flex; align-items: center; gap: 6px;">
+                  <span class="pulse-dot"></span>
+                  <span style="font-size: 0.78rem;">Active session cookies loaded</span>
+                </div>
+                <button
+                  id="clear-cookies-btn"
+                  class="btn-clear-cookies"
+                  title="Clear cookies"
+                  style="
+                    background: none;
+                    border: none;
+                    color: rgba(255, 255, 255, 0.5);
+                    font-size: 0.78rem;
+                    font-weight: 600;
+                    cursor: pointer;
+                    text-decoration: underline;
+                    padding: 0;
+                    margin-left: 4px;
+                    transition: color 0.15s ease;
+                  "
+                >
+                  Clear
+                </button>
+              </div>
+              <div class="cookies-status-row" style="margin: 0; gap: 8px;">
+                <button
+                  id="toggle-cookies-btn"
+                  class="btn-toggle-cookies"
+                  title="Upload or Manage Cookies"
+                  style="margin: 0; flex: 1; justify-content: center; height: 34px;"
+                >
+                  <svg
+                    class="cookie-btn-icon"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="1.5"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                  >
+                    <path
+                      d="M12 2a10 10 0 1 0 10 10c0-1.66-1.34-3-3-3s-3 1.34-3 3-1.34 3-3 3-3-1.34-3-3 1.34-3 3-3 3 1.34 3 3a3 3 0 1 1-6 0c0-3.31 2.69-6 6-6Z"
+                    />
+                  </svg>
+                  <span>Manage Cookies</span>
+                </button>
+                <button
+                  id="update-engine-btn"
+                  class="btn-update-engine"
+                  title="Update Downloader Engine (yt-dlp)"
+                  style="margin: 0; flex: 1; justify-content: center; height: 34px;"
+                >
+                  <svg
+                    class="engine-btn-icon"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="1.5"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                    style="width: 14px; height: 14px;"
+                  >
+                    <path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.57-8.38l5.67-5.67" />
+                  </svg>
+                  <span>Update Engine</span>
+                </button>
+              </div>
+            </div>
+
+            <!-- Clear Cache & Reset -->
+            <div style="border-top: 1px solid rgba(255, 255, 255, 0.05); padding-top: 15px; display: flex; flex-direction: column; gap: 8px;">
+              <button
+                type="button"
+                id="btn-clear-temp-cache"
+                style="
+                  width: 100%;
+                  padding: 8px;
+                  background: rgba(239, 68, 68, 0.1);
+                  border: 1px solid rgba(239, 68, 68, 0.2);
+                  border-radius: 8px;
+                  color: #ef4444;
+                  font-family: var(--font);
+                  font-weight: 600;
+                  font-size: 0.8rem;
+                  cursor: pointer;
+                  display: flex;
+                  align-items: center;
+                  justify-content: center;
+                  gap: 6px;
+                  transition: all 0.2s;
+                "
+              >
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
+                Clear Temp Cache
+              </button>
+              <button
+                type="button"
+                id="btn-reset-ui-settings"
+                style="
+                  width: 100%;
+                  padding: 8px;
+                  background: rgba(255, 255, 255, 0.03);
+                  border: 1px solid rgba(255, 255, 255, 0.08);
+                  border-radius: 8px;
+                  color: rgba(255, 255, 255, 0.7);
+                  font-family: var(--font);
+                  font-weight: 500;
+                  font-size: 0.8rem;
+                  cursor: pointer;
+                  display: flex;
+                  align-items: center;
+                  justify-content: center;
+                  gap: 6px;
+                  transition: all 0.2s;
+                "
+              >
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14"><path d="M23 4v6h-6M1 20v-6h6M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg>
+                Reset UI Settings
+              </button>
+            </div>
+
+            <!-- Hidden inputs for legacy download synchronization (populated via preview settings) -->
+            <div style="display: none !important;">
+              <input type="checkbox" id="trim-checkbox" />
+              <input type="text" id="trim-start" value="00:00:00" />
+              <input type="text" id="trim-end" value="00:00:10" />
+              <input type="checkbox" id="translate-subs-checkbox" />
+              <select id="export-type-select">
+                <option value="default">Default format</option>
+                <option value="gif">Looping GIF</option>
+                <option value="shorts">Vertical video</option>
+              </select>
+              <select id="color-filter-select">
+                <option value="none">Original</option>
+                <option value="cyberpunk">Cyberpunk</option>
+                <option value="vintage">Vintage</option>
+                <option value="noir">Noir</option>
+                <option value="enhance">Enhance</option>
+              </select>
+              <input type="checkbox" id="voiceover-checkbox" />
+              <select id="voiceover-voice-select">
+                <option value="vi-VN-HoaiMyNeural">Hoai My</option>
+                <option value="vi-VN-NamMinhNeural">Nam Minh</option>
+              </select>
+              <input type="range" id="voiceover-rate-slider" min="-50" max="100" value="0" />
+              <input type="range" id="voiceover-pitch-slider" min="-50" max="50" value="0" />
+              <select id="cloud-sync-select">
+                <option value="local">Local</option>
+                <option value="telegram">Telegram</option>
+              </select>
             </div>
           </div>
 
@@ -491,71 +505,65 @@
             <div class="customizer-scroll">
               <!-- Accent color preset -->
               <div>
-                <label
-                  class="advanced-label"
-                  style="
-                    font-size: 0.85rem;
-                    font-weight: 500;
-                    margin-bottom: 5px;
-                    display: block;
-                  "
-                >
-                  <span>Accent Theme:</span>
+                <label class="advanced-label" style="font-size: 0.85rem; font-weight: 500; margin-bottom: 2px; display: block;">
+                  <span>Accent Theme:</span> <span id="customizer-accent-name" style="color: var(--cyan); font-weight: 600; font-size: 0.8rem; margin-left: 4px;">Neon Cyan</span>
                 </label>
-                <select id="customizer-accent" class="customizer-select">
-                  <option value="default">Neon Cyan (Default)</option>
-                  <option value="emerald">Emerald Green</option>
-                  <option value="orchid">Orchid Pink</option>
-                  <option value="amber">Amber Gold</option>
-                  <option value="purple">Royal Purple</option>
-                  <option value="rose">Ruby Red</option>
-                  <option value="orange">Electric Orange</option>
-                  <option value="blue">Sapphire Blue</option>
-                  <option value="peach">Sunset Peach</option>
-                  <option value="lime">Acid Lime</option>
-                </select>
+                <div class="accent-swatches-grid">
+                  <button type="button" class="accent-swatch active" data-value="default" title="Neon Cyan (Default)"></button>
+                  <button type="button" class="accent-swatch" data-value="emerald" title="Emerald Green"></button>
+                  <button type="button" class="accent-swatch" data-value="orchid" title="Orchid Pink"></button>
+                  <button type="button" class="accent-swatch" data-value="amber" title="Amber Gold"></button>
+                  <button type="button" class="accent-swatch" data-value="purple" title="Royal Purple"></button>
+                  <button type="button" class="accent-swatch" data-value="rose" title="Ruby Red"></button>
+                  <button type="button" class="accent-swatch" data-value="orange" title="Electric Orange"></button>
+                  <button type="button" class="accent-swatch" data-value="blue" title="Sapphire Blue"></button>
+                  <button type="button" class="accent-swatch" data-value="peach" title="Sunset Peach"></button>
+                  <button type="button" class="accent-swatch" data-value="lime" title="Acid Lime"></button>
+                </div>
+                
+                <!-- Custom Accent Colors Row -->
+                <div class="custom-swatches-container" style="display: flex; align-items: center; gap: 12px; margin-top: 10px; padding-left: 2px;">
+                  <span style="font-size: 0.75rem; color: var(--text-dim); font-weight: 500;">Custom:</span>
+                  <div style="display: flex; gap: 12px; align-items: center;">
+                    <div style="display: flex; align-items: center; gap: 6px;">
+                      <button type="button" class="accent-swatch custom-swatch" data-value="custom" id="custom-color-btn-1" title="Custom Primary Color" style="background: #00f2fe; position: relative;">
+                        <span style="font-size: 0.65rem; pointer-events: none; color: #000; font-weight: 700; position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); text-shadow: 0 0 2px #fff;">P</span>
+                        <input type="color" id="customizer-accent-picker-1" value="#00f2fe" style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; opacity: 0; cursor: pointer; padding: 0; border: none; border-radius: 50%;">
+                      </button>
+                      <span style="font-size: 0.72rem; color: var(--text-dim);">Primary</span>
+                    </div>
+                    <div style="display: flex; align-items: center; gap: 6px;">
+                      <button type="button" class="accent-swatch custom-swatch" data-value="custom" id="custom-color-btn-2" title="Custom Secondary Color" style="background: #fe0979; position: relative;">
+                        <span style="font-size: 0.65rem; pointer-events: none; color: #000; font-weight: 700; position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); text-shadow: 0 0 2px #fff;">S</span>
+                        <input type="color" id="customizer-accent-picker-2" value="#fe0979" style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; opacity: 0; cursor: pointer; padding: 0; border: none; border-radius: 50%;">
+                      </button>
+                      <span style="font-size: 0.72rem; color: var(--text-dim);">Secondary</span>
+                    </div>
+                  </div>
+                </div>
               </div>
 
               <!-- Border Radius Option -->
               <div>
-                <label
-                  class="advanced-label"
-                  style="
-                    font-size: 0.85rem;
-                    font-weight: 500;
-                    margin-bottom: 5px;
-                    display: block;
-                  "
-                >
+                <label class="advanced-label" style="font-size: 0.85rem; font-weight: 500; margin-bottom: 5px; display: block;">
                   <span>Corner Radius:</span>
                 </label>
-                <select id="customizer-radius" class="customizer-select">
-                  <option value="sharp">Sharp (4px)</option>
-                  <option value="rounded">Rounded (12px)</option>
-                  <option value="pill">Pill (24px)</option>
-                </select>
+                <div class="customizer-presets-container">
+                  <button type="button" class="customizer-preset-btn" data-type="radius" data-value="sharp">Sharp (4px)</button>
+                  <button type="button" class="customizer-preset-btn active" data-type="radius" data-value="rounded">Rounded (12px)</button>
+                  <button type="button" class="customizer-preset-btn" data-type="radius" data-value="pill">Pill (24px)</button>
+                </div>
               </div>
 
               <!-- Glassmorphism Blur Strength -->
+              <!-- Glassmorphism Blur Strength -->
               <div>
-                <div
-                  style="
-                    display: flex;
-                    justify-content: space-between;
-                    align-items: center;
-                    margin-bottom: 5px;
-                  "
-                >
-                  <label
-                    class="advanced-label"
-                    style="font-size: 0.85rem; font-weight: 500; margin: 0"
-                    >Glass Blur:</label
-                  >
-                  <span
-                    id="customizer-blur-val"
-                    style="font-size: 0.8rem; color: var(--cyan)"
-                    >24px</span
-                  >
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 5px;">
+                  <label class="advanced-label" style="font-size: 0.85rem; font-weight: 500; margin: 0">Glass Blur:</label>
+                  <div style="display: flex; align-items: center; gap: 2px;">
+                    <input type="number" id="customizer-blur-val" class="customizer-number-input" min="0" max="100" value="24">
+                    <span style="font-size: 0.75rem; color: #94a3b8;">px</span>
+                  </div>
                 </div>
                 <input
                   type="range"
@@ -573,48 +581,32 @@
 
               <!-- Font Size Option -->
               <div>
-                <label
-                  class="advanced-label"
-                  style="
-                    font-size: 0.85rem;
-                    font-weight: 500;
-                    margin-bottom: 5px;
-                    display: block;
-                  "
-                >
+                <label class="advanced-label" style="font-size: 0.85rem; font-weight: 500; margin-bottom: 5px; display: block;">
                   <span>Typography Scale:</span>
                 </label>
-                <select id="customizer-fontsize" class="customizer-select">
-                  <option value="tiny">Tiny (75% - Extra Compact)</option>
-                  <option value="compact">Compact (85% - Narrow)</option>
-                  <option value="small">Small (90% - Small)</option>
-                  <option value="medium">Medium (100% - Default)</option>
-                  <option value="large">Large (110% - Standard)</option>
-                  <option value="xlarge">X-Large (120% - Large)</option>
-                  <option value="huge">Huge (130% - Extra Large)</option>
-                </select>
+                <div class="customizer-presets-container">
+                  <button type="button" class="customizer-preset-btn" data-type="fontsize" data-value="tiny" title="Tiny (75%)">Tiny</button>
+                  <button type="button" class="customizer-preset-btn" data-type="fontsize" data-value="compact" title="Compact (85%)">Compact</button>
+                  <button type="button" class="customizer-preset-btn" data-type="fontsize" data-value="small" title="Small (90%)">Small</button>
+                  <button type="button" class="customizer-preset-btn active" data-type="fontsize" data-value="medium" title="Medium (100%)">Medium</button>
+                  <button type="button" class="customizer-preset-btn" data-type="fontsize" data-value="large" title="Large (110%)">Large</button>
+                  <button type="button" class="customizer-preset-btn" data-type="fontsize" data-value="xlarge" title="X-Large (120%)">X-Large</button>
+                  <button type="button" class="customizer-preset-btn" data-type="fontsize" data-value="huge" title="Huge (130%)">Huge</button>
+                </div>
               </div>
 
               <!-- Font Family Option -->
               <div>
-                <label
-                  class="advanced-label"
-                  style="
-                    font-size: 0.85rem;
-                    font-weight: 500;
-                    margin-bottom: 5px;
-                    display: block;
-                  "
-                >
+                <label class="advanced-label" style="font-size: 0.85rem; font-weight: 500; margin-bottom: 5px; display: block;">
                   <span>Font Family:</span>
                 </label>
-                <select id="customizer-fontfamily" class="customizer-select">
-                  <option value="outfit">Outfit (Geometric & Round)</option>
-                  <option value="plus-jakarta-sans">Plus Jakarta Sans (Sleek & Premium)</option>
-                  <option value="inter">Inter (Clean & Readable)</option>
-                  <option value="space-grotesk">Space Grotesk (Tech & Futuristic)</option>
-                  <option value="system-ui">System Default (Sans-Serif)</option>
-                </select>
+                <div class="customizer-presets-container">
+                  <button type="button" class="customizer-preset-btn active" data-type="fontfamily" data-value="outfit">Outfit</button>
+                  <button type="button" class="customizer-preset-btn" data-type="fontfamily" data-value="plus-jakarta-sans">Jakarta</button>
+                  <button type="button" class="customizer-preset-btn" data-type="fontfamily" data-value="inter">Inter</button>
+                  <button type="button" class="customizer-preset-btn" data-type="fontfamily" data-value="space-grotesk">Grotesk</button>
+                  <button type="button" class="customizer-preset-btn" data-type="fontfamily" data-value="system-ui">System</button>
+                </div>
               </div>
 
               <!-- Divider -->
@@ -654,30 +646,14 @@
 
               <!-- Grid Spacing slider -->
               <div id="grid-spacing-container">
-                <div
-                  style="
-                    display: flex;
-                    justify-content: space-between;
-                    align-items: center;
-                    margin-bottom: 5px;
-                  "
-                >
-                  <label
-                    class="advanced-label"
-                    style="
-                      font-size: 0.85rem;
-                      font-weight: 500;
-                      margin: 0;
-                      pointer-events: none;
-                    "
-                  >
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 5px;">
+                  <label class="advanced-label" style="font-size: 0.85rem; font-weight: 500; margin: 0; pointer-events: none;">
                     <span>Node Spacing:</span>
                   </label>
-                  <span
-                    id="customizer-spacing-val"
-                    style="font-size: 0.8rem; color: var(--cyan)"
-                    >54px</span
-                  >
+                  <div style="display: flex; align-items: center; gap: 2px;">
+                    <input type="number" id="customizer-spacing-val" class="customizer-number-input" min="10" max="500" value="54">
+                    <span style="font-size: 0.75rem; color: #94a3b8;">px</span>
+                  </div>
                 </div>
                 <input
                   type="range"
@@ -695,30 +671,14 @@
 
               <!-- Gravity radius slider -->
               <div id="grid-gravity-container">
-                <div
-                  style="
-                    display: flex;
-                    justify-content: space-between;
-                    align-items: center;
-                    margin-bottom: 5px;
-                  "
-                >
-                  <label
-                    class="advanced-label"
-                    style="
-                      font-size: 0.85rem;
-                      font-weight: 500;
-                      margin: 0;
-                      pointer-events: none;
-                    "
-                  >
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 5px;">
+                  <label class="advanced-label" style="font-size: 0.85rem; font-weight: 500; margin: 0; pointer-events: none;">
                     <span>Gravity Radius:</span>
                   </label>
-                  <span
-                    id="customizer-gravity-val"
-                    style="font-size: 0.8rem; color: var(--cyan)"
-                    >180px</span
-                  >
+                  <div style="display: flex; align-items: center; gap: 2px;">
+                    <input type="number" id="customizer-gravity-val" class="customizer-number-input" min="10" max="2000" value="180">
+                    <span style="font-size: 0.75rem; color: #94a3b8;">px</span>
+                  </div>
                 </div>
                 <input
                   type="range"
@@ -736,50 +696,26 @@
 
               <!-- Gravity Mode dropdown -->
               <div>
-                <label
-                  class="advanced-label"
-                  style="
-                    font-size: 0.85rem;
-                    font-weight: 500;
-                    margin-bottom: 5px;
-                    display: block;
-                  "
-                >
+                <label class="advanced-label" style="font-size: 0.85rem; font-weight: 500; margin-bottom: 5px; display: block;">
                   <span>Gravity Mode:</span>
                 </label>
-                <select id="customizer-gravity-mode" class="customizer-select">
-                  <option value="pull">Pull / Black Hole (Default)</option>
-                  <option value="push">Push / Bulge</option>
-                  <option value="none">No gravity warping</option>
-                </select>
+                <div class="customizer-presets-container">
+                  <button type="button" class="customizer-preset-btn active" data-type="gravity-mode" data-value="pull" title="Pull / Black Hole (Default)">Black Hole</button>
+                  <button type="button" class="customizer-preset-btn" data-type="gravity-mode" data-value="push" title="Push / Bulge">Bulge</button>
+                  <button type="button" class="customizer-preset-btn" data-type="gravity-mode" data-value="none" title="No gravity warping">None</button>
+                </div>
               </div>
 
               <!-- Gravity Depth slider -->
               <div id="grid-gravity-depth-container">
-                <div
-                  style="
-                    display: flex;
-                    justify-content: space-between;
-                    align-items: center;
-                    margin-bottom: 5px;
-                  "
-                >
-                  <label
-                    class="advanced-label"
-                    style="
-                      font-size: 0.85rem;
-                      font-weight: 500;
-                      margin: 0;
-                      pointer-events: none;
-                    "
-                  >
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 5px;">
+                  <label class="advanced-label" style="font-size: 0.85rem; font-weight: 500; margin: 0; pointer-events: none;">
                     <span>Gravity Depth:</span>
                   </label>
-                  <span
-                    id="customizer-gravity-depth-val"
-                    style="font-size: 0.8rem; color: var(--cyan)"
-                    >130px</span
-                  >
+                  <div style="display: flex; align-items: center; gap: 2px;">
+                    <input type="number" id="customizer-gravity-depth-val" class="customizer-number-input" min="10" max="1000" value="130">
+                    <span style="font-size: 0.75rem; color: #94a3b8;">px</span>
+                  </div>
                 </div>
                 <input
                   type="range"
@@ -797,22 +733,14 @@
 
               <!-- Sparkle Shape dropdown -->
               <div>
-                <label
-                  class="advanced-label"
-                  style="
-                    font-size: 0.85rem;
-                    font-weight: 500;
-                    margin-bottom: 5px;
-                    display: block;
-                  "
-                >
+                <label class="advanced-label" style="font-size: 0.85rem; font-weight: 500; margin-bottom: 5px; display: block;">
                   <span>Stardust Shape:</span>
                 </label>
-                <select id="customizer-sparkle-shape" class="customizer-select">
-                  <option value="star">4-pointed Star (Default)</option>
-                  <option value="circle">Circle</option>
-                  <option value="diamond">Diamond</option>
-                </select>
+                <div class="customizer-presets-container">
+                  <button type="button" class="customizer-preset-btn active" data-type="sparkle-shape" data-value="star" title="4-pointed Star (Default)">Star</button>
+                  <button type="button" class="customizer-preset-btn" data-type="sparkle-shape" data-value="circle" title="Circle">Circle</button>
+                  <button type="button" class="customizer-preset-btn" data-type="sparkle-shape" data-value="diamond" title="Diamond">Diamond</button>
+                </div>
               </div>
 
               <!-- Reset to defaults button -->
@@ -907,63 +835,7 @@
           </button>
         </div>
 
-        <!-- Active Cookies Badge & Toggle Manage -->
-        <div class="cookies-status-row">
-          <div
-            id="active-cookies-badge"
-            class="active-cookies-badge hidden"
-            style="margin: 0"
-          >
-            <span class="pulse-dot"></span>
-            <span>Active session cookies loaded</span>
-            <button
-              id="clear-cookies-btn"
-              class="btn-clear-cookies"
-              title="Clear cookies"
-            >
-              Clear
-            </button>
-          </div>
-          <button
-            id="toggle-cookies-btn"
-            class="btn-toggle-cookies"
-            title="Upload or Manage Cookies"
-          >
-            <svg
-              class="cookie-btn-icon"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              stroke-width="1.5"
-              stroke-linecap="round"
-              stroke-linejoin="round"
-            >
-              <path
-                d="M12 2a10 10 0 1 0 10 10c0-1.66-1.34-3-3-3s-3 1.34-3 3-1.34 3-3 3-3-1.34-3-3 1.34-3 3-3 3 1.34 3 3a3 3 0 1 1-6 0c0-3.31 2.69-6 6-6Z"
-              />
-            </svg>
-            <span>Manage Cookies</span>
-          </button>
-          <button
-            id="update-engine-btn"
-            class="btn-update-engine"
-            title="Update Downloader Engine (yt-dlp)"
-          >
-            <svg
-              class="engine-btn-icon"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              stroke-width="1.5"
-              stroke-linecap="round"
-              stroke-linejoin="round"
-              style="width: 14px; height: 14px;"
-            >
-              <path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.57-8.38l5.67-5.67" />
-            </svg>
-            <span>Update Engine</span>
-          </button>
-        </div>
+
 
         <!-- Loader -->
         <div id="loader" class="loader hidden">
@@ -1596,6 +1468,13 @@
         <div class="modal-header">
           <h3 id="preview-title">Media Preview</h3>
           <div class="modal-header-actions" style="display: flex; align-items: center; gap: 8px;">
+            <button id="preview-shortcuts-btn" class="modal-action-btn" title="Keyboard Shortcuts (H or ?)">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="18" height="18">
+                <circle cx="12" cy="12" r="10"></circle>
+                <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"></path>
+                <line x1="12" y1="17" x2="12.01" y2="17"></line>
+              </svg>
+            </button>
             <button id="modal-fullscreen-btn" class="modal-action-btn" title="Theater Mode (Web Fullscreen)">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="18" height="18">
                 <path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3"></path>
@@ -1657,121 +1536,275 @@
                       <span>Video Settings</span>
                       <button id="close-settings-menu-btn" class="settings-close-btn">&times;</button>
                     </div>
+
+                    <!-- Tabs Header Bar -->
+                    <div class="settings-tab-bar" style="display: flex; border-bottom: 1px solid rgba(255, 255, 255, 0.06); background: rgba(0,0,0,0.15); padding: 4px 6px;">
+                      <button type="button" class="settings-tab-btn active" data-tab="tab-playback" style="flex: 1; padding: 8px 4px; background: none; border: none; color: var(--cyan); font-size: 0.72rem; font-weight: 700; font-family: var(--font); cursor: pointer; border-bottom: 2px solid var(--cyan); transition: all 0.2s; outline: none;">Playback</button>
+                      <button type="button" class="settings-tab-btn" data-tab="tab-subtitles" style="flex: 1; padding: 8px 4px; background: none; border: none; color: #94a3b8; font-size: 0.72rem; font-weight: 500; font-family: var(--font); cursor: pointer; border-bottom: 2px solid transparent; transition: all 0.2s; outline: none;">Subtitles</button>
+                      <button type="button" class="settings-tab-btn" data-tab="tab-voiceover" style="flex: 1; padding: 8px 4px; background: none; border: none; color: #94a3b8; font-size: 0.72rem; font-weight: 500; font-family: var(--font); cursor: pointer; border-bottom: 2px solid transparent; transition: all 0.2s; outline: none;">Voiceover</button>
+                      <button type="button" class="settings-tab-btn" data-tab="tab-export" style="flex: 1; padding: 8px 4px; background: none; border: none; color: #94a3b8; font-size: 0.72rem; font-weight: 500; font-family: var(--font); cursor: pointer; border-bottom: 2px solid transparent; transition: all 0.2s; outline: none;">Export</button>
+                    </div>
                     
                     <div class="settings-menu-content">
-                      <!-- Group 1: Subtitles & Voice -->
-                      <div class="settings-group">
-                        <div class="settings-title">Subtitles & Voiceover</div>
-                        
-                        <div class="settings-row">
-                          <label for="preview-sub-select">Track:</label>
-                          <div class="sub-select-wrapper">
-                            <select id="preview-sub-select" class="custom-select-menu" title="Select Subtitle Track">
-                              <option value="none">None</option>
+                      <!-- Tab 1: Playback Panel -->
+                      <div id="tab-playback" class="settings-tab-panel">
+                        <!-- Group: Playback Options -->
+                        <div class="settings-group">
+                          <div class="settings-title">Playback Options</div>
+                          
+                          <div class="settings-row flex-column">
+                            <div style="display: flex; align-items: center; justify-content: space-between; width: 100%;">
+                              <label>Playback Speed:</label>
+                              <div id="preview-speed-custom-wrapper" style="display: none; align-items: center; gap: 4px;">
+                                <input type="number" id="preview-speed-custom" class="custom-speed-input" min="0.1" max="16.0" step="0.05" value="1.0" style="width: 55px; padding: 3px 6px;" title="Enter custom speed (e.g. 1.25)">
+                                <span style="font-size: 0.72rem; color: #94a3b8;">x</span>
+                              </div>
+                            </div>
+                            <div class="speed-select-container" style="margin-top: 5px; width: 100%;">
+                              <select id="preview-speed-select" class="settings-select-menu" style="width: 100%;" title="Select Playback Speed">
+                                <option value="0.5">0.5x</option>
+                                <option value="0.75">0.75x</option>
+                                <option value="1.0" selected>1.0x (Normal)</option>
+                                <option value="1.25">1.25x</option>
+                                <option value="1.5">1.5x</option>
+                                <option value="2.0">2.0x</option>
+                                <option value="custom">Custom...</option>
+                              </select>
+                            </div>
+                          </div>
+
+                          <div class="settings-row" style="justify-content: space-between;">
+                            <label for="toggle-ab-loop">A-B Loop (Trim):</label>
+                            <label class="switch-toggle">
+                              <input type="checkbox" id="toggle-ab-loop">
+                              <span class="switch-slider"></span>
+                            </label>
+                          </div>
+                          <div id="ab-loop-wrapper" class="ab-loop-wrapper collapsed">
+                            <div class="loop-controls-menu">
+                              <input type="text" id="loop-point-a" class="loop-time-input-menu" placeholder="A (0:00)" title="Loop Start (Hotkey: [)">
+                              <span style="color: rgba(255, 255, 255, 0.4);">-</span>
+                              <input type="text" id="loop-point-b" class="loop-time-input-menu" placeholder="B (End)" title="Loop End (Hotkey: ])">
+                              <button id="btn-loop-a-set" class="btn-menu-action" title="Set Start (Hotkey: [)">Set A</button>
+                              <button id="btn-loop-b-set" class="btn-menu-action" title="Set End (Hotkey: ])">Set B</button>
+                              <button id="btn-loop-clear" class="btn-menu-action btn-menu-clear" title="Clear Loop">×</button>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+
+                      <!-- Tab 2: Subtitles Panel -->
+                      <div id="tab-subtitles" class="settings-tab-panel hidden">
+                        <!-- Group: Subtitles Configuration -->
+                        <div class="settings-group">
+                          <div class="settings-title">Subtitle Track</div>
+                          
+                          <div class="settings-row">
+                            <label for="preview-sub-select">Track:</label>
+                            <div class="sub-select-wrapper">
+                              <select id="preview-sub-select" class="custom-select-menu" title="Select Subtitle Track">
+                                <option value="none">None</option>
+                              </select>
+                              <button id="preview-sub-upload-btn" class="btn-menu-action" title="Upload subtitle (.vtt, .srt)">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="12" height="12"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M17 8l-5-5-5 5M12 3v12"/></svg>
+                              </button>
+                              <input type="file" id="preview-sub-upload-file" accept=".vtt,.srt" style="display:none;">
+                              <button id="preview-sub-download-btn" class="btn-menu-action" title="Download VTT" disabled>
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="12" height="12"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M7 10l5 5 5-5M12 15V3"/></svg>
+                              </button>
+                            </div>
+                          </div>
+
+                          <div class="settings-row">
+                            <label for="preview-sub-trans-select">Translate:</label>
+                            <select id="preview-sub-trans-select" class="custom-select-menu" title="Translate Subtitle">
+                              <option value="none">Original</option>
+                              <option value="vi">Tiếng Việt</option>
+                              <option value="en">English</option>
                             </select>
-                            <button id="preview-sub-upload-btn" class="btn-menu-action" title="Upload subtitle (.vtt, .srt)">
-                              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="12" height="12"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M17 8l-5-5-5 5M12 3v12"/></svg>
-                            </button>
-                            <input type="file" id="preview-sub-upload-file" accept=".vtt,.srt" style="display:none;">
-                            <button id="preview-sub-download-btn" class="btn-menu-action" title="Download VTT" disabled>
-                              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="12" height="12"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M7 10l5 5 5-5M12 15V3"/></svg>
-                            </button>
                           </div>
                         </div>
 
-                        <div class="settings-row">
-                          <label for="preview-sub-trans-select">Translate:</label>
-                          <select id="preview-sub-trans-select" class="custom-select-menu" title="Translate Subtitle">
-                            <option value="none">Original</option>
-                            <option value="vi">Tiếng Việt</option>
-                            <option value="en">English</option>
-                          </select>
-                        </div>
+                        <!-- Group: Subtitles Styling -->
+                        <div class="settings-group" style="margin-top: 15px;">
+                          <div class="settings-title">Subtitles Styling</div>
+                          
+                          <!-- Font Family -->
+                          <div class="settings-row">
+                            <label for="preview-sub-font">Font Family:</label>
+                            <select id="preview-sub-font" class="custom-select-menu" title="Font Family">
+                              <option value="sans-serif" selected>Sans-Serif</option>
+                              <option value="serif">Serif</option>
+                              <option value="monospace">Monospace</option>
+                              <option value="'Outfit', sans-serif">Outfit (Default)</option>
+                              <option value="'Playfair Display', serif">Playfair Display</option>
+                            </select>
+                          </div>
 
-                        <div class="settings-row">
-                          <label for="preview-voiceover-select">Voiceover:</label>
-                          <select id="preview-voiceover-select" class="custom-select-menu" title="Voiceover Language">
-                            <option value="none">None</option>
-                            <option value="vi">Tiếng Việt</option>
-                            <option value="en">English</option>
-                          </select>
-                        </div>
-                      </div>
+                          <!-- Font Size Slider -->
+                          <div class="settings-row flex-column">
+                            <div class="slider-label-row">
+                              <label for="preview-sub-size">Font Size:</label>
+                              <span id="preview-sub-size-val">1.4rem</span>
+                            </div>
+                            <input type="range" id="preview-sub-size" min="1.0" max="3.0" step="0.1" value="1.4" class="modern-slider" title="Adjust Font Size">
+                          </div>
 
-                      <!-- Group 2: Playback Settings -->
-                      <div class="settings-group">
-                        <div class="settings-title">Playback Options</div>
-                        
-                        <div class="settings-row">
-                          <label for="preview-speed-select">Speed:</label>
-                          <select id="preview-speed-select" class="custom-select-menu" title="Playback Speed">
-                            <option value="0.5">0.5x</option>
-                            <option value="0.75">0.75x</option>
-                            <option value="1.0" selected>1.0x</option>
-                            <option value="1.25">1.25x</option>
-                            <option value="1.5">1.5x</option>
-                            <option value="2.0">2.0x</option>
-                          </select>
-                        </div>
+                          <!-- Text Color Swatches & Picker -->
+                          <div class="settings-row flex-column">
+                            <label>Text Color:</label>
+                            <div class="color-palette-container">
+                              <button class="color-swatch active" data-color="#ffffff" style="background-color: #ffffff;" title="White"></button>
+                              <button class="color-swatch" data-color="#ffff00" style="background-color: #ffff00;" title="Yellow"></button>
+                              <button class="color-swatch" data-color="#00ff00" style="background-color: #00ff00;" title="Green"></button>
+                              <button class="color-swatch" data-color="#00ffff" style="background-color: #00ffff;" title="Cyan"></button>
+                              <button class="color-swatch" data-color="#ff4444" style="background-color: #ff4444;" title="Red"></button>
+                              <button class="color-swatch" data-color="#ff00ff" style="background-color: #ff00ff;" title="Magenta"></button>
+                              <div class="color-picker-wrapper" title="Choose Custom Color">
+                                <input type="color" id="preview-sub-color" value="#ffffff">
+                                <i class="fas fa-palette"></i>
+                              </div>
+                            </div>
+                          </div>
 
-                        <div class="settings-row" style="justify-content: space-between;">
-                          <label for="toggle-ab-loop">A-B Loop:</label>
-                          <label class="switch-toggle">
-                            <input type="checkbox" id="toggle-ab-loop">
-                            <span class="switch-slider"></span>
-                          </label>
-                        </div>
-                        <div id="ab-loop-wrapper" class="ab-loop-wrapper collapsed">
-                          <div class="loop-controls-menu">
-                            <input type="text" id="loop-point-a" class="loop-time-input-menu" placeholder="A (0:00)" title="Loop Start">
-                            <span style="color: rgba(255, 255, 255, 0.4);">-</span>
-                            <input type="text" id="loop-point-b" class="loop-time-input-menu" placeholder="B (End)" title="Loop End">
-                            <button id="btn-loop-a-set" class="btn-menu-action" title="Set Start">Set A</button>
-                            <button id="btn-loop-b-set" class="btn-menu-action" title="Set End">Set B</button>
-                            <button id="btn-loop-clear" class="btn-menu-action btn-menu-clear" title="Clear Loop">×</button>
+                          <!-- Background Color & Opacity -->
+                          <div class="settings-row flex-column">
+                            <label>Background Style:</label>
+                            <div class="color-palette-container">
+                              <button class="bg-swatch active" data-bg="#000000" style="background-color: #000000;" title="Black"></button>
+                              <button class="bg-swatch" data-bg="#0000ff" style="background-color: #0000ff;" title="Blue"></button>
+                              <button class="bg-swatch" data-bg="#ff0000" style="background-color: #ff0000;" title="Red"></button>
+                              <button class="bg-swatch" data-bg="transparent" style="background-color: transparent; border: 1px dashed rgba(255,255,255,0.3);" title="None"></button>
+                              <div class="color-picker-wrapper" title="Choose Custom Background">
+                                <input type="color" id="preview-sub-bg-color" value="#000000">
+                                <i class="fas fa-fill-drip"></i>
+                              </div>
+                            </div>
+                            <!-- Opacity Slider -->
+                            <div class="slider-label-row mt-2">
+                              <label for="preview-sub-bg-opacity">BG Opacity:</label>
+                              <span id="preview-sub-bg-opacity-val">50%</span>
+                            </div>
+                            <input type="range" id="preview-sub-bg-opacity" min="0" max="100" step="5" value="50" class="modern-slider" title="Adjust Background Opacity">
+                          </div>
+
+                          <!-- Text Outline (Stroke) -->
+                          <div class="settings-row flex-column">
+                            <div class="slider-label-row">
+                              <label for="preview-sub-outline">Outline Size:</label>
+                              <span id="preview-sub-outline-val">2px</span>
+                            </div>
+                            <input type="range" id="preview-sub-outline" min="0" max="5" step="1" value="2" class="modern-slider" title="Adjust Outline Width">
+                            
+                            <div class="slider-label-row mt-2">
+                              <label>Outline Color:</label>
+                            </div>
+                            <div class="color-palette-container">
+                              <button class="outline-swatch active" data-outline="#000000" style="background-color: #000000;" title="Black"></button>
+                              <button class="outline-swatch" data-outline="#ffffff" style="background-color: #ffffff;" title="White"></button>
+                              <button class="outline-swatch" data-outline="#ffff00" style="background-color: #ffff00;" title="Yellow"></button>
+                              <div class="color-picker-wrapper" title="Choose Custom Outline Color">
+                                <input type="color" id="preview-sub-outline-color" value="#000000">
+                                <i class="fas fa-border-style"></i>
+                              </div>
+                            </div>
+                          </div>
+
+                          <!-- Position -->
+                          <div class="settings-row">
+                            <label for="preview-sub-pos">Position:</label>
+                            <select id="preview-sub-pos" class="custom-select-menu" title="Vertical Position">
+                              <option value="bottom" selected>Bottom</option>
+                              <option value="top">Top</option>
+                            </select>
                           </div>
                         </div>
                       </div>
 
-                      <!-- Group 3: Subtitle Styling -->
-                      <div class="settings-group">
-                        <div class="settings-title">Subtitles Styling</div>
-                        
-                        <div class="settings-row">
-                          <label for="preview-sub-size">Font Size:</label>
-                          <select id="preview-sub-size" class="custom-select-menu" title="Font Size">
-                            <option value="1.1rem">Small</option>
-                            <option value="1.4rem" selected>Medium</option>
-                            <option value="1.8rem">Large</option>
-                            <option value="2.2rem">Extra Large</option>
-                          </select>
-                        </div>
+                      <!-- Tab 3: Voiceover Panel -->
+                      <div id="tab-voiceover" class="settings-tab-panel hidden">
+                        <!-- Group: Voiceover Settings -->
+                        <div class="settings-group">
+                          <div class="settings-title">AI Voiceover Settings</div>
 
-                        <div class="settings-row">
-                          <label for="preview-sub-color">Color:</label>
-                          <select id="preview-sub-color" class="custom-select-menu" title="Font Color">
-                            <option value="#ffffff" selected>White</option>
-                            <option value="#ffff00">Yellow</option>
-                            <option value="#00ff00">Green</option>
-                            <option value="#00ffff">Cyan</option>
-                          </select>
-                        </div>
+                          <div class="settings-row">
+                            <label for="preview-voiceover-select">Voiceover Language:</label>
+                            <select id="preview-voiceover-select" class="custom-select-menu" title="Voiceover Language">
+                              <option value="none">None</option>
+                              <option value="vi">Tiếng Việt</option>
+                              <option value="en">English</option>
+                            </select>
+                          </div>
 
-                        <div class="settings-row">
-                          <label for="preview-sub-bg">Background:</label>
-                          <select id="preview-sub-bg" class="custom-select-menu" title="Background Color">
-                            <option value="rgba(0,0,0,0.5)" selected>Translucent</option>
-                            <option value="rgba(0,0,0,0.85)">Solid Black</option>
-                            <option value="none">None</option>
-                          </select>
-                        </div>
+                          <div class="settings-row" style="justify-content: space-between; margin-top: 10px;">
+                            <label for="preview-voiceover-active">AI Thuyết minh (Overlay):</label>
+                            <label class="switch-toggle">
+                              <input type="checkbox" id="preview-voiceover-active">
+                              <span class="switch-slider"></span>
+                            </label>
+                          </div>
 
-                        <div class="settings-row">
-                          <label for="preview-sub-pos">Position:</label>
-                          <select id="preview-sub-pos" class="custom-select-menu" title="Vertical Position">
-                            <option value="bottom" selected>Bottom</option>
-                            <option value="top">Top</option>
-                          </select>
+                          <div id="preview-voiceover-wrapper" class="collapsible-settings-wrapper collapsed" style="width: 100%; margin-top: 10px;">
+                            <div style="display: flex; flex-direction: column; gap: 10px; width: 100%; background: rgba(0,0,0,0.15); padding: 10px; border-radius: 8px; border: 1px solid rgba(255,255,255,0.04);">
+                              <div class="settings-row" style="margin-bottom: 5px;">
+                                <label for="preview-voiceover-voice">Voice Model:</label>
+                                <select id="preview-voiceover-voice" class="custom-select-menu" title="Select Voice Model">
+                                  <option value="vi-VN-HoaiMyNeural">Hoai My (Warm Female)</option>
+                                  <option value="vi-VN-NamMinhNeural">Nam Minh (Expressive Male)</option>
+                                </select>
+                              </div>
+                              <div class="settings-row" style="flex-direction: column; align-items: stretch; gap: 4px;">
+                                <div style="display: flex; justify-content: space-between; font-size: 0.68rem; color: rgba(255,255,255,0.6);">
+                                  <span>Speed:</span>
+                                  <span id="preview-voiceover-rate-val" style="color: var(--cyan); font-weight: 500;">Normal</span>
+                                </div>
+                                <input type="range" id="preview-voiceover-rate-slider" min="-50" max="100" value="0" style="width: 100%; accent-color: var(--cyan); background: rgba(255,255,255,0.05); border-radius: 4px; height: 6px; cursor: pointer;" />
+                              </div>
+                              <div class="settings-row" style="flex-direction: column; align-items: stretch; gap: 4px;">
+                                <div style="display: flex; justify-content: space-between; font-size: 0.68rem; color: rgba(255,255,255,0.6);">
+                                  <span>Pitch:</span>
+                                  <span id="preview-voiceover-pitch-val" style="color: var(--purple); font-weight: 500;">Normal</span>
+                                </div>
+                                <input type="range" id="preview-voiceover-pitch-slider" min="-50" max="50" value="0" style="width: 100%; accent-color: var(--purple); background: rgba(255,255,255,0.05); border-radius: 4px; height: 6px; cursor: pointer;" />
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+
+                      <!-- Tab 4: Export Panel -->
+                      <div id="tab-export" class="settings-tab-panel hidden">
+                        <!-- Group: Advanced Export -->
+                        <div class="settings-group">
+                          <div class="settings-title">Advanced Export</div>
+
+                          <div class="settings-row">
+                            <label for="preview-export-type">Export Format:</label>
+                            <select id="preview-export-type" class="custom-select-menu" title="Export Format">
+                              <option value="default">Default format</option>
+                              <option value="gif">Looping GIF</option>
+                              <option value="shorts">Vertical video (9:16)</option>
+                            </select>
+                          </div>
+
+                          <div class="settings-row">
+                            <label for="preview-color-filter">Cinematic Filter:</label>
+                            <select id="preview-color-filter" class="custom-select-menu" title="Cinematic Filter">
+                              <option value="none">Original</option>
+                              <option value="cyberpunk">Cyberpunk (Cyan/Purple)</option>
+                              <option value="vintage">Vintage Warm</option>
+                              <option value="noir">Noir High Contrast</option>
+                              <option value="enhance">Denoise & Sharpen</option>
+                            </select>
+                          </div>
+
+                          <div class="settings-row">
+                            <label for="preview-cloud-sync">Cloud Sync:</label>
+                            <select id="preview-cloud-sync" class="custom-select-menu" title="Cloud Sync">
+                              <option value="local">Local Download</option>
+                              <option value="telegram">Send via Telegram</option>
+                            </select>
+                          </div>
                         </div>
                       </div>
                     </div>
@@ -2072,6 +2105,90 @@
           </div>
         </div>
 
+        <!-- Shortcuts Help Overlay -->
+        <div id="preview-shortcuts-overlay" class="shortcuts-overlay hidden">
+          <div class="shortcuts-overlay-header">
+            <h4>Keyboard Shortcuts</h4>
+            <button id="shortcuts-overlay-close-btn" class="shortcuts-close-btn" title="Close Shortcuts">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                <line x1="18" y1="6" x2="6" y2="18"></line>
+                <line x1="6" y1="6" x2="18" y2="18"></line>
+              </svg>
+            </button>
+          </div>
+          <div class="shortcuts-grid">
+            <!-- Video Shortcuts -->
+            <div class="shortcut-section">
+              <h5>
+                <svg class="heading-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="23 7 16 12 23 17 23 7"></polygon><rect x="1" y="5" width="15" height="14" rx="2" ry="2"></rect></svg>
+                <span>Video Previewer</span>
+              </h5>
+              <div class="shortcut-row"><span>Play / Pause</span><span class="shortcut-key">Space</span></div>
+              <div class="shortcut-row"><span>Mute / Unmute</span><span class="shortcut-key">M</span></div>
+              <div class="shortcut-row"><span>Seek Back / Forward 10s</span><span class="keys-group"><span class="shortcut-key">←</span><span class="shortcut-sep">/</span><span class="shortcut-key">→</span></span></div>
+              <div class="shortcut-row"><span>Volume Up / Down</span><span class="keys-group"><span class="shortcut-key">↑</span><span class="shortcut-sep">/</span><span class="shortcut-key">↓</span></span></div>
+              <div class="shortcut-row"><span>Toggle Fullscreen</span><span class="shortcut-key">F</span></div>
+              <div class="shortcut-row"><span>Playback Speed</span><span class="keys-group"><span class="shortcut-key">&lt;</span><span class="shortcut-sep">/</span><span class="shortcut-key">&gt;</span></span></div>
+              <div class="shortcut-row"><span>Trim Points (Start / End)</span><span class="keys-group"><span class="shortcut-key">[</span><span class="shortcut-sep">/</span><span class="shortcut-key">]</span></span></div>
+              <div class="shortcut-row"><span>Seek to 0% - 90%</span><span class="keys-group"><span class="shortcut-key">0</span><span class="shortcut-sep">-</span><span class="shortcut-key">9</span></span></div>
+            </div>
+            
+            <!-- Audio Shortcuts -->
+            <div class="shortcut-section">
+              <h5>
+                <svg class="heading-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18V5l12-2v13"></path><circle cx="6" cy="18" r="3"></circle><circle cx="18" cy="16" r="3"></circle></svg>
+                <span>Audio Previewer</span>
+              </h5>
+              <div class="shortcut-row"><span>Play / Pause</span><span class="shortcut-key">Space</span></div>
+              <div class="shortcut-row"><span>Mute / Unmute</span><span class="shortcut-key">M</span></div>
+              <div class="shortcut-row"><span>Seek Back / Forward 10s</span><span class="keys-group"><span class="shortcut-key">←</span><span class="shortcut-sep">/</span><span class="shortcut-key">→</span></span></div>
+              <div class="shortcut-row"><span>Volume Up / Down</span><span class="keys-group"><span class="shortcut-key">↑</span><span class="shortcut-sep">/</span><span class="shortcut-key">↓</span></span></div>
+              <div class="shortcut-row"><span>Playback Speed</span><span class="keys-group"><span class="shortcut-key">&lt;</span><span class="shortcut-sep">/</span><span class="shortcut-key">&gt;</span></span></div>
+              <div class="shortcut-row"><span>Trim Points (Start / End)</span><span class="keys-group"><span class="shortcut-key">[</span><span class="shortcut-sep">/</span><span class="shortcut-key">]</span></span></div>
+              <div class="shortcut-row"><span>Seek to 0% - 90%</span><span class="keys-group"><span class="shortcut-key">0</span><span class="shortcut-sep">-</span><span class="shortcut-key">9</span></span></div>
+            </div>
+
+            <!-- Image Shortcuts -->
+            <div class="shortcut-section">
+              <h5>
+                <svg class="heading-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect><circle cx="8.5" cy="8.5" r="1.5"></circle><polyline points="21 15 16 10 5 21"></polyline></svg>
+                <span>Image Previewer</span>
+              </h5>
+              <div class="shortcut-row"><span>Next / Prev Image</span><span class="keys-group"><span class="shortcut-key">→</span><span class="shortcut-sep">/</span><span class="shortcut-key">←</span></span></div>
+              <div class="shortcut-row"><span>Zoom In / Out</span><span class="keys-group"><span class="shortcut-key">+</span><span class="shortcut-sep">/</span><span class="shortcut-key">-</span></span></div>
+              <div class="shortcut-row"><span>Rotate 90 deg</span><span class="shortcut-key">R</span></div>
+              <div class="shortcut-row"><span>Reset Zoom & Rotate</span><span class="shortcut-key">0</span></div>
+            </div>
+
+            <!-- Text & Subtitle Shortcuts -->
+            <div class="shortcut-section">
+              <h5>
+                <svg class="heading-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line><polyline points="10 9 9 9 8 9"></polyline></svg>
+                <span>Text & Subtitle Viewer</span>
+              </h5>
+              <div class="shortcut-row"><span>Scroll Up / Down</span><span class="keys-group"><span class="shortcut-key">↑</span><span class="shortcut-sep">/</span><span class="shortcut-key">↓</span></span></div>
+              <div class="shortcut-row"><span>Page Up / Down</span><span class="keys-group"><span class="shortcut-key">PgUp</span><span class="shortcut-sep">/</span><span class="shortcut-key">PgDn</span></span></div>
+              <div class="shortcut-row"><span>Scroll to Top / End</span><span class="keys-group"><span class="shortcut-key">Home</span><span class="shortcut-sep">/</span><span class="shortcut-key">End</span></span></div>
+              <div class="shortcut-row"><span>Toggle Word Wrap</span><span class="shortcut-key">W</span></div>
+              <div class="shortcut-row"><span>Font Zoom In / Out</span><span class="keys-group"><span class="shortcut-key">+</span><span class="shortcut-sep">/</span><span class="shortcut-key">-</span></span></div>
+              <div class="shortcut-row"><span>Reset Font & Wrap</span><span class="shortcut-key">0</span></div>
+              <div class="shortcut-row"><span>Copy Content</span><span class="shortcut-key">C</span></div>
+            </div>
+            
+            <!-- Global / Webpage Shortcuts -->
+            <div class="shortcut-section">
+              <h5>
+                <svg class="heading-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="2" y1="12" x2="22" y2="12"></line><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"></path></svg>
+                <span>Global & Webpage</span>
+              </h5>
+              <div class="shortcut-row"><span>Export & Download</span><span class="shortcut-key">D</span></div>
+              <div class="shortcut-row"><span>Reload Webpage</span><span class="shortcut-key">R</span></div>
+              <div class="shortcut-row"><span>Toggle Shortcuts Guide</span><span class="keys-group"><span class="shortcut-key">H</span><span class="shortcut-sep">/</span><span class="shortcut-key">?</span></span></div>
+              <div class="shortcut-row"><span>Close Preview</span><span class="shortcut-key">Esc</span></div>
+            </div>
+          </div>
+        </div>
+
         <div class="preview-footer-toolbar">
           <span id="preview-meta-info" class="preview-meta"
             >Quality: Unknown | Size: Unknown</span
@@ -2090,7 +2207,7 @@
               <polyline points="7 10 12 15 17 10" />
               <line x1="12" y1="15" x2="12" y2="3" />
             </svg>
-            <span>Download Format</span>
+            <span>Export & Download</span>
           </button>
         </div>
       </div>
@@ -2153,6 +2270,6 @@
     </div>
 
     <script src="https://cdnjs.cloudflare.com/ajax/libs/noUiSlider/15.7.1/nouislider.min.js"></script>
-    <script src="{{ url_for('static', filename='js/main.js') }}?v=8.7"></script>
+    <script src="{{ url_for('static', filename='js/main.js') }}?v=11.0"></script>
   </body>
 </html>

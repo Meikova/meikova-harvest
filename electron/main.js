@@ -241,6 +241,7 @@ function createMainWindow() {
       preload:          path.join(__dirname, 'preload.js'),
       contextIsolation: true,
       nodeIntegration:  false,
+      webSecurity:      false,
     },
     icon:  getAppIcon(),
     title: APP_NAME,
@@ -874,6 +875,13 @@ ipcMain.on('window-maximize', () => {
   if (mainWindow?.isMaximized()) mainWindow.unmaximize();
   else mainWindow?.maximize();
 });
+ipcMain.on('window-maximize-set', (_, maximize) => {
+  if (maximize) {
+    if (mainWindow && !mainWindow.isMaximized()) mainWindow.maximize();
+  } else {
+    if (mainWindow && mainWindow.isMaximized()) mainWindow.unmaximize();
+  }
+});
 ipcMain.on('window-close', () => {
   app.isQuitting = false;
   mainWindow?.close();
@@ -903,8 +911,9 @@ function buildAppMenu() {
 }
 
 function setupKeyboardShortcuts() {
-  // Reload page
-  globalShortcut.register('CmdOrCtrl+R', () => mainWindow?.reload());
+  // Reload page (ignoring cache)
+  globalShortcut.register('CmdOrCtrl+R', () => mainWindow?.webContents.reloadIgnoringCache());
+  globalShortcut.register('F5', () => mainWindow?.webContents.reloadIgnoringCache());
 
   // Navigate home
   globalShortcut.register('CmdOrCtrl+H', () =>

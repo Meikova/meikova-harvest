@@ -14,7 +14,7 @@ if sys.platform.startswith("win"):
             super().__init__(*args, **kwargs)
     subprocess.Popen = PopenNoWindow
 
-from flask import Flask
+from flask import Flask, jsonify
 from flask_cors import CORS
 import static_ffmpeg
 
@@ -59,6 +59,27 @@ app.register_blueprint(cookies_bp)
 app.register_blueprint(info_bp)
 app.register_blueprint(download_bp)
 app.register_blueprint(build_bp)
+
+@app.route("/api/clear-temp", methods=["POST"])
+def clear_temporary_files():
+    try:
+        cleaned_count = 0
+        if os.path.exists(TEMP_DOWNLOAD_DIR):
+            for item in os.listdir(TEMP_DOWNLOAD_DIR):
+                if item in ["cookies", "downloads.db", "downloads.db-wal", "downloads.db-shm"]:
+                    continue
+                item_path = os.path.join(TEMP_DOWNLOAD_DIR, item)
+                try:
+                    if os.path.isdir(item_path):
+                        shutil.rmtree(item_path)
+                    else:
+                        os.remove(item_path)
+                    cleaned_count += 1
+                except Exception as ex:
+                    logger.warning(f"Could not delete {item_path}: {ex}")
+        return jsonify({"success": True, "message": "Successfully cleared temporary cache folder.", "count": cleaned_count})
+    except Exception as e:
+        return jsonify({"success": False, "error": str(e)}), 500
 
 if __name__ == "__main__":
     import argparse

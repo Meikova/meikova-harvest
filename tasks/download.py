@@ -652,7 +652,8 @@ def bg_download_task(download_id, url, format_id, ext, quality="192", title="med
             })
 
     try:
-        is_direct_vtt = (ext == "vtt" and url.startswith("http"))
+        is_youtube_watch = any(domain in url.lower() for domain in ["youtube.com/watch", "youtu.be/"]) or ("youtube.com" in url.lower() and "timedtext" not in url.lower())
+        is_direct_vtt = (ext == "vtt" and url.startswith("http") and not is_youtube_watch)
         if is_direct_vtt:
             try:
                 with downloads_status_lock:
@@ -663,9 +664,6 @@ def bg_download_task(download_id, url, format_id, ext, quality="192", title="med
                             "message": "Downloading subtitle file directly..."
                         })
                 
-                headers = {
-                    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
-                }
                 # Load cookies if available
                 cookies_dict = {}
                 if client_id:

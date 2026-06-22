@@ -128,6 +128,46 @@ document.addEventListener("DOMContentLoaded", () => {
         });
     }
 
+    // Global settings button actions
+    const clearTempCacheBtn = document.getElementById("btn-clear-temp-cache");
+    if (clearTempCacheBtn) {
+        clearTempCacheBtn.addEventListener("click", async (e) => {
+            e.stopPropagation();
+            if (!confirm("Are you sure you want to delete all downloaded temporary files and cache? This won't affect active downloads.")) {
+                return;
+            }
+            clearTempCacheBtn.disabled = true;
+            const originalText = clearTempCacheBtn.textContent;
+            clearTempCacheBtn.textContent = "Clearing...";
+            try {
+                const response = await fetch("/api/clear-temp", { method: "POST" });
+                const data = await response.json();
+                if (data.success) {
+                    alert(data.message || "Successfully cleared temporary cache folder.");
+                } else {
+                    alert("Failed to clear temporary cache: " + (data.error || "Unknown error"));
+                }
+            } catch (err) {
+                console.error(err);
+                alert("Failed to clear cache: network error.");
+            } finally {
+                clearTempCacheBtn.disabled = false;
+                clearTempCacheBtn.textContent = originalText;
+            }
+        });
+    }
+
+    const resetUiBtn = document.getElementById("btn-reset-ui-settings");
+    if (resetUiBtn) {
+        resetUiBtn.addEventListener("click", (e) => {
+            e.stopPropagation();
+            const legacyResetBtn = document.getElementById("customizer-reset-btn");
+            if (legacyResetBtn) {
+                legacyResetBtn.click();
+            }
+        });
+    }
+
     if (customizerToggle && customizerDropdown) {
         customizerToggle.addEventListener("click", (e) => {
             e.stopPropagation();
@@ -163,12 +203,8 @@ document.addEventListener("DOMContentLoaded", () => {
     });
 
     // --- UI CUSTOMIZER LOGIC ---
-    const customizerAccent = document.getElementById("customizer-accent");
-    const customizerRadius = document.getElementById("customizer-radius");
     const customizerBlur = document.getElementById("customizer-blur");
     const customizerBlurVal = document.getElementById("customizer-blur-val");
-    const customizerFontSize = document.getElementById("customizer-fontsize");
-    const customizerFontFamily = document.getElementById("customizer-fontfamily");
 
     const customizerGridEnable = document.getElementById("customizer-grid-enable");
     const customizerRipplesEnable = document.getElementById("customizer-ripples-enable");
@@ -178,11 +214,64 @@ document.addEventListener("DOMContentLoaded", () => {
     const customizerSpacingVal = document.getElementById("customizer-spacing-val");
     const customizerGravity = document.getElementById("customizer-gravity");
     const customizerGravityVal = document.getElementById("customizer-gravity-val");
-    const customizerGravityMode = document.getElementById("customizer-gravity-mode");
     const customizerGravityDepth = document.getElementById("customizer-gravity-depth");
     const customizerGravityDepthVal = document.getElementById("customizer-gravity-depth-val");
-    const customizerSparkleShape = document.getElementById("customizer-sparkle-shape");
     const customizerResetBtn = document.getElementById("customizer-reset-btn");
+
+    const accentNames = {
+        "default": "Neon Cyan",
+        "emerald": "Emerald Green",
+        "orchid": "Orchid Pink",
+        "amber": "Amber Gold",
+        "purple": "Royal Purple",
+        "rose": "Ruby Red",
+        "orange": "Electric Orange",
+        "blue": "Sapphire Blue",
+        "peach": "Sunset Peach",
+        "lime": "Acid Lime",
+        "custom": "Custom Color"
+    };
+
+    function hexToRgb(hex) {
+        const shorthandRegex = /^#?([a-f\d])([a-f\d])([a-f\d])$/i;
+        hex = hex.replace(shorthandRegex, (m, r, g, b) => r + r + g + g + b + b);
+        const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
+        return result ? {
+            r: parseInt(result[1], 16),
+            g: parseInt(result[2], 16),
+            b: parseInt(result[3], 16)
+        } : null;
+    }
+
+    function applyCustomColor(hexColor) {
+        const rgb = hexToRgb(hexColor);
+        if (!rgb) return;
+        document.documentElement.style.setProperty('--cyan', hexColor);
+        document.documentElement.style.setProperty('--cyan-rgb', `${rgb.r}, ${rgb.g}, ${rgb.b}`);
+        localStorage.setItem("customizer-custom-color", hexColor);
+        
+        const picker = document.getElementById("customizer-accent-picker-1");
+        if (picker) picker.value = hexColor;
+        const btn = document.getElementById("custom-color-btn-1");
+        if (btn) btn.style.background = hexColor;
+
+        if (window.updateCanvasColors) window.updateCanvasColors();
+    }
+
+    function applyCustomColor2(hexColor) {
+        const rgb = hexToRgb(hexColor);
+        if (!rgb) return;
+        document.documentElement.style.setProperty('--purple', hexColor);
+        document.documentElement.style.setProperty('--purple-rgb', `${rgb.r}, ${rgb.g}, ${rgb.b}`);
+        localStorage.setItem("customizer-custom-color-2", hexColor);
+        
+        const picker = document.getElementById("customizer-accent-picker-2");
+        if (picker) picker.value = hexColor;
+        const btn = document.getElementById("custom-color-btn-2");
+        if (btn) btn.style.background = hexColor;
+
+        if (window.updateCanvasColors) window.updateCanvasColors();
+    }
 
     function applyAccent(accentVal) {
         Array.from(document.documentElement.classList).forEach(cls => {
@@ -190,10 +279,37 @@ document.addEventListener("DOMContentLoaded", () => {
                 document.documentElement.classList.remove(cls);
             }
         });
-        if (accentVal !== "default") {
+        if (accentVal !== "default" && accentVal !== "custom") {
             document.documentElement.classList.add("accent-theme-" + accentVal);
         }
-        if (customizerAccent) customizerAccent.value = accentVal;
+        
+        if (accentVal === "custom") {
+            const savedCustomColor = localStorage.getItem("customizer-custom-color") || "#00f2fe";
+            const savedCustomColor2 = localStorage.getItem("customizer-custom-color-2") || "#fe0979";
+            applyCustomColor(savedCustomColor);
+            applyCustomColor2(savedCustomColor2);
+        } else {
+            document.documentElement.style.removeProperty('--cyan');
+            document.documentElement.style.removeProperty('--cyan-rgb');
+            document.documentElement.style.removeProperty('--purple');
+            document.documentElement.style.removeProperty('--purple-rgb');
+            if (window.updateCanvasColors) window.updateCanvasColors();
+        }
+        
+        // Update active class on swatches
+        document.querySelectorAll('.accent-swatch').forEach(btn => {
+            if (btn.getAttribute('data-value') === accentVal) {
+                btn.classList.add('active');
+            } else {
+                btn.classList.remove('active');
+            }
+        });
+        
+        const nameSpan = document.getElementById('customizer-accent-name');
+        if (nameSpan) {
+            nameSpan.textContent = accentNames[accentVal] || accentVal;
+        }
+        
         localStorage.setItem("customizer-accent", accentVal);
     }
 
@@ -203,14 +319,22 @@ document.addEventListener("DOMContentLoaded", () => {
         else if (radiusVal === "rounded") borderVal = "16px";
         else if (radiusVal === "pill") borderVal = "30px";
         document.documentElement.style.setProperty("--radius", borderVal);
-        if (customizerRadius) customizerRadius.value = radiusVal;
+        
+        // Update active class on radius preset buttons
+        document.querySelectorAll('.customizer-preset-btn[data-type="radius"]').forEach(btn => {
+            if (btn.getAttribute('data-value') === radiusVal) {
+                btn.classList.add('active');
+            } else {
+                btn.classList.remove('active');
+            }
+        });
         localStorage.setItem("customizer-radius", radiusVal);
     }
 
     function applyBlur(blurVal, persist = false) {
         document.documentElement.style.setProperty("--glass-blur", blurVal + "px");
         if (customizerBlur) customizerBlur.value = blurVal;
-        if (customizerBlurVal) customizerBlurVal.textContent = blurVal + "px";
+        if (customizerBlurVal) customizerBlurVal.value = blurVal;
         if (persist) {
             localStorage.setItem("customizer-blur", blurVal);
         }
@@ -226,10 +350,17 @@ document.addEventListener("DOMContentLoaded", () => {
         else if (sizeVal === "xlarge") scaleFactor = 1.2;
         else if (sizeVal === "huge") scaleFactor = 1.3;
 
-        document.documentElement.style.fontSize = ""; // Clear direct font-size override
+        document.documentElement.style.fontSize = "";
         document.documentElement.style.setProperty('--font-scale', scaleFactor);
         
-        if (customizerFontSize) customizerFontSize.value = sizeVal;
+        // Update active class on fontsize preset buttons
+        document.querySelectorAll('.customizer-preset-btn[data-type="fontsize"]').forEach(btn => {
+            if (btn.getAttribute('data-value') === sizeVal) {
+                btn.classList.add('active');
+            } else {
+                btn.classList.remove('active');
+            }
+        });
         localStorage.setItem("customizer-fontsize", sizeVal);
     }
 
@@ -254,7 +385,14 @@ document.addEventListener("DOMContentLoaded", () => {
         document.documentElement.style.setProperty('--user-font', fontStack);
         document.documentElement.style.setProperty('--user-font-display', displayFontStack);
         
-        if (customizerFontFamily) customizerFontFamily.value = fontVal;
+        // Update active class on fontfamily preset buttons
+        document.querySelectorAll('.customizer-preset-btn[data-type="fontfamily"]').forEach(btn => {
+            if (btn.getAttribute('data-value') === fontVal) {
+                btn.classList.add('active');
+            } else {
+                btn.classList.remove('active');
+            }
+        });
         localStorage.setItem("customizer-fontfamily", fontVal);
     }
 
@@ -263,21 +401,206 @@ document.addEventListener("DOMContentLoaded", () => {
         localStorage.setItem("customizer-" + key, value);
     }
 
-    if (customizerAccent) {
-        customizerAccent.addEventListener("change", (e) => applyAccent(e.target.value));
+    function applyGravityMode(modeVal) {
+        window.canvasSettings.gravityMode = modeVal;
+        localStorage.setItem("customizer-gravityMode", modeVal);
+        
+        // Update active class on gravity mode preset buttons
+        document.querySelectorAll('.customizer-preset-btn[data-type="gravity-mode"]').forEach(btn => {
+            if (btn.getAttribute('data-value') === modeVal) {
+                btn.classList.add('active');
+            } else {
+                btn.classList.remove('active');
+            }
+        });
+
+        const depthContainer = document.getElementById("grid-gravity-depth-container");
+        if (modeVal === "none") {
+            if (depthContainer) depthContainer.style.display = "none";
+        } else {
+            if (depthContainer && (customizerGridEnable ? customizerGridEnable.checked : true)) {
+                depthContainer.style.display = "block";
+            }
+        }
     }
-    if (customizerRadius) {
-        customizerRadius.addEventListener("change", (e) => applyRadius(e.target.value));
+
+    function applySparkleShape(shapeVal) {
+        window.canvasSettings.sparkleShape = shapeVal;
+        localStorage.setItem("customizer-sparkleShape", shapeVal);
+        
+        // Update active class on sparkle shape preset buttons
+        document.querySelectorAll('.customizer-preset-btn[data-type="sparkle-shape"]').forEach(btn => {
+            if (btn.getAttribute('data-value') === shapeVal) {
+                btn.classList.add('active');
+            } else {
+                btn.classList.remove('active');
+            }
+        });
     }
+
+    function applySpacing(spacingVal, persist = false) {
+        window.canvasSettings.spacing = spacingVal;
+        if (customizerSpacing) customizerSpacing.value = spacingVal;
+        if (customizerSpacingVal) customizerSpacingVal.value = spacingVal;
+        if (persist) {
+            localStorage.setItem("customizer-spacing", spacingVal);
+        }
+    }
+
+    function applyGravityRadius(gravityVal, persist = false) {
+        window.canvasSettings.maxDist = gravityVal;
+        if (customizerGravity) customizerGravity.value = gravityVal;
+        if (customizerGravityVal) customizerGravityVal.value = gravityVal;
+        if (persist) {
+            localStorage.setItem("customizer-maxDist", gravityVal);
+        }
+    }
+
+    function applyGravityDepth(depthVal, persist = false) {
+        window.canvasSettings.gravityDepth = depthVal;
+        if (customizerGravityDepth) customizerGravityDepth.value = depthVal;
+        if (customizerGravityDepthVal) customizerGravityDepthVal.value = depthVal;
+        if (persist) {
+            localStorage.setItem("customizer-gravityDepth", depthVal);
+        }
+    }
+
+    // Swatches and presets event listeners
+    document.querySelectorAll('.accent-swatch').forEach(btn => {
+        btn.addEventListener('click', () => {
+            applyAccent(btn.getAttribute('data-value'));
+        });
+    });
+
+    const picker1 = document.getElementById("customizer-accent-picker-1");
+    if (picker1) {
+        picker1.addEventListener("input", (e) => {
+            applyCustomColor(e.target.value);
+            applyAccent("custom");
+        });
+        picker1.addEventListener("change", (e) => {
+            applyCustomColor(e.target.value);
+            applyAccent("custom");
+        });
+    }
+
+    const picker2 = document.getElementById("customizer-accent-picker-2");
+    if (picker2) {
+        picker2.addEventListener("input", (e) => {
+            applyCustomColor2(e.target.value);
+            applyAccent("custom");
+        });
+        picker2.addEventListener("change", (e) => {
+            applyCustomColor2(e.target.value);
+            applyAccent("custom");
+        });
+    }
+
+    document.querySelectorAll('.customizer-preset-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+            const type = btn.getAttribute('data-type');
+            const val = btn.getAttribute('data-value');
+            if (type === 'radius') {
+                applyRadius(val);
+            } else if (type === 'fontsize') {
+                applyFontSize(val);
+            } else if (type === 'fontfamily') {
+                applyFontFamily(val);
+            } else if (type === 'gravity-mode') {
+                applyGravityMode(val);
+            } else if (type === 'sparkle-shape') {
+                applySparkleShape(val);
+            }
+        });
+    });
+
+    // Sliders and custom number input listeners
     if (customizerBlur) {
-        customizerBlur.addEventListener("input", (e) => applyBlur(e.target.value, false));
-        customizerBlur.addEventListener("change", (e) => applyBlur(e.target.value, true));
+        customizerBlur.addEventListener("input", (e) => applyBlur(parseInt(e.target.value), false));
+        customizerBlur.addEventListener("change", (e) => applyBlur(parseInt(e.target.value), true));
     }
-    if (customizerFontSize) {
-        customizerFontSize.addEventListener("change", (e) => applyFontSize(e.target.value));
+    if (customizerBlurVal) {
+        customizerBlurVal.addEventListener("input", (e) => {
+            let val = parseInt(e.target.value);
+            if (isNaN(val)) return;
+            if (val >= 0 && val <= 100) {
+                document.documentElement.style.setProperty("--glass-blur", val + "px");
+                if (customizerBlur) customizerBlur.value = val;
+                localStorage.setItem("customizer-blur", val);
+            }
+        });
+        customizerBlurVal.addEventListener("blur", (e) => {
+            let val = parseInt(e.target.value);
+            if (isNaN(val)) val = 24;
+            let clamped = Math.max(0, Math.min(100, val));
+            applyBlur(clamped, true);
+        });
     }
-    if (customizerFontFamily) {
-        customizerFontFamily.addEventListener("change", (e) => applyFontFamily(e.target.value));
+
+    if (customizerSpacing) {
+        customizerSpacing.addEventListener("input", (e) => applySpacing(parseInt(e.target.value), false));
+        customizerSpacing.addEventListener("change", (e) => applySpacing(parseInt(e.target.value), true));
+    }
+    if (customizerSpacingVal) {
+        customizerSpacingVal.addEventListener("input", (e) => {
+            let val = parseInt(e.target.value);
+            if (isNaN(val)) return;
+            if (val >= 10 && val <= 500) {
+                window.canvasSettings.spacing = val;
+                if (customizerSpacing) customizerSpacing.value = val;
+                localStorage.setItem("customizer-spacing", val);
+            }
+        });
+        customizerSpacingVal.addEventListener("blur", (e) => {
+            let val = parseInt(e.target.value);
+            if (isNaN(val)) val = 54;
+            let clamped = Math.max(10, Math.min(500, val));
+            applySpacing(clamped, true);
+        });
+    }
+
+    if (customizerGravity) {
+        customizerGravity.addEventListener("input", (e) => applyGravityRadius(parseInt(e.target.value), false));
+        customizerGravity.addEventListener("change", (e) => applyGravityRadius(parseInt(e.target.value), true));
+    }
+    if (customizerGravityVal) {
+        customizerGravityVal.addEventListener("input", (e) => {
+            let val = parseInt(e.target.value);
+            if (isNaN(val)) return;
+            if (val >= 10 && val <= 2000) {
+                window.canvasSettings.maxDist = val;
+                if (customizerGravity) customizerGravity.value = val;
+                localStorage.setItem("customizer-maxDist", val);
+            }
+        });
+        customizerGravityVal.addEventListener("blur", (e) => {
+            let val = parseInt(e.target.value);
+            if (isNaN(val)) val = 180;
+            let clamped = Math.max(10, Math.min(2000, val));
+            applyGravityRadius(clamped, true);
+        });
+    }
+
+    if (customizerGravityDepth) {
+        customizerGravityDepth.addEventListener("input", (e) => applyGravityDepth(parseInt(e.target.value), false));
+        customizerGravityDepth.addEventListener("change", (e) => applyGravityDepth(parseInt(e.target.value), true));
+    }
+    if (customizerGravityDepthVal) {
+        customizerGravityDepthVal.addEventListener("input", (e) => {
+            let val = parseInt(e.target.value);
+            if (isNaN(val)) return;
+            if (val >= 10 && val <= 1000) {
+                window.canvasSettings.gravityDepth = val;
+                if (customizerGravityDepth) customizerGravityDepth.value = val;
+                localStorage.setItem("customizer-gravityDepth", val);
+            }
+        });
+        customizerGravityDepthVal.addEventListener("blur", (e) => {
+            let val = parseInt(e.target.value);
+            if (isNaN(val)) val = 150;
+            let clamped = Math.max(10, Math.min(1000, val));
+            applyGravityDepth(clamped, true);
+        });
     }
 
     if (customizerGridEnable) {
@@ -285,7 +608,7 @@ document.addEventListener("DOMContentLoaded", () => {
             updateCanvasOption("gridEnabled", e.target.checked);
             const gridContainer = document.getElementById("grid-spacing-container");
             const gravityContainer = document.getElementById("grid-gravity-container");
-            const modeContainer = document.getElementById("customizer-gravity-mode") ? document.getElementById("customizer-gravity-mode").parentElement : null;
+            const modeContainer = document.querySelector('.customizer-preset-btn[data-type="gravity-mode"]')?.parentElement?.parentElement;
             const depthContainer = document.getElementById("grid-gravity-depth-container");
             if (e.target.checked) {
                 if (gridContainer) gridContainer.style.display = "block";
@@ -307,56 +630,6 @@ document.addEventListener("DOMContentLoaded", () => {
         customizerSparklesEnable.addEventListener("change", (e) => updateCanvasOption("sparklesEnabled", e.target.checked));
     }
 
-    if (customizerSpacing) {
-        customizerSpacing.addEventListener("input", (e) => {
-            const val = parseInt(e.target.value);
-            if (customizerSpacingVal) customizerSpacingVal.textContent = val + "px";
-            window.canvasSettings.spacing = val;
-        });
-        customizerSpacing.addEventListener("change", (e) => {
-            const val = parseInt(e.target.value);
-            localStorage.setItem("customizer-spacing", val);
-        });
-    }
-    if (customizerGravity) {
-        customizerGravity.addEventListener("input", (e) => {
-            const val = parseInt(e.target.value);
-            if (customizerGravityVal) customizerGravityVal.textContent = val + "px";
-            window.canvasSettings.maxDist = val;
-        });
-        customizerGravity.addEventListener("change", (e) => {
-            const val = parseInt(e.target.value);
-            localStorage.setItem("customizer-maxDist", val);
-        });
-    }
-    if (customizerGravityMode) {
-        customizerGravityMode.addEventListener("change", (e) => {
-            updateCanvasOption("gravityMode", e.target.value);
-            const depthContainer = document.getElementById("grid-gravity-depth-container");
-            if (e.target.value === "none") {
-                if (depthContainer) depthContainer.style.display = "none";
-            } else {
-                if (depthContainer) depthContainer.style.display = "block";
-            }
-        });
-    }
-    if (customizerGravityDepth) {
-        customizerGravityDepth.addEventListener("input", (e) => {
-            const val = parseInt(e.target.value);
-            if (customizerGravityDepthVal) customizerGravityDepthVal.textContent = val + "px";
-            window.canvasSettings.gravityDepth = val;
-        });
-        customizerGravityDepth.addEventListener("change", (e) => {
-            const val = parseInt(e.target.value);
-            localStorage.setItem("customizer-gravityDepth", val);
-        });
-    }
-    if (customizerSparkleShape) {
-        customizerSparkleShape.addEventListener("change", (e) => {
-            updateCanvasOption("sparkleShape", e.target.value);
-        });
-    }
-
     if (customizerResetBtn) {
         customizerResetBtn.addEventListener("click", () => {
             applyAccent("default");
@@ -364,13 +637,18 @@ document.addEventListener("DOMContentLoaded", () => {
             applyBlur(24);
             applyFontSize("medium");
             applyFontFamily("outfit");
+            applyGravityMode("pull");
+            applySparkleShape("star");
+            applySpacing(54, true);
+            applyGravityRadius(180, true);
+            applyGravityDepth(130, true);
 
             if (customizerGridEnable) {
                 customizerGridEnable.checked = true;
                 updateCanvasOption("gridEnabled", true);
                 const gridContainer = document.getElementById("grid-spacing-container");
                 const gravityContainer = document.getElementById("grid-gravity-container");
-                const modeContainer = document.getElementById("customizer-gravity-mode") ? document.getElementById("customizer-gravity-mode").parentElement : null;
+                const modeContainer = document.querySelector('.customizer-preset-btn[data-type="gravity-mode"]')?.parentElement?.parentElement;
                 const depthContainer = document.getElementById("grid-gravity-depth-container");
                 if (gridContainer) gridContainer.style.display = "block";
                 if (gravityContainer) gravityContainer.style.display = "block";
@@ -385,32 +663,10 @@ document.addEventListener("DOMContentLoaded", () => {
                 customizerSparklesEnable.checked = true;
                 updateCanvasOption("sparklesEnabled", true);
             }
-            if (customizerSpacing) {
-                customizerSpacing.value = 54;
-                if (customizerSpacingVal) customizerSpacingVal.textContent = "54px";
-                updateCanvasOption("spacing", 54);
-            }
-            if (customizerGravity) {
-                customizerGravity.value = 180;
-                if (customizerGravityVal) customizerGravityVal.textContent = "180px";
-                updateCanvasOption("maxDist", 180);
-            }
-            if (customizerGravityMode) {
-                customizerGravityMode.value = "pull";
-                updateCanvasOption("gravityMode", "pull");
-            }
-            if (customizerGravityDepth) {
-                customizerGravityDepth.value = 130;
-                if (customizerGravityDepthVal) customizerGravityDepthVal.textContent = "130px";
-                updateCanvasOption("gravityDepth", 130);
-            }
-            if (customizerSparkleShape) {
-                customizerSparkleShape.value = "star";
-                updateCanvasOption("sparkleShape", "star");
-            }
         });
     }
 
+    // Load initial values
     const savedAccent = localStorage.getItem("customizer-accent") || "default";
     applyAccent(savedAccent);
 
@@ -434,7 +690,7 @@ document.addEventListener("DOMContentLoaded", () => {
         window.canvasSettings.gridEnabled = savedGrid;
         const gridContainer = document.getElementById("grid-spacing-container");
         const gravityContainer = document.getElementById("grid-gravity-container");
-        const modeContainer = document.getElementById("customizer-gravity-mode") ? document.getElementById("customizer-gravity-mode").parentElement : null;
+        const modeContainer = document.querySelector('.customizer-preset-btn[data-type="gravity-mode"]')?.parentElement?.parentElement;
         const depthContainer = document.getElementById("grid-gravity-depth-container");
         if (savedGrid) {
             if (gridContainer) gridContainer.style.display = "block";
@@ -449,29 +705,13 @@ document.addEventListener("DOMContentLoaded", () => {
         }
     }
 
-    if (customizerGravityMode) {
-        customizerGravityMode.value = savedGravityMode;
-        window.canvasSettings.gravityMode = savedGravityMode;
-        const depthContainer = document.getElementById("grid-gravity-depth-container");
-        if (savedGrid && savedGravityMode !== "none") {
-            if (depthContainer) depthContainer.style.display = "block";
-        } else {
-            if (depthContainer) depthContainer.style.display = "none";
-        }
-    }
+    applyGravityMode(savedGravityMode);
 
     const savedGravityDepth = localStorage.getItem("customizer-gravityDepth") !== null ? parseInt(localStorage.getItem("customizer-gravityDepth")) : 130;
-    if (customizerGravityDepth) {
-        customizerGravityDepth.value = savedGravityDepth;
-        if (customizerGravityDepthVal) customizerGravityDepthVal.textContent = savedGravityDepth + "px";
-        window.canvasSettings.gravityDepth = savedGravityDepth;
-    }
+    applyGravityDepth(savedGravityDepth);
 
     const savedSparkleShape = localStorage.getItem("customizer-sparkleShape") || "star";
-    if (customizerSparkleShape) {
-        customizerSparkleShape.value = savedSparkleShape;
-        window.canvasSettings.sparkleShape = savedSparkleShape;
-    }
+    applySparkleShape(savedSparkleShape);
 
     const savedRipples = localStorage.getItem("customizer-ripplesEnabled") !== null ? localStorage.getItem("customizer-ripplesEnabled") === "true" : true;
     if (customizerRipplesEnable) {
@@ -486,18 +726,10 @@ document.addEventListener("DOMContentLoaded", () => {
     }
 
     const savedSpacing = localStorage.getItem("customizer-spacing") !== null ? parseInt(localStorage.getItem("customizer-spacing")) : 54;
-    if (customizerSpacing) {
-        customizerSpacing.value = savedSpacing;
-        if (customizerSpacingVal) customizerSpacingVal.textContent = savedSpacing + "px";
-        window.canvasSettings.spacing = savedSpacing;
-    }
+    applySpacing(savedSpacing);
 
     const savedGravity = localStorage.getItem("customizer-maxDist") !== null ? parseInt(localStorage.getItem("customizer-maxDist")) : 180;
-    if (customizerGravity) {
-        customizerGravity.value = savedGravity;
-        if (customizerGravityVal) customizerGravityVal.textContent = savedGravity + "px";
-        window.canvasSettings.maxDist = savedGravity;
-    }
+    applyGravityRadius(savedGravity);
     // Wire up trim checkbox toggle inside dropdown
     const trimCb = document.getElementById("trim-checkbox");
     const trimContainer = document.getElementById("trim-inputs-container");
@@ -595,18 +827,22 @@ document.addEventListener("DOMContentLoaded", () => {
     if (colorFilterSelect) {
         colorFilterSelect.addEventListener("change", () => {
             const filterVal = colorFilterSelect.value;
+            let filterCss = "none";
+            if (filterVal === "cyberpunk") {
+                filterCss = "hue-rotate(-10deg) saturate(1.5) contrast(1.1) brightness(0.95)";
+            } else if (filterVal === "vintage") {
+                filterCss = "sepia(0.4) saturate(1.2) contrast(0.9) hue-rotate(5deg)";
+            } else if (filterVal === "noir") {
+                filterCss = "grayscale(1) contrast(1.4) brightness(0.9)";
+            } else if (filterVal === "enhance") {
+                filterCss = "contrast(1.05) saturate(1.1)";
+            }
+            
             if (trimPreviewPlayer) {
-                if (filterVal === "cyberpunk") {
-                    trimPreviewPlayer.style.filter = "hue-rotate(-10deg) saturate(1.5) contrast(1.1) brightness(0.95)";
-                } else if (filterVal === "vintage") {
-                    trimPreviewPlayer.style.filter = "sepia(0.4) saturate(1.2) contrast(0.9) hue-rotate(5deg)";
-                } else if (filterVal === "noir") {
-                    trimPreviewPlayer.style.filter = "grayscale(1) contrast(1.4) brightness(0.9)";
-                } else if (filterVal === "enhance") {
-                    trimPreviewPlayer.style.filter = "contrast(1.05) saturate(1.1)";
-                } else {
-                    trimPreviewPlayer.style.filter = "none";
-                }
+                trimPreviewPlayer.style.filter = filterCss;
+            }
+            if (previewVideoPlayer) {
+                previewVideoPlayer.style.filter = filterCss;
             }
         });
     }
@@ -687,6 +923,10 @@ document.addEventListener("DOMContentLoaded", () => {
     const previewModal = document.getElementById("preview-modal");
     const previewModalCloseBtn = document.getElementById("preview-modal-close-btn");
     const modalFullscreenBtn = document.getElementById("modal-fullscreen-btn");
+    const previewShortcutsBtn = document.getElementById("preview-shortcuts-btn");
+    const previewShortcutsOverlay = document.getElementById("preview-shortcuts-overlay");
+    const shortcutsOverlayCloseBtn = document.getElementById("shortcuts-overlay-close-btn");
+    let closePreviewModal = () => {};
 
     // Confirm Modal DOM Elements
     const confirmModal = document.getElementById("confirm-modal");
@@ -1097,11 +1337,21 @@ document.addEventListener("DOMContentLoaded", () => {
     // Preview state variables
     let previewZoomLevel = 1;
     let previewRotation = 0;
+    let previewSubFontSize = 0.88;
+    let previewSubWordWrap = true;
     let previewActiveDownloadId = null;
     let previewActiveUrl = "";
     let previewActiveExt = "";
     let previewActiveFilename = "";
+    let previewActiveBtn = null;
+    let previewActiveFormatId = "";
+    let previewActiveQuality = "";
+    let previewActiveCustomUrl = "";
+    let previewActiveEpisode = "";
+    let previewActiveServer = "";
+    let previewActiveType = "";
     let previewActivePollInterval = null;
+    let previewActiveSubtitleContent = "";
     let previewCurrentImageIndex = -1;
     
     // Adaptive Streaming Preview State
@@ -1238,8 +1488,7 @@ document.addEventListener("DOMContentLoaded", () => {
         const voiceover = document.getElementById("preview-voiceover-select");
         if (voiceover) voiceover.value = "none";
 
-        const speed = document.getElementById("preview-speed-select");
-        if (speed) speed.value = "1.0";
+        setPlaybackSpeedUI(1.0);
 
         const stylePopover = document.getElementById("preview-sub-style-popover");
         if (stylePopover) stylePopover.classList.add("hidden");
@@ -1290,6 +1539,22 @@ document.addEventListener("DOMContentLoaded", () => {
         const mins = Math.floor(seconds / 60);
         const secs = Math.floor(seconds % 60);
         return `${mins.toString().padStart(2, "0")}:${secs.toString().padStart(2, "0")}`;
+    }
+
+    // Format Time detailed helper (seconds -> hh:mm:ss.xxx)
+    function formatTimeDetailed(seconds) {
+        if (isNaN(seconds) || seconds === Infinity || seconds < 0) return "00:00:00.000";
+        const hrs = Math.floor(seconds / 3600);
+        const mins = Math.floor((seconds % 3600) / 60);
+        const secs = Math.floor(seconds % 60);
+        const ms = Math.floor((seconds % 1) * 1000);
+        
+        const hrsStr = hrs.toString().padStart(2, "0");
+        const minsStr = mins.toString().padStart(2, "0");
+        const secsStr = secs.toString().padStart(2, "0");
+        const msStr = ms.toString().padStart(3, "0");
+        
+        return `${hrsStr}:${minsStr}:${secsStr}.${msStr}`;
     }
 
     // Dynamic track fill for ranges
@@ -1513,15 +1778,21 @@ document.addEventListener("DOMContentLoaded", () => {
 
         previewAudioPlayer.addEventListener("timeupdate", () => {
             if (previewAudioPlayer.duration) {
+                const currentPlayTime = previewAudioPlayer.currentTime;
                 if (!isDraggingAudioSlider && !previewAudioPlayer.seeking) {
-                    const pct = (previewAudioPlayer.currentTime / previewAudioPlayer.duration) * 100;
+                    const pct = (currentPlayTime / previewAudioPlayer.duration) * 100;
                     if (audioSeekSlider) {
                         audioSeekSlider.value = pct;
                         updateSliderBackground(audioSeekSlider);
                     }
                 }
                 if (audioTimeCurrent) {
-                    audioTimeCurrent.textContent = formatTime(previewAudioPlayer.currentTime);
+                    audioTimeCurrent.textContent = formatTime(currentPlayTime);
+                }
+                if (loopStartSecs !== null && loopEndSecs !== null) {
+                    if (currentPlayTime >= loopEndSecs || currentPlayTime < loopStartSecs) {
+                        previewAudioPlayer.currentTime = loopStartSecs;
+                    }
                 }
             }
         });
@@ -1711,6 +1982,21 @@ document.addEventListener("DOMContentLoaded", () => {
     }
 
     if (previewVideoPlayer) {
+        // Prevent native browser text tracks/subtitles from rendering and overlapping with our custom overlay
+        if (previewVideoPlayer.textTracks) {
+            const disableTracks = () => {
+                for (let i = 0; i < previewVideoPlayer.textTracks.length; i++) {
+                    previewVideoPlayer.textTracks[i].mode = 'disabled';
+                }
+            };
+            previewVideoPlayer.textTracks.addEventListener("addtrack", (e) => {
+                e.track.mode = 'disabled';
+            });
+            previewVideoPlayer.addEventListener("loadedmetadata", disableTracks);
+            previewVideoPlayer.addEventListener("play", disableTracks);
+            disableTracks();
+        }
+
         previewVideoPlayer.addEventListener("play", () => {
             if (videoCard) videoCard.classList.add("playing");
             if (videoPlayPauseBtn) {
@@ -1747,6 +2033,14 @@ document.addEventListener("DOMContentLoaded", () => {
         });
 
         previewVideoPlayer.addEventListener("timeupdate", () => {
+            // Continuously force native subtitle tracks to be disabled to avoid overlap
+            if (previewVideoPlayer.textTracks && previewVideoPlayer.textTracks.length > 0) {
+                for (let i = 0; i < previewVideoPlayer.textTracks.length; i++) {
+                    if (previewVideoPlayer.textTracks[i].mode !== 'disabled') {
+                        previewVideoPlayer.textTracks[i].mode = 'disabled';
+                    }
+                }
+            }
             const totalDuration = previewIsAdaptive ? (parseFloat(activeMetadata ? activeMetadata.duration_raw : 0) || 0) : (previewVideoPlayer.duration || 0);
             const currentPlayTime = previewIsAdaptive ? (previewCurrentTimeOffset + previewVideoPlayer.currentTime) : previewVideoPlayer.currentTime;
 
@@ -1794,9 +2088,8 @@ document.addEventListener("DOMContentLoaded", () => {
                 updateSliderBackground(videoVolumeSlider);
             }
             // Apply speed setting
-            const speedSelect = document.getElementById("preview-speed-select");
-            if (speedSelect && previewVideoPlayer) {
-                previewVideoPlayer.playbackRate = parseFloat(speedSelect.value) || 1.0;
+            if (previewVideoPlayer) {
+                previewVideoPlayer.playbackRate = currentPlaybackSpeed;
             }
         });
 
@@ -1963,6 +2256,256 @@ document.addEventListener("DOMContentLoaded", () => {
         }
     }
 
+    function applyFullscreenLayout(active) {
+        const modal = document.getElementById("preview-modal");
+        const card = document.querySelector(".modal-card-preview");
+        const contentArea = document.querySelector(".preview-content-area");
+        const playerContainer = document.querySelector(".preview-player-container");
+        const sidebar = document.getElementById("preview-transcript-sidebar");
+        const footerToolbar = document.querySelector(".preview-footer-toolbar");
+        const header = document.querySelector("#preview-modal .modal-header");
+        const audioCard = document.querySelector(".audio-preview-card");
+        const webpageIframe = document.getElementById("preview-webpage-iframe");
+        const videoMain = document.querySelector(".preview-video-main");
+        const videoCard = document.querySelector(".video-preview-card");
+        const videoWrapper = document.querySelector(".video-wrapper");
+        
+        if (active) {
+            document.body.classList.add("theater-active");
+            // Make modal a plain block so its flex centering doesn't constrain the card
+            if (modal) {
+                modal.style.setProperty("padding", "0", "important");
+                modal.style.setProperty("background", "#000", "important");
+                modal.style.setProperty("display", "block", "important");
+            }
+            // Card: use position: fixed so it covers the full viewport regardless of
+            // parent flex layout or zoom factor.
+            if (card) {
+                card.style.setProperty("position", "fixed", "important");
+                card.style.setProperty("top", "0", "important");
+                card.style.setProperty("left", "0", "important");
+                card.style.setProperty("right", "0", "important");
+                card.style.setProperty("bottom", "0", "important");
+                card.style.setProperty("width", "100%", "important");
+                card.style.setProperty("height", "100%", "important");
+                card.style.setProperty("max-width", "none", "important");
+                card.style.setProperty("max-height", "none", "important");
+                card.style.setProperty("margin", "0", "important");
+                card.style.setProperty("border-radius", "0", "important");
+                card.style.setProperty("border", "none", "important");
+                card.style.setProperty("transform", "none", "important");
+                card.style.setProperty("box-shadow", "none", "important");
+                card.style.setProperty("background", "#000", "important");
+                card.style.setProperty("backdrop-filter", "none", "important");
+                card.style.setProperty("-webkit-backdrop-filter", "none", "important");
+                card.style.setProperty("zoom", "1", "important");
+            }
+            // All inner containers: cascade position: absolute; inset: 0 so each
+            // fills its positioned parent without depending on flex height propagation.
+            if (contentArea) {
+                contentArea.style.setProperty("position", "absolute", "important");
+                contentArea.style.setProperty("top", "0", "important");
+                contentArea.style.setProperty("left", "0", "important");
+                contentArea.style.setProperty("right", "0", "important");
+                contentArea.style.setProperty("bottom", "0", "important");
+                contentArea.style.setProperty("margin", "0", "important");
+                contentArea.style.setProperty("border", "none", "important");
+                contentArea.style.setProperty("border-radius", "0", "important");
+                contentArea.style.setProperty("width", "100%", "important");
+                contentArea.style.setProperty("height", "100%", "important");
+                contentArea.style.setProperty("background", "#000", "important");
+                contentArea.style.setProperty("overflow", "hidden", "important");
+            }
+            if (playerContainer) {
+                playerContainer.style.setProperty("position", "absolute", "important");
+                playerContainer.style.setProperty("top", "0", "important");
+                playerContainer.style.setProperty("left", "0", "important");
+                playerContainer.style.setProperty("right", "0", "important");
+                playerContainer.style.setProperty("bottom", "0", "important");
+                playerContainer.style.setProperty("width", "100%", "important");
+                playerContainer.style.setProperty("height", "100%", "important");
+                playerContainer.style.setProperty("max-height", "none", "important");
+                playerContainer.style.setProperty("max-width", "none", "important");
+                playerContainer.style.setProperty("padding", "0", "important");
+            }
+            if (videoMain) {
+                // flex: 1 so video takes remaining width alongside the transcript sidebar
+                videoMain.style.setProperty("flex", "1", "important");
+                videoMain.style.setProperty("position", "relative", "important");
+                videoMain.style.setProperty("height", "100%", "important");
+                videoMain.style.setProperty("overflow", "hidden", "important");
+                videoMain.style.setProperty("min-width", "0", "important");
+            }
+            if (videoCard) {
+                videoCard.style.setProperty("width", "100%", "important");
+                videoCard.style.setProperty("height", "100%", "important");
+                videoCard.style.setProperty("overflow", "hidden", "important");
+            }
+            if (videoWrapper) {
+                // absolute inset-0 relative to videoMain (which now has position:relative)
+                videoWrapper.style.setProperty("position", "absolute", "important");
+                videoWrapper.style.setProperty("top", "0", "important");
+                videoWrapper.style.setProperty("left", "0", "important");
+                videoWrapper.style.setProperty("right", "0", "important");
+                videoWrapper.style.setProperty("bottom", "0", "important");
+                videoWrapper.style.setProperty("width", "100%", "important");
+                videoWrapper.style.setProperty("height", "100%", "important");
+            }
+            // Sidebar: let user preference control visibility (no forced hide)
+
+            if (footerToolbar) {
+                footerToolbar.style.setProperty("display", "none", "important");
+            }
+            if (header) {
+                header.style.setProperty("position", "absolute", "important");
+                header.style.setProperty("top", "0", "important");
+                header.style.setProperty("left", "0", "important");
+                header.style.setProperty("right", "0", "important");
+                header.style.setProperty("z-index", "100000", "important");
+                header.style.setProperty("background", "linear-gradient(to bottom, rgba(13, 18, 30, 0.95) 0%, rgba(13, 18, 30, 0.5) 60%, transparent 100%)", "important");
+                header.style.setProperty("border-bottom", "none", "important");
+                header.style.setProperty("padding", "18px 24px", "important");
+            }
+            if (audioCard) {
+                audioCard.style.setProperty("position", "absolute", "important");
+                audioCard.style.setProperty("top", "0", "important");
+                audioCard.style.setProperty("left", "0", "important");
+                audioCard.style.setProperty("right", "0", "important");
+                audioCard.style.setProperty("bottom", "0", "important");
+                audioCard.style.setProperty("width", "100%", "important");
+                audioCard.style.setProperty("height", "100%", "important");
+                audioCard.style.setProperty("max-width", "none", "important");
+                audioCard.style.setProperty("max-height", "none", "important");
+                audioCard.style.setProperty("margin", "0", "important");
+                audioCard.style.setProperty("padding", "0", "important");
+                audioCard.style.setProperty("border-radius", "0", "important");
+                audioCard.style.setProperty("border", "none", "important");
+                audioCard.style.setProperty("box-shadow", "none", "important");
+                audioCard.style.setProperty("background", "#000", "important");
+                audioCard.style.setProperty("display", "flex", "important");
+                audioCard.style.setProperty("flex-direction", "column", "important");
+            }
+            if (webpageIframe) {
+                webpageIframe.style.setProperty("border-radius", "0", "important");
+                webpageIframe.style.setProperty("min-height", "100%", "important");
+            }
+        } else {
+            document.body.classList.remove("theater-active");
+            if (modal) {
+                modal.style.removeProperty("padding");
+                modal.style.removeProperty("background");
+                modal.style.removeProperty("display");
+            }
+            if (card) {
+                card.style.removeProperty("position");
+                card.style.removeProperty("top");
+                card.style.removeProperty("left");
+                card.style.removeProperty("right");
+                card.style.removeProperty("bottom");
+                card.style.removeProperty("width");
+                card.style.removeProperty("height");
+                card.style.removeProperty("max-width");
+                card.style.removeProperty("max-height");
+                card.style.removeProperty("margin");
+                card.style.removeProperty("border-radius");
+                card.style.removeProperty("border");
+                card.style.removeProperty("transform");
+                card.style.removeProperty("box-shadow");
+                card.style.removeProperty("background");
+                card.style.removeProperty("backdrop-filter");
+                card.style.removeProperty("-webkit-backdrop-filter");
+                card.style.removeProperty("zoom");
+            }
+            if (contentArea) {
+                contentArea.style.removeProperty("position");
+                contentArea.style.removeProperty("top");
+                contentArea.style.removeProperty("left");
+                contentArea.style.removeProperty("right");
+                contentArea.style.removeProperty("bottom");
+                contentArea.style.removeProperty("margin");
+                contentArea.style.removeProperty("border");
+                contentArea.style.removeProperty("border-radius");
+                contentArea.style.removeProperty("height");
+                contentArea.style.removeProperty("width");
+                contentArea.style.removeProperty("background");
+                contentArea.style.removeProperty("overflow");
+            }
+            if (playerContainer) {
+                playerContainer.style.removeProperty("position");
+                playerContainer.style.removeProperty("top");
+                playerContainer.style.removeProperty("left");
+                playerContainer.style.removeProperty("right");
+                playerContainer.style.removeProperty("bottom");
+                playerContainer.style.removeProperty("height");
+                playerContainer.style.removeProperty("width");
+                playerContainer.style.removeProperty("max-height");
+                playerContainer.style.removeProperty("max-width");
+                playerContainer.style.removeProperty("padding");
+            }
+            if (videoMain) {
+                videoMain.style.removeProperty("flex");
+                videoMain.style.removeProperty("position");
+                videoMain.style.removeProperty("height");
+                videoMain.style.removeProperty("overflow");
+                videoMain.style.removeProperty("min-width");
+            }
+            if (videoCard) {
+                videoCard.style.removeProperty("width");
+                videoCard.style.removeProperty("height");
+                videoCard.style.removeProperty("overflow");
+            }
+            if (videoWrapper) {
+                videoWrapper.style.removeProperty("position");
+                videoWrapper.style.removeProperty("top");
+                videoWrapper.style.removeProperty("left");
+                videoWrapper.style.removeProperty("right");
+                videoWrapper.style.removeProperty("bottom");
+                videoWrapper.style.removeProperty("width");
+                videoWrapper.style.removeProperty("height");
+            }
+            if (sidebar) {
+                sidebar.style.removeProperty("display");
+            }
+            if (footerToolbar) {
+                footerToolbar.style.removeProperty("display");
+            }
+            if (header) {
+                header.style.removeProperty("position");
+                header.style.removeProperty("top");
+                header.style.removeProperty("left");
+                header.style.removeProperty("right");
+                header.style.removeProperty("z-index");
+                header.style.removeProperty("background");
+                header.style.removeProperty("border-bottom");
+                header.style.removeProperty("padding");
+            }
+            if (audioCard) {
+                audioCard.style.removeProperty("position");
+                audioCard.style.removeProperty("top");
+                audioCard.style.removeProperty("left");
+                audioCard.style.removeProperty("right");
+                audioCard.style.removeProperty("bottom");
+                audioCard.style.removeProperty("width");
+                audioCard.style.removeProperty("height");
+                audioCard.style.removeProperty("max-width");
+                audioCard.style.removeProperty("max-height");
+                audioCard.style.removeProperty("margin");
+                audioCard.style.removeProperty("padding");
+                audioCard.style.removeProperty("border-radius");
+                audioCard.style.removeProperty("border");
+                audioCard.style.removeProperty("box-shadow");
+                audioCard.style.removeProperty("background");
+                audioCard.style.removeProperty("display");
+                audioCard.style.removeProperty("flex-direction");
+            }
+            if (webpageIframe) {
+                webpageIframe.style.removeProperty("border-radius");
+                webpageIframe.style.removeProperty("min-height");
+            }
+        }
+    }
+
+
     function toggleFullscreenMode() {
         const videoPreviewCard = document.querySelector(".video-preview-card");
         const audioPreviewCard = document.querySelector(".audio-preview-card");
@@ -1977,12 +2520,16 @@ document.addEventListener("DOMContentLoaded", () => {
             }
             if (previewModal) {
                 previewModal.classList.add("modal-web-fullscreen");
+                previewModal.classList.add("fullscreen-active");
             }
+            applyFullscreenLayout(true);
             updateFullscreenUI();
         } else if (videoFullscreenMode === 1) {
             // Theater -> Native Fullscreen (We request native fullscreen on the entire modal container to support all formats)
             videoFullscreenMode = 2;
             if (previewModal) {
+                previewModal.classList.add("modal-web-fullscreen");
+                previewModal.classList.add("fullscreen-active");
                 if (previewModal.requestFullscreen) {
                     previewModal.requestFullscreen();
                 } else if (previewModal.webkitRequestFullscreen) {
@@ -1991,6 +2538,7 @@ document.addEventListener("DOMContentLoaded", () => {
                     previewModal.msRequestFullscreen();
                 }
             }
+            applyFullscreenLayout(true);
             updateFullscreenUI();
         } else {
             // Native -> Normal (Exit)
@@ -2003,7 +2551,9 @@ document.addEventListener("DOMContentLoaded", () => {
             }
             if (previewModal) {
                 previewModal.classList.remove("modal-web-fullscreen");
+                previewModal.classList.remove("fullscreen-active");
             }
+            applyFullscreenLayout(false);
             if (document.fullscreenElement || document.webkitFullscreenElement || document.msFullscreenElement) {
                 if (document.exitFullscreen) {
                     document.exitFullscreen();
@@ -2044,8 +2594,10 @@ document.addEventListener("DOMContentLoaded", () => {
             }
             if (previewModal) {
                 previewModal.classList.remove("modal-web-fullscreen");
+                previewModal.classList.remove("fullscreen-active");
                 previewModal.classList.remove("hidden-cursor");
             }
+            applyFullscreenLayout(false);
             
             // Remove auto-hide classes
             const modalHeader = document.querySelector("#preview-modal .modal-header");
@@ -2062,6 +2614,22 @@ document.addEventListener("DOMContentLoaded", () => {
             if (subHeader) subHeader.classList.remove("hidden-controls");
             navControls.forEach(ctrl => ctrl.classList.remove("hidden-controls"));
             
+            updateFullscreenUI();
+        } else if (isNative) {
+            videoFullscreenMode = 2;
+            const videoPreviewCard = document.querySelector(".video-preview-card");
+            const audioPreviewCard = document.querySelector(".audio-preview-card");
+            if (videoPreviewCard) {
+                videoPreviewCard.classList.add("web-fullscreen");
+            }
+            if (audioPreviewCard) {
+                audioPreviewCard.classList.add("web-fullscreen");
+            }
+            if (previewModal) {
+                previewModal.classList.add("modal-web-fullscreen");
+                previewModal.classList.add("fullscreen-active");
+            }
+            applyFullscreenLayout(true);
             updateFullscreenUI();
         }
     };
@@ -2108,7 +2676,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
     // Close preview modal behavior
     if (previewModal && previewModalCloseBtn) {
-        const closePreviewModal = () => {
+        closePreviewModal = () => {
             // Exit native fullscreen if active
             if (document.fullscreenElement || document.webkitFullscreenElement || document.msFullscreenElement) {
                 if (document.exitFullscreen) {
@@ -2125,6 +2693,7 @@ document.addEventListener("DOMContentLoaded", () => {
             
             // Clean up Web Fullscreen / Theater Mode states
             videoFullscreenMode = 0;
+            applyFullscreenLayout(false);
             const videoPreviewCard = document.querySelector(".video-preview-card");
             const audioPreviewCard = document.querySelector(".audio-preview-card");
             if (videoPreviewCard) {
@@ -2135,6 +2704,7 @@ document.addEventListener("DOMContentLoaded", () => {
                 audioPreviewCard.classList.remove("web-fullscreen");
             }
             previewModal.classList.remove("modal-web-fullscreen");
+            previewModal.classList.remove("fullscreen-active");
             previewModal.classList.remove("hidden-cursor");
             
             // Remove auto-hide classes
@@ -2153,10 +2723,54 @@ document.addEventListener("DOMContentLoaded", () => {
             navControls.forEach(ctrl => ctrl.classList.remove("hidden-controls"));
             
             updateFullscreenUI();
+            
+            // Clear loop points and inputs
+            loopStartSecs = null;
+            loopEndSecs = null;
+            const loopPointAInput = document.getElementById("loop-point-a");
+            const loopPointBInput = document.getElementById("loop-point-b");
+            if (loopPointAInput) loopPointAInput.value = "";
+            if (loopPointBInput) loopPointBInput.value = "";
+            
+            // Reset text/subtitle preview styling
+            previewSubFontSize = 0.88;
+            previewSubWordWrap = true;
+            if (previewSubText) {
+                previewSubText.style.fontSize = "0.88rem";
+                previewSubText.style.whiteSpace = "pre-wrap";
+                previewSubText.style.overflowX = "visible";
+            }
+
+            if (previewVideoPlayer) {
+                previewVideoPlayer.style.filter = "none";
+            }
+
+            if (previewShortcutsOverlay) {
+                previewShortcutsOverlay.classList.add("hidden");
+            }
+
             stopAllPreviewPlaybacks();
         };
 
         previewModalCloseBtn.onclick = closePreviewModal;
+
+        if (previewShortcutsBtn) {
+            previewShortcutsBtn.onclick = (e) => {
+                e.stopPropagation();
+                if (previewShortcutsOverlay) {
+                    previewShortcutsOverlay.classList.toggle("hidden");
+                }
+            };
+        }
+
+        if (shortcutsOverlayCloseBtn) {
+            shortcutsOverlayCloseBtn.onclick = (e) => {
+                e.stopPropagation();
+                if (previewShortcutsOverlay) {
+                    previewShortcutsOverlay.classList.add("hidden");
+                }
+            };
+        }
 
         previewModal.onclick = (e) => {
             if (e.target === previewModal) {
@@ -2177,7 +2791,53 @@ document.addEventListener("DOMContentLoaded", () => {
                     return;
                 }
 
+                if (e.key === "h" || e.key === "H" || e.key === "?") {
+                    e.preventDefault();
+                    if (previewShortcutsOverlay) {
+                        previewShortcutsOverlay.classList.toggle("hidden");
+                    }
+                    return;
+                }
+
                 const isVideoActive = !previewVideoContainer.classList.contains("hidden");
+                const isAudioActive = !previewAudioContainer.classList.contains("hidden");
+                const isImageActive = !previewImageContainer.classList.contains("hidden");
+
+                if (isVideoActive || isAudioActive) {
+                    const loopPointAInput = document.getElementById("loop-point-a");
+                    const loopPointBInput = document.getElementById("loop-point-b");
+                    if (e.key === "[") {
+                        e.preventDefault();
+                        const time = getActivePlayerTime();
+                        if (time !== null) {
+                            loopStartSecs = time;
+                            if (loopPointAInput) {
+                                loopPointAInput.value = formatTimeDetailed(loopStartSecs);
+                            }
+                            if (loopEndSecs !== null && loopStartSecs >= loopEndSecs) {
+                                loopEndSecs = null;
+                                if (loopPointBInput) loopPointBInput.value = "";
+                            }
+                        }
+                        return;
+                    }
+                    if (e.key === "]") {
+                        e.preventDefault();
+                        const time = getActivePlayerTime();
+                        if (time !== null) {
+                            loopEndSecs = time;
+                            if (loopPointBInput) {
+                                loopPointBInput.value = formatTimeDetailed(loopEndSecs);
+                            }
+                            if (loopStartSecs !== null && loopEndSecs <= loopStartSecs) {
+                                loopStartSecs = null;
+                                if (loopPointAInput) loopPointAInput.value = "";
+                            }
+                        }
+                        return;
+                    }
+                }
+
                 if (isVideoActive && previewVideoPlayer) {
                     // Space or K/k (Play/Pause)
                     if (e.key === " " || e.key === "k" || e.key === "K") {
@@ -2291,31 +2951,27 @@ document.addEventListener("DOMContentLoaded", () => {
                     // < / > (Shift + , / Shift + .) (Volume/Playback Speed adjust)
                     if (e.key === "<" || e.key === ">") {
                         e.preventDefault();
-                        const speedSelect = document.getElementById("preview-speed-select");
-                        if (speedSelect) {
-                            const options = Array.from(speedSelect.options).map(opt => parseFloat(opt.value));
-                            const currentRate = previewVideoPlayer.playbackRate;
-                            let currentIndex = options.indexOf(currentRate);
-                            if (currentIndex === -1) {
-                                let closestDiff = Infinity;
-                                options.forEach((opt, idx) => {
-                                    const diff = Math.abs(opt - currentRate);
-                                    if (diff < closestDiff) {
-                                        closestDiff = diff;
-                                        currentIndex = idx;
-                                    }
-                                });
-                            }
-                            let nextIndex = currentIndex;
-                            if (e.key === "<") {
-                                nextIndex = Math.max(0, currentIndex - 1);
-                            } else if (e.key === ">") {
-                                nextIndex = Math.min(options.length - 1, currentIndex + 1);
-                            }
-                            const targetRate = options[nextIndex];
-                            speedSelect.value = targetRate;
-                            previewVideoPlayer.playbackRate = targetRate;
+                        const presets = [0.5, 0.75, 1.0, 1.25, 1.5, 2.0];
+                        const currentRate = previewVideoPlayer.playbackRate;
+                        let currentIndex = presets.indexOf(currentRate);
+                        if (currentIndex === -1) {
+                            let closestDiff = Infinity;
+                            presets.forEach((opt, idx) => {
+                                const diff = Math.abs(opt - currentRate);
+                                if (diff < closestDiff) {
+                                    closestDiff = diff;
+                                    currentIndex = idx;
+                                }
+                            });
                         }
+                        let nextIndex = currentIndex;
+                        if (e.key === "<") {
+                            nextIndex = Math.max(0, currentIndex - 1);
+                        } else if (e.key === ">") {
+                            nextIndex = Math.min(presets.length - 1, currentIndex + 1);
+                        }
+                        const targetRate = presets[nextIndex];
+                        setPlaybackSpeedUI(targetRate);
                         return;
                     }
                     // 0 to 9 (Seek to percentage)
@@ -2333,15 +2989,235 @@ document.addEventListener("DOMContentLoaded", () => {
                         }
                         return;
                     }
-                } else if (!previewImageContainer.classList.contains("hidden") && extractedImages && extractedImages.length > 1) {
+                } else if (isAudioActive && previewAudioPlayer) {
+                    // Space or K/k (Play/Pause)
+                    if (e.key === " " || e.key === "k" || e.key === "K") {
+                        e.preventDefault();
+                        if (previewAudioPlayer.paused) {
+                            previewAudioPlayer.play().catch(err => console.log("Play failed: ", err));
+                        } else {
+                            previewAudioPlayer.pause();
+                        }
+                        return;
+                    }
+                    // M/m (Mute/Unmute)
+                    if (e.key === "m" || e.key === "M") {
+                        e.preventDefault();
+                        previewAudioPlayer.muted = !previewAudioPlayer.muted;
+                        if (audioVolumeSlider) {
+                            audioVolumeSlider.value = previewAudioPlayer.muted ? 0 : previewAudioPlayer.volume;
+                            updateSliderBackground(audioVolumeSlider);
+                        }
+                        if (audioMuteBtn) {
+                            const volIcon = audioMuteBtn.querySelector(".volume-icon");
+                            const muteIcon = audioMuteBtn.querySelector(".mute-icon");
+                            if (previewAudioPlayer.muted) {
+                                if (volIcon) volIcon.classList.add("hidden");
+                                if (muteIcon) muteIcon.classList.remove("hidden");
+                            } else {
+                                if (volIcon) volIcon.classList.remove("hidden");
+                                if (muteIcon) muteIcon.classList.add("hidden");
+                            }
+                        }
+                        return;
+                    }
+                    // ArrowLeft or J/j (Seek Backward by 10s)
+                    if (e.key === "ArrowLeft" || e.key === "j" || e.key === "J") {
+                        e.preventDefault();
+                        if (previewAudioPlayer.duration) {
+                            previewAudioPlayer.currentTime = Math.max(0, previewAudioPlayer.currentTime - 10);
+                        }
+                        return;
+                    }
+                    // ArrowRight or L/l (Seek Forward by 10s)
+                    if (e.key === "ArrowRight" || e.key === "l" || e.key === "L") {
+                        e.preventDefault();
+                        if (previewAudioPlayer.duration) {
+                            previewAudioPlayer.currentTime = Math.min(previewAudioPlayer.duration, previewAudioPlayer.currentTime + 10);
+                        }
+                        return;
+                    }
+                    // ArrowUp (Volume Up by 10%)
+                    if (e.key === "ArrowUp") {
+                        e.preventDefault();
+                        previewAudioPlayer.muted = false;
+                        previewAudioPlayer.volume = Math.min(1.0, previewAudioPlayer.volume + 0.1);
+                        if (audioVolumeSlider) {
+                            audioVolumeSlider.value = previewAudioPlayer.volume;
+                            updateSliderBackground(audioVolumeSlider);
+                        }
+                        if (audioMuteBtn) {
+                            const volIcon = audioMuteBtn.querySelector(".volume-icon");
+                            const muteIcon = audioMuteBtn.querySelector(".mute-icon");
+                            if (volIcon) volIcon.classList.remove("hidden");
+                            if (muteIcon) muteIcon.classList.add("hidden");
+                        }
+                        return;
+                    }
+                    // ArrowDown (Volume Down by 10%)
+                    if (e.key === "ArrowDown") {
+                        e.preventDefault();
+                        previewAudioPlayer.volume = Math.max(0.0, previewAudioPlayer.volume - 0.1);
+                        if (audioVolumeSlider) {
+                            audioVolumeSlider.value = previewAudioPlayer.volume;
+                            updateSliderBackground(audioVolumeSlider);
+                        }
+                        if (audioMuteBtn) {
+                            const volIcon = audioMuteBtn.querySelector(".volume-icon");
+                            const muteIcon = audioMuteBtn.querySelector(".mute-icon");
+                            if (previewAudioPlayer.volume === 0) {
+                                if (volIcon) volIcon.classList.add("hidden");
+                                if (muteIcon) muteIcon.classList.remove("hidden");
+                            } else {
+                                if (volIcon) volIcon.classList.remove("hidden");
+                                if (muteIcon) muteIcon.classList.add("hidden");
+                            }
+                        }
+                        return;
+                    }
+                    // 0 to 9 (Seek to percentage)
+                    if (e.key >= "0" && e.key <= "9") {
+                        e.preventDefault();
+                        const pct = parseInt(e.key) * 10;
+                        if (previewAudioPlayer.duration) {
+                            previewAudioPlayer.currentTime = (pct / 100) * previewAudioPlayer.duration;
+                        }
+                        return;
+                    }
+                    // < / > (Shift + , / Shift + .) (Playback Speed adjust)
+                    if (e.key === "<" || e.key === ">") {
+                        e.preventDefault();
+                        const presets = [0.5, 0.75, 1.0, 1.25, 1.5, 2.0];
+                        const currentRate = previewAudioPlayer.playbackRate;
+                        let currentIndex = presets.indexOf(currentRate);
+                        if (currentIndex === -1) {
+                            let closestDiff = Infinity;
+                            presets.forEach((opt, idx) => {
+                                const diff = Math.abs(opt - currentRate);
+                                if (diff < closestDiff) {
+                                    closestDiff = diff;
+                                    currentIndex = idx;
+                                }
+                            });
+                        }
+                        let nextIndex = currentIndex;
+                        if (e.key === "<") {
+                            nextIndex = Math.max(0, currentIndex - 1);
+                        } else if (e.key === ">") {
+                            nextIndex = Math.min(presets.length - 1, currentIndex + 1);
+                        }
+                        const targetRate = presets[nextIndex];
+                        setPlaybackSpeedUI(targetRate);
+                        return;
+                    }
+                } else if (isImageActive) {
+                    // Previous/Next Image
                     if (e.key === "ArrowRight") {
-                        let nextIdx = previewCurrentImageIndex + 1;
-                        if (nextIdx >= extractedImages.length) nextIdx = 0;
-                        showPreviewImage(nextIdx);
+                        if (extractedImages && extractedImages.length > 1) {
+                            let nextIdx = previewCurrentImageIndex + 1;
+                            if (nextIdx >= extractedImages.length) nextIdx = 0;
+                            showPreviewImage(nextIdx);
+                        }
                     } else if (e.key === "ArrowLeft") {
-                        let prevIdx = previewCurrentImageIndex - 1;
-                        if (prevIdx < 0) prevIdx = extractedImages.length - 1;
-                        showPreviewImage(prevIdx);
+                        if (extractedImages && extractedImages.length > 1) {
+                            let prevIdx = previewCurrentImageIndex - 1;
+                            if (prevIdx < 0) prevIdx = extractedImages.length - 1;
+                            showPreviewImage(prevIdx);
+                        }
+                    }
+                    // Zoom In
+                    else if (e.key === "+" || e.key === "=") {
+                        e.preventDefault();
+                        previewZoomLevel = Math.min(3, previewZoomLevel + 0.2);
+                        updateImageTransform();
+                    }
+                    // Zoom Out
+                    else if (e.key === "-") {
+                        e.preventDefault();
+                        previewZoomLevel = Math.max(0.5, previewZoomLevel - 0.2);
+                        updateImageTransform();
+                    }
+                    // Rotate (Key R)
+                    else if (e.key === "r" || e.key === "R") {
+                        e.preventDefault();
+                        previewRotation = (previewRotation + 90) % 360;
+                        updateImageTransform();
+                    }
+                    // Reset transform (Key 0)
+                    else if (e.key === "0") {
+                        e.preventDefault();
+                        previewZoomLevel = 1.0;
+                        previewRotation = 0;
+                        updateImageTransform();
+                    }
+                } else if (previewSubtitleContainer && !previewSubtitleContainer.classList.contains("hidden")) {
+                    if (e.key === "ArrowUp") {
+                        e.preventDefault();
+                        if (previewSubText) previewSubText.scrollTop -= 40;
+                    } else if (e.key === "ArrowDown") {
+                        e.preventDefault();
+                        if (previewSubText) previewSubText.scrollTop += 40;
+                    } else if (e.key === "PageUp") {
+                        e.preventDefault();
+                        if (previewSubText) previewSubText.scrollTop -= (previewSubText.clientHeight - 40);
+                    } else if (e.key === "PageDown") {
+                        e.preventDefault();
+                        if (previewSubText) previewSubText.scrollTop += (previewSubText.clientHeight - 40);
+                    } else if (e.key === "Home") {
+                        e.preventDefault();
+                        if (previewSubText) previewSubText.scrollTop = 0;
+                    } else if (e.key === "End") {
+                        e.preventDefault();
+                        if (previewSubText) previewSubText.scrollTop = previewSubText.scrollHeight;
+                    } else if (e.key === "w" || e.key === "W") {
+                        e.preventDefault();
+                        previewSubWordWrap = !previewSubWordWrap;
+                        if (previewSubText) {
+                            previewSubText.style.whiteSpace = previewSubWordWrap ? "pre-wrap" : "pre";
+                            previewSubText.style.overflowX = previewSubWordWrap ? "visible" : "auto";
+                        }
+                    } else if (e.key === "+" || e.key === "=") {
+                        e.preventDefault();
+                        previewSubFontSize = Math.min(3.0, previewSubFontSize + 0.1);
+                        if (previewSubText) {
+                            previewSubText.style.fontSize = `${previewSubFontSize}rem`;
+                        }
+                    } else if (e.key === "-") {
+                        e.preventDefault();
+                        previewSubFontSize = Math.max(0.5, previewSubFontSize - 0.1);
+                        if (previewSubText) {
+                            previewSubText.style.fontSize = `${previewSubFontSize}rem`;
+                        }
+                    } else if (e.key === "0") {
+                        e.preventDefault();
+                        previewSubFontSize = 0.88;
+                        previewSubWordWrap = true;
+                        if (previewSubText) {
+                            previewSubText.style.fontSize = "0.88rem";
+                            previewSubText.style.whiteSpace = "pre-wrap";
+                            previewSubText.style.overflowX = "visible";
+                        }
+                    } else if (e.key === "c" || e.key === "C") {
+                        e.preventDefault();
+                        if (btnCopySub) btnCopySub.click();
+                    }
+                } else if (previewWebpageContainer && !previewWebpageContainer.classList.contains("hidden")) {
+                    if (e.key === "r" || e.key === "R") {
+                        e.preventDefault();
+                        if (previewWebpageIframe) {
+                            const currentSrc = previewWebpageIframe.src;
+                            previewWebpageIframe.src = "";
+                            showPreviewLoader("Reloading webpage...");
+                            previewWebpageIframe.src = currentSrc;
+                        }
+                    }
+                }
+
+                // Global download shortcut (D/d) when in previewer
+                if (e.key === "d" || e.key === "D") {
+                    e.preventDefault();
+                    if (previewDownloadBtn && !previewDownloadBtn.disabled) {
+                        previewDownloadBtn.click();
                     }
                 }
             }
@@ -2505,7 +3381,8 @@ document.addEventListener("DOMContentLoaded", () => {
     // Copy subtitles clipboard helper
     if (btnCopySub && previewSubText) {
         btnCopySub.onclick = () => {
-            navigator.clipboard.writeText(previewSubText.textContent).then(() => {
+            const copyText = previewActiveSubtitleContent || previewSubText.textContent;
+            navigator.clipboard.writeText(copyText).then(() => {
                 const originalText = btnCopySub.textContent;
                 btnCopySub.textContent = "Copied!";
                 setTimeout(() => {
@@ -2518,15 +3395,88 @@ document.addEventListener("DOMContentLoaded", () => {
     // Preview modal footer download trigger
     if (previewDownloadBtn) {
         previewDownloadBtn.onclick = () => {
-            if (previewActiveDownloadId) {
-                window.location.href = `/api/download/file/${previewActiveDownloadId}`;
-            } else if (previewActiveUrl) {
-                const a = document.createElement("a");
-                a.href = previewActiveUrl;
-                a.download = previewActiveFilename || "download";
-                document.body.appendChild(a);
-                a.click();
-                document.body.removeChild(a);
+            const isCustomized = (
+                (loopStartSecs !== null || loopEndSecs !== null) ||
+                (document.getElementById("preview-export-type") && document.getElementById("preview-export-type").value !== "default") ||
+                (document.getElementById("preview-color-filter") && document.getElementById("preview-color-filter").value !== "none") ||
+                (document.getElementById("preview-voiceover-active") && document.getElementById("preview-voiceover-active").checked) ||
+                (document.getElementById("preview-sub-trans-select") && document.getElementById("preview-sub-trans-select").value !== "none") ||
+                (document.getElementById("preview-voiceover-select") && document.getElementById("preview-voiceover-select").value !== "none") ||
+                (document.getElementById("preview-cloud-sync") && document.getElementById("preview-cloud-sync").value !== "local")
+            );
+
+            if (isCustomized) {
+                // Set the trim controls on the main page
+                const trimCheckbox = document.getElementById("trim-checkbox");
+                const trimStartInput = document.getElementById("trim-start");
+                const trimEndInput = document.getElementById("trim-end");
+                
+                if (trimCheckbox) {
+                    trimCheckbox.checked = (loopStartSecs !== null || loopEndSecs !== null);
+                    trimCheckbox.dispatchEvent(new Event("change"));
+                }
+                
+                if (trimStartInput) {
+                    trimStartInput.value = loopStartSecs !== null ? formatTimeDetailed(loopStartSecs) : "00:00:00.000";
+                }
+                if (trimEndInput) {
+                    trimEndInput.value = loopEndSecs !== null ? formatTimeDetailed(loopEndSecs) : "";
+                }
+                
+                closePreviewModal();
+                
+                triggerDownload(
+                    previewActiveBtn,
+                    previewActiveFormatId,
+                    previewActiveExt,
+                    previewActiveFilename,
+                    previewActiveQuality,
+                    previewActiveCustomUrl,
+                    previewActiveEpisode,
+                    previewActiveServer,
+                    false // forceRaw = false (apply custom settings)
+                );
+            } else {
+                if (previewActiveExt === "vtt" || previewActiveExt === "srt") {
+                    const cleanTitle = getSafeTitle(videoTitle.textContent, "subtitles");
+                    const cleanLabel = (previewActiveFilename || "subtitle").replace(/Subtitles\s*-\s*/, "").replace(/\s+/g, "_");
+                    const safeFilename = `${cleanTitle}_${cleanLabel}.${previewActiveExt}`;
+                    
+                    const blob = new Blob([previewActiveSubtitleContent || previewSubText.textContent], { type: "text/vtt;charset=utf-8" });
+                    const url = URL.createObjectURL(blob);
+                    const a = document.createElement("a");
+                    a.href = url;
+                    a.download = safeFilename;
+                    document.body.appendChild(a);
+                    a.click();
+                    document.body.removeChild(a);
+                    URL.revokeObjectURL(url);
+                    return;
+                }
+
+                if (previewActiveDownloadId) {
+                    window.location.href = `/api/download/file/${previewActiveDownloadId}`;
+                } else if (previewActiveUrl) {
+                    const a = document.createElement("a");
+                    a.href = previewActiveUrl;
+                    a.download = previewActiveFilename || "download";
+                    document.body.appendChild(a);
+                    a.click();
+                    document.body.removeChild(a);
+                } else {
+                    closePreviewModal();
+                    triggerDownload(
+                        previewActiveBtn,
+                        previewActiveFormatId,
+                        previewActiveExt,
+                        previewActiveFilename,
+                        previewActiveQuality,
+                        previewActiveCustomUrl,
+                        previewActiveEpisode,
+                        previewActiveServer,
+                        true // forceRaw = true (raw download)
+                    );
+                }
             }
         };
     }
@@ -3859,11 +4809,11 @@ document.addEventListener("DOMContentLoaded", () => {
                         yesText: "Tiếp tục",
                         noText: "Hủy bỏ",
                         onYes: () => {
-                            triggerDownload(btn, formatId, ext, label, quality, customUrl, episode, server);
+                            triggerDownload(btn, formatId, ext, label, quality, customUrl, episode, server, true);
                         }
                     });
                 } else {
-                    triggerDownload(btn, formatId, ext, label, quality, customUrl, episode, server);
+                    triggerDownload(btn, formatId, ext, label, quality, customUrl, episode, server, true);
                 }
             });
         });
@@ -4163,7 +5113,8 @@ document.addEventListener("DOMContentLoaded", () => {
     }
 
     // 3. Download Execution via Asynchronous Server Task & Polling
-    async function triggerDownload(btn, formatId, ext, label, quality, customUrl, episode = "", server = "") {
+    // 3. Download Execution via Asynchronous Server Task & Polling
+    async function triggerDownload(btn, formatId, ext, label, quality, customUrl, episode = "", server = "", forceRaw = false) {
         // Reset previous polling if running
         if (pollingInterval) {
             clearInterval(pollingInterval);
@@ -4194,11 +5145,10 @@ document.addEventListener("DOMContentLoaded", () => {
         const allRows = optionsContainer.querySelectorAll(".format-row");
         allRows.forEach(r => r.classList.remove("is-downloading"));
 
-        const activeRow = btn.closest(".format-row");
+        const activeRow = btn ? btn.closest(".format-row") : null;
         if (activeRow) {
             activeRow.classList.add("is-downloading");
         }
-
         try {
             const requestBody = {
                 url: (formatId.startsWith("direct_") || formatId === "image_preview" || formatId === "image_download" || ext === "vtt") ? (customUrl || activeUrl) : activeUrl,
@@ -4212,60 +5162,62 @@ document.addEventListener("DOMContentLoaded", () => {
                 client_id: clientId
             };
 
-            const trimCheckbox = document.getElementById("trim-checkbox");
-            if (trimCheckbox && trimCheckbox.checked) {
-                requestBody.trim_start = document.getElementById("trim-start").value.trim();
-                requestBody.trim_end = document.getElementById("trim-end").value.trim();
-            }
-
-            const translateCheckbox = document.getElementById("translate-subs-checkbox");
-            const subTranslateContainer = document.getElementById("sub-translate-container");
-            if (translateCheckbox && translateCheckbox.checked && subTranslateContainer && !subTranslateContainer.classList.contains("hidden")) {
-                requestBody.translate_subs = "vi";
-            }
-
-            // Export Format Type
-            const exportTypeSelect = document.getElementById("export-type-select");
-            if (exportTypeSelect) {
-                requestBody.export_type = exportTypeSelect.value;
-            }
-
-            // Cinematic color filter preset
-            const colorFilterSelect = document.getElementById("color-filter-select");
-            if (colorFilterSelect) {
-                requestBody.color_filter = colorFilterSelect.value;
-            }
-
-            // AI Voiceover settings
-            const voiceoverCb = document.getElementById("voiceover-checkbox");
-            const voiceoverVoiceSelect = document.getElementById("voiceover-voice-select");
-            const voiceoverRateSlider = document.getElementById("voiceover-rate-slider");
-            const voiceoverPitchSlider = document.getElementById("voiceover-pitch-slider");
-            if (voiceoverCb && voiceoverCb.checked) {
-                requestBody.voiceover_active = true;
-                if (voiceoverVoiceSelect) {
-                    requestBody.voiceover_voice = voiceoverVoiceSelect.value;
+            if (!forceRaw) {
+                const trimCheckbox = document.getElementById("trim-checkbox");
+                if (trimCheckbox && trimCheckbox.checked) {
+                    requestBody.trim_start = document.getElementById("trim-start").value.trim();
+                    requestBody.trim_end = document.getElementById("trim-end").value.trim();
                 }
-                if (voiceoverRateSlider) {
-                    const rateVal = parseInt(voiceoverRateSlider.value);
-                    requestBody.voiceover_rate = (rateVal >= 0 ? "+" : "") + rateVal + "%";
-                }
-                if (voiceoverPitchSlider) {
-                    const pitchVal = parseInt(voiceoverPitchSlider.value);
-                    requestBody.voiceover_pitch = (pitchVal >= 0 ? "+" : "") + pitchVal + "%";
-                }
-            }
 
-            // Cloud sync upload settings
-            const cloudSyncSelect = document.getElementById("cloud-sync-select");
-            if (cloudSyncSelect) {
-                requestBody.cloud_destination = cloudSyncSelect.value;
-                if (cloudSyncSelect.value === "telegram") {
-                    const tgBotToken = document.getElementById("tg-bot-token");
-                    const tgChatId = document.getElementById("tg-chat-id");
-                    if (tgBotToken && tgChatId) {
-                        requestBody.tg_bot_token = tgBotToken.value.trim();
-                        requestBody.tg_chat_id = tgChatId.value.trim();
+                const translateCheckbox = document.getElementById("translate-subs-checkbox");
+                const subTranslateContainer = document.getElementById("sub-translate-container");
+                if (translateCheckbox && translateCheckbox.checked && subTranslateContainer && !subTranslateContainer.classList.contains("hidden")) {
+                    requestBody.translate_subs = "vi";
+                }
+
+                // Export Format Type
+                const exportTypeSelect = document.getElementById("export-type-select");
+                if (exportTypeSelect) {
+                    requestBody.export_type = exportTypeSelect.value;
+                }
+
+                // Cinematic color filter preset
+                const colorFilterSelect = document.getElementById("color-filter-select");
+                if (colorFilterSelect) {
+                    requestBody.color_filter = colorFilterSelect.value;
+                }
+
+                // AI Voiceover settings
+                const voiceoverCb = document.getElementById("voiceover-checkbox");
+                const voiceoverVoiceSelect = document.getElementById("voiceover-voice-select");
+                const voiceoverRateSlider = document.getElementById("voiceover-rate-slider");
+                const voiceoverPitchSlider = document.getElementById("voiceover-pitch-slider");
+                if (voiceoverCb && voiceoverCb.checked) {
+                    requestBody.voiceover_active = true;
+                    if (voiceoverVoiceSelect) {
+                        requestBody.voiceover_voice = voiceoverVoiceSelect.value;
+                    }
+                    if (voiceoverRateSlider) {
+                        const rateVal = parseInt(voiceoverRateSlider.value);
+                        requestBody.voiceover_rate = (rateVal >= 0 ? "+" : "") + rateVal + "%";
+                    }
+                    if (voiceoverPitchSlider) {
+                        const pitchVal = parseInt(voiceoverPitchSlider.value);
+                        requestBody.voiceover_pitch = (pitchVal >= 0 ? "+" : "") + pitchVal + "%";
+                    }
+                }
+
+                // Cloud sync upload settings
+                const cloudSyncSelect = document.getElementById("cloud-sync-select");
+                if (cloudSyncSelect) {
+                    requestBody.cloud_destination = cloudSyncSelect.value;
+                    if (cloudSyncSelect.value === "telegram") {
+                        const tgBotToken = document.getElementById("tg-bot-token");
+                        const tgChatId = document.getElementById("tg-chat-id");
+                        if (tgBotToken && tgChatId) {
+                            requestBody.tg_bot_token = tgBotToken.value.trim();
+                            requestBody.tg_chat_id = tgChatId.value.trim();
+                        }
                     }
                 }
             }
@@ -4505,10 +5457,20 @@ document.addEventListener("DOMContentLoaded", () => {
         previewActiveUrl = "";
         previewActiveExt = ext;
         previewActiveFilename = label;
+        previewActiveBtn = btn;
+        previewActiveFormatId = formatId;
+        previewActiveQuality = quality;
+        previewActiveCustomUrl = customUrl;
+        previewActiveEpisode = episode;
+        previewActiveServer = server;
+        previewActiveType = type;
 
         // Open modal & lock background scrolling
         previewModal.classList.remove("hidden");
         document.body.classList.add("modal-open");
+
+        // Sync main page advanced settings to preview popover menu
+        syncMainToPreviewSettings();
 
         // Reset views
         previewVideoContainer.classList.add("hidden");
@@ -4666,9 +5628,11 @@ document.addEventListener("DOMContentLoaded", () => {
         const lowerType = (type || "").toLowerCase();
         const isHtmlPage = (lowerExt === "html" || lowerExt === "htm" || lowerType === "webpage");
         const isRawTextFile = (lowerExt === "txt" || lowerExt === "xml");
+        
+        const isSubtitleFile = (lowerExt === "vtt" || lowerExt === "srt" || lowerType === "subtitle");
 
-        // Webpage / HTML / Text Preview Flow
-        if (isHtmlPage || isRawTextFile) {
+        // Webpage / HTML / Text / Subtitle Preview Flow
+        if (isHtmlPage || isRawTextFile || isSubtitleFile) {
             previewActiveUrl = streamUrl;
             
             if (isHtmlPage && previewWebpageContainer && previewWebpageIframe) {
@@ -4690,12 +5654,38 @@ document.addEventListener("DOMContentLoaded", () => {
                 previewSubText.textContent = "Fetching content...";
                 if (btnCopySub) btnCopySub.textContent = "Copy Content";
 
-                const proxyUrl = `/api/system/proxy-sub?url=${encodeURIComponent(streamUrl)}&client_id=${encodeURIComponent(clientId)}`;
-                fetch(proxyUrl)
-                    .then(res => res.text())
+                let requestUrl = streamUrl;
+                if (requestUrl.includes("youtube.com/api/timedtext")) {
+                    if (requestUrl.includes("fmt=")) {
+                        requestUrl = requestUrl.replace(/fmt=[^&]+/, "fmt=vtt");
+                    } else {
+                        requestUrl += requestUrl.includes("?") ? "&fmt=vtt" : "?fmt=vtt";
+                    }
+                }
+
+                let fetchPromise;
+                if (requestUrl.includes("youtube.com/api/timedtext")) {
+                    // Try fetching directly from the browser first to bypass backend CAPTCHAs
+                    fetchPromise = fetch(requestUrl)
+                        .then(res => {
+                            if (!res.ok) throw new Error("Direct fetch failed");
+                            return res.text();
+                        })
+                        .catch(() => {
+                            // Fallback to proxy
+                            const proxyUrl = `/api/system/proxy-sub?url=${encodeURIComponent(requestUrl)}&client_id=${encodeURIComponent(clientId)}`;
+                            return fetch(proxyUrl).then(res => res.text());
+                        });
+                } else {
+                    const proxyUrl = `/api/system/proxy-sub?url=${encodeURIComponent(requestUrl)}&client_id=${encodeURIComponent(clientId)}`;
+                    fetchPromise = fetch(proxyUrl).then(res => res.text());
+                }
+
+                fetchPromise
                     .then(text => {
                         hidePreviewLoader();
-                        previewSubText.textContent = text || "No content found.";
+                        previewActiveSubtitleContent = text || "";
+                        previewSubText.innerHTML = formatVttToHtml(previewActiveSubtitleContent) || "No content found.";
                     })
                     .catch(err => {
                         showPreviewLoader("Failed to fetch content from this source.", true);
@@ -4783,7 +5773,8 @@ document.addEventListener("DOMContentLoaded", () => {
                     if (isM3u8 && typeof Hls !== "undefined" && Hls.isSupported()) {
                         const hls = new Hls({
                             maxBufferSize: 30 * 1024 * 1024, // 30MB buffer max
-                            maxBufferLength: 30 // 30 seconds max buffer ahead
+                            maxBufferLength: 30, // 30 seconds max buffer ahead
+                            enableSubtitle: false
                         });
                         hls.loadSource(proxyStreamUrl);
                         hls.attachMedia(previewVideoPlayer);
@@ -4812,7 +5803,7 @@ document.addEventListener("DOMContentLoaded", () => {
         // Audio, Video, Subtitle Preview Flow (Downloads to server & streams)
         try {
             const payload = {
-                url: (formatId.startsWith("direct_") || formatId === "image_preview" || formatId === "image_download" || ext === "vtt") ? (customUrl || activeUrl) : activeUrl,
+                url: (formatId.startsWith("direct_") || formatId === "image_preview" || formatId === "image_download" || (ext === "vtt" && !isYoutubeSub)) ? (customUrl || activeUrl) : activeUrl,
                 format_id: formatId,
                 ext: ext,
                 quality: quality || "192",
@@ -4889,7 +5880,8 @@ document.addEventListener("DOMContentLoaded", () => {
 
                                 const textRes = await fetch(previewStreamUrl);
                                 const text = await textRes.text();
-                                previewSubText.textContent = text || "No content found in subtitle file.";
+                                previewActiveSubtitleContent = text || "";
+                                previewSubText.innerHTML = formatVttToHtml(previewActiveSubtitleContent) || "No content found in subtitle file.";
                             }
                         } else if (ext === "html" || ext === "htm" || type === "webpage") {
                             if (previewWebpageContainer && previewWebpageIframe) {
@@ -5383,6 +6375,44 @@ document.addEventListener("DOMContentLoaded", () => {
         return hrs * 3600 + mins * 60 + secs;
     }
 
+    function formatVttToHtml(vttText) {
+        if (!vttText) return "";
+        if (!vttText.includes("WEBVTT") && !vttText.includes("-->")) {
+            return `<div class="sub-plain-text">${vttText}</div>`;
+        }
+        
+        try {
+            const cues = parseSubtitleText(vttText);
+            if (!cues || cues.length === 0) {
+                return `<div class="sub-plain-text"><div style="color: #ff4d4d; margin-bottom: 10px; font-weight: bold;">[DEBUG] Parsed 0 cues from VTT content. Fallback to raw text:</div>${vttText}</div>`;
+            }
+            
+            let html = '<div class="sub-timeline-list">';
+            cues.forEach(cue => {
+                function formatCueTime(secs) {
+                    const hrs = Math.floor(secs / 3600);
+                    const mins = Math.floor((secs % 3600) / 60);
+                    const seconds = (secs % 60).toFixed(1);
+                    const minsStr = mins < 10 ? `0${mins}` : `${mins}`;
+                    const secsStr = parseFloat(seconds) < 10 ? `0${seconds}` : `${seconds}`;
+                    return hrs > 0 ? `${hrs}:${minsStr}:${secsStr}` : `${minsStr}:${secsStr}`;
+                }
+                const timeStr = formatCueTime(cue.start);
+                html += `
+                    <div class="sub-timeline-item">
+                        <span class="sub-time-badge">${timeStr}</span>
+                        <span class="sub-text-content">${cue.text}</span>
+                    </div>
+                `;
+            });
+            html += '</div>';
+            return html;
+        } catch (e) {
+            console.error("Failed to parse subtitle for preview HTML:", e);
+            return `<div class="sub-plain-text"><div style="color: #ff4d4d; margin-bottom: 10px; font-weight: bold;">[DEBUG] Parser exception: ${e.message} at ${e.stack ? e.stack.split("\n")[1] : ""}</div>${vttText}</div>`;
+        }
+    }
+
     function parseSubtitleText(text) {
         if (!text) return [];
         const normalized = text.replace(/\r\n/g, '\n').replace(/\r/g, '\n');
@@ -5462,6 +6492,14 @@ document.addEventListener("DOMContentLoaded", () => {
         // Step 1: Clean HTML tags and bracketed/parenthesized annotations like [âm nhạc], [ca hát], (laughter)
         let cleaned = cues.map(cue => {
             let text = cue.text;
+            // Decode HTML entities
+            text = text
+                .replace(/&amp;/g, '&')
+                .replace(/&lt;/g, '<')
+                .replace(/&gt;/g, '>')
+                .replace(/&quot;/g, '"')
+                .replace(/&#39;/g, "'")
+                .replace(/&apos;/g, "'");
             // Remove HTML style tags
             text = text.replace(/<[^>]+>/g, '');
             // Remove [music] or (music) annotations
@@ -5469,6 +6507,11 @@ document.addEventListener("DOMContentLoaded", () => {
             text = text.replace(/\([^)]*\)/g, '');
             // Normalize spaces
             text = text.replace(/\s+/g, ' ').trim();
+            
+            // Format speaker change indicators (>> or >>>) into professional dialogue style
+            text = text.replace(/^>{2,}\s*/g, '- ');
+            text = text.replace(/\s+>{2,}\s*/g, '\n- ');
+            
             return {
                 start: cue.start,
                 end: cue.end,
@@ -5563,12 +6606,34 @@ document.addEventListener("DOMContentLoaded", () => {
                     return;
                 }
                 activeSubUrl = urlOrContent;
-                let fetchUrl = urlOrContent;
-                if (urlOrContent.startsWith("http://") || urlOrContent.startsWith("https://") || urlOrContent.startsWith("/api/download/file/")) {
-                    fetchUrl = `/api/system/proxy-sub?url=${encodeURIComponent(urlOrContent)}`;
+                let requestUrl = urlOrContent;
+                if (requestUrl.includes("youtube.com/api/timedtext")) {
+                    if (requestUrl.includes("fmt=")) {
+                        requestUrl = requestUrl.replace(/fmt=[^&]+/, "fmt=vtt");
+                    } else {
+                        requestUrl += requestUrl.includes("?") ? "&fmt=vtt" : "?fmt=vtt";
+                    }
                 }
-                const res = await fetch(fetchUrl);
-                text = await res.text();
+
+                if (requestUrl.includes("youtube.com/api/timedtext")) {
+                    try {
+                        const res = await fetch(requestUrl);
+                        if (!res.ok) throw new Error("Direct fetch failed");
+                        text = await res.text();
+                    } catch (err) {
+                        console.warn("Direct subtitle fetch failed in loadSubtitle, falling back to proxy...", err);
+                        const proxyUrl = `/api/system/proxy-sub?url=${encodeURIComponent(requestUrl)}&client_id=${encodeURIComponent(clientId)}`;
+                        const res = await fetch(proxyUrl);
+                        text = await res.text();
+                    }
+                } else {
+                    let fetchUrl = requestUrl;
+                    if (requestUrl.startsWith("http://") || requestUrl.startsWith("https://") || requestUrl.startsWith("/api/download/file/")) {
+                        fetchUrl = `/api/system/proxy-sub?url=${encodeURIComponent(requestUrl)}&client_id=${encodeURIComponent(clientId)}`;
+                    }
+                    const res = await fetch(fetchUrl);
+                    text = await res.text();
+                }
             }
             
             originalSubtitleContent = text;
@@ -5719,19 +6784,96 @@ document.addEventListener("DOMContentLoaded", () => {
     }
 
     function applySubtitleStyles() {
-        const sizeSelect = document.getElementById("preview-sub-size");
-        const colorSelect = document.getElementById("preview-sub-color");
-        const bgSelect = document.getElementById("preview-sub-bg");
-        const posSelect = document.getElementById("preview-sub-pos");
-        
         const overlay = document.getElementById("preview-subtitles-overlay");
         const textBox = overlay ? overlay.querySelector(".subtitles-text-box") : null;
-        
-        if (textBox) {
-            if (sizeSelect) textBox.style.fontSize = sizeSelect.value;
-            if (colorSelect) textBox.style.color = colorSelect.value;
-            if (bgSelect) textBox.style.background = bgSelect.value;
+        if (!textBox) return;
+
+        // 1. Font Family
+        const subFontSelect = document.getElementById("preview-sub-font");
+        if (subFontSelect) {
+            textBox.style.fontFamily = subFontSelect.value;
         }
+
+        // 2. Font Size
+        const subSizeSlider = document.getElementById("preview-sub-size");
+        if (subSizeSlider) {
+            textBox.style.fontSize = subSizeSlider.value + "rem";
+        }
+
+        // 3. Text Color
+        let textColor = "#ffffff";
+        const activeTextSwatch = document.querySelector(".color-swatch.active");
+        if (activeTextSwatch) {
+            textColor = activeTextSwatch.getAttribute("data-color");
+        } else {
+            const textColorPicker = document.getElementById("preview-sub-color");
+            if (textColorPicker) textColor = textColorPicker.value;
+        }
+        textBox.style.color = textColor;
+
+        // 4. Background Color & Opacity
+        let bgStyle = "transparent";
+        const activeBgSwatch = document.querySelector(".bg-swatch.active");
+        let baseBgColor = "#000000";
+        let isTransparent = false;
+
+        if (activeBgSwatch) {
+            const val = activeBgSwatch.getAttribute("data-bg");
+            if (val === "transparent") {
+                isTransparent = true;
+            } else {
+                baseBgColor = val;
+            }
+        } else {
+            const bgColorPicker = document.getElementById("preview-sub-bg-color");
+            if (bgColorPicker) baseBgColor = bgColorPicker.value;
+        }
+
+        if (!isTransparent) {
+            const bgOpacitySlider = document.getElementById("preview-sub-bg-opacity");
+            const opacity = bgOpacitySlider ? parseInt(bgOpacitySlider.value, 10) / 100 : 0.5;
+            
+            // Convert Hex to RGB
+            const r = parseInt(baseBgColor.substring(1, 3), 16);
+            const g = parseInt(baseBgColor.substring(3, 5), 16);
+            const b = parseInt(baseBgColor.substring(5, 7), 16);
+            
+            bgStyle = `rgba(${r}, ${g}, ${b}, ${opacity})`;
+        }
+        textBox.style.background = bgStyle;
+
+        // 5. Outline / Text Shadow
+        const outlineSlider = document.getElementById("preview-sub-outline");
+        const outlineSize = outlineSlider ? parseInt(outlineSlider.value, 10) : 2;
+        
+        let outlineColor = "#000000";
+        const activeOutlineSwatch = document.querySelector(".outline-swatch.active");
+        if (activeOutlineSwatch) {
+            outlineColor = activeOutlineSwatch.getAttribute("data-outline");
+        } else {
+            const outlineColorPicker = document.getElementById("preview-sub-outline-color");
+            if (outlineColorPicker) outlineColor = outlineColorPicker.value;
+        }
+
+        let shadow = '';
+        if (outlineSize > 0) {
+            const shadows = [];
+            for (let x = -outlineSize; x <= outlineSize; x++) {
+                for (let y = -outlineSize; y <= outlineSize; y++) {
+                    if (x !== 0 || y !== 0) {
+                        shadows.push(`${x}px ${y}px 0 ${outlineColor}`);
+                    }
+                }
+            }
+            shadows.push(`0 2px 4px rgba(0,0,0,0.8)`);
+            shadow = shadows.join(', ');
+        } else {
+            shadow = '0 2px 4px rgba(0,0,0,0.8)';
+        }
+        textBox.style.textShadow = shadow;
+
+        // 6. Vertical Position
+        const posSelect = document.getElementById("preview-sub-pos");
         if (overlay && posSelect) {
             if (posSelect.value === "top") {
                 overlay.classList.remove("pos-bottom");
@@ -5746,7 +6888,14 @@ document.addEventListener("DOMContentLoaded", () => {
     function parseTimeStringToSeconds(str) {
         if (!str) return null;
         const parts = str.trim().split(':');
-        if (parts.length === 2) {
+        if (parts.length === 3) {
+            const hrs = parseInt(parts[0], 10);
+            const mins = parseInt(parts[1], 10);
+            const secs = parseFloat(parts[2]);
+            if (!isNaN(hrs) && !isNaN(mins) && !isNaN(secs)) {
+                return hrs * 3600 + mins * 60 + secs;
+            }
+        } else if (parts.length === 2) {
             const mins = parseInt(parts[0], 10);
             const secs = parseFloat(parts[1]);
             if (!isNaN(mins) && !isNaN(secs)) {
@@ -5798,10 +6947,10 @@ document.addEventListener("DOMContentLoaded", () => {
                 const payload = { target_lang: targetLang };
                 const subSelect = document.getElementById("preview-sub-select");
                 
-                if (subSelect && subSelect.value !== "none") {
-                    payload.url = subSelect.value;
-                } else if (originalSubtitleContent) {
+                if (originalSubtitleContent) {
                     payload.content = originalSubtitleContent;
+                } else if (subSelect && subSelect.value !== "none") {
+                    payload.url = subSelect.value;
                 } else {
                     this.value = "none";
                     return;
@@ -5844,12 +6993,104 @@ document.addEventListener("DOMContentLoaded", () => {
         });
     }
 
-    const previewSpeedSelect = document.getElementById("preview-speed-select");
-    if (previewSpeedSelect) {
-        previewSpeedSelect.addEventListener("change", function() {
-            if (previewVideoPlayer) {
-                previewVideoPlayer.playbackRate = parseFloat(this.value);
+    let currentPlaybackSpeed = 1.0;
+
+    function setPlaybackSpeedUI(rate) {
+        currentPlaybackSpeed = parseFloat(rate) || 1.0;
+
+        // Apply rate to video player
+        if (previewVideoPlayer) {
+            previewVideoPlayer.playbackRate = currentPlaybackSpeed;
+        }
+        // Apply rate to audio player if active
+        if (previewAudioPlayer) {
+            previewAudioPlayer.playbackRate = currentPlaybackSpeed;
+        }
+
+        const speedSelect = document.getElementById("preview-speed-select");
+        const customWrapper = document.getElementById("preview-speed-custom-wrapper");
+        const customInput = document.getElementById("preview-speed-custom");
+
+        // Check if rate is preset
+        const presets = [0.5, 0.75, 1.0, 1.25, 1.5, 2.0];
+        const isPreset = presets.some(p => Math.abs(p - currentPlaybackSpeed) < 0.01);
+
+        if (speedSelect) {
+            if (isPreset) {
+                // Find matching preset index and select it
+                for (let i = 0; i < speedSelect.options.length; i++) {
+                    const optVal = parseFloat(speedSelect.options[i].value);
+                    if (Math.abs(optVal - currentPlaybackSpeed) < 0.01) {
+                        speedSelect.selectedIndex = i;
+                        break;
+                    }
+                }
+                if (customWrapper) {
+                    customWrapper.style.display = "none";
+                }
+            } else {
+                speedSelect.value = "custom";
+                if (customWrapper) {
+                    customWrapper.style.display = "flex";
+                }
             }
+        }
+
+        if (customInput && document.activeElement !== customInput) {
+            customInput.value = currentPlaybackSpeed;
+        }
+    }
+
+    // Set listener for speed select dropdown
+    const speedSelectElement = document.getElementById("preview-speed-select");
+    if (speedSelectElement) {
+        speedSelectElement.addEventListener("change", function(e) {
+            e.stopPropagation();
+            if (this.value === "custom") {
+                const customWrapper = document.getElementById("preview-speed-custom-wrapper");
+                if (customWrapper) {
+                    customWrapper.style.display = "flex";
+                }
+                const customInput = document.getElementById("preview-speed-custom");
+                if (customInput) {
+                    customInput.focus();
+                    let speed = parseFloat(customInput.value);
+                    if (isNaN(speed) || speed < 0.05) speed = 1.0;
+                    if (speed > 16.0) speed = 16.0;
+                    currentPlaybackSpeed = speed;
+                    if (previewVideoPlayer) previewVideoPlayer.playbackRate = speed;
+                    if (previewAudioPlayer) previewAudioPlayer.playbackRate = speed;
+                }
+            } else {
+                const speed = parseFloat(this.value);
+                setPlaybackSpeedUI(speed);
+            }
+        });
+    }
+
+    // Set listener for custom speed input
+    const customSpeedInput = document.getElementById("preview-speed-custom");
+    if (customSpeedInput) {
+        customSpeedInput.addEventListener("input", function() {
+            let speed = parseFloat(this.value);
+            if (isNaN(speed) || speed < 0.05) return;
+            if (speed > 16.0) speed = 16.0;
+
+            currentPlaybackSpeed = speed;
+            if (previewVideoPlayer) {
+                previewVideoPlayer.playbackRate = speed;
+            }
+            if (previewAudioPlayer) {
+                previewAudioPlayer.playbackRate = speed;
+            }
+        });
+
+        customSpeedInput.addEventListener("change", function() {
+            let speed = parseFloat(this.value);
+            if (isNaN(speed) || speed < 0.05) speed = 1.0;
+            if (speed > 16.0) speed = 16.0;
+            this.value = speed;
+            setPlaybackSpeedUI(speed);
         });
     }
 
@@ -5921,13 +7162,25 @@ document.addEventListener("DOMContentLoaded", () => {
     const btnLoopBSet = document.getElementById("btn-loop-b-set");
     const btnLoopClear = document.getElementById("btn-loop-clear");
 
+    function getActivePlayerTime() {
+        const isVideoActive = !previewVideoContainer.classList.contains("hidden");
+        const isAudioActive = !previewAudioContainer.classList.contains("hidden");
+        if (isVideoActive && previewVideoPlayer) {
+            return previewIsAdaptive ? (previewCurrentTimeOffset + previewVideoPlayer.currentTime) : previewVideoPlayer.currentTime;
+        } else if (isAudioActive && previewAudioPlayer) {
+            return previewAudioPlayer.currentTime;
+        }
+        return null;
+    }
+
     if (btnLoopASet) {
         btnLoopASet.addEventListener("click", (e) => {
             e.stopPropagation();
-            if (previewVideoPlayer) {
-                loopStartSecs = previewVideoPlayer.currentTime;
+            const time = getActivePlayerTime();
+            if (time !== null) {
+                loopStartSecs = time;
                 if (loopPointAInput) {
-                    loopPointAInput.value = formatTime(loopStartSecs);
+                    loopPointAInput.value = formatTimeDetailed(loopStartSecs);
                 }
                 if (loopEndSecs !== null && loopStartSecs >= loopEndSecs) {
                     loopEndSecs = null;
@@ -5940,10 +7193,11 @@ document.addEventListener("DOMContentLoaded", () => {
     if (btnLoopBSet) {
         btnLoopBSet.addEventListener("click", (e) => {
             e.stopPropagation();
-            if (previewVideoPlayer) {
-                loopEndSecs = previewVideoPlayer.currentTime;
+            const time = getActivePlayerTime();
+            if (time !== null) {
+                loopEndSecs = time;
                 if (loopPointBInput) {
-                    loopPointBInput.value = formatTime(loopEndSecs);
+                    loopPointBInput.value = formatTimeDetailed(loopEndSecs);
                 }
                 if (loopStartSecs !== null && loopEndSecs <= loopStartSecs) {
                     loopStartSecs = null;
@@ -5968,7 +7222,7 @@ document.addEventListener("DOMContentLoaded", () => {
             const secs = parseTimeStringToSeconds(this.value);
             if (secs !== null) {
                 loopStartSecs = secs;
-                this.value = formatTime(secs);
+                this.value = formatTimeDetailed(secs);
             } else {
                 loopStartSecs = null;
                 this.value = "";
@@ -5981,7 +7235,7 @@ document.addEventListener("DOMContentLoaded", () => {
             const secs = parseTimeStringToSeconds(this.value);
             if (secs !== null) {
                 loopEndSecs = secs;
-                this.value = formatTime(secs);
+                this.value = formatTimeDetailed(secs);
             } else {
                 loopEndSecs = null;
                 this.value = "";
@@ -6066,6 +7320,195 @@ document.addEventListener("DOMContentLoaded", () => {
         }
     });
 
+    // Video settings menu tab switcher click handlers
+    const settingsTabBtns = document.querySelectorAll(".settings-tab-btn");
+    const settingsTabPanels = document.querySelectorAll(".settings-tab-panel");
+    if (settingsTabBtns && settingsTabPanels) {
+        settingsTabBtns.forEach(btn => {
+            btn.addEventListener("click", (e) => {
+                e.stopPropagation();
+                const targetTab = btn.getAttribute("data-tab");
+                
+                settingsTabBtns.forEach(b => {
+                    b.classList.remove("active");
+                    b.style.color = "#94a3b8";
+                    b.style.borderBottomColor = "transparent";
+                    b.style.fontWeight = "500";
+                });
+                btn.classList.add("active");
+                btn.style.color = "var(--cyan)";
+                btn.style.borderBottomColor = "var(--cyan)";
+                btn.style.fontWeight = "700";
+
+                settingsTabPanels.forEach(panel => {
+                    if (panel.id === targetTab) {
+                        panel.classList.remove("hidden");
+                    } else {
+                        panel.classList.add("hidden");
+                    }
+                });
+            });
+        });
+    }
+
+    // Synchronize preview advanced settings with the main page controls
+    function syncMainToPreviewSettings() {
+        // Reset tab view to playback by default when syncing
+        const defaultTabBtn = document.querySelector('.settings-tab-btn[data-tab="tab-playback"]');
+        if (defaultTabBtn) {
+            defaultTabBtn.click();
+        }
+
+        const mainExport = document.getElementById("export-type-select");
+        const previewExport = document.getElementById("preview-export-type");
+        if (mainExport && previewExport) {
+            previewExport.value = mainExport.value;
+            previewExport.dispatchEvent(new Event("change"));
+        }
+
+        const mainFilter = document.getElementById("color-filter-select");
+        const previewFilter = document.getElementById("preview-color-filter");
+        if (mainFilter && previewFilter) {
+            previewFilter.value = mainFilter.value;
+            previewFilter.dispatchEvent(new Event("change"));
+        }
+
+        const mainCloud = document.getElementById("cloud-sync-select");
+        const previewCloud = document.getElementById("preview-cloud-sync");
+        if (mainCloud && previewCloud) {
+            previewCloud.value = mainCloud.value;
+            previewCloud.dispatchEvent(new Event("change"));
+        }
+
+        const mainVoiceoverActive = document.getElementById("voiceover-checkbox");
+        const previewVoiceoverActive = document.getElementById("preview-voiceover-active");
+        if (mainVoiceoverActive && previewVoiceoverActive) {
+            previewVoiceoverActive.checked = mainVoiceoverActive.checked;
+            previewVoiceoverActive.dispatchEvent(new Event("change"));
+        }
+
+        const mainVoiceoverVoice = document.getElementById("voiceover-voice-select");
+        const previewVoiceoverVoice = document.getElementById("preview-voiceover-voice");
+        if (mainVoiceoverVoice && previewVoiceoverVoice) {
+            previewVoiceoverVoice.value = mainVoiceoverVoice.value;
+            previewVoiceoverVoice.dispatchEvent(new Event("change"));
+        }
+
+        const mainVoiceoverRate = document.getElementById("voiceover-rate-slider");
+        const previewVoiceoverRate = document.getElementById("preview-voiceover-rate-slider");
+        if (mainVoiceoverRate && previewVoiceoverRate) {
+            previewVoiceoverRate.value = mainVoiceoverRate.value;
+            previewVoiceoverRate.dispatchEvent(new Event("input"));
+        }
+
+        const mainVoiceoverPitch = document.getElementById("voiceover-pitch-slider");
+        const previewVoiceoverPitch = document.getElementById("preview-voiceover-pitch-slider");
+        if (mainVoiceoverPitch && previewVoiceoverPitch) {
+            previewVoiceoverPitch.value = mainVoiceoverPitch.value;
+            previewVoiceoverPitch.dispatchEvent(new Event("input"));
+        }
+    }
+
+    // Set up listeners to sync preview settings back to main settings
+    const previewExportType = document.getElementById("preview-export-type");
+    if (previewExportType) {
+        previewExportType.addEventListener("change", function() {
+            const mainExport = document.getElementById("export-type-select");
+            if (mainExport && mainExport.value !== this.value) {
+                mainExport.value = this.value;
+                mainExport.dispatchEvent(new Event("change"));
+            }
+        });
+    }
+
+    const previewColorFilter = document.getElementById("preview-color-filter");
+    if (previewColorFilter) {
+        previewColorFilter.addEventListener("change", function() {
+            const mainFilter = document.getElementById("color-filter-select");
+            if (mainFilter && mainFilter.value !== this.value) {
+                mainFilter.value = this.value;
+                mainFilter.dispatchEvent(new Event("change"));
+            }
+        });
+    }
+
+    const previewCloudSync = document.getElementById("preview-cloud-sync");
+    if (previewCloudSync) {
+        previewCloudSync.addEventListener("change", function() {
+            const mainCloud = document.getElementById("cloud-sync-select");
+            if (mainCloud && mainCloud.value !== this.value) {
+                mainCloud.value = this.value;
+                mainCloud.dispatchEvent(new Event("change"));
+            }
+        });
+    }
+
+    const previewVoiceoverActive = document.getElementById("preview-voiceover-active");
+    const previewVoiceoverWrapper = document.getElementById("preview-voiceover-wrapper");
+    if (previewVoiceoverActive) {
+        previewVoiceoverActive.addEventListener("change", function() {
+            // Expand/collapse collapsible options wrapper
+            if (previewVoiceoverWrapper) {
+                if (this.checked) {
+                    previewVoiceoverWrapper.classList.remove("collapsed");
+                    previewVoiceoverWrapper.classList.add("expanded");
+                } else {
+                    previewVoiceoverWrapper.classList.remove("expanded");
+                    previewVoiceoverWrapper.classList.add("collapsed");
+                }
+            }
+            // Sync with main page checkbox
+            const mainVoiceoverActive = document.getElementById("voiceover-checkbox");
+            if (mainVoiceoverActive && mainVoiceoverActive.checked !== this.checked) {
+                mainVoiceoverActive.checked = this.checked;
+                mainVoiceoverActive.dispatchEvent(new Event("change"));
+            }
+        });
+    }
+
+    const previewVoiceoverVoice = document.getElementById("preview-voiceover-voice");
+    if (previewVoiceoverVoice) {
+        previewVoiceoverVoice.addEventListener("change", function() {
+            const mainVoice = document.getElementById("voiceover-voice-select");
+            if (mainVoice && mainVoice.value !== this.value) {
+                mainVoice.value = this.value;
+                mainVoice.dispatchEvent(new Event("change"));
+            }
+        });
+    }
+
+    const previewVoiceoverRate = document.getElementById("preview-voiceover-rate-slider");
+    const previewVoiceoverRateVal = document.getElementById("preview-voiceover-rate-val");
+    if (previewVoiceoverRate) {
+        previewVoiceoverRate.addEventListener("input", function() {
+            const val = parseInt(this.value);
+            if (previewVoiceoverRateVal) {
+                previewVoiceoverRateVal.textContent = val === 0 ? "Normal" : (val > 0 ? `+${val}%` : `${val}%`);
+            }
+            const mainRate = document.getElementById("voiceover-rate-slider");
+            if (mainRate && mainRate.value !== this.value) {
+                mainRate.value = this.value;
+                mainRate.dispatchEvent(new Event("input"));
+            }
+        });
+    }
+
+    const previewVoiceoverPitch = document.getElementById("preview-voiceover-pitch-slider");
+    const previewVoiceoverPitchVal = document.getElementById("preview-voiceover-pitch-val");
+    if (previewVoiceoverPitch) {
+        previewVoiceoverPitch.addEventListener("input", function() {
+            const val = parseInt(this.value);
+            if (previewVoiceoverPitchVal) {
+                previewVoiceoverPitchVal.textContent = val === 0 ? "Normal" : (val > 0 ? `+${val}%` : `${val}%`);
+            }
+            const mainPitch = document.getElementById("voiceover-pitch-slider");
+            if (mainPitch && mainPitch.value !== this.value) {
+                mainPitch.value = this.value;
+                mainPitch.dispatchEvent(new Event("input"));
+            }
+        });
+    }
+
     function initCustomDropdowns() {
         const settingsMenu = document.getElementById("video-settings-menu");
         if (!settingsMenu) return;
@@ -6103,7 +7546,8 @@ document.addEventListener("DOMContentLoaded", () => {
             optionsList.className = "custom-dropdown-options-list";
 
             container.appendChild(trigger);
-            container.appendChild(optionsList);
+            // Append optionsList directly to settingsMenu to escape scrollable content clipping
+            settingsMenu.appendChild(optionsList);
 
             // Insert custom container right after the select
             selectEl.parentNode.insertBefore(container, selectEl.nextSibling);
@@ -6130,6 +7574,7 @@ document.addEventListener("DOMContentLoaded", () => {
                         selectEl.dispatchEvent(new Event("change"));
                         // Close menu
                         container.classList.remove("open");
+                        optionsList.classList.remove("open");
                     });
 
                     optionsList.appendChild(optDiv);
@@ -6145,27 +7590,80 @@ document.addEventListener("DOMContentLoaded", () => {
                 }
             }
 
-            // Initial build
             rebuildCustomOptions();
 
-            // Set dynamic opening direction
-            if (["preview-sub-select", "preview-sub-trans-select", "preview-voiceover-select"].includes(selectEl.id)) {
-                container.classList.add("open-down");
-            } else {
-                container.classList.add("open-up");
+            // Sync visual active state on programmatic change
+            selectEl.addEventListener("change", () => {
+                const activeVal = selectEl.value;
+                const options = optionsList.querySelectorAll(".custom-dropdown-option");
+                options.forEach(optDiv => {
+                    if (optDiv.getAttribute("data-value") === activeVal) {
+                        optDiv.classList.add("active");
+                        selectedText.textContent = optDiv.textContent;
+                    } else {
+                        optDiv.classList.remove("active");
+                    }
+                });
+            });
+
+            // Dynamically position the options list relative to settingsMenu
+            function positionOptionsList() {
+                const menuRect = settingsMenu.getBoundingClientRect();
+                const triggerRect = trigger.getBoundingClientRect();
+
+                const left = triggerRect.left - menuRect.left;
+                const width = triggerRect.width;
+
+                optionsList.style.left = `${left}px`;
+                optionsList.style.width = `${width}px`;
+
+                // Calculate space below and above trigger relative to settingsMenu
+                const spaceBelow = menuRect.bottom - triggerRect.bottom;
+                const spaceAbove = triggerRect.top - menuRect.top;
+                
+                // Estimate options list height (capped at max-height: 180px in CSS)
+                const listHeight = Math.min(180, optionsList.scrollHeight || 120);
+
+                if (spaceBelow >= listHeight + 8 || spaceBelow > spaceAbove) {
+                    // Open down
+                    optionsList.style.top = `${triggerRect.bottom - menuRect.top + 4}px`;
+                    optionsList.style.bottom = "auto";
+                    optionsList.className = "custom-dropdown-options-list open-down open";
+                } else {
+                    // Open up
+                    optionsList.style.bottom = `${menuRect.bottom - triggerRect.top + 4}px`;
+                    optionsList.style.top = "auto";
+                    optionsList.className = "custom-dropdown-options-list open-up open";
+                }
             }
 
             // Trigger click event to toggle dropdown list open/closed
             trigger.addEventListener("click", (e) => {
-                // Close all other dropdowns
-                const allDropdowns = settingsMenu.querySelectorAll(".custom-dropdown-container");
-                allDropdowns.forEach(other => {
+                e.stopPropagation();
+                
+                const isOpen = container.classList.contains("open");
+
+                // Close all other dropdowns first
+                const allContainers = settingsMenu.querySelectorAll(".custom-dropdown-container");
+                allContainers.forEach(other => {
                     if (other !== container) {
                         other.classList.remove("open");
                     }
                 });
+                const allLists = settingsMenu.querySelectorAll(".custom-dropdown-options-list");
+                allLists.forEach(otherList => {
+                    if (otherList !== optionsList) {
+                        otherList.classList.remove("open");
+                    }
+                });
 
-                container.classList.toggle("open");
+                if (isOpen) {
+                    container.classList.remove("open");
+                    optionsList.classList.remove("open");
+                } else {
+                    container.classList.add("open");
+                    positionOptionsList();
+                }
             });
 
             // Sync when select value changes programmatically
@@ -6261,22 +7759,118 @@ document.addEventListener("DOMContentLoaded", () => {
                     container.classList.remove("open");
                 }
             });
+            const allLists = settingsMenu.querySelectorAll(".custom-dropdown-options-list");
+            allLists.forEach(list => {
+                list.classList.remove("open");
+            });
         });
+
+        // Close dropdowns when scrolling settings menu content to prevent misalignment
+        const contentScroll = settingsMenu.querySelector(".settings-menu-content");
+        if (contentScroll) {
+            contentScroll.addEventListener("scroll", () => {
+                const allDropdowns = settingsMenu.querySelectorAll(".custom-dropdown-container");
+                allDropdowns.forEach(container => {
+                    container.classList.remove("open");
+                });
+                const allLists = settingsMenu.querySelectorAll(".custom-dropdown-options-list");
+                allLists.forEach(list => {
+                    list.classList.remove("open");
+                });
+            });
+        }
     }
 
     // Initialize custom dropdowns
     initCustomDropdowns();
 
-    const subSizeSelect = document.getElementById("preview-sub-size");
-    const subColorSelect = document.getElementById("preview-sub-color");
-    const subBgSelect = document.getElementById("preview-sub-bg");
-    const subPosSelect = document.getElementById("preview-sub-pos");
+    // Setup Subtitle Customizer controls listeners
+    const subFontSelect = document.getElementById("preview-sub-font");
+    if (subFontSelect) {
+        subFontSelect.addEventListener("change", applySubtitleStyles);
+    }
 
-    [subSizeSelect, subColorSelect, subBgSelect, subPosSelect].forEach(select => {
-        if (select) {
-            select.addEventListener("change", applySubtitleStyles);
-        }
+    const subSizeSlider = document.getElementById("preview-sub-size");
+    if (subSizeSlider) {
+        subSizeSlider.addEventListener("input", function() {
+            const valSpan = document.getElementById("preview-sub-size-val");
+            if (valSpan) valSpan.textContent = this.value + "rem";
+            applySubtitleStyles();
+        });
+    }
+
+    const bgOpacitySlider = document.getElementById("preview-sub-bg-opacity");
+    if (bgOpacitySlider) {
+        bgOpacitySlider.addEventListener("input", function() {
+            const valSpan = document.getElementById("preview-sub-bg-opacity-val");
+            if (valSpan) valSpan.textContent = this.value + "%";
+            applySubtitleStyles();
+        });
+    }
+
+    const outlineSizeSlider = document.getElementById("preview-sub-outline");
+    if (outlineSizeSlider) {
+        outlineSizeSlider.addEventListener("input", function() {
+            const valSpan = document.getElementById("preview-sub-outline-val");
+            if (valSpan) valSpan.textContent = this.value + "px";
+            applySubtitleStyles();
+        });
+    }
+
+    const subPosSelect = document.getElementById("preview-sub-pos");
+    if (subPosSelect) {
+        subPosSelect.addEventListener("change", applySubtitleStyles);
+    }
+
+    // Swatches listeners
+    document.querySelectorAll(".color-swatch").forEach(swatch => {
+        swatch.addEventListener("click", function() {
+            document.querySelectorAll(".color-swatch").forEach(s => s.classList.remove("active"));
+            this.classList.add("active");
+            applySubtitleStyles();
+        });
     });
+
+    document.querySelectorAll(".bg-swatch").forEach(swatch => {
+        swatch.addEventListener("click", function() {
+            document.querySelectorAll(".bg-swatch").forEach(s => s.classList.remove("active"));
+            this.classList.add("active");
+            applySubtitleStyles();
+        });
+    });
+
+    document.querySelectorAll(".outline-swatch").forEach(swatch => {
+        swatch.addEventListener("click", function() {
+            document.querySelectorAll(".outline-swatch").forEach(s => s.classList.remove("active"));
+            this.classList.add("active");
+            applySubtitleStyles();
+        });
+    });
+
+    // Custom color picker inputs
+    const textColorPicker = document.getElementById("preview-sub-color");
+    if (textColorPicker) {
+        textColorPicker.addEventListener("input", function() {
+            document.querySelectorAll(".color-swatch").forEach(s => s.classList.remove("active"));
+            applySubtitleStyles();
+        });
+    }
+
+    const bgColorPicker = document.getElementById("preview-sub-bg-color");
+    if (bgColorPicker) {
+        bgColorPicker.addEventListener("input", function() {
+            document.querySelectorAll(".bg-swatch").forEach(s => s.classList.remove("active"));
+            applySubtitleStyles();
+        });
+    }
+
+    const outlineColorPicker = document.getElementById("preview-sub-outline-color");
+    if (outlineColorPicker) {
+        outlineColorPicker.addEventListener("input", function() {
+            document.querySelectorAll(".outline-swatch").forEach(s => s.classList.remove("active"));
+            applySubtitleStyles();
+        });
+    }
 
     const transcriptSearch = document.getElementById("transcript-search");
     if (transcriptSearch) {
@@ -6445,7 +8039,7 @@ document.addEventListener("DOMContentLoaded", () => {
     let isLightTheme = false;
     function updateColors() {
         isLightTheme = document.body.classList.contains("light-theme");
-        const style = getComputedStyle(document.body);
+        const style = getComputedStyle(document.documentElement);
         const cyan = style.getPropertyValue('--cyan').trim() || '#00f2fe';
         const purple = style.getPropertyValue('--purple').trim() || '#fe0979';
         activeColors = [cyan, purple];
