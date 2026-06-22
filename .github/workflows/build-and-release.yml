@@ -59,12 +59,11 @@ jobs:
             mv dist/EveryThingDownloader-Web-${{ env.VERSION }} dist/EveryThingDownloader-Web-${{ env.VERSION }}-Linux || true
           fi
 
-      - name: Upload build artifacts
-        uses: actions/upload-artifact@v4
+      - name: Upload build assets directly to Private Release
+        uses: softprops/action-gh-release@v2
         with:
-          name: build-artifacts-${{ matrix.os }}
-          retention-days: 1
-          path: |
+          tag_name: ${{ github.ref_name }}
+          files: |
             dist/EveryThingDownloader*
             dist_electron/*.exe
             dist_electron/*.msi
@@ -75,7 +74,10 @@ jobs:
             dist_electron/*.tar.gz
             dist_electron/*.deb
             dist_electron/*.rpm
-          if-no-files-found: ignore
+          fail_on_unmatched_files: false
+          overwrite: true
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
   release:
     needs: build
@@ -87,21 +89,15 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Download all build artifacts
-        uses: actions/download-artifact@v4
-        with:
-          path: ./all_assets
-          pattern: build-artifacts-*
-          merge-multiple: true
-
-      - name: Flatten artifact directory structure
-        shell: bash
+      - name: Download all assets from Private Release
         run: |
-          # Move all files from subdirectories to the root of all_assets/
-          find ./all_assets -mindepth 2 -type f -exec mv -t ./all_assets/ {} +
-          # Remove now-empty subdirectories
-          find ./all_assets -mindepth 1 -type d -delete
-          # Debug: list all files
+          mkdir -p all_assets
+          gh release download ${{ github.ref_name }} --dir all_assets
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Debug: list downloaded files
+        run: |
           echo "=== Files in all_assets/ ==="
           ls -lah ./all_assets/
 
@@ -186,28 +182,11 @@ jobs:
       # =========================================================================
       # ĐẦY FILE EXE ĐÃ BUILD SANG KHO LƯU TRỮ RIÊNG TƯ (PRIVATE REPOSITORY)
       # =========================================================================
-      - name: Clean existing assets (Private Repo)
-        shell: bash
+      - name: Update Private Release Notes with SHA-256 Checksums
         run: |
-          echo "Listing assets for tag ${{ github.ref_name }}..."
-          assets=$(gh release view ${{ github.ref_name }} --json assets --jq '.assets[].name' 2>/dev/null || true)
-          for asset in $assets; do
-            echo "Deleting asset: $asset"
-            gh release delete-asset ${{ github.ref_name }} "$asset" -y
-          done
+          gh release edit ${{ github.ref_name }} --notes-file release_notes.md
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Create GitHub Release and Upload Assets (To Private Repo)
-        uses: softprops/action-gh-release@v2
-        with:
-          body_path: release_notes.md
-          files: |
-            all_assets/*
-          draft: false
-          prerelease: false
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       # =========================================================================
       # ĐẨY FILE EXE ĐÃ BUILD SANG KHO LƯU TRỮ CÔNG KHAI (PUBLIC REPOSITORY)
