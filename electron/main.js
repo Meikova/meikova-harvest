@@ -641,7 +641,7 @@ function startAutoUpdate(url, version) {
             const cmd = 'cmd.exe';
             const args = [
               '/c',
-              `ping 127.0.0.1 -n 3 > nul && taskkill /f /im server.exe /t 2>nul && taskkill /f /im "${appExeName}" /t 2>nul && start "" "${destPath}"`
+              `ping 127.0.0.1 -n 3 > nul & taskkill /f /im server.exe /t 2>nul & taskkill /f /im "${appExeName}" 2>nul & start "" "${destPath}"`
             ];
             const child = spawn(cmd, args, {
               detached: true,
