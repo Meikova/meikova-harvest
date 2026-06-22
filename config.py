@@ -8,8 +8,17 @@ import time
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 
 # Downloads directory
-TEMP_DOWNLOAD_DIR = os.path.join(BASE_DIR, "downloads")
-os.makedirs(TEMP_DOWNLOAD_DIR, exist_ok=True)
+if "VERCEL" in os.environ:
+    TEMP_DOWNLOAD_DIR = "/tmp/downloads"
+else:
+    TEMP_DOWNLOAD_DIR = os.path.join(BASE_DIR, "downloads")
+
+try:
+    os.makedirs(TEMP_DOWNLOAD_DIR, exist_ok=True)
+except OSError:
+    import tempfile
+    TEMP_DOWNLOAD_DIR = os.path.join(tempfile.gettempdir(), "EveryThingDownloader", "downloads")
+    os.makedirs(TEMP_DOWNLOAD_DIR, exist_ok=True)
 
 # Path to SQLite database
 DB_PATH = os.path.join(TEMP_DOWNLOAD_DIR, "downloads.db")
