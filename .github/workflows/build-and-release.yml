@@ -63,6 +63,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: build-artifacts-${{ matrix.os }}
+          retention-days: 1
           path: |
             dist/EveryThingDownloader*
             dist_electron/*.exe
