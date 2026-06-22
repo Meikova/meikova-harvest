@@ -17,6 +17,19 @@ window.canvasSettings = {
 document.addEventListener("DOMContentLoaded", () => {
     let autoFillSettingsAfterAnalysis = null;
 
+    function formatHistoryDateTime(timestampMs) {
+        if (!timestampMs) return "Unknown date";
+        const date = new Date(timestampMs);
+        const pad = (n) => String(n).padStart(2, '0');
+        const day = pad(date.getDate());
+        const month = pad(date.getMonth() + 1);
+        const year = date.getFullYear();
+        const hours = pad(date.getHours());
+        const minutes = pad(date.getMinutes());
+        const seconds = pad(date.getSeconds());
+        return `${day}/${month}/${year} ${hours}:${minutes}:${seconds}`;
+    }
+
     // Theme Toggle Logic
     const themeToggle = document.getElementById("theme-toggle");
     const currentTheme = localStorage.getItem("theme");
@@ -155,6 +168,7 @@ document.addEventListener("DOMContentLoaded", () => {
     const customizerBlur = document.getElementById("customizer-blur");
     const customizerBlurVal = document.getElementById("customizer-blur-val");
     const customizerFontSize = document.getElementById("customizer-fontsize");
+    const customizerFontFamily = document.getElementById("customizer-fontfamily");
 
     const customizerGridEnable = document.getElementById("customizer-grid-enable");
     const customizerRipplesEnable = document.getElementById("customizer-ripples-enable");
@@ -203,13 +217,45 @@ document.addEventListener("DOMContentLoaded", () => {
     }
 
     function applyFontSize(sizeVal) {
-        let htmlSize = "16px";
-        if (sizeVal === "small") htmlSize = "14.4px";
-        else if (sizeVal === "medium") htmlSize = "16px";
-        else if (sizeVal === "large") htmlSize = "17.6px";
-        document.documentElement.style.fontSize = htmlSize;
+        let scaleFactor = 1.0;
+        if (sizeVal === "tiny") scaleFactor = 0.75;
+        else if (sizeVal === "compact") scaleFactor = 0.85;
+        else if (sizeVal === "small") scaleFactor = 0.9;
+        else if (sizeVal === "medium") scaleFactor = 1.0;
+        else if (sizeVal === "large") scaleFactor = 1.1;
+        else if (sizeVal === "xlarge") scaleFactor = 1.2;
+        else if (sizeVal === "huge") scaleFactor = 1.3;
+
+        document.documentElement.style.fontSize = ""; // Clear direct font-size override
+        document.documentElement.style.setProperty('--font-scale', scaleFactor);
+        
         if (customizerFontSize) customizerFontSize.value = sizeVal;
         localStorage.setItem("customizer-fontsize", sizeVal);
+    }
+
+    function applyFontFamily(fontVal) {
+        let fontStack = '"Outfit"';
+        let displayFontStack = '"Space Grotesk"';
+        
+        if (fontVal === "plus-jakarta-sans") {
+            fontStack = '"Plus Jakarta Sans"';
+            displayFontStack = '"Plus Jakarta Sans"';
+        } else if (fontVal === "inter") {
+            fontStack = '"Inter"';
+            displayFontStack = '"Inter"';
+        } else if (fontVal === "space-grotesk") {
+            fontStack = '"Space Grotesk"';
+            displayFontStack = '"Space Grotesk"';
+        } else if (fontVal === "system-ui") {
+            fontStack = 'system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
+            displayFontStack = 'system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
+        }
+        
+        document.documentElement.style.setProperty('--user-font', fontStack);
+        document.documentElement.style.setProperty('--user-font-display', displayFontStack);
+        
+        if (customizerFontFamily) customizerFontFamily.value = fontVal;
+        localStorage.setItem("customizer-fontfamily", fontVal);
     }
 
     function updateCanvasOption(key, value) {
@@ -229,6 +275,9 @@ document.addEventListener("DOMContentLoaded", () => {
     }
     if (customizerFontSize) {
         customizerFontSize.addEventListener("change", (e) => applyFontSize(e.target.value));
+    }
+    if (customizerFontFamily) {
+        customizerFontFamily.addEventListener("change", (e) => applyFontFamily(e.target.value));
     }
 
     if (customizerGridEnable) {
@@ -314,6 +363,7 @@ document.addEventListener("DOMContentLoaded", () => {
             applyRadius("rounded");
             applyBlur(24);
             applyFontSize("medium");
+            applyFontFamily("outfit");
 
             if (customizerGridEnable) {
                 customizerGridEnable.checked = true;
@@ -372,6 +422,9 @@ document.addEventListener("DOMContentLoaded", () => {
 
     const savedFontSize = localStorage.getItem("customizer-fontsize") || "medium";
     applyFontSize(savedFontSize);
+
+    const savedFontFamily = localStorage.getItem("customizer-fontfamily") || "outfit";
+    applyFontFamily(savedFontFamily);
 
     const savedGrid = localStorage.getItem("customizer-gridEnabled") !== null ? localStorage.getItem("customizer-gridEnabled") === "true" : true;
     const savedGravityMode = localStorage.getItem("customizer-gravityMode") || "pull";
@@ -1050,6 +1103,13 @@ document.addEventListener("DOMContentLoaded", () => {
     let previewActiveFilename = "";
     let previewActivePollInterval = null;
     let previewCurrentImageIndex = -1;
+    
+    // Adaptive Streaming Preview State
+    let previewIsAdaptive = false;
+    let previewAdaptiveVideoUrl = "";
+    let previewAdaptiveAudioUrl = "";
+    let previewAdaptiveContainer = "";
+    let previewCurrentTimeOffset = 0;
 
     // Subtitles & advanced player states
     let currentCues = [];
@@ -1061,6 +1121,35 @@ document.addEventListener("DOMContentLoaded", () => {
     let isDraggingVideoSlider = false;
     let isDraggingAudioSlider = false;
     let videoFullscreenMode = 0; // 0: Normal, 1: Theater, 2: Native Fullscreen
+
+    function seekAdaptiveVideo(targetTime) {
+        if (!previewIsAdaptive) return;
+        
+        showPreviewLoader("Seeking stream...");
+        previewCurrentTimeOffset = targetTime;
+        
+        // Stop current playback
+        previewVideoPlayer.pause();
+        
+        // Re-construct the proxy stream URL with start_time = targetTime
+        const proxyStreamUrl = `/api/proxy/stream_adaptive?video_url=${encodeURIComponent(previewAdaptiveVideoUrl)}&audio_url=${encodeURIComponent(previewAdaptiveAudioUrl)}&container=${encodeURIComponent(previewAdaptiveContainer)}&start_time=${targetTime}`;
+        
+        // Load the new stream URL
+        previewVideoPlayer.src = proxyStreamUrl;
+        previewVideoPlayer.load();
+        
+        // Resume playing once loaded
+        previewVideoPlayer.play()
+            .then(() => {
+                hidePreviewLoader();
+            })
+            .catch(e => {
+                console.log("Playback blocked or failed on seek:", e);
+                setTimeout(() => {
+                    previewVideoPlayer.play().catch(err => console.log("Retry play blocked: ", err));
+                }, 150);
+            });
+    }
 
     // Helper to stop all preview playbacks and destroy Hls instances
     // Helper to stop all preview playbacks and destroy Hls instances
@@ -1658,37 +1747,45 @@ document.addEventListener("DOMContentLoaded", () => {
         });
 
         previewVideoPlayer.addEventListener("timeupdate", () => {
-            if (previewVideoPlayer.duration) {
+            const totalDuration = previewIsAdaptive ? (parseFloat(activeMetadata ? activeMetadata.duration_raw : 0) || 0) : (previewVideoPlayer.duration || 0);
+            const currentPlayTime = previewIsAdaptive ? (previewCurrentTimeOffset + previewVideoPlayer.currentTime) : previewVideoPlayer.currentTime;
+
+            if (totalDuration > 0) {
                 // A-B repeat logic
                 if (loopStartSecs !== null && loopEndSecs !== null) {
-                    if (previewVideoPlayer.currentTime >= loopEndSecs || previewVideoPlayer.currentTime < loopStartSecs) {
-                        previewVideoPlayer.currentTime = loopStartSecs;
+                    if (currentPlayTime >= loopEndSecs || currentPlayTime < loopStartSecs) {
+                        if (previewIsAdaptive) {
+                            seekAdaptiveVideo(loopStartSecs);
+                        } else {
+                            previewVideoPlayer.currentTime = loopStartSecs;
+                        }
                     }
                 }
 
                 if (!isDraggingVideoSlider && !previewVideoPlayer.seeking) {
-                    const pct = (previewVideoPlayer.currentTime / previewVideoPlayer.duration) * 100;
+                    const pct = (currentPlayTime / totalDuration) * 100;
                     if (videoSeekSlider) {
                         videoSeekSlider.value = pct;
                         updateSliderBackground(videoSeekSlider);
                     }
                 }
                 if (videoTimeCurrent) {
-                    videoTimeCurrent.textContent = formatTime(previewVideoPlayer.currentTime);
+                    videoTimeCurrent.textContent = formatTime(currentPlayTime);
                 }
 
                 // Subtitles sync
                 if (typeof updateSubtitlesOverlay === "function") {
-                    updateSubtitlesOverlay(previewVideoPlayer.currentTime);
+                    updateSubtitlesOverlay(currentPlayTime);
                 }
             }
         });
 
         previewVideoPlayer.addEventListener("loadedmetadata", () => {
-            if (videoTimeTotal && previewVideoPlayer.duration) {
-                videoTimeTotal.textContent = formatTime(previewVideoPlayer.duration);
+            const totalDuration = previewIsAdaptive ? (parseFloat(activeMetadata ? activeMetadata.duration_raw : 0) || 0) : (previewVideoPlayer.duration || 0);
+            if (videoTimeTotal && totalDuration > 0) {
+                videoTimeTotal.textContent = formatTime(totalDuration);
             }
-            if (videoSeekSlider) {
+            if (videoSeekSlider && !previewIsAdaptive) {
                 videoSeekSlider.value = 0;
                 updateSliderBackground(videoSeekSlider);
             }
@@ -1704,8 +1801,9 @@ document.addEventListener("DOMContentLoaded", () => {
         });
 
         previewVideoPlayer.addEventListener("durationchange", () => {
-            if (videoTimeTotal && previewVideoPlayer.duration) {
-                videoTimeTotal.textContent = formatTime(previewVideoPlayer.duration);
+            const totalDuration = previewIsAdaptive ? (parseFloat(activeMetadata ? activeMetadata.duration_raw : 0) || 0) : (previewVideoPlayer.duration || 0);
+            if (videoTimeTotal && totalDuration > 0) {
+                videoTimeTotal.textContent = formatTime(totalDuration);
             }
         });
     }
@@ -1763,8 +1861,14 @@ document.addEventListener("DOMContentLoaded", () => {
         });
         videoSeekSlider.addEventListener("change", function(e) {
             e.stopPropagation();
-            if (previewVideoPlayer.duration) {
-                previewVideoPlayer.currentTime = (parseFloat(this.value) / 100) * previewVideoPlayer.duration;
+            const totalDuration = previewIsAdaptive ? (parseFloat(activeMetadata ? activeMetadata.duration_raw : 0) || 0) : (previewVideoPlayer.duration || 0);
+            if (totalDuration > 0) {
+                const targetTime = (parseFloat(this.value) / 100) * totalDuration;
+                if (previewIsAdaptive) {
+                    seekAdaptiveVideo(targetTime);
+                } else {
+                    previewVideoPlayer.currentTime = targetTime;
+                }
             }
             setTimeout(() => {
                 isDraggingVideoSlider = false;
@@ -2062,8 +2166,173 @@ document.addEventListener("DOMContentLoaded", () => {
 
         document.addEventListener("keydown", (e) => {
             if (previewModal && !previewModal.classList.contains("hidden")) {
+                // Ignore hotkeys if user is typing in inputs or textareas
+                const activeEl = document.activeElement;
+                if (activeEl && (activeEl.tagName === "INPUT" || activeEl.tagName === "TEXTAREA" || activeEl.isContentEditable)) {
+                    return;
+                }
+
                 if (e.key === "Escape") {
                     closePreviewModal();
+                    return;
+                }
+
+                const isVideoActive = !previewVideoContainer.classList.contains("hidden");
+                if (isVideoActive && previewVideoPlayer) {
+                    // Space or K/k (Play/Pause)
+                    if (e.key === " " || e.key === "k" || e.key === "K") {
+                        e.preventDefault();
+                        if (previewVideoPlayer.paused) {
+                            previewVideoPlayer.play().catch(err => console.log("Play failed: ", err));
+                        } else {
+                            previewVideoPlayer.pause();
+                        }
+                        return;
+                    }
+                    // M/m (Mute/Unmute)
+                    if (e.key === "m" || e.key === "M") {
+                        e.preventDefault();
+                        previewVideoPlayer.muted = !previewVideoPlayer.muted;
+                        if (videoVolumeSlider) {
+                            videoVolumeSlider.value = previewVideoPlayer.muted ? 0 : previewVideoPlayer.volume;
+                            updateSliderBackground(videoVolumeSlider);
+                        }
+                        if (videoMuteBtn) {
+                            const volIcon = videoMuteBtn.querySelector(".volume-icon");
+                            const muteIcon = videoMuteBtn.querySelector(".mute-icon");
+                            if (previewVideoPlayer.muted) {
+                                if (volIcon) volIcon.classList.add("hidden");
+                                if (muteIcon) muteIcon.classList.remove("hidden");
+                            } else {
+                                if (volIcon) volIcon.classList.remove("hidden");
+                                if (muteIcon) muteIcon.classList.add("hidden");
+                            }
+                        }
+                        return;
+                    }
+                    // ArrowLeft or J/j (Seek Backward by 10s)
+                    if (e.key === "ArrowLeft" || e.key === "j" || e.key === "J") {
+                        e.preventDefault();
+                        const totalDuration = previewIsAdaptive ? (parseFloat(activeMetadata ? activeMetadata.duration_raw : 0) || 0) : (previewVideoPlayer.duration || 0);
+                        const currentPlayTime = previewIsAdaptive ? (previewCurrentTimeOffset + previewVideoPlayer.currentTime) : previewVideoPlayer.currentTime;
+                        let target = Math.max(0, currentPlayTime - 10);
+                        if (previewIsAdaptive) {
+                            seekAdaptiveVideo(target);
+                        } else {
+                            previewVideoPlayer.currentTime = target;
+                        }
+                        return;
+                    }
+                    // ArrowRight or L/l (Seek Forward by 10s)
+                    if (e.key === "ArrowRight" || e.key === "l" || e.key === "L") {
+                        e.preventDefault();
+                        const totalDuration = previewIsAdaptive ? (parseFloat(activeMetadata ? activeMetadata.duration_raw : 0) || 0) : (previewVideoPlayer.duration || 0);
+                        const currentPlayTime = previewIsAdaptive ? (previewCurrentTimeOffset + previewVideoPlayer.currentTime) : previewVideoPlayer.currentTime;
+                        let target = Math.min(totalDuration, currentPlayTime + 10);
+                        if (previewIsAdaptive) {
+                            seekAdaptiveVideo(target);
+                        } else {
+                            previewVideoPlayer.currentTime = target;
+                        }
+                        return;
+                    }
+                    // ArrowUp (Volume Up by 10%)
+                    if (e.key === "ArrowUp") {
+                        e.preventDefault();
+                        previewVideoPlayer.muted = false;
+                        previewVideoPlayer.volume = Math.min(1.0, previewVideoPlayer.volume + 0.1);
+                        if (videoVolumeSlider) {
+                            videoVolumeSlider.value = previewVideoPlayer.volume;
+                            updateSliderBackground(videoVolumeSlider);
+                        }
+                        if (videoMuteBtn) {
+                            const volIcon = videoMuteBtn.querySelector(".volume-icon");
+                            const muteIcon = videoMuteBtn.querySelector(".mute-icon");
+                            if (volIcon) volIcon.classList.remove("hidden");
+                            if (muteIcon) muteIcon.classList.add("hidden");
+                        }
+                        return;
+                    }
+                    // ArrowDown (Volume Down by 10%)
+                    if (e.key === "ArrowDown") {
+                        e.preventDefault();
+                        previewVideoPlayer.volume = Math.max(0.0, previewVideoPlayer.volume - 0.1);
+                        if (videoVolumeSlider) {
+                            videoVolumeSlider.value = previewVideoPlayer.volume;
+                            updateSliderBackground(videoVolumeSlider);
+                        }
+                        if (videoMuteBtn) {
+                            const volIcon = videoMuteBtn.querySelector(".volume-icon");
+                            const muteIcon = videoMuteBtn.querySelector(".mute-icon");
+                            if (previewVideoPlayer.volume === 0) {
+                                if (volIcon) volIcon.classList.add("hidden");
+                                if (muteIcon) muteIcon.classList.remove("hidden");
+                            } else {
+                                if (volIcon) volIcon.classList.remove("hidden");
+                                if (muteIcon) muteIcon.classList.add("hidden");
+                            }
+                        }
+                        return;
+                    }
+                    // F/f (Toggle Fullscreen)
+                    if (e.key === "f" || e.key === "F") {
+                        e.preventDefault();
+                        if (videoFullscreenBtn) {
+                            videoFullscreenBtn.click();
+                        } else {
+                            if (!document.fullscreenElement) {
+                                previewVideoPlayer.requestFullscreen().catch(err => console.log(err));
+                            } else {
+                                document.exitFullscreen().catch(err => console.log(err));
+                            }
+                        }
+                        return;
+                    }
+                    // < / > (Shift + , / Shift + .) (Volume/Playback Speed adjust)
+                    if (e.key === "<" || e.key === ">") {
+                        e.preventDefault();
+                        const speedSelect = document.getElementById("preview-speed-select");
+                        if (speedSelect) {
+                            const options = Array.from(speedSelect.options).map(opt => parseFloat(opt.value));
+                            const currentRate = previewVideoPlayer.playbackRate;
+                            let currentIndex = options.indexOf(currentRate);
+                            if (currentIndex === -1) {
+                                let closestDiff = Infinity;
+                                options.forEach((opt, idx) => {
+                                    const diff = Math.abs(opt - currentRate);
+                                    if (diff < closestDiff) {
+                                        closestDiff = diff;
+                                        currentIndex = idx;
+                                    }
+                                });
+                            }
+                            let nextIndex = currentIndex;
+                            if (e.key === "<") {
+                                nextIndex = Math.max(0, currentIndex - 1);
+                            } else if (e.key === ">") {
+                                nextIndex = Math.min(options.length - 1, currentIndex + 1);
+                            }
+                            const targetRate = options[nextIndex];
+                            speedSelect.value = targetRate;
+                            previewVideoPlayer.playbackRate = targetRate;
+                        }
+                        return;
+                    }
+                    // 0 to 9 (Seek to percentage)
+                    if (e.key >= "0" && e.key <= "9") {
+                        e.preventDefault();
+                        const pct = parseInt(e.key) * 10;
+                        const totalDuration = previewIsAdaptive ? (parseFloat(activeMetadata ? activeMetadata.duration_raw : 0) || 0) : (previewVideoPlayer.duration || 0);
+                        if (totalDuration > 0) {
+                            const target = (pct / 100) * totalDuration;
+                            if (previewIsAdaptive) {
+                                seekAdaptiveVideo(target);
+                            } else {
+                                previewVideoPlayer.currentTime = target;
+                            }
+                        }
+                        return;
+                    }
                 } else if (!previewImageContainer.classList.contains("hidden") && extractedImages && extractedImages.length > 1) {
                     if (e.key === "ArrowRight") {
                         let nextIdx = previewCurrentImageIndex + 1;
@@ -2704,7 +2973,7 @@ document.addEventListener("DOMContentLoaded", () => {
                             <span class="history-title">${item.title}</span>
                             <div class="history-meta">
                                 <span class="history-platform-tag ${item.platform_class}">${item.platform_label}</span>
-                                <span>${new Date(item.timestamp).toLocaleDateString()}</span>
+                                <span>${formatHistoryDateTime(item.timestamp)}</span>
                             </div>
                         </div>
                     </div>
@@ -4440,11 +4709,14 @@ document.addEventListener("DOMContentLoaded", () => {
                           streamUrl.toLowerCase().includes("googlevideo.com") ||
                           streamUrl.toLowerCase().includes("youtube-nocookie.com");
 
+        const isAdaptiveYoutube = isYoutube && formatId.includes("+");
+
         // Direct stream preview (stream-on-demand)
         const isDirectStream = (ext !== "vtt") && (
             formatId.startsWith("direct_") ||
             (type === "audio") ||
-            (customUrl && customUrl.startsWith("http") && !formatId.includes("+"))
+            (customUrl && customUrl.startsWith("http") && !formatId.includes("+")) ||
+            isAdaptiveYoutube
         );
 
         console.log("[triggerPreview] streamUrl:", streamUrl);
@@ -4458,7 +4730,28 @@ document.addEventListener("DOMContentLoaded", () => {
             const cleanTitle = getSafeTitle(videoTitle.textContent, "video");
             previewActiveFilename = `${cleanTitle}_Episode_${episode || 1}_${server || "Server"}.${ext}`;
 
-            const proxyStreamUrl = `/api/proxy/stream?url=${encodeURIComponent(streamUrl)}&client_id=${encodeURIComponent(clientId)}`;
+            let proxyStreamUrl = "";
+            if (isAdaptiveYoutube) {
+                let audioUrl = "";
+                if (activeMetadata && activeMetadata.video_options) {
+                    const opt = activeMetadata.video_options.find(o => o.format_id === formatId);
+                    if (opt && opt.audio_url) {
+                        audioUrl = opt.audio_url;
+                    }
+                }
+                const videoUrl = streamUrl;
+                
+                previewAdaptiveVideoUrl = videoUrl;
+                previewAdaptiveAudioUrl = audioUrl;
+                previewAdaptiveContainer = ext || "mp4";
+                previewIsAdaptive = true;
+                previewCurrentTimeOffset = 0;
+                
+                proxyStreamUrl = `/api/proxy/stream_adaptive?video_url=${encodeURIComponent(videoUrl)}&audio_url=${encodeURIComponent(audioUrl)}&container=${encodeURIComponent(ext || "mp4")}&start_time=0`;
+            } else {
+                previewIsAdaptive = false;
+                proxyStreamUrl = `/api/proxy/stream?url=${encodeURIComponent(streamUrl)}&client_id=${encodeURIComponent(clientId)}`;
+            }
 
             hidePreviewLoader();
 
@@ -4906,7 +5199,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
             const thumbUrl = getProxiedImageUrl(item.thumbnail) || "https://images.unsplash.com/photo-1611162617213-7d7a39e9b1d7?q=80&w=120";
             const platformTag = getPlatformTag(item.url);
-            const timestampStr = item.timestamp ? new Date(item.timestamp * 1000).toLocaleDateString() : "Unknown date";
+            const timestampStr = item.timestamp ? formatHistoryDateTime(item.timestamp * 1000) : "Unknown date";
             
             let statusTag = "";
             if (item.status === "complete") {

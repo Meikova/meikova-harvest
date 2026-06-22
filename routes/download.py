@@ -453,12 +453,18 @@ def proxy_stream():
         url_path = parsed_url.path.lower()
         url_query = parsed_url.query.lower()
         
-        is_hls_by_url = (".m3u8" in url_path or ".m3u8" in url_query or 
-                         "mpegurl" in content_type.lower() or 
-                         "application/vnd.apple.mpegurl" in content_type.lower())
+        is_hls_by_url = (
+            (".m3u8" in url_path or ".m3u8" in url_query or 
+             "mpegurl" in content_type.lower() or 
+             "application/vnd.apple.mpegurl" in content_type.lower())
+            and not (url_path.endswith(".ts") or "seg.ts" in url_path)
+        )
                          
         first_chunk = next(resp.iter_content(chunk_size=1024), b"")
-        is_hls = is_hls_by_url or first_chunk.startswith(b"#EXTM3U")
+        cleaned_start = first_chunk.lstrip(b"\xef\xbb\xbf\r\n\t ")
+        is_hls = (
+            is_hls_by_url or cleaned_start.startswith(b"#EXTM3U")
+        ) and cleaned_start.startswith(b"#EXTM3U")
                   
         if is_hls:
             chunks = [first_chunk]
@@ -517,6 +523,8 @@ def proxy_stream():
                 
         return Response(generate(), status=resp.status_code, headers=resp_headers)
     except Exception as e:
+        import traceback
+        traceback.print_exc()
         return f"Proxy error: {e}", 500
 
 
@@ -553,3 +561,95 @@ def delete_download_history_item(download_id):
         return jsonify({"status": "success", "message": "Download task deleted."})
     else:
         return jsonify({"status": "error", "message": "Failed to delete task from database."}), 500
+
+
+@download_bp.route("/api/proxy/stream_adaptive")
+def proxy_stream_adaptive():
+    import subprocess
+    video_url = request.args.get("video_url")
+    audio_url = request.args.get("audio_url")
+    if not video_url or not audio_url:
+        return "Missing video_url or audio_url parameters", 400
+
+    start_time = request.args.get("start_time", "0")
+    try:
+        start_time_sec = float(start_time)
+        if start_time_sec < 0:
+            start_time_sec = 0.0
+    except ValueError:
+        start_time_sec = 0.0
+
+    start_time_str = f"{start_time_sec:.3f}"
+    container = request.args.get("container", "mp4").lower()
+    
+    if container in ["webm", "mkv"]:
+        fmt_flag = "webm"
+        movflags = []
+        mimetype = "video/webm"
+    else:
+        fmt_flag = "mp4"
+        movflags = ["-movflags", "frag_keyframe+empty_moov+default_base_moof"]
+        mimetype = "video/mp4"
+
+    user_agent = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
+    headers_arg = f"User-Agent: {user_agent}\r\n"
+
+    try:
+        import static_ffmpeg
+        static_ffmpeg.add_paths()
+    except Exception as path_e:
+        logger.warning(f"Failed to add static-ffmpeg paths: {path_e}")
+
+    # Build FFmpeg command to mux video-only and audio-only URLs on-the-fly
+    cmd = [
+        "ffmpeg",
+        "-y",
+        "-ss", start_time_str,
+        "-headers", headers_arg,
+        "-i", video_url,
+        "-ss", start_time_str,
+        "-headers", headers_arg,
+        "-i", audio_url,
+        "-c:v", "copy",
+        "-c:a", "copy",
+        "-f", fmt_flag
+    ]
+    if movflags:
+        cmd.extend(movflags)
+    cmd.append("pipe:1")
+
+    logger.info(f"Spawning adaptive stream muxing (container={container}): {' '.join(cmd)}")
+
+    process = subprocess.Popen(
+        cmd,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.DEVNULL,
+        bufsize=10 ** 6  # 1MB buffer
+    )
+
+    def generate():
+        try:
+            while True:
+                chunk = process.stdout.read(65536)
+                if not chunk:
+                    break
+                yield chunk
+        except Exception as stream_err:
+            logger.warning(f"Error streaming adaptive content: {stream_err}")
+        finally:
+            try:
+                process.terminate()
+                process.wait(timeout=2)
+            except Exception:
+                try:
+                    process.kill()
+                except Exception:
+                    pass
+
+    resp_headers = {
+        "Content-Type": mimetype,
+        "Access-Control-Allow-Origin": "*",
+        "Cache-Control": "no-cache",
+        "Connection": "keep-alive"
+    }
+    return Response(generate(), mimetype=mimetype, headers=resp_headers)

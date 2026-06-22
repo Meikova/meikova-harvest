@@ -56,7 +56,7 @@
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link
-      href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&family=Space+Grotesk:wght@400;500;600;700&display=swap"
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Outfit:wght@300;400;500;600;700&family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&family=Space+Grotesk:wght@400;500;600;700&display=swap"
       rel="stylesheet"
     />
     <link
@@ -585,9 +585,35 @@
                   <span>Typography Scale:</span>
                 </label>
                 <select id="customizer-fontsize" class="customizer-select">
-                  <option value="small">Small (90% - Compact)</option>
+                  <option value="tiny">Tiny (75% - Extra Compact)</option>
+                  <option value="compact">Compact (85% - Narrow)</option>
+                  <option value="small">Small (90% - Small)</option>
                   <option value="medium">Medium (100% - Default)</option>
                   <option value="large">Large (110% - Standard)</option>
+                  <option value="xlarge">X-Large (120% - Large)</option>
+                  <option value="huge">Huge (130% - Extra Large)</option>
+                </select>
+              </div>
+
+              <!-- Font Family Option -->
+              <div>
+                <label
+                  class="advanced-label"
+                  style="
+                    font-size: 0.85rem;
+                    font-weight: 500;
+                    margin-bottom: 5px;
+                    display: block;
+                  "
+                >
+                  <span>Font Family:</span>
+                </label>
+                <select id="customizer-fontfamily" class="customizer-select">
+                  <option value="outfit">Outfit (Geometric & Round)</option>
+                  <option value="plus-jakarta-sans">Plus Jakarta Sans (Sleek & Premium)</option>
+                  <option value="inter">Inter (Clean & Readable)</option>
+                  <option value="space-grotesk">Space Grotesk (Tech & Futuristic)</option>
+                  <option value="system-ui">System Default (Sans-Serif)</option>
                 </select>
               </div>
 

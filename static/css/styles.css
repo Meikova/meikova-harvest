@@ -68,8 +68,8 @@ textarea,
   --text-dim: #94a3b8;
   --text-faint: rgba(255, 255, 255, 0.25);
 
-  --font: "Outfit", system-ui, sans-serif;
-  --font-display: "Space Grotesk", system-ui, sans-serif;
+  --font: var(--user-font, "Outfit"), system-ui, sans-serif;
+  --font-display: var(--user-font-display, "Space Grotesk"), system-ui, sans-serif;
 
   --radius: 20px;
   --radius-sm: 14px;
@@ -86,7 +86,7 @@ textarea,
 }
 
 html {
-  font-size: 16px;
+  font-size: calc(16px * var(--font-scale, 1));
   transition: font-size 0.3s ease;
 }
 
@@ -2534,7 +2534,8 @@ body[class*="theme-"] .card {
   background: rgba(0, 0, 0, 0.45);
   border-radius: var(--radius-sm);
   border: 1px solid var(--border);
-  overflow: hidden;
+  overflow-x: hidden;
+  overflow-y: auto;
   display: flex;
   justify-content: center;
   align-items: center;
@@ -2564,15 +2565,15 @@ body[class*="theme-"] .card {
   display: flex;
   flex-direction: column;
   width: 100%;
-  max-width: 640px;
+  max-width: 40rem;
   background: rgba(15, 15, 25, 0.4);
   backdrop-filter: blur(20px);
   -webkit-backdrop-filter: blur(20px);
   border: 1px solid rgba(255, 255, 255, 0.05);
-  border-radius: 20px;
-  padding: 24px;
+  border-radius: 1.25rem;
+  padding: 1.5rem;
   box-shadow: 0 20px 40px rgba(0, 0, 0, 0.4);
-  margin: 0 auto;
+  margin: auto;
   position: relative;
   overflow: hidden;
   transition:
@@ -2593,16 +2594,16 @@ body[class*="theme-"] .card {
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 20px;
-  padding: 40px 20px;
+  gap: 1.25rem;
+  padding: 2.5rem 1.25rem;
   background: rgba(10, 10, 18, 0.55);
   border: 1px solid rgba(255, 255, 255, 0.03);
-  border-radius: 16px;
+  border-radius: 1rem;
   width: 100%;
   position: relative;
   overflow: visible;
   /* margin-top: 20px; */
-  margin-bottom: 12px;
+  margin-bottom: 0.75rem;
 }
 
 /* Pulsating backdrop glow */
@@ -2632,8 +2633,8 @@ body[class*="theme-"] .card {
 /* Vinyl Record Player */
 .vinyl-container {
   position: relative;
-  width: 150px;
-  height: 150px;
+  width: 9.375rem;
+  height: 9.375rem;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -2735,25 +2736,25 @@ body[class*="theme-"] .card {
 .waveform-animation {
   display: flex;
   align-items: flex-end;
-  gap: 6px;
-  height: 60px;
-  margin-top: 8px;
-  margin-bottom: 12px;
+  gap: 0.375rem;
+  height: 3.75rem;
+  margin-top: 0.5rem;
+  margin-bottom: 0.75rem;
   z-index: 1;
   -webkit-box-reflect: below 2px
     linear-gradient(transparent, rgba(0, 0, 0, 0.15));
 }
 
 .waveform-animation .bar {
-  width: 6px;
-  height: 10px;
+  width: 0.375rem;
+  height: 0.625rem;
   background: linear-gradient(
     to top,
     var(--cyan) 0%,
     var(--purple) 70%,
     #ff007f 100%
   );
-  border-radius: 4px;
+  border-radius: 0.25rem;
   transition: height 0.08s ease-out;
   filter: drop-shadow(0 0 4px rgba(0, 243, 255, 0.3));
 }
@@ -2781,10 +2782,10 @@ body[class*="theme-"] .card {
 
 @keyframes bounce-bar {
   0% {
-    height: 10px;
+    height: 0.625rem;
   }
   100% {
-    height: 55px;
+    height: 3.4375rem;
   }
 }
 
@@ -2793,7 +2794,7 @@ body[class*="theme-"] .card {
 .custom-video-controls {
   display: flex;
   flex-direction: column;
-  gap: 16px;
+  gap: 1rem;
   width: 100%;
 }
 
@@ -2801,7 +2802,7 @@ body[class*="theme-"] .card {
 .video-slider-container {
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: 0.375rem;
   width: 100%;
 }
 
@@ -2812,7 +2813,7 @@ body[class*="theme-"] .card {
   font-size: 0.8rem;
   color: var(--text-dim);
   font-family: monospace;
-  padding: 0 4px;
+  padding: 0 0.25rem;
 }
 
 .audio-buttons-row,
@@ -2820,7 +2821,7 @@ body[class*="theme-"] .card {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 12px;
+  gap: 0.75rem;
   width: 100%;
 }
 
@@ -2828,7 +2829,7 @@ body[class*="theme-"] .card {
 .video-left-controls {
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: 0.75rem;
 }
 
 .video-right-controls {
@@ -2841,8 +2842,8 @@ body[class*="theme-"] .card {
   background: rgba(255, 255, 255, 0.03);
   border: 1px solid rgba(255, 255, 255, 0.08);
   color: var(--text);
-  width: 40px;
-  height: 40px;
+  width: 2.5rem;
+  height: 2.5rem;
   border-radius: 50%;
   display: flex;
   align-items: center;
@@ -2865,18 +2866,18 @@ body[class*="theme-"] .card {
 
 #audio-play-pause-btn,
 #video-play-pause-btn {
-  width: 46px;
-  height: 46px;
+  width: 2.875rem;
+  height: 2.875rem;
   background: var(--cyan);
   color: #0b0c16;
   border: none;
-  box-shadow: 0 0 15px rgba(var(--cyan-rgb), 0.4);
+  box-shadow: 0 0 0.9375rem rgba(var(--cyan-rgb), 0.4);
 }
 #audio-play-pause-btn:hover,
 #video-play-pause-btn:hover {
   background: var(--purple);
   color: #0b0c16;
-  box-shadow: 0 0 20px rgba(var(--purple-rgb), 0.6);
+  box-shadow: 0 0 1.25rem rgba(var(--purple-rgb), 0.6);
   transform: scale(1.06);
 }
 
@@ -2962,7 +2963,7 @@ body[class*="theme-"] .card {
 }
 
 .volume-slider {
-  width: 70px;
+  width: 4.375rem;
   background: linear-gradient(
     to right,
     var(--cyan) 100%,
@@ -2975,7 +2976,7 @@ body[class*="theme-"] .card {
 /* Dropdown styling */
 .audio-selector-container,
 .video-selector-container {
-  min-width: 150px;
+  min-width: 9.375rem;
 }
 .audio-selector-container select,
 .video-selector-container select {
@@ -4854,7 +4855,7 @@ details[open] .error-summary::before {
 /* --- VIEWPORT HEIGHT ADAPTATION (Prevents vertical overflow on smaller screens) --- */
 @media (max-height: 850px) {
   html {
-    font-size: 14px;
+    font-size: calc(14px * var(--font-scale, 1));
   }
   body {
     padding: 10px 16px;
@@ -4942,7 +4943,13 @@ details[open] .error-summary::before {
 
 @media (max-height: 740px) {
   html {
-    font-size: 13px;
+    font-size: calc(13px * var(--font-scale, 1));
+  }
+}
+
+@media (max-height: 620px) {
+  html {
+    font-size: calc(11.5px * var(--font-scale, 1));
   }
   body {
     padding: 4px 12px;
@@ -6238,7 +6245,7 @@ details[open] .error-summary::before {
 }
 
 .audio-preview-card {
-  padding: 32px 28px !important;
+  padding: 2rem 1.75rem !important;
 }
 
 /* Webpage Preview styling */

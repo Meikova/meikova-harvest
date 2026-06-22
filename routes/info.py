@@ -1284,6 +1284,8 @@ def get_info():
                                         "label": f"Video {res_label}",
                                         "url": f.get("url")
                                     }
+                                    if best_audio_format and best_audio_format.get("url"):
+                                        opt_dict["audio_url"] = best_audio_format.get("url")
                                     video_options.append(opt_dict)
                                     added_resolutions.add(res_label)
 
