@@ -1471,8 +1471,19 @@
       </div>
     </div>
 
-    <div id="preview-modal" class="modal-overlay hidden" style="background: rgba(2, 3, 6, 0.25) !important; backdrop-filter: blur(3px) !important; -webkit-backdrop-filter: blur(3px) !important;">
+    <!-- Blurry backdrop/overlay commented out as requested by the user -->
+    <!-- <div id="preview-modal" class="modal-overlay hidden" style="background: rgba(2, 3, 6, 0.25) !important; backdrop-filter: blur(3px) !important; -webkit-backdrop-filter: blur(3px) !important;"> -->
+    <div id="preview-modal" class="modal-overlay hidden" style="background: transparent !important; backdrop-filter: none !important; -webkit-backdrop-filter: none !important;">
       <div class="modal-card modal-card-preview" style="background: rgba(10, 12, 22, 0.2) !important; backdrop-filter: blur(4px) saturate(150%) !important; -webkit-backdrop-filter: blur(4px) saturate(150%) !important;">
+        <!-- Resize handles (8 directions) -->
+        <div class="preview-resize-handle preview-resize-n"  data-dir="n"></div>
+        <div class="preview-resize-handle preview-resize-s"  data-dir="s"></div>
+        <div class="preview-resize-handle preview-resize-e"  data-dir="e"></div>
+        <div class="preview-resize-handle preview-resize-w"  data-dir="w"></div>
+        <div class="preview-resize-handle preview-resize-nw" data-dir="nw"></div>
+        <div class="preview-resize-handle preview-resize-ne" data-dir="ne"></div>
+        <div class="preview-resize-handle preview-resize-sw" data-dir="sw"></div>
+        <div class="preview-resize-handle preview-resize-se" data-dir="se"></div>
         <div class="modal-header">
           <h3 id="preview-title">Media Preview</h3>
           <div class="modal-header-actions" style="display: flex; align-items: center; gap: 8px;">

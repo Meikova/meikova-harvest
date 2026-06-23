@@ -1518,6 +1518,17 @@ body[class*="theme-"] .card {
 .modal-overlay:not(.hidden) .modal-card {
   transform: scale(1);
 }
+/* Preview card: keep the centering translate alongside the scale animation */
+.modal-card-preview {
+  transform: translate(-50%, -50%) scale(0.92);
+}
+.modal-overlay:not(.hidden) .modal-card-preview {
+  transform: translate(-50%, -50%) scale(1);
+}
+/* Once the user drags, JS adds .preview-dragged which sets explicit left/top — no translate needed */
+.modal-card-preview.preview-dragged {
+  transform: none !important;
+}
 
 /* Modal light theme overrides */
 .light-theme .modal-card {
@@ -2519,24 +2530,90 @@ body[class*="theme-"] .card {
   gap: 8px;
 }
 
-/* Wide Preview Modal Card */
+/* Wide Preview Modal Card - freely draggable & resizable */
 .modal-card-preview {
-  position: relative;
-  max-width: 95vw !important;
-  width: 1000px !important;
-  max-height: 90vh !important;
-  height: auto;
+  position: fixed !important;
+  /* Centering: top/left 50% + translate managed by rules above */
+  top: 50%;
+  left: 50%;
+  max-width: none !important;
+  width: 1000px;
+  max-height: none !important;
+  height: 620px;
+  min-width: 480px;
+  min-height: 320px;
   display: flex;
   flex-direction: column;
   background: rgba(10, 12, 22, 0.3) !important;
   backdrop-filter: blur(10px) saturate(180%) !important;
   -webkit-backdrop-filter: blur(10px) saturate(180%) !important;
+  box-shadow: 0 24px 80px rgba(0,0,0,0.7), 0 0 0 1px rgba(255,255,255,0.07);
+  border-radius: var(--radius);
+  overflow: visible !important; /* needed so resize handles are outside the border */
+  user-select: none;
+  will-change: transform;
+}
+
+
+/* ── Resize Handles ──────────────────────────────────────────── */
+.preview-resize-handle {
+  position: absolute;
+  z-index: 10;
+  /* transparent hot-zone */
+}
+/* Edge handles */
+.preview-resize-n  { top: -5px; left: 8px; right: 8px; height: 10px; cursor: ns-resize; }
+.preview-resize-s  { bottom: -5px; left: 8px; right: 8px; height: 10px; cursor: ns-resize; }
+.preview-resize-w  { left: -5px; top: 8px; bottom: 8px; width: 10px; cursor: ew-resize; }
+.preview-resize-e  { right: -5px; top: 8px; bottom: 8px; width: 10px; cursor: ew-resize; }
+/* Corner handles */
+.preview-resize-nw { top: -6px; left: -6px; width: 16px; height: 16px; cursor: nwse-resize; }
+.preview-resize-ne { top: -6px; right: -6px; width: 16px; height: 16px; cursor: nesw-resize; }
+.preview-resize-sw { bottom: -6px; left: -6px; width: 16px; height: 16px; cursor: nesw-resize; }
+.preview-resize-se { bottom: -6px; right: -6px; width: 16px; height: 16px; cursor: nwse-resize; }
+
+/* Subtle corner indicator dots */
+.preview-resize-nw::after, .preview-resize-ne::after,
+.preview-resize-sw::after, .preview-resize-se::after {
+  content: '';
+  position: absolute;
+  inset: 3px;
+  border-radius: 50%;
+  background: rgba(var(--cyan-rgb), 0.0);
+  transition: background 0.2s;
+}
+.preview-resize-nw:hover::after, .preview-resize-ne:hover::after,
+.preview-resize-sw:hover::after, .preview-resize-se:hover::after {
+  background: rgba(var(--cyan-rgb), 0.6);
+}
+
+/* ── Preview modal overlay style (backdrop blur/dark color commented out as requested) ── */
+#preview-modal {
+  /* Commented out/disabled background & blur overlay to let the background remain clear */
+  /* background: rgba(2, 3, 6, 0.45) !important; */
+  /* backdrop-filter: blur(6px) !important; */
+  /* -webkit-backdrop-filter: blur(6px) !important; */
+  background: transparent !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+}
+
+/* ── Preview modal header drag affordance ──────────────────────────────────── */
+#preview-modal .modal-header {
+  cursor: grab;
+}
+#preview-modal .modal-header:active {
+  cursor: grabbing;
+}
+#preview-modal .modal-header button,
+#preview-modal .modal-header a {
+  cursor: pointer;
 }
 
 .preview-content-area {
   position: relative;
-  min-height: 390px;
-  height: 55vh;
+  flex: 1 1 0;     /* grow to fill remaining card height */
+  min-height: 0;
   background: rgba(0, 0, 0, 0.15);
   border-radius: var(--radius-sm);
   border: 1px solid var(--border);
@@ -2544,11 +2621,12 @@ body[class*="theme-"] .card {
   display: flex;
   justify-content: center;
   align-items: center;
-  margin: 16px 24px;
+  margin: 8px 16px;
   transition: border-color 0.5s ease, box-shadow 0.5s ease;
   backdrop-filter: blur(6px);
   -webkit-backdrop-filter: blur(6px);
 }
+
 
 .preview-player-container {
   width: 100%;
@@ -3091,6 +3169,9 @@ body[class*="theme-"] .card {
 }
 
 .video-wrapper video {
+  position: absolute;
+  top: 0;
+  left: 0;
   width: 100%;
   height: 100%;
   object-fit: contain;

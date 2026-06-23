@@ -251,7 +251,7 @@ document.addEventListener("DOMContentLoaded", () => {
         document.documentElement.style.setProperty('--cyan', hexColor);
         document.documentElement.style.setProperty('--cyan-rgb', `${rgb.r}, ${rgb.g}, ${rgb.b}`);
         localStorage.setItem("customizer-custom-color", hexColor);
-        
+
         const picker = document.getElementById("customizer-accent-picker-1");
         if (picker) picker.value = hexColor;
         const btn = document.getElementById("custom-color-btn-1");
@@ -266,7 +266,7 @@ document.addEventListener("DOMContentLoaded", () => {
         document.documentElement.style.setProperty('--purple', hexColor);
         document.documentElement.style.setProperty('--purple-rgb', `${rgb.r}, ${rgb.g}, ${rgb.b}`);
         localStorage.setItem("customizer-custom-color-2", hexColor);
-        
+
         const picker = document.getElementById("customizer-accent-picker-2");
         if (picker) picker.value = hexColor;
         const btn = document.getElementById("custom-color-btn-2");
@@ -284,7 +284,7 @@ document.addEventListener("DOMContentLoaded", () => {
         if (accentVal !== "default" && accentVal !== "custom") {
             document.documentElement.classList.add("accent-theme-" + accentVal);
         }
-        
+
         if (accentVal === "custom") {
             const savedCustomColor = localStorage.getItem("customizer-custom-color") || "#00f2fe";
             const savedCustomColor2 = localStorage.getItem("customizer-custom-color-2") || "#fe0979";
@@ -297,7 +297,7 @@ document.addEventListener("DOMContentLoaded", () => {
             document.documentElement.style.removeProperty('--purple-rgb');
             if (window.updateCanvasColors) window.updateCanvasColors();
         }
-        
+
         // Update active class on swatches
         document.querySelectorAll('.accent-swatch').forEach(btn => {
             if (btn.getAttribute('data-value') === accentVal) {
@@ -306,12 +306,12 @@ document.addEventListener("DOMContentLoaded", () => {
                 btn.classList.remove('active');
             }
         });
-        
+
         const nameSpan = document.getElementById('customizer-accent-name');
         if (nameSpan) {
             nameSpan.textContent = accentNames[accentVal] || accentVal;
         }
-        
+
         localStorage.setItem("customizer-accent", accentVal);
     }
 
@@ -321,7 +321,7 @@ document.addEventListener("DOMContentLoaded", () => {
         else if (radiusVal === "rounded") borderVal = "16px";
         else if (radiusVal === "pill") borderVal = "30px";
         document.documentElement.style.setProperty("--radius", borderVal);
-        
+
         // Update active class on radius preset buttons
         document.querySelectorAll('.customizer-preset-btn[data-type="radius"]').forEach(btn => {
             if (btn.getAttribute('data-value') === radiusVal) {
@@ -354,7 +354,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
         document.documentElement.style.fontSize = "";
         document.documentElement.style.setProperty('--font-scale', scaleFactor);
-        
+
         // Update active class on fontsize preset buttons
         document.querySelectorAll('.customizer-preset-btn[data-type="fontsize"]').forEach(btn => {
             if (btn.getAttribute('data-value') === sizeVal) {
@@ -369,7 +369,7 @@ document.addEventListener("DOMContentLoaded", () => {
     function applyFontFamily(fontVal) {
         let fontStack = '"Outfit"';
         let displayFontStack = '"Space Grotesk"';
-        
+
         if (fontVal === "plus-jakarta-sans") {
             fontStack = '"Plus Jakarta Sans"';
             displayFontStack = '"Plus Jakarta Sans"';
@@ -383,10 +383,10 @@ document.addEventListener("DOMContentLoaded", () => {
             fontStack = 'system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
             displayFontStack = 'system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
         }
-        
+
         document.documentElement.style.setProperty('--user-font', fontStack);
         document.documentElement.style.setProperty('--user-font-display', displayFontStack);
-        
+
         // Update active class on fontfamily preset buttons
         document.querySelectorAll('.customizer-preset-btn[data-type="fontfamily"]').forEach(btn => {
             if (btn.getAttribute('data-value') === fontVal) {
@@ -406,7 +406,7 @@ document.addEventListener("DOMContentLoaded", () => {
     function applyGravityMode(modeVal) {
         window.canvasSettings.gravityMode = modeVal;
         localStorage.setItem("customizer-gravityMode", modeVal);
-        
+
         // Update active class on gravity mode preset buttons
         document.querySelectorAll('.customizer-preset-btn[data-type="gravity-mode"]').forEach(btn => {
             if (btn.getAttribute('data-value') === modeVal) {
@@ -429,7 +429,7 @@ document.addEventListener("DOMContentLoaded", () => {
     function applySparkleShape(shapeVal) {
         window.canvasSettings.sparkleShape = shapeVal;
         localStorage.setItem("customizer-sparkleShape", shapeVal);
-        
+
         // Update active class on sparkle shape preset buttons
         document.querySelectorAll('.customizer-preset-btn[data-type="sparkle-shape"]').forEach(btn => {
             if (btn.getAttribute('data-value') === shapeVal) {
@@ -872,7 +872,7 @@ document.addEventListener("DOMContentLoaded", () => {
             } else if (filterVal === "enhance") {
                 filterCss = "contrast(1.05) saturate(1.1)";
             }
-            
+
             if (trimPreviewPlayer) {
                 trimPreviewPlayer.style.filter = filterCss;
             }
@@ -961,7 +961,7 @@ document.addEventListener("DOMContentLoaded", () => {
     const previewShortcutsBtn = document.getElementById("preview-shortcuts-btn");
     const previewShortcutsOverlay = document.getElementById("preview-shortcuts-overlay");
     const shortcutsOverlayCloseBtn = document.getElementById("shortcuts-overlay-close-btn");
-    let closePreviewModal = () => {};
+    let closePreviewModal = () => { };
 
     // Confirm Modal DOM Elements
     const confirmModal = document.getElementById("confirm-modal");
@@ -1413,7 +1413,7 @@ document.addEventListener("DOMContentLoaded", () => {
     let previewActivePollInterval = null;
     let previewActiveSubtitleContent = "";
     let previewCurrentImageIndex = -1;
-    
+
     // Adaptive Streaming Preview State
     let previewIsAdaptive = false;
     let previewAdaptiveVideoUrl = "";
@@ -1439,20 +1439,20 @@ document.addEventListener("DOMContentLoaded", () => {
 
     function seekAdaptiveVideo(targetTime) {
         if (!previewIsAdaptive) return;
-        
+
         showPreviewLoader("Seeking stream...");
         previewCurrentTimeOffset = targetTime;
-        
+
         // Stop current playback
         previewVideoPlayer.pause();
-        
+
         // Re-construct the proxy stream URL with start_time = targetTime
-        const proxyStreamUrl = `/api/proxy/stream_adaptive?video_url=${encodeURIComponent(previewAdaptiveVideoUrl)}&audio_url=${encodeURIComponent(previewAdaptiveAudioUrl)}&container=${encodeURIComponent(previewAdaptiveContainer)}&start_time=${targetTime}`;
-        
+        const proxyStreamUrl = `/api/proxy/stream_adaptive?video_url=${encodeURIComponent(previewAdaptiveVideoUrl)}&audio_url=${encodeURIComponent(previewAdaptiveAudioUrl)}&container=${encodeURIComponent(previewAdaptiveContainer)}&start_time=${targetTime}&client_id=${encodeURIComponent(clientId)}`;
+
         // Load the new stream URL
         previewVideoPlayer.src = proxyStreamUrl;
         previewVideoPlayer.load();
-        
+
         // Resume playing once loaded
         previewVideoPlayer.play()
             .then(() => {
@@ -1491,7 +1491,7 @@ document.addEventListener("DOMContentLoaded", () => {
             previewVideoPlayer.removeAttribute("src");
             try {
                 previewVideoPlayer.load();
-            } catch (e) {}
+            } catch (e) { }
         }
         if (previewAudioPlayer) {
             previewAudioPlayer.pause();
@@ -1507,7 +1507,7 @@ document.addEventListener("DOMContentLoaded", () => {
             previewAudioPlayer.removeAttribute("src");
             try {
                 previewAudioPlayer.load();
-            } catch (e) {}
+            } catch (e) { }
 
             // Reset visualizer canvas and placeholder animation state
             const audioCanvas = document.getElementById("audio-visualizer-canvas");
@@ -1628,12 +1628,12 @@ document.addEventListener("DOMContentLoaded", () => {
         const mins = Math.floor((seconds % 3600) / 60);
         const secs = Math.floor(seconds % 60);
         const ms = Math.floor((seconds % 1) * 1000);
-        
+
         const hrsStr = hrs.toString().padStart(2, "0");
         const minsStr = mins.toString().padStart(2, "0");
         const secsStr = secs.toString().padStart(2, "0");
         const msStr = ms.toString().padStart(3, "0");
-        
+
         return `${hrsStr}:${minsStr}:${secsStr}.${msStr}`;
     }
 
@@ -1806,7 +1806,7 @@ document.addEventListener("DOMContentLoaded", () => {
                 voiceLowFilterNode.type = "lowshelf";
                 voiceLowFilterNode.frequency.setValueAtTime(150, audioCtx.currentTime);
                 voiceLowFilterNode.gain.setValueAtTime(8, audioCtx.currentTime);
-                
+
                 voiceHighFilterNode.type = "highshelf";
                 voiceHighFilterNode.frequency.setValueAtTime(3000, audioCtx.currentTime);
                 voiceHighFilterNode.gain.setValueAtTime(-8, audioCtx.currentTime);
@@ -1815,7 +1815,7 @@ document.addEventListener("DOMContentLoaded", () => {
                 voiceLowFilterNode.type = "lowshelf";
                 voiceLowFilterNode.frequency.setValueAtTime(200, audioCtx.currentTime);
                 voiceLowFilterNode.gain.setValueAtTime(-4, audioCtx.currentTime);
-                
+
                 voiceHighFilterNode.type = "highshelf";
                 voiceHighFilterNode.frequency.setValueAtTime(4000, audioCtx.currentTime);
                 voiceHighFilterNode.gain.setValueAtTime(8, audioCtx.currentTime);
@@ -1827,31 +1827,31 @@ document.addEventListener("DOMContentLoaded", () => {
                 voiceLowFilterNode.type = "peaking";
                 voiceLowFilterNode.frequency.setValueAtTime(120, audioCtx.currentTime);
                 voiceLowFilterNode.gain.setValueAtTime(2, audioCtx.currentTime);
-                
+
                 voiceHighFilterNode.type = "peaking";
                 voiceHighFilterNode.frequency.setValueAtTime(3200, audioCtx.currentTime);
                 voiceHighFilterNode.gain.setValueAtTime(3, audioCtx.currentTime);
-                
+
                 delayGainNode.gain.setValueAtTime(0.08, audioCtx.currentTime);
                 break;
             case "lofi":
                 voiceLowFilterNode.type = "lowpass";
                 voiceLowFilterNode.frequency.setValueAtTime(3200, audioCtx.currentTime);
-                
+
                 voiceHighFilterNode.type = "highpass";
                 voiceHighFilterNode.frequency.setValueAtTime(180, audioCtx.currentTime);
                 break;
             case "telephone":
                 voiceLowFilterNode.type = "highpass";
                 voiceLowFilterNode.frequency.setValueAtTime(450, audioCtx.currentTime);
-                
+
                 voiceHighFilterNode.type = "lowpass";
                 voiceHighFilterNode.frequency.setValueAtTime(2800, audioCtx.currentTime);
                 break;
             case "underwater":
                 voiceLowFilterNode.type = "lowpass";
                 voiceLowFilterNode.frequency.setValueAtTime(600, audioCtx.currentTime);
-                
+
                 delayGainNode.gain.setValueAtTime(0.2, audioCtx.currentTime);
                 break;
         }
@@ -1989,10 +1989,10 @@ document.addEventListener("DOMContentLoaded", () => {
             eqPresets.forEach(btn => {
                 const preset = btn.dataset.preset;
                 const values = EQ_PRESETS[preset];
-                if (values && 
-                    Math.abs(values.bass - eqBass) < 0.01 && 
-                    Math.abs(values.lowmid - eqLowMid) < 0.01 && 
-                    Math.abs(values.highmid - eqHighMid) < 0.01 && 
+                if (values &&
+                    Math.abs(values.bass - eqBass) < 0.01 &&
+                    Math.abs(values.lowmid - eqLowMid) < 0.01 &&
+                    Math.abs(values.highmid - eqHighMid) < 0.01 &&
                     Math.abs(values.treble - eqTreble) < 0.01) {
                     btn.classList.add("active");
                 } else {
@@ -2065,7 +2065,7 @@ document.addEventListener("DOMContentLoaded", () => {
     function setupAudioPreviewSubtitles() {
         if (!audioSubSelect) return;
         audioSubSelect.innerHTML = '<option value="none">None</option>';
-        
+
         let subOpts = (activeMetadata && activeMetadata.subtitles) ? activeMetadata.subtitles : [];
         if (subOpts && typeof subOpts === "object" && !Array.isArray(subOpts)) {
             subOpts = Object.keys(subOpts).map(key => {
@@ -2181,7 +2181,7 @@ document.addEventListener("DOMContentLoaded", () => {
             lineDiv.className = "lyrics-line";
             lineDiv.setAttribute("data-index", index);
             lineDiv.innerHTML = cue.text.replace(/\n/g, "<br>");
-            
+
             lineDiv.addEventListener("click", () => {
                 if (previewAudioPlayer) {
                     previewAudioPlayer.currentTime = cue.start;
@@ -2197,7 +2197,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
         // Find the matching cue
         let matchIndex = -1;
-        
+
         // Find the latest cue that started before currentTime
         for (let i = 0; i < audioLyrics.length; i++) {
             if (currentTime >= audioLyrics[i].start && currentTime <= audioLyrics[i].end) {
@@ -2205,7 +2205,7 @@ document.addEventListener("DOMContentLoaded", () => {
                 break;
             }
         }
-        
+
         // If not found in a specific range, find the closest active line
         if (matchIndex === -1) {
             for (let i = audioLyrics.length - 1; i >= 0; i--) {
@@ -2225,12 +2225,12 @@ document.addEventListener("DOMContentLoaded", () => {
             const newActive = audioLyricsList.querySelector(`.lyrics-line[data-index="${matchIndex}"]`);
             if (newActive) {
                 newActive.classList.add("active");
-                
+
                 // Auto scroll
                 const containerHeight = audioLyricsList.clientHeight;
                 const lineOffsetTop = newActive.offsetTop;
                 const lineHeight = newActive.clientHeight;
-                
+
                 audioLyricsList.scrollTo({
                     top: lineOffsetTop - (containerHeight / 2) + (lineHeight / 2),
                     behavior: "smooth"
@@ -2278,7 +2278,7 @@ document.addEventListener("DOMContentLoaded", () => {
             const W = canvas.width;
             const H = canvas.height;
 
-                       // Dynamically determine the number of bars based on screen width
+            // Dynamically determine the number of bars based on screen width
             // to keep the visualizer beautiful and elegant without turning into a dense comb in fullscreen.
             let numBars = 64;
             if (W > 1200) {
@@ -2286,14 +2286,14 @@ document.addEventListener("DOMContentLoaded", () => {
             } else if (W < 500) {
                 numBars = 44; // Compact count for small windows / mobile
             }
-            
+
             const halfLength = numBars / 2;
 
             // Calculate dynamic bar space, width and gap to fill the container perfectly
             const barSpace = W / numBars;
             const barWidth = Math.max(3, barSpace * 0.55);
             const gap = Math.max(2, barSpace * 0.45);
-            
+
             // Adjust decayValues array size if needed
             if (decayValues.length !== halfLength) {
                 const oldDecay = decayValues;
@@ -2324,7 +2324,7 @@ document.addEventListener("DOMContentLoaded", () => {
                     // Apply visual gain multiplier (1.6) and progressive mid/high boost
                     const boostedValue = Math.min(255, value * 1.6 * (1.0 + percentIdx * 0.9));
                     const targetH = minH + (boostedValue / 255) * (maxH - minH);
-                    
+
                     // Smooth transition
                     decayValues[i] = decayValues[i] * 0.35 + targetH * 0.65;
                 }
@@ -2343,7 +2343,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
             // Draw the bars
             ctx.clearRect(0, 0, W, H);
-            
+
             // Create horizontal gradient from left to right centered at middle
             const grad = ctx.createLinearGradient(0, 0, W, 0);
             grad.addColorStop(0, '#00f3ff'); // Cyan (left outer)
@@ -2358,13 +2358,13 @@ document.addEventListener("DOMContentLoaded", () => {
                 const y = H - barHeight;
 
                 // Left bar
-                const leftX = (W / 2) - gap/2 - (i + 1) * barWidth - i * gap;
+                const leftX = (W / 2) - gap / 2 - (i + 1) * barWidth - i * gap;
                 ctx.beginPath();
                 ctx.roundRect(leftX, y, barWidth, barHeight, barWidth / 2);
                 ctx.fill();
 
                 // Right bar
-                const rightX = (W / 2) + gap/2 + i * barWidth + i * gap;
+                const rightX = (W / 2) + gap / 2 + i * barWidth + i * gap;
                 ctx.beginPath();
                 ctx.roundRect(rightX, y, barWidth, barHeight, barWidth / 2);
                 ctx.fill();
@@ -2383,7 +2383,7 @@ document.addEventListener("DOMContentLoaded", () => {
                     const scaleMatch = currentTransform.match(/scale\(([^)]+)\)/);
                     let currentScale = scaleMatch ? parseFloat(scaleMatch[1]) : 1.0;
                     let currentOpacity = parseFloat(backdrop.style.opacity) || 0.15;
-                    
+
                     if (currentScale > 1.0) {
                         currentScale = Math.max(1.0, currentScale * 0.92 - 0.01);
                         backdrop.style.transform = `translate(-50%, -50%) scale(${currentScale})`;
@@ -2437,7 +2437,7 @@ document.addEventListener("DOMContentLoaded", () => {
                     const outerBlur = 30 + (average / 255) * 50;
                     const innerOpacity = 0.3 + (average / 255) * 0.5;
                     const outerOpacity = 0.15 + (average / 255) * 0.45;
-                    
+
                     vinylRecord.style.boxShadow = `
                         0 10px 30px rgba(0, 0, 0, 0.7), 
                         0 0 ${innerBlur}px rgba(var(--cyan-rgb), ${innerOpacity}), 
@@ -2465,7 +2465,7 @@ document.addEventListener("DOMContentLoaded", () => {
     if (previewAudioPlayer) {
         previewAudioPlayer.addEventListener("play", () => {
             if (audioCard) audioCard.classList.add("playing");
-            
+
             // Initialize visualizer on play (requires user gesture)
             initAudioVisualizer();
             if (audioCtx && audioCtx.state === "suspended") {
@@ -2479,17 +2479,30 @@ document.addEventListener("DOMContentLoaded", () => {
                 if (playIcon) playIcon.classList.add("hidden");
                 if (pauseIcon) pauseIcon.classList.remove("hidden");
             }
+            showPreviewControls();
         });
 
         previewAudioPlayer.addEventListener("pause", () => {
             if (audioCard) audioCard.classList.remove("playing");
             renderAudioVisualizer(); // Trigger smooth decay
-            
+
             if (audioPlayPauseBtn) {
                 const playIcon = audioPlayPauseBtn.querySelector(".play-icon");
                 const pauseIcon = audioPlayPauseBtn.querySelector(".pause-icon");
                 if (playIcon) playIcon.classList.remove("hidden");
                 if (pauseIcon) pauseIcon.classList.add("hidden");
+            }
+
+            // Always show controls when paused
+            const customAudioControls = document.querySelector(".custom-audio-controls");
+            if (customAudioControls) {
+                customAudioControls.classList.remove("hidden-controls");
+            }
+            if (previewModal) {
+                previewModal.classList.remove("hidden-cursor");
+            }
+            if (videoHoverTimeout) {
+                clearTimeout(videoHoverTimeout);
             }
         });
 
@@ -2569,11 +2582,11 @@ document.addEventListener("DOMContentLoaded", () => {
         const setAudioDragging = () => { isDraggingAudioSlider = true; };
         audioSeekSlider.addEventListener("mousedown", setAudioDragging);
         audioSeekSlider.addEventListener("touchstart", setAudioDragging);
-        audioSeekSlider.addEventListener("input", function() {
+        audioSeekSlider.addEventListener("input", function () {
             isDraggingAudioSlider = true;
             updateSliderBackground(this);
         });
-        audioSeekSlider.addEventListener("change", function() {
+        audioSeekSlider.addEventListener("change", function () {
             if (previewAudioPlayer.duration) {
                 previewAudioPlayer.currentTime = (parseFloat(this.value) / 100) * previewAudioPlayer.duration;
             }
@@ -2584,7 +2597,7 @@ document.addEventListener("DOMContentLoaded", () => {
     }
 
     if (audioVolumeSlider && previewAudioPlayer) {
-        audioVolumeSlider.addEventListener("input", function() {
+        audioVolumeSlider.addEventListener("input", function () {
             previewAudioPlayer.volume = parseFloat(this.value);
             updateSliderBackground(this);
             // Sync mute icon if needed
@@ -2629,7 +2642,7 @@ document.addEventListener("DOMContentLoaded", () => {
     if (audioLyricsBtn && audioLyricsOverlay) {
         audioLyricsBtn.addEventListener("click", () => {
             const isCurrentlyActive = audioLyricsBtn.classList.contains("active");
-            
+
             // Deactivate EQ button and hide settings panel
             if (audioEqBtn) audioEqBtn.classList.remove("active");
             if (audioSettingsPanel) audioSettingsPanel.classList.add("hidden");
@@ -2675,7 +2688,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
     const toggleVisualizerCheckbox = document.getElementById("toggle-visualizer-checkbox");
     if (toggleVisualizerCheckbox) {
-        toggleVisualizerCheckbox.addEventListener("change", function() {
+        toggleVisualizerCheckbox.addEventListener("change", function () {
             const staticVisualizer = document.querySelector(".waveform-animation");
             const audioCanvas = document.getElementById("audio-visualizer-canvas");
             const visualizerArea = document.querySelector(".audio-visualizer-area");
@@ -2717,7 +2730,7 @@ document.addEventListener("DOMContentLoaded", () => {
     });
 
     if (audioSubSelect) {
-        audioSubSelect.addEventListener("change", function() {
+        audioSubSelect.addEventListener("change", function () {
             loadAudioSubtitle(this.value);
         });
     }
@@ -2726,23 +2739,23 @@ document.addEventListener("DOMContentLoaded", () => {
         audioSubUploadBtn.addEventListener("click", () => {
             audioSubFile.click();
         });
-        audioSubFile.addEventListener("change", function(e) {
+        audioSubFile.addEventListener("change", function (e) {
             const file = e.target.files[0];
             if (!file) return;
 
             const reader = new FileReader();
-            reader.onload = function(evt) {
+            reader.onload = function (evt) {
                 const text = evt.target.result;
                 const opt = document.createElement("option");
                 opt.value = "uploaded_file";
                 opt.textContent = file.name;
                 opt.selected = true;
-                
+
                 const existingCustom = audioSubSelect.querySelector('option[value="uploaded_file"]');
                 if (existingCustom) {
                     existingCustom.remove();
                 }
-                
+
                 audioSubSelect.appendChild(opt);
                 audioSubSelect.value = "uploaded_file";
 
@@ -2753,7 +2766,7 @@ document.addEventListener("DOMContentLoaded", () => {
     }
 
     if (audioSpeedSlider && previewAudioPlayer) {
-        audioSpeedSlider.addEventListener("input", function() {
+        audioSpeedSlider.addEventListener("input", function () {
             const val = parseFloat(this.value);
             previewAudioPlayer.playbackRate = val;
             if (audioSpeedDisplay) audioSpeedDisplay.textContent = val.toFixed(2);
@@ -2791,7 +2804,7 @@ document.addEventListener("DOMContentLoaded", () => {
     });
 
     eqSliders.forEach(slider => {
-        slider.addEventListener("input", function() {
+        slider.addEventListener("input", function () {
             const val = parseFloat(this.value);
             const bandName = this.id.replace("eq-", "");
             const valEl = document.getElementById(`${this.id}-val`);
@@ -2850,17 +2863,20 @@ document.addEventListener("DOMContentLoaded", () => {
         if (imageControls) imageControls.classList.remove("hidden-controls");
         if (subHeader) subHeader.classList.remove("hidden-controls");
         navControls.forEach(ctrl => ctrl.classList.remove("hidden-controls"));
-        
+
         if (previewModal) {
             previewModal.classList.remove("hidden-cursor");
         }
-        
+
         if (videoHoverTimeout) {
             clearTimeout(videoHoverTimeout);
         }
-        
-        // Auto-hide controls, header, and cursor if fullscreen is active (Stage 1 or 2)
-        if (videoFullscreenMode > 0) {
+
+        // Auto-hide controls, header, and cursor if fullscreen is active OR media is playing
+        const isMediaPlaying = (previewVideoPlayer && !previewVideoPlayer.paused) || (previewAudioPlayer && !previewAudioPlayer.paused);
+        const shouldAutoHide = (videoFullscreenMode > 0) || isMediaPlaying;
+
+        if (shouldAutoHide) {
             videoHoverTimeout = setTimeout(() => {
                 // Check if mouse is hovering header or custom video controls
                 const isHoveringHeader = modalHeader && modalHeader.matches(':hover');
@@ -2872,7 +2888,7 @@ document.addEventListener("DOMContentLoaded", () => {
                 navControls.forEach(ctrl => {
                     if (ctrl.matches(':hover')) isHoveringNav = true;
                 });
-                
+
                 if (!isHoveringHeader && !isHoveringVideoControls && !isHoveringAudioControls && !isHoveringImageControls && !isHoveringSubHeader && !isHoveringNav) {
                     if (modalHeader) modalHeader.classList.add("hidden-header");
                     if (customVideoControls) customVideoControls.classList.add("hidden-controls");
@@ -2889,7 +2905,10 @@ document.addEventListener("DOMContentLoaded", () => {
     if (previewModal) {
         previewModal.addEventListener("mousemove", showPreviewControls);
         previewModal.addEventListener("mouseleave", () => {
-            if (videoFullscreenMode > 0) {
+            const isMediaPlaying = (previewVideoPlayer && !previewVideoPlayer.paused) || (previewAudioPlayer && !previewAudioPlayer.paused);
+            const shouldAutoHide = (videoFullscreenMode > 0) || isMediaPlaying;
+
+            if (shouldAutoHide) {
                 const modalHeader = document.querySelector("#preview-modal .modal-header");
                 const customVideoControls = document.querySelector(".custom-video-controls");
                 const customAudioControls = document.querySelector(".custom-audio-controls");
@@ -3080,12 +3099,12 @@ document.addEventListener("DOMContentLoaded", () => {
         const setVideoDragging = () => { isDraggingVideoSlider = true; };
         videoSeekSlider.addEventListener("mousedown", setVideoDragging);
         videoSeekSlider.addEventListener("touchstart", setVideoDragging);
-        videoSeekSlider.addEventListener("input", function(e) {
+        videoSeekSlider.addEventListener("input", function (e) {
             e.stopPropagation();
             isDraggingVideoSlider = true;
             updateSliderBackground(this);
         });
-        videoSeekSlider.addEventListener("change", function(e) {
+        videoSeekSlider.addEventListener("change", function (e) {
             e.stopPropagation();
             const totalDuration = previewIsAdaptive ? (parseFloat(activeMetadata ? activeMetadata.duration_raw : 0) || 0) : (previewVideoPlayer.duration || 0);
             if (totalDuration > 0) {
@@ -3103,7 +3122,7 @@ document.addEventListener("DOMContentLoaded", () => {
     }
 
     if (videoVolumeSlider && previewVideoPlayer) {
-        videoVolumeSlider.addEventListener("input", function(e) {
+        videoVolumeSlider.addEventListener("input", function (e) {
             e.stopPropagation();
             previewVideoPlayer.volume = parseFloat(this.value);
             updateSliderBackground(this);
@@ -3189,6 +3208,173 @@ document.addEventListener("DOMContentLoaded", () => {
         }
     }
 
+    // ── Preview Modal: Free Drag & Resize ─────────────────────────────────────
+    // Called once on DOMContentLoaded to wire up drag-to-move (via header) and
+    // resize (via the 8 edge/corner handles injected in the HTML).
+    // All interaction is disabled while in Theater / Fullscreen modes.
+    (function initPreviewDragResize() {
+        const card = document.querySelector(".modal-card-preview");
+        const header = document.querySelector("#preview-modal .modal-header");
+        if (!card || !header) return;
+
+        const MIN_W = 480, MIN_H = 320;
+        let isDragging = false, isResizing = false;
+        let startX, startY, startLeft, startTop, startW, startH, resizeDir;
+
+        // ── helper: is theater/fullscreen active? ──────────────────────────
+        function isFullscreenActive() {
+            return document.body.classList.contains("theater-active") ||
+                card.classList.contains("web-fullscreen") ||
+                document.fullscreenElement === card ||
+                document.webkitFullscreenElement === card;
+        }
+
+        // ── helper: get card's current pixel rect ─────────────────────────
+        function getCardRect() {
+            return card.getBoundingClientRect();
+        }
+
+        // ── apply absolute position (removes centering transform) ──────────
+        function applyPos(left, top, w, h) {
+            card.classList.add("preview-dragged");
+            card.style.left = left + "px";
+            card.style.top = top + "px";
+            if (w !== undefined) card.style.width = w + "px";
+            if (h !== undefined) card.style.height = h + "px";
+        }
+
+        // ── ensure card is within viewport ────────────────────────────────
+        function clamp(val, min, max) { return Math.max(min, Math.min(max, val)); }
+
+        function clampPosition(left, top, w, h) {
+            const vw = window.innerWidth, vh = window.innerHeight;
+            const MARGIN = 40; // keep at least 40px on-screen
+            left = clamp(left, MARGIN - w, vw - MARGIN);
+            top = clamp(top, 0, vh - MARGIN);
+            return { left, top };
+        }
+
+        // ── helper: disable/restore CSS transitions on the card ───────────
+        function disableTransition() {
+            card.style.transition = "none";
+        }
+        function restoreTransition() {
+            // Re-enable on the next frame so the position is already committed
+            requestAnimationFrame(() => { card.style.removeProperty("transition"); });
+        }
+
+        // ── DRAG (header) ─────────────────────────────────────────────────
+        header.style.cursor = "grab";
+
+        header.addEventListener("mousedown", function (e) {
+            // Ignore if clicking a button inside the header
+            if (e.target.closest("button") || e.target.closest("a")) return;
+            if (isFullscreenActive()) return;
+
+            isDragging = true;
+            header.style.cursor = "grabbing";
+            document.body.style.userSelect = "none";
+
+            const rect = getCardRect();
+            // Switch to explicit left/top – must disable transition FIRST so the
+            // transform → none change is instant (no jump to top-left corner).
+            if (!card.classList.contains("preview-dragged")) {
+                disableTransition();
+                applyPos(rect.left, rect.top, rect.width, rect.height);
+                restoreTransition();
+            }
+            startX = e.clientX;
+            startY = e.clientY;
+            startLeft = parseFloat(card.style.left);
+            startTop = parseFloat(card.style.top);
+            e.preventDefault();
+        });
+
+        // ── RESIZE (handles) ──────────────────────────────────────────────
+        const handles = card.querySelectorAll(".preview-resize-handle");
+        handles.forEach(function (handle) {
+            handle.addEventListener("mousedown", function (e) {
+                if (isFullscreenActive()) return;
+
+                isResizing = true;
+                resizeDir = handle.dataset.dir;
+                document.body.style.userSelect = "none";
+
+                const rect = getCardRect();
+                if (!card.classList.contains("preview-dragged")) {
+                    applyPos(rect.left, rect.top, rect.width, rect.height);
+                }
+                startX = e.clientX;
+                startY = e.clientY;
+                startLeft = rect.left;
+                startTop = rect.top;
+                startW = rect.width;
+                startH = rect.height;
+                e.preventDefault();
+                e.stopPropagation();
+            });
+        });
+
+        // ── mousemove (shared) ────────────────────────────────────────────
+        document.addEventListener("mousemove", function (e) {
+            if (!isDragging && !isResizing) return;
+
+            const dx = e.clientX - startX;
+            const dy = e.clientY - startY;
+
+            if (isDragging) {
+                let newLeft = startLeft + dx;
+                let newTop = startTop + dy;
+                const w = parseFloat(card.style.width) || card.offsetWidth;
+                const h = parseFloat(card.style.height) || card.offsetHeight;
+                const clamped = clampPosition(newLeft, newTop, w, h);
+                applyPos(clamped.left, clamped.top);
+            }
+
+            if (isResizing) {
+                const d = resizeDir;
+                let newLeft = startLeft, newTop = startTop;
+                let newW = startW, newH = startH;
+                const vw = window.innerWidth, vh = window.innerHeight;
+
+                if (d.includes("e")) newW = Math.max(MIN_W, startW + dx);
+                if (d.includes("s")) newH = Math.max(MIN_H, startH + dy);
+                if (d.includes("w")) {
+                    newW = Math.max(MIN_W, startW - dx);
+                    newLeft = startLeft + (startW - newW);
+                }
+                if (d.includes("n")) {
+                    newH = Math.max(MIN_H, startH - dy);
+                    newTop = startTop + (startH - newH);
+                }
+                // Clamp so card doesn't resize off-screen
+                newW = Math.min(newW, vw - newLeft - 4);
+                newH = Math.min(newH, vh - newTop - 4);
+                applyPos(newLeft, newTop, newW, newH);
+            }
+        });
+
+        // ── mouseup ───────────────────────────────────────────────────────
+        document.addEventListener("mouseup", function () {
+            if (isDragging || isResizing) {
+                isDragging = false;
+                isResizing = false;
+                header.style.cursor = "grab";
+                document.body.style.userSelect = "";
+            }
+        });
+
+        // ── Reset position when modal opens (first time or after close) ───
+        // We expose a helper so triggerPreview() can call it.
+        window._resetPreviewCardPosition = function () {
+            card.classList.remove("preview-dragged");
+            card.style.removeProperty("left");
+            card.style.removeProperty("top");
+            card.style.removeProperty("width");
+            card.style.removeProperty("height");
+        };
+    })();
+
     function applyFullscreenLayout(active) {
         const modal = document.getElementById("preview-modal");
         const card = document.querySelector(".modal-card-preview");
@@ -3202,7 +3388,7 @@ document.addEventListener("DOMContentLoaded", () => {
         const videoMain = document.querySelector(".preview-video-main");
         const videoCard = document.querySelector(".video-preview-card");
         const videoWrapper = document.querySelector(".video-wrapper");
-        
+
         if (active) {
             document.body.classList.add("theater-active");
             // Make modal a plain block so its flex centering doesn't constrain the card
@@ -3330,6 +3516,7 @@ document.addEventListener("DOMContentLoaded", () => {
                 modal.style.removeProperty("display");
             }
             if (card) {
+                card.classList.remove("preview-dragged");
                 card.style.removeProperty("position");
                 card.style.removeProperty("top");
                 card.style.removeProperty("left");
@@ -3531,7 +3718,7 @@ document.addEventListener("DOMContentLoaded", () => {
                 previewModal.classList.remove("hidden-cursor");
             }
             applyFullscreenLayout(false);
-            
+
             // Remove auto-hide classes
             const modalHeader = document.querySelector("#preview-modal .modal-header");
             const customVideoControls = document.querySelector(".custom-video-controls");
@@ -3539,14 +3726,14 @@ document.addEventListener("DOMContentLoaded", () => {
             const imageControls = document.querySelector(".image-controls");
             const subHeader = document.querySelector(".subtitle-preview-box .sub-header");
             const navControls = document.querySelectorAll(".nav-control");
-            
+
             if (modalHeader) modalHeader.classList.remove("hidden-header");
             if (customVideoControls) customVideoControls.classList.remove("hidden-controls");
             if (customAudioControls) customAudioControls.classList.remove("hidden-controls");
             if (imageControls) imageControls.classList.remove("hidden-controls");
             if (subHeader) subHeader.classList.remove("hidden-controls");
             navControls.forEach(ctrl => ctrl.classList.remove("hidden-controls"));
-            
+
             updateFullscreenUI();
         } else if (isNative) {
             videoFullscreenMode = 2;
@@ -3571,21 +3758,21 @@ document.addEventListener("DOMContentLoaded", () => {
     document.addEventListener("webkitfullscreenchange", handleFullscreenChange);
     document.addEventListener("mozfullscreenchange", handleFullscreenChange);
     document.addEventListener("MSFullscreenChange", handleFullscreenChange);
-    
+
     // Initialize Fullscreen UI
     updateFullscreenUI();
 
     // --- QUALITY/FORMAT DROP DOWN SELECT CHANGE HANDLERS ---
     if (audioFormatSelect) {
-        audioFormatSelect.addEventListener("change", function() {
+        audioFormatSelect.addEventListener("change", function () {
             const val = this.value;
             const parts = val.split("|");
             const formatId = parts[0];
             const quality = parts[1] || "";
-            
+
             if (activeMetadata && activeMetadata.audio_options) {
-                const opt = activeMetadata.audio_options.find(o => 
-                    o.format_id === formatId && 
+                const opt = activeMetadata.audio_options.find(o =>
+                    o.format_id === formatId &&
                     ((!quality && !o.quality) || (String(o.quality) === String(quality)))
                 );
                 if (opt) {
@@ -3596,7 +3783,7 @@ document.addEventListener("DOMContentLoaded", () => {
     }
 
     if (videoFormatSelect) {
-        videoFormatSelect.addEventListener("change", function() {
+        videoFormatSelect.addEventListener("change", function () {
             const formatId = this.value;
             if (activeMetadata && activeMetadata.video_options) {
                 const opt = activeMetadata.video_options.find(o => o.format_id === formatId);
@@ -3624,7 +3811,7 @@ document.addEventListener("DOMContentLoaded", () => {
             previewModal.classList.add("hidden");
             document.body.classList.remove("modal-open");
             document.body.classList.remove("preview-active");
-            
+
             // Clean up Web Fullscreen / Theater Mode states
             videoFullscreenMode = 0;
             applyFullscreenLayout(false);
@@ -3640,7 +3827,7 @@ document.addEventListener("DOMContentLoaded", () => {
             previewModal.classList.remove("modal-web-fullscreen");
             previewModal.classList.remove("fullscreen-active");
             previewModal.classList.remove("hidden-cursor");
-            
+
             // Remove auto-hide classes
             const modalHeader = document.querySelector("#preview-modal .modal-header");
             const customVideoControls = document.querySelector(".custom-video-controls");
@@ -3648,16 +3835,16 @@ document.addEventListener("DOMContentLoaded", () => {
             const imageControls = document.querySelector(".image-controls");
             const subHeader = document.querySelector(".subtitle-preview-box .sub-header");
             const navControls = document.querySelectorAll(".nav-control");
-            
+
             if (modalHeader) modalHeader.classList.remove("hidden-header");
             if (customVideoControls) customVideoControls.classList.remove("hidden-controls");
             if (customAudioControls) customAudioControls.classList.remove("hidden-controls");
             if (imageControls) imageControls.classList.remove("hidden-controls");
             if (subHeader) subHeader.classList.remove("hidden-controls");
             navControls.forEach(ctrl => ctrl.classList.remove("hidden-controls"));
-            
+
             updateFullscreenUI();
-            
+
             // Clear loop points and inputs
             loopStartSecs = null;
             loopEndSecs = null;
@@ -3665,7 +3852,7 @@ document.addEventListener("DOMContentLoaded", () => {
             const loopPointBInput = document.getElementById("loop-point-b");
             if (loopPointAInput) loopPointAInput.value = "";
             if (loopPointBInput) loopPointBInput.value = "";
-            
+
             // Reset text/subtitle preview styling
             previewSubFontSize = 0.88;
             previewSubWordWrap = true;
@@ -3737,11 +3924,11 @@ document.addEventListener("DOMContentLoaded", () => {
             };
         }
 
-        previewModal.onclick = (e) => {
-            if (e.target === previewModal) {
-                closePreviewModal();
-            }
-        };
+        // previewModal.onclick = (e) => {
+        //     if (e.target === previewModal) {
+        //         closePreviewModal();
+        //     }
+        // };
 
         document.addEventListener("keydown", (e) => {
             if (previewModal && !previewModal.classList.contains("hidden")) {
@@ -4288,7 +4475,7 @@ document.addEventListener("DOMContentLoaded", () => {
         const invert = parseFloat(document.getElementById("img-invert")?.value || 0);
 
         const filterStr = `brightness(${brightness}%) contrast(${contrast}%) saturate(${saturation}%) hue-rotate(${hue}deg) brightness(${exposure}%) blur(${blur}px) grayscale(${grayscale}%) sepia(${sepia}%) invert(${invert}%)`;
-        
+
         if (previewImageElement) {
             previewImageElement.style.filter = filterStr;
         }
@@ -4477,7 +4664,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
     const imgFilterSliders = document.querySelectorAll(".img-filter-slider");
     imgFilterSliders.forEach(slider => {
-        slider.addEventListener("input", function() {
+        slider.addEventListener("input", function () {
             const val = this.value;
             const labelEl = document.getElementById(`${this.id}-val`);
             if (labelEl) {
@@ -4497,7 +4684,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
     function showPreviewImage(index) {
         if (!extractedImages || index < 0 || index >= extractedImages.length) return;
-        
+
         const img = extractedImages[index];
         let imgUrl, imgLabel, imgExt;
         if (typeof img === "string") {
@@ -4538,7 +4725,7 @@ document.addEventListener("DOMContentLoaded", () => {
             };
             previewImageElement.src = finalUrl;
         }
-        
+
         previewCurrentImageIndex = index;
     }
 
@@ -4704,19 +4891,19 @@ document.addEventListener("DOMContentLoaded", () => {
                 const trimCheckbox = document.getElementById("trim-checkbox");
                 const trimStartInput = document.getElementById("trim-start");
                 const trimEndInput = document.getElementById("trim-end");
-                
+
                 if (trimCheckbox) {
                     trimCheckbox.checked = (loopStartSecs !== null || loopEndSecs !== null);
                     trimCheckbox.dispatchEvent(new Event("change"));
                 }
-                
+
                 if (trimStartInput) {
                     trimStartInput.value = loopStartSecs !== null ? formatTimeDetailed(loopStartSecs) : "00:00:00.000";
                 }
                 if (trimEndInput) {
                     trimEndInput.value = loopEndSecs !== null ? formatTimeDetailed(loopEndSecs) : "";
                 }
-                
+
                 // Capture the current custom audio settings before closing (which resets them)
                 const capturedAudioSettings = {
                     audio_eq_bass: eqBassVal,
@@ -4728,7 +4915,7 @@ document.addEventListener("DOMContentLoaded", () => {
                 };
 
                 closePreviewModal();
-                
+
                 triggerDownload(
                     previewActiveBtn,
                     previewActiveFormatId,
@@ -4745,27 +4932,27 @@ document.addEventListener("DOMContentLoaded", () => {
                 if (previewActiveExt === "vtt" || previewActiveExt === "srt") {
                     const formatSelect = document.getElementById("preview-sub-format");
                     const targetFormat = formatSelect ? formatSelect.value : "original";
-                    
+
                     const rawText = previewActiveSubtitleContent || previewSubText.textContent;
                     const finalContent = convertSubtitlesToFormat(rawText, targetFormat);
-                    
+
                     let targetExt = previewActiveExt;
                     if (targetFormat === "vtt") targetExt = "vtt";
                     else if (targetFormat === "srt") targetExt = "srt";
                     else if (targetFormat === "txt") targetExt = "txt";
-                    
+
                     const cleanTitle = getSafeTitle(videoTitle.textContent, "subtitles");
                     let cleanLabel = (previewActiveFilename || "subtitle").replace(/Subtitles\s*-\s*/, "").replace(/\s+/g, "_");
-                    
+
                     if (cleanLabel.endsWith(".vtt") || cleanLabel.endsWith(".srt")) {
                         cleanLabel = cleanLabel.substring(0, cleanLabel.length - 4);
                     }
                     const safeFilename = `${cleanTitle}_${cleanLabel}.${targetExt}`;
-                    
+
                     let mimeType = "text/vtt;charset=utf-8";
                     if (targetExt === "srt") mimeType = "text/srt;charset=utf-8";
                     else if (targetExt === "txt") mimeType = "text/plain;charset=utf-8";
-                    
+
                     const blob = new Blob([finalContent], { type: mimeType });
                     const url = URL.createObjectURL(blob);
                     const a = document.createElement("a");
@@ -5177,7 +5364,7 @@ document.addEventListener("DOMContentLoaded", () => {
                 const voiceoverRateSlider = document.getElementById("voiceover-rate-slider");
                 const voiceoverPitchSlider = document.getElementById("voiceover-pitch-slider");
                 const cloudSyncSelect = document.getElementById("cloud-sync-select");
- 
+
                 savedSettings = {
                     trim_active: trimCheckbox ? trimCheckbox.checked : false,
                     trim_start: trimStart ? trimStart.value : "00:00:00",
@@ -5771,19 +5958,19 @@ document.addEventListener("DOMContentLoaded", () => {
         if (data.video_options && data.video_options.length > 0) {
             const imageExts = ["jpg", "jpeg", "png", "webp", "gif", "bmp"];
             const htmlExts = ["html", "htm"];
-            
+
             const videos = data.video_options.filter(opt => {
                 if (opt.type) return opt.type === "video";
                 const ext = (opt.ext || "").toLowerCase();
                 return !imageExts.includes(ext) && !htmlExts.includes(ext);
             });
-            
+
             const photos = data.video_options.filter(opt => {
                 if (opt.type) return opt.type === "image";
                 const ext = (opt.ext || "").toLowerCase();
                 return imageExts.includes(ext);
             });
-            
+
             const webpages = data.video_options.filter(opt => {
                 if (opt.type) return opt.type === "webpage";
                 const ext = (opt.ext || "").toLowerCase();
@@ -6116,7 +6303,7 @@ document.addEventListener("DOMContentLoaded", () => {
                     window.open(customUrl, "_blank");
                     return;
                 }
-                
+
                 // DRM warning intercept
                 let isDrm = false;
                 if (activeMetadata && activeMetadata.video_options) {
@@ -6125,7 +6312,7 @@ document.addEventListener("DOMContentLoaded", () => {
                         isDrm = true;
                     }
                 }
-                
+
                 if (isDrm) {
                     showConfirm({
                         title: "Cảnh báo Bản quyền DRM",
@@ -6163,7 +6350,7 @@ document.addEventListener("DOMContentLoaded", () => {
             try {
                 const fill = autoFillSettingsAfterAnalysis;
                 autoFillSettingsAfterAnalysis = null; // Clear immediately to prevent loop
-                
+
                 // Trim settings
                 const trimCheckbox = document.getElementById("trim-checkbox");
                 if (trimCheckbox) {
@@ -6213,11 +6400,11 @@ document.addEventListener("DOMContentLoaded", () => {
                 }
 
                 // Find and trigger the download button click
-                const targetBtn = Array.from(downloadButtons).find(b => 
-                    b.getAttribute("data-id") === fill.format_id && 
+                const targetBtn = Array.from(downloadButtons).find(b =>
+                    b.getAttribute("data-id") === fill.format_id &&
                     b.getAttribute("data-ext") === fill.ext
                 );
-                
+
                 if (targetBtn) {
                     console.log(`Auto triggering Re-download for format_id=${fill.format_id}`);
                     setTimeout(() => {
@@ -6558,7 +6745,7 @@ document.addEventListener("DOMContentLoaded", () => {
                     const eqLowMidEl = document.getElementById("eq-lowmid");
                     const eqHighMidEl = document.getElementById("eq-highmid");
                     const eqTrebleEl = document.getElementById("eq-treble");
-                    
+
                     requestBody.audio_eq_bass = eqBassEl ? parseFloat(eqBassEl.value) : 0;
                     requestBody.audio_eq_lowmid = eqLowMidEl ? parseFloat(eqLowMidEl.value) : 0;
                     requestBody.audio_eq_highmid = eqHighMidEl ? parseFloat(eqHighMidEl.value) : 0;
@@ -6819,6 +7006,10 @@ document.addEventListener("DOMContentLoaded", () => {
         previewModal.classList.remove("hidden");
         document.body.classList.add("modal-open");
         document.body.classList.add("preview-active");
+        // Reset dragged/resized position so modal always opens centered
+        if (typeof window._resetPreviewCardPosition === "function") {
+            window._resetPreviewCardPosition();
+        }
 
         // Sync main page advanced settings to preview popover menu
         syncMainToPreviewSettings();
@@ -6847,7 +7038,7 @@ document.addEventListener("DOMContentLoaded", () => {
                         const val = `${opt.format_id}|${opt.quality || ''}`;
                         optionEl.value = val;
                         optionEl.textContent = `${opt.label} ${opt.size ? `(${opt.size})` : ""}`;
-                        
+
                         const matchFormat = opt.format_id === formatId;
                         const matchQuality = (!quality && !opt.quality) || (String(quality) === String(opt.quality));
                         if (matchFormat && matchQuality) {
@@ -6980,20 +7171,20 @@ document.addEventListener("DOMContentLoaded", () => {
         const lowerType = (type || "").toLowerCase();
         const isHtmlPage = (lowerExt === "html" || lowerExt === "htm" || lowerType === "webpage");
         const isRawTextFile = (lowerExt === "txt" || lowerExt === "xml");
-        
+
         const isSubtitleFile = (lowerExt === "vtt" || lowerExt === "srt" || lowerType === "subtitle");
 
         // Webpage / HTML / Text / Subtitle Preview Flow
         if (isHtmlPage || isRawTextFile || isSubtitleFile) {
             previewActiveUrl = streamUrl;
-            
+
             if (isHtmlPage && previewWebpageContainer && previewWebpageIframe) {
                 previewWebpageContainer.classList.remove("hidden");
                 showPreviewLoader("Loading webpage view...");
-                
+
                 const proxyUrl = `/api/system/proxy-sub?url=${encodeURIComponent(streamUrl)}&mode=html&client_id=${encodeURIComponent(clientId)}`;
                 previewWebpageIframe.src = proxyUrl;
-                
+
                 previewWebpageIframe.onload = () => {
                     hidePreviewLoader();
                 };
@@ -7046,23 +7237,16 @@ document.addEventListener("DOMContentLoaded", () => {
             }
             return;
         }
-        const isYoutube = streamUrl.toLowerCase().includes("youtube.com") || 
-                          streamUrl.toLowerCase().includes("youtu.be") || 
-                          streamUrl.toLowerCase().includes("googlevideo.com") ||
-                          streamUrl.toLowerCase().includes("youtube-nocookie.com");
-
-        const isAdaptiveYoutube = isYoutube && formatId.includes("+");
+        const isAdaptive = formatId.includes("+");
 
         // Direct stream preview (stream-on-demand)
         const isDirectStream = (ext !== "vtt") && (
             formatId.startsWith("direct_") ||
             (type === "audio") ||
-            (customUrl && customUrl.startsWith("http") && !formatId.includes("+")) ||
-            isAdaptiveYoutube
+            (customUrl && customUrl.startsWith("http"))
         );
 
         console.log("[triggerPreview] streamUrl:", streamUrl);
-        console.log("[triggerPreview] isYoutube:", isYoutube);
         console.log("[triggerPreview] isDirectStream:", isDirectStream);
 
         if (isDirectStream) {
@@ -7073,7 +7257,7 @@ document.addEventListener("DOMContentLoaded", () => {
             previewActiveFilename = `${cleanTitle}_Episode_${episode || 1}_${server || "Server"}.${ext}`;
 
             let proxyStreamUrl = "";
-            if (isAdaptiveYoutube) {
+            if (isAdaptive) {
                 let audioUrl = "";
                 if (activeMetadata && activeMetadata.video_options) {
                     const opt = activeMetadata.video_options.find(o => o.format_id === formatId);
@@ -7082,14 +7266,14 @@ document.addEventListener("DOMContentLoaded", () => {
                     }
                 }
                 const videoUrl = streamUrl;
-                
+
                 previewAdaptiveVideoUrl = videoUrl;
                 previewAdaptiveAudioUrl = audioUrl;
                 previewAdaptiveContainer = ext || "mp4";
                 previewIsAdaptive = true;
                 previewCurrentTimeOffset = 0;
-                
-                proxyStreamUrl = `/api/proxy/stream_adaptive?video_url=${encodeURIComponent(videoUrl)}&audio_url=${encodeURIComponent(audioUrl)}&container=${encodeURIComponent(ext || "mp4")}&start_time=0`;
+
+                proxyStreamUrl = `/api/proxy/stream_adaptive?video_url=${encodeURIComponent(videoUrl)}&audio_url=${encodeURIComponent(audioUrl)}&container=${encodeURIComponent(ext || "mp4")}&start_time=0&client_id=${encodeURIComponent(clientId)}`;
             } else {
                 previewIsAdaptive = false;
                 proxyStreamUrl = `/api/proxy/stream?url=${encodeURIComponent(streamUrl)}&client_id=${encodeURIComponent(clientId)}`;
@@ -7303,7 +7487,7 @@ document.addEventListener("DOMContentLoaded", () => {
             const voiceoverRateSlider = document.getElementById("voiceover-rate-slider");
             const voiceoverPitchSlider = document.getElementById("voiceover-pitch-slider");
             const cloudSyncSelect = document.getElementById("cloud-sync-select");
- 
+
             const settings = {
                 trim_active: trimCheckbox ? trimCheckbox.checked : false,
                 trim_start: trimStart ? trimStart.value : "00:00:00",
@@ -7546,7 +7730,7 @@ document.addEventListener("DOMContentLoaded", () => {
             const thumbUrl = getProxiedImageUrl(item.thumbnail) || "https://images.unsplash.com/photo-1611162617213-7d7a39e9b1d7?q=80&w=120";
             const platformTag = getPlatformTag(item.url);
             const timestampStr = item.timestamp ? formatHistoryDateTime(item.timestamp * 1000) : "Unknown date";
-            
+
             let statusTag = "";
             if (item.status === "complete") {
                 statusTag = `<span class="history-item-status-tag status-complete">Complete</span>`;
@@ -7734,13 +7918,13 @@ document.addEventListener("DOMContentLoaded", () => {
         if (!vttText.includes("WEBVTT") && !vttText.includes("-->")) {
             return `<div class="sub-plain-text">${vttText}</div>`;
         }
-        
+
         try {
             const cues = parseSubtitleText(vttText);
             if (!cues || cues.length === 0) {
                 return `<div class="sub-plain-text"><div style="color: #ff4d4d; margin-bottom: 10px; font-weight: bold;">[DEBUG] Parsed 0 cues from VTT content. Fallback to raw text:</div>${vttText}</div>`;
             }
-            
+
             let html = '<div class="sub-timeline-list">';
             cues.forEach(cue => {
                 function formatCueTime(secs) {
@@ -7774,11 +7958,11 @@ document.addEventListener("DOMContentLoaded", () => {
         const lines = normalized.split('\n');
         const cues = [];
         let currentCue = null;
-        
+
         for (let i = 0; i < lines.length; i++) {
             const line = lines[i].trim();
             if (!line) continue;
-            
+
             const match = timePattern.exec(line);
             if (match) {
                 if (currentCue) {
@@ -7813,18 +7997,18 @@ document.addEventListener("DOMContentLoaded", () => {
         if (currentCue) {
             cues.push(currentCue);
         }
-        
+
         return cleanAndMergeCues(cues);
     }
 
     function getWordOverlap(text1, text2) {
         if (!text1 || !text2) return 0;
-        const words1 = text1.toLowerCase().replace(/[.,\/#!$%\^&\*;:{}=\-_`~()?]/g,"").split(/\s+/).filter(Boolean);
-        const words2 = text2.toLowerCase().replace(/[.,\/#!$%\^&\*;:{}=\-_`~()?]/g,"").split(/\s+/).filter(Boolean);
-        
+        const words1 = text1.toLowerCase().replace(/[.,\/#!$%\^&\*;:{}=\-_`~()?]/g, "").split(/\s+/).filter(Boolean);
+        const words2 = text2.toLowerCase().replace(/[.,\/#!$%\^&\*;:{}=\-_`~()?]/g, "").split(/\s+/).filter(Boolean);
+
         let maxOverlapWords = 0;
         const minLen = Math.min(words1.length, words2.length);
-        
+
         for (let k = 1; k <= minLen; k++) {
             let match = true;
             for (let i = 0; i < k; i++) {
@@ -7842,7 +8026,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
     function cleanAndMergeCues(cues) {
         if (!cues || cues.length === 0) return [];
-        
+
         // Step 1: Clean HTML tags and bracketed/parenthesized annotations like [âm nhạc], [ca hát], (laughter)
         let cleaned = cues.map(cue => {
             let text = cue.text;
@@ -7861,20 +8045,20 @@ document.addEventListener("DOMContentLoaded", () => {
             text = text.replace(/\([^)]*\)/g, '');
             // Normalize spaces
             text = text.replace(/\s+/g, ' ').trim();
-            
+
             // Format speaker change indicators (>> or >>>) into professional dialogue style
             text = text.replace(/^>{2,}\s*/g, '- ');
             text = text.replace(/\s+>{2,}\s*/g, '\n- ');
-            
+
             return {
                 start: cue.start,
                 end: cue.end,
                 text: text
             };
         }).filter(cue => cue.text.length > 0);
-        
+
         if (cleaned.length === 0) return [];
-        
+
         // Step 2: Merge cues with start times extremely close (< 1.5s) if one contains the other
         let merged = [];
         for (let i = 0; i < cleaned.length; i++) {
@@ -7883,14 +8067,14 @@ document.addEventListener("DOMContentLoaded", () => {
                 merged.push(current);
                 continue;
             }
-            
+
             let last = merged[merged.length - 1];
-            
+
             // If start times are within 1.5 seconds
             if (Math.abs(current.start - last.start) < 1.5) {
-                const lastTextNorm = last.text.toLowerCase().replace(/[.,\/#!$%\^&\*;:{}=\-_`~()?]/g,"").replace(/\s+/g, ' ').trim();
-                const currTextNorm = current.text.toLowerCase().replace(/[.,\/#!$%\^&\*;:{}=\-_`~()?]/g,"").replace(/\s+/g, ' ').trim();
-                
+                const lastTextNorm = last.text.toLowerCase().replace(/[.,\/#!$%\^&\*;:{}=\-_`~()?]/g, "").replace(/\s+/g, ' ').trim();
+                const currTextNorm = current.text.toLowerCase().replace(/[.,\/#!$%\^&\*;:{}=\-_`~()?]/g, "").replace(/\s+/g, ' ').trim();
+
                 if (currTextNorm.includes(lastTextNorm)) {
                     // current contains last -> update last's text and end time
                     last.text = current.text;
@@ -7903,10 +8087,10 @@ document.addEventListener("DOMContentLoaded", () => {
                     continue;
                 }
             }
-            
+
             merged.push(current);
         }
-        
+
         // Step 3: Strip rolling suffix-prefix overlap between consecutive cues
         let finalCues = [];
         for (let i = 0; i < merged.length; i++) {
@@ -7915,9 +8099,9 @@ document.addEventListener("DOMContentLoaded", () => {
                 finalCues.push(current);
                 continue;
             }
-            
+
             let last = finalCues[finalCues.length - 1];
-            
+
             const overlapCount = getWordOverlap(last.text, current.text);
             if (overlapCount > 0) {
                 const rawWords = current.text.split(/\s+/);
@@ -7937,7 +8121,7 @@ document.addEventListener("DOMContentLoaded", () => {
                 finalCues.push(current);
             }
         }
-        
+
         return finalCues;
     }
 
@@ -7989,11 +8173,11 @@ document.addEventListener("DOMContentLoaded", () => {
                     text = await res.text();
                 }
             }
-            
+
             originalSubtitleContent = text;
             currentCues = parseSubtitleText(text);
             console.log(`Loaded ${currentCues.length} subtitles cues`);
-            
+
             // Populate Interactive Transcript Sidebar
             const transcriptList = document.getElementById("transcript-list");
             const sidebar = document.getElementById("preview-transcript-sidebar");
@@ -8003,18 +8187,18 @@ document.addEventListener("DOMContentLoaded", () => {
                     const cueEl = document.createElement("div");
                     cueEl.className = "transcript-item";
                     cueEl.setAttribute("data-index", index);
-                    
+
                     const timeEl = document.createElement("span");
                     timeEl.className = "transcript-item-time";
                     timeEl.textContent = formatTime(cue.start);
-                    
+
                     const textEl = document.createElement("span");
                     textEl.className = "transcript-item-text";
                     textEl.textContent = cue.text;
-                    
+
                     cueEl.appendChild(timeEl);
                     cueEl.appendChild(textEl);
-                    
+
                     // Click to seek
                     cueEl.addEventListener("click", () => {
                         if (previewVideoPlayer) {
@@ -8022,7 +8206,7 @@ document.addEventListener("DOMContentLoaded", () => {
                             previewVideoPlayer.play().catch(e => console.log(e));
                         }
                     });
-                    
+
                     transcriptList.appendChild(cueEl);
                 });
             }
@@ -8033,21 +8217,21 @@ document.addEventListener("DOMContentLoaded", () => {
                     sidebar.classList.add("hidden");
                 }
             }
-            
+
             // Enable download subtitle button
             const downloadBtn = document.getElementById("preview-sub-download-btn");
             if (downloadBtn) {
                 downloadBtn.disabled = currentCues.length === 0;
             }
-            
+
             // Apply current style selections
             applySubtitleStyles();
-            
+
             // Trigger overlay check
             if (previewVideoPlayer) {
                 updateSubtitlesOverlay(previewVideoPlayer.currentTime);
             }
-            
+
         } catch (err) {
             console.error("Failed to load subtitle track:", err);
         }
@@ -8056,13 +8240,13 @@ document.addEventListener("DOMContentLoaded", () => {
     function speakTts(text, lang) {
         if (!window.speechSynthesis) return;
         window.speechSynthesis.cancel(); // Cancel any ongoing speech first
-        
+
         const utterance = new SpeechSynthesisUtterance(text);
-        
+
         // Find suitable voice matching selected language
         const voices = window.speechSynthesis.getVoices();
         let voice = null;
-        
+
         if (lang === "vi") {
             voice = voices.find(v => v.lang.includes("vi-VN") || v.lang.includes("vi_VN"));
             utterance.lang = "vi-VN";
@@ -8070,15 +8254,15 @@ document.addEventListener("DOMContentLoaded", () => {
             voice = voices.find(v => v.lang.includes("en-US") || v.lang.includes("en_US") || v.lang.includes("en-GB"));
             utterance.lang = "en-US";
         }
-        
+
         if (voice) {
             utterance.voice = voice;
         }
-        
+
         if (previewVideoPlayer) {
             utterance.rate = previewVideoPlayer.playbackRate || 1.0;
         }
-        
+
         window.speechSynthesis.speak(utterance);
     }
 
@@ -8088,12 +8272,12 @@ document.addEventListener("DOMContentLoaded", () => {
             if (overlay) overlay.classList.add("hidden");
             return;
         }
-        
+
         // Find matching cues
         const activeCues = currentCues.filter(c => currentTime >= c.start && currentTime <= c.end);
         const overlay = document.getElementById("preview-subtitles-overlay");
         const textBox = overlay ? overlay.querySelector(".subtitles-text-box") : null;
-        
+
         if (activeCues.length > 0) {
             const textContent = activeCues.map(c => c.text).join('\n');
             if (textBox) {
@@ -8102,7 +8286,7 @@ document.addEventListener("DOMContentLoaded", () => {
             if (overlay) {
                 overlay.classList.remove("hidden");
             }
-            
+
             // Trigger TTS if active
             const voiceSelect = document.getElementById("preview-voiceover-select");
             if (voiceSelect && voiceSelect.value !== "none") {
@@ -8112,12 +8296,12 @@ document.addEventListener("DOMContentLoaded", () => {
                     speakTts(speechText, voiceSelect.value);
                 }
             }
-            
+
             // Highlight cue in Interactive Transcript Sidebar
             const firstActiveIndex = currentCues.indexOf(activeCues[0]);
             const cueEls = document.querySelectorAll(".transcript-item");
             cueEls.forEach(el => el.classList.remove("active"));
-            
+
             const activeEl = document.querySelector(`.transcript-item[data-index="${firstActiveIndex}"]`);
             if (activeEl) {
                 activeEl.classList.add("active");
@@ -8186,12 +8370,12 @@ document.addEventListener("DOMContentLoaded", () => {
         if (!isTransparent) {
             const bgOpacitySlider = document.getElementById("preview-sub-bg-opacity");
             const opacity = bgOpacitySlider ? parseInt(bgOpacitySlider.value, 10) / 100 : 0.5;
-            
+
             // Convert Hex to RGB
             const r = parseInt(baseBgColor.substring(1, 3), 16);
             const g = parseInt(baseBgColor.substring(3, 5), 16);
             const b = parseInt(baseBgColor.substring(5, 7), 16);
-            
+
             bgStyle = `rgba(${r}, ${g}, ${b}, ${opacity})`;
         }
         textBox.style.background = bgStyle;
@@ -8199,7 +8383,7 @@ document.addEventListener("DOMContentLoaded", () => {
         // 5. Outline / Text Shadow
         const outlineSlider = document.getElementById("preview-sub-outline");
         const outlineSize = outlineSlider ? parseInt(outlineSlider.value, 10) : 2;
-        
+
         let outlineColor = "#000000";
         const activeOutlineSwatch = document.querySelector(".outline-swatch.active");
         if (activeOutlineSwatch) {
@@ -8267,7 +8451,7 @@ document.addEventListener("DOMContentLoaded", () => {
         const minutes = Math.floor((ms % 3600000) / 60000);
         const seconds = Math.floor((ms % 60000) / 1000);
         const milliseconds = Math.floor(ms % 1000);
-        
+
         return `${hours.toString().padStart(2, "0")}:${minutes.toString().padStart(2, "0")}:${seconds.toString().padStart(2, "0")}.${milliseconds.toString().padStart(3, "0")}`;
     }
 
@@ -8275,7 +8459,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
     const previewSubSelect = document.getElementById("preview-sub-select");
     if (previewSubSelect) {
-        previewSubSelect.addEventListener("change", function() {
+        previewSubSelect.addEventListener("change", function () {
             const val = this.value;
             const transSelect = document.getElementById("preview-sub-trans-select");
             if (transSelect) transSelect.value = "none";
@@ -8285,7 +8469,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
     const previewSubTransSelect = document.getElementById("preview-sub-trans-select");
     if (previewSubTransSelect) {
-        previewSubTransSelect.addEventListener("change", async function() {
+        previewSubTransSelect.addEventListener("change", async function () {
             const targetLang = this.value;
             if (targetLang === "none") {
                 const subSelect = document.getElementById("preview-sub-select");
@@ -8296,11 +8480,11 @@ document.addEventListener("DOMContentLoaded", () => {
                 }
                 return;
             }
-            
+
             try {
                 const payload = { target_lang: targetLang };
                 const subSelect = document.getElementById("preview-sub-select");
-                
+
                 if (originalSubtitleContent) {
                     payload.content = originalSubtitleContent;
                 } else if (subSelect && subSelect.value !== "none") {
@@ -8309,9 +8493,9 @@ document.addEventListener("DOMContentLoaded", () => {
                     this.value = "none";
                     return;
                 }
-                
+
                 showPreviewLoader("Translating subtitles...");
-                
+
                 const resp = await fetch("/api/system/translate-sub", {
                     method: "POST",
                     headers: { "Content-Type": "application/json" },
@@ -8319,7 +8503,7 @@ document.addEventListener("DOMContentLoaded", () => {
                 });
                 const resData = await resp.json();
                 hidePreviewLoader();
-                
+
                 if (resData.status === "success" && resData.translated_vtt) {
                     loadSubtitle(resData.translated_vtt, true);
                 } else {
@@ -8336,7 +8520,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
     const previewVoiceoverSelect = document.getElementById("preview-voiceover-select");
     if (previewVoiceoverSelect) {
-        previewVoiceoverSelect.addEventListener("change", function() {
+        previewVoiceoverSelect.addEventListener("change", function () {
             if (this.value === "none") {
                 if (window.speechSynthesis) window.speechSynthesis.cancel();
             } else {
@@ -8398,7 +8582,7 @@ document.addEventListener("DOMContentLoaded", () => {
     // Set listener for speed select dropdown
     const speedSelectElement = document.getElementById("preview-speed-select");
     if (speedSelectElement) {
-        speedSelectElement.addEventListener("change", function(e) {
+        speedSelectElement.addEventListener("change", function (e) {
             e.stopPropagation();
             if (this.value === "custom") {
                 const customWrapper = document.getElementById("preview-speed-custom-wrapper");
@@ -8425,7 +8609,7 @@ document.addEventListener("DOMContentLoaded", () => {
     // Set listener for custom speed input
     const customSpeedInput = document.getElementById("preview-speed-custom");
     if (customSpeedInput) {
-        customSpeedInput.addEventListener("input", function() {
+        customSpeedInput.addEventListener("input", function () {
             let speed = parseFloat(this.value);
             if (isNaN(speed) || speed < 0.05) return;
             if (speed > 16.0) speed = 16.0;
@@ -8439,7 +8623,7 @@ document.addEventListener("DOMContentLoaded", () => {
             }
         });
 
-        customSpeedInput.addEventListener("change", function() {
+        customSpeedInput.addEventListener("change", function () {
             let speed = parseFloat(this.value);
             if (isNaN(speed) || speed < 0.05) speed = 1.0;
             if (speed > 16.0) speed = 16.0;
@@ -8455,22 +8639,22 @@ document.addEventListener("DOMContentLoaded", () => {
             e.stopPropagation();
             previewSubUploadFile.click();
         });
-        
-        previewSubUploadFile.addEventListener("change", function() {
+
+        previewSubUploadFile.addEventListener("change", function () {
             const file = this.files[0];
             if (!file) return;
-            
+
             const reader = new FileReader();
-            reader.onload = function(e) {
+            reader.onload = function (e) {
                 const text = e.target.result;
                 originalSubtitleContent = text;
                 loadSubtitle(text, true);
-                
+
                 const subSelect = document.getElementById("preview-sub-select");
                 if (subSelect) {
                     const prevCustom = subSelect.querySelector('option[data-type="custom"]');
                     if (prevCustom) prevCustom.remove();
-                    
+
                     const opt = document.createElement("option");
                     opt.value = "custom";
                     opt.textContent = `Uploaded: ${file.name}`;
@@ -8489,14 +8673,14 @@ document.addEventListener("DOMContentLoaded", () => {
         previewSubDownloadBtn.addEventListener("click", (e) => {
             e.stopPropagation();
             if (currentCues.length === 0) return;
-            
+
             let vttContent = "WEBVTT\n\n";
             currentCues.forEach((cue, index) => {
                 const startStr = formatMsToVttTime(cue.start * 1000);
                 const endStr = formatMsToVttTime(cue.end * 1000);
                 vttContent += `${index + 1}\n${startStr} --> ${endStr}\n${cue.text}\n\n`;
             });
-            
+
             const blob = new Blob([vttContent], { type: "text/vtt;charset=utf-8" });
             const url = URL.createObjectURL(blob);
             const a = document.createElement("a");
@@ -8572,7 +8756,7 @@ document.addEventListener("DOMContentLoaded", () => {
     }
 
     if (loopPointAInput) {
-        loopPointAInput.addEventListener("change", function() {
+        loopPointAInput.addEventListener("change", function () {
             const secs = parseTimeStringToSeconds(this.value);
             if (secs !== null) {
                 loopStartSecs = secs;
@@ -8585,7 +8769,7 @@ document.addEventListener("DOMContentLoaded", () => {
     }
 
     if (loopPointBInput) {
-        loopPointBInput.addEventListener("change", function() {
+        loopPointBInput.addEventListener("change", function () {
             const secs = parseTimeStringToSeconds(this.value);
             if (secs !== null) {
                 loopEndSecs = secs;
@@ -8618,7 +8802,7 @@ document.addEventListener("DOMContentLoaded", () => {
             if (ambientCtx) {
                 try {
                     ambientCtx.drawImage(previewVideoPlayer, 0, 0, ambientCanvas.width, ambientCanvas.height);
-                } catch (e) {}
+                } catch (e) { }
             }
         }
 
@@ -8659,7 +8843,7 @@ document.addEventListener("DOMContentLoaded", () => {
                 if (ambientCtx) {
                     try {
                         ambientCtx.drawImage(previewVideoPlayer, 0, 0, ambientCanvas.width, ambientCanvas.height);
-                    } catch (e) {}
+                    } catch (e) { }
                 }
             }
         });
@@ -8696,7 +8880,7 @@ document.addEventListener("DOMContentLoaded", () => {
                 if (ambientCtx && previewVideoPlayer) {
                     try {
                         ambientCtx.drawImage(previewVideoPlayer, 0, 0, ambientCanvas.width, ambientCanvas.height);
-                    } catch (e) {}
+                    } catch (e) { }
                 }
                 if (previewVideoPlayer && !previewVideoPlayer.paused && !ambientAnimationFrame) {
                     updateAmbientGlow();
@@ -8722,7 +8906,7 @@ document.addEventListener("DOMContentLoaded", () => {
     // Toggle A-B Loop visibility
     const toggleAbLoop = document.getElementById("toggle-ab-loop");
     const abLoopWrapper = document.getElementById("ab-loop-wrapper");
-    
+
     if (toggleAbLoop && abLoopWrapper) {
         // Load saved state
         const savedState = localStorage.getItem("ab-loop-visible") === "true";
@@ -8734,7 +8918,7 @@ document.addEventListener("DOMContentLoaded", () => {
             abLoopWrapper.classList.remove("expanded");
             abLoopWrapper.classList.add("collapsed");
         }
-        
+
         toggleAbLoop.addEventListener("change", () => {
             if (toggleAbLoop.checked) {
                 abLoopWrapper.classList.remove("collapsed");
@@ -8772,14 +8956,14 @@ document.addEventListener("DOMContentLoaded", () => {
     const videoSettingsBtn = document.getElementById("video-settings-btn");
     const videoSettingsMenu = document.getElementById("video-settings-menu");
     const closeSettingsMenuBtn = document.getElementById("close-settings-menu-btn");
-    
+
     if (videoSettingsBtn && videoSettingsMenu) {
         videoSettingsBtn.addEventListener("click", (e) => {
             e.stopPropagation();
             videoSettingsMenu.classList.toggle("hidden");
         });
     }
-    
+
     if (closeSettingsMenuBtn && videoSettingsMenu) {
         closeSettingsMenuBtn.addEventListener("click", (e) => {
             e.stopPropagation();
@@ -8804,7 +8988,7 @@ document.addEventListener("DOMContentLoaded", () => {
             btn.addEventListener("click", (e) => {
                 e.stopPropagation();
                 const targetTab = btn.getAttribute("data-tab");
-                
+
                 settingsTabBtns.forEach(b => {
                     b.classList.remove("active");
                     b.style.color = "#94a3b8";
@@ -8888,7 +9072,7 @@ document.addEventListener("DOMContentLoaded", () => {
     // Set up listeners to sync preview settings back to main settings
     const previewExportType = document.getElementById("preview-export-type");
     if (previewExportType) {
-        previewExportType.addEventListener("change", function() {
+        previewExportType.addEventListener("change", function () {
             const mainExport = document.getElementById("export-type-select");
             if (mainExport && mainExport.value !== this.value) {
                 mainExport.value = this.value;
@@ -8899,7 +9083,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
     const previewColorFilter = document.getElementById("preview-color-filter");
     if (previewColorFilter) {
-        previewColorFilter.addEventListener("change", function() {
+        previewColorFilter.addEventListener("change", function () {
             const mainFilter = document.getElementById("color-filter-select");
             if (mainFilter && mainFilter.value !== this.value) {
                 mainFilter.value = this.value;
@@ -8910,7 +9094,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
     const previewCloudSync = document.getElementById("preview-cloud-sync");
     if (previewCloudSync) {
-        previewCloudSync.addEventListener("change", function() {
+        previewCloudSync.addEventListener("change", function () {
             const mainCloud = document.getElementById("cloud-sync-select");
             if (mainCloud && mainCloud.value !== this.value) {
                 mainCloud.value = this.value;
@@ -8922,7 +9106,7 @@ document.addEventListener("DOMContentLoaded", () => {
     const previewVoiceoverActive = document.getElementById("preview-voiceover-active");
     const previewVoiceoverWrapper = document.getElementById("preview-voiceover-wrapper");
     if (previewVoiceoverActive) {
-        previewVoiceoverActive.addEventListener("change", function() {
+        previewVoiceoverActive.addEventListener("change", function () {
             // Expand/collapse collapsible options wrapper
             if (previewVoiceoverWrapper) {
                 if (this.checked) {
@@ -8944,7 +9128,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
     const previewVoiceoverVoice = document.getElementById("preview-voiceover-voice");
     if (previewVoiceoverVoice) {
-        previewVoiceoverVoice.addEventListener("change", function() {
+        previewVoiceoverVoice.addEventListener("change", function () {
             const mainVoice = document.getElementById("voiceover-voice-select");
             if (mainVoice && mainVoice.value !== this.value) {
                 mainVoice.value = this.value;
@@ -8956,7 +9140,7 @@ document.addEventListener("DOMContentLoaded", () => {
     const previewVoiceoverRate = document.getElementById("preview-voiceover-rate-slider");
     const previewVoiceoverRateVal = document.getElementById("preview-voiceover-rate-val");
     if (previewVoiceoverRate) {
-        previewVoiceoverRate.addEventListener("input", function() {
+        previewVoiceoverRate.addEventListener("input", function () {
             const val = parseInt(this.value);
             if (previewVoiceoverRateVal) {
                 previewVoiceoverRateVal.textContent = val === 0 ? "Normal" : (val > 0 ? `+${val}%` : `${val}%`);
@@ -8972,7 +9156,7 @@ document.addEventListener("DOMContentLoaded", () => {
     const previewVoiceoverPitch = document.getElementById("preview-voiceover-pitch-slider");
     const previewVoiceoverPitchVal = document.getElementById("preview-voiceover-pitch-val");
     if (previewVoiceoverPitch) {
-        previewVoiceoverPitch.addEventListener("input", function() {
+        previewVoiceoverPitch.addEventListener("input", function () {
             const val = parseInt(this.value);
             if (previewVoiceoverPitchVal) {
                 previewVoiceoverPitchVal.textContent = val === 0 ? "Normal" : (val > 0 ? `+${val}%` : `${val}%`);
@@ -8992,7 +9176,7 @@ document.addEventListener("DOMContentLoaded", () => {
         const selectMenus = settingsMenu.querySelectorAll(".custom-select-menu");
         selectMenus.forEach(selectEl => {
             if (!selectEl.id) return;
-            
+
             // Check if already initialized
             let container = settingsMenu.querySelector(`.custom-dropdown-container[data-select-id="${selectEl.id}"]`);
             if (container) return;
@@ -9010,7 +9194,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
             const selectedText = document.createElement("span");
             selectedText.className = "custom-dropdown-selected-text";
-            
+
             const arrow = document.createElement("span");
             arrow.className = "custom-dropdown-arrow";
             arrow.innerHTML = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" width="10" height="10"><polyline points="6 9 12 15 18 9"/></svg>`;
@@ -9036,7 +9220,7 @@ document.addEventListener("DOMContentLoaded", () => {
                     optDiv.className = "custom-dropdown-option";
                     optDiv.setAttribute("data-value", opt.value);
                     optDiv.textContent = opt.textContent;
-                    
+
                     if (opt.selected) {
                         optDiv.classList.add("active");
                         selectedText.textContent = opt.textContent;
@@ -9096,7 +9280,7 @@ document.addEventListener("DOMContentLoaded", () => {
                 // Calculate space below and above trigger relative to settingsMenu
                 const spaceBelow = menuRect.bottom - triggerRect.bottom;
                 const spaceAbove = triggerRect.top - menuRect.top;
-                
+
                 // Estimate options list height (capped at max-height: 180px in CSS)
                 const listHeight = Math.min(180, optionsList.scrollHeight || 120);
 
@@ -9116,7 +9300,7 @@ document.addEventListener("DOMContentLoaded", () => {
             // Trigger click event to toggle dropdown list open/closed
             trigger.addEventListener("click", (e) => {
                 e.stopPropagation();
-                
+
                 const isOpen = container.classList.contains("open");
 
                 // Close all other dropdowns first
@@ -9147,10 +9331,10 @@ document.addEventListener("DOMContentLoaded", () => {
                 const valueDescriptor = Object.getOwnPropertyDescriptor(HTMLSelectElement.prototype, 'value');
                 if (valueDescriptor) {
                     Object.defineProperty(selectEl, 'value', {
-                        get: function() {
+                        get: function () {
                             return valueDescriptor.get.call(this);
                         },
-                        set: function(val) {
+                        set: function (val) {
                             valueDescriptor.set.call(this, val);
                             const selectedOpt = Array.from(selectEl.options).find(o => o.value === val);
                             if (selectedOpt) {
@@ -9177,10 +9361,10 @@ document.addEventListener("DOMContentLoaded", () => {
                 const indexDescriptor = Object.getOwnPropertyDescriptor(HTMLSelectElement.prototype, 'selectedIndex');
                 if (indexDescriptor) {
                     Object.defineProperty(selectEl, 'selectedIndex', {
-                        get: function() {
+                        get: function () {
                             return indexDescriptor.get.call(this);
                         },
-                        set: function(idx) {
+                        set: function (idx) {
                             indexDescriptor.set.call(this, idx);
                             const opt = selectEl.options[idx];
                             if (opt) {
@@ -9268,7 +9452,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
     const subSizeSlider = document.getElementById("preview-sub-size");
     if (subSizeSlider) {
-        subSizeSlider.addEventListener("input", function() {
+        subSizeSlider.addEventListener("input", function () {
             const valSpan = document.getElementById("preview-sub-size-val");
             if (valSpan) valSpan.textContent = this.value + "rem";
             applySubtitleStyles();
@@ -9277,7 +9461,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
     const bgOpacitySlider = document.getElementById("preview-sub-bg-opacity");
     if (bgOpacitySlider) {
-        bgOpacitySlider.addEventListener("input", function() {
+        bgOpacitySlider.addEventListener("input", function () {
             const valSpan = document.getElementById("preview-sub-bg-opacity-val");
             if (valSpan) valSpan.textContent = this.value + "%";
             applySubtitleStyles();
@@ -9286,7 +9470,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
     const outlineSizeSlider = document.getElementById("preview-sub-outline");
     if (outlineSizeSlider) {
-        outlineSizeSlider.addEventListener("input", function() {
+        outlineSizeSlider.addEventListener("input", function () {
             const valSpan = document.getElementById("preview-sub-outline-val");
             if (valSpan) valSpan.textContent = this.value + "px";
             applySubtitleStyles();
@@ -9300,7 +9484,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
     // Swatches listeners
     document.querySelectorAll(".color-swatch").forEach(swatch => {
-        swatch.addEventListener("click", function() {
+        swatch.addEventListener("click", function () {
             document.querySelectorAll(".color-swatch").forEach(s => s.classList.remove("active"));
             this.classList.add("active");
             applySubtitleStyles();
@@ -9308,7 +9492,7 @@ document.addEventListener("DOMContentLoaded", () => {
     });
 
     document.querySelectorAll(".bg-swatch").forEach(swatch => {
-        swatch.addEventListener("click", function() {
+        swatch.addEventListener("click", function () {
             document.querySelectorAll(".bg-swatch").forEach(s => s.classList.remove("active"));
             this.classList.add("active");
             applySubtitleStyles();
@@ -9316,7 +9500,7 @@ document.addEventListener("DOMContentLoaded", () => {
     });
 
     document.querySelectorAll(".outline-swatch").forEach(swatch => {
-        swatch.addEventListener("click", function() {
+        swatch.addEventListener("click", function () {
             document.querySelectorAll(".outline-swatch").forEach(s => s.classList.remove("active"));
             this.classList.add("active");
             applySubtitleStyles();
@@ -9326,7 +9510,7 @@ document.addEventListener("DOMContentLoaded", () => {
     // Custom color picker inputs
     const textColorPicker = document.getElementById("preview-sub-color");
     if (textColorPicker) {
-        textColorPicker.addEventListener("input", function() {
+        textColorPicker.addEventListener("input", function () {
             document.querySelectorAll(".color-swatch").forEach(s => s.classList.remove("active"));
             applySubtitleStyles();
         });
@@ -9334,7 +9518,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
     const bgColorPicker = document.getElementById("preview-sub-bg-color");
     if (bgColorPicker) {
-        bgColorPicker.addEventListener("input", function() {
+        bgColorPicker.addEventListener("input", function () {
             document.querySelectorAll(".bg-swatch").forEach(s => s.classList.remove("active"));
             applySubtitleStyles();
         });
@@ -9342,7 +9526,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
     const outlineColorPicker = document.getElementById("preview-sub-outline-color");
     if (outlineColorPicker) {
-        outlineColorPicker.addEventListener("input", function() {
+        outlineColorPicker.addEventListener("input", function () {
             document.querySelectorAll(".outline-swatch").forEach(s => s.classList.remove("active"));
             applySubtitleStyles();
         });
@@ -9350,7 +9534,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
     const transcriptSearch = document.getElementById("transcript-search");
     if (transcriptSearch) {
-        transcriptSearch.addEventListener("input", function() {
+        transcriptSearch.addEventListener("input", function () {
             const query = this.value.toLowerCase().trim();
             const cueEls = document.querySelectorAll(".transcript-item");
             cueEls.forEach(el => {
@@ -9382,7 +9566,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
     // voiceschanged callback to make sure voices list is refreshed
     if (window.speechSynthesis) {
-        window.speechSynthesis.onvoiceschanged = () => {};
+        window.speechSynthesis.onvoiceschanged = () => { };
     }
 });
 
@@ -9677,12 +9861,12 @@ document.addEventListener("DOMContentLoaded", () => {
 
             // 1. Slow wave movement for the floating effect (superimposed organic wave)
             let time = Date.now() * 0.0005;
-            
+
             // Modify wave speed and size based on volume!
             // When sound reactivity is enabled and music plays, the wave wiggles faster and wider
             const isSoundReactive = window.canvasSettings.soundReactiveEnabled !== false;
             const useVolume = isSoundReactive ? volume : 0;
-            
+
             let waveSpeedMult = 1.0 + useVolume * 1.5;
             let waveAmpMult = 1.0 + useVolume * 2.0;
 
@@ -9708,16 +9892,16 @@ document.addEventListener("DOMContentLoaded", () => {
                 let dyCenter = this.y - screenCenterY;
                 let distFromCenter = Math.sqrt(dxCenter * dxCenter + dyCenter * dyCenter);
                 let maxRadius = Math.sqrt(screenCenterX * screenCenterX + screenCenterY * screenCenterY) || 1;
-                
+
                 // Map distance to a frequency bin (closer = bass/low, outer = high frequencies)
                 let binIdx = Math.floor((1 - distFromCenter / maxRadius) * (freqData.length - 1));
                 binIdx = Math.max(0, Math.min(freqData.length - 1, binIdx));
                 let binVal = freqData[binIdx] / 255; // 0..1
-                
+
                 // Symmetrical wave traveling outward from center
                 let timeOffset = Date.now() * 0.008;
                 let waveParam = distFromCenter * 0.012 - timeOffset;
-                
+
                 // Sound displacement mixes the specific frequency bin value and overall volume (scaled up for dramatic effect)
                 soundZ = Math.sin(waveParam) * (binVal * 160 + useVolume * 160) * this.anchorFactor;
             }
@@ -9778,12 +9962,12 @@ document.addEventListener("DOMContentLoaded", () => {
                 let dxCenter = this.px - window.innerWidth / 2;
                 let dyCenter = this.py - window.innerHeight / 2;
                 let distFromCenter = Math.sqrt(dxCenter * dxCenter + dyCenter * dyCenter) || 1;
-                
+
                 let waveParam = distFromCenter * 0.015 - Date.now() * 0.012;
                 // Ripple amplitude: up to 25px displacement based on volume and anchor factor
                 let waveAmp = window.currentVolume * 25 * this.anchorFactor;
                 let angle = Math.atan2(dyCenter, dxCenter) || 0;
-                
+
                 this.px += Math.cos(angle) * Math.sin(waveParam) * waveAmp;
                 this.py += Math.sin(angle) * Math.sin(waveParam) * waveAmp;
             }
@@ -9909,7 +10093,7 @@ document.addEventListener("DOMContentLoaded", () => {
                 bufferLength = analyser.frequencyBinCount;
                 dataArray = new Uint8Array(bufferLength);
             }
-            
+
             analyser.getByteFrequencyData(dataArray);
             let sum = 0;
             for (let i = 0; i < bufferLength; i++) {
@@ -10079,14 +10263,14 @@ document.addEventListener("DOMContentLoaded", () => {
 
     function showClipboardToast(link) {
         if (!clipboardToast || !toastLinkText) return;
-        
+
         // Update URL text
         toastLinkText.textContent = link;
-        
+
         // Show Toast
         clipboardToast.classList.remove("hidden");
         clipboardToast.classList.add("show");
-        
+
         // Auto dismiss after 10s
         if (toastDismissTimeout) {
             clearTimeout(toastDismissTimeout);
@@ -10136,7 +10320,7 @@ document.addEventListener("DOMContentLoaded", () => {
                 urlInput.value = link;
                 // Dispatch input event to trigger clear button state updating
                 urlInput.dispatchEvent(new Event("input"));
-                
+
                 // Trigger analysis
                 if (analyzeBtn) {
                     analyzeBtn.click();

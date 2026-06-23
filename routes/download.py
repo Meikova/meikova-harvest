@@ -762,8 +762,37 @@ def proxy_stream_adaptive():
         movflags = ["-movflags", "frag_keyframe+empty_moov+default_base_moof"]
         mimetype = "video/mp4"
 
+    client_id = request.args.get("client_id")
     user_agent = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
     headers_arg = f"User-Agent: {user_agent}\r\n"
+
+    # Forward Referer header if available
+    referer = get_referer_by_url(video_url)
+    if referer:
+        headers_arg += f"Referer: {referer}\r\n"
+
+    # Load and forward client cookies
+    cookies_str = ""
+    if client_id:
+        client_cookies = os.path.join(TEMP_DOWNLOAD_DIR, "cookies", f"cookies_{client_id}.txt")
+        if os.path.exists(client_cookies):
+            try:
+                cookies_list = []
+                with open(client_cookies, 'r', encoding='utf-8', errors='ignore') as f:
+                    for line in f:
+                        line = line.strip()
+                        if not line or line.startswith('#'):
+                            continue
+                        parts = line.split('\t')
+                        if len(parts) >= 7:
+                            cookies_list.append(f"{parts[5]}={parts[6]}")
+                if cookies_list:
+                    cookies_str = "Cookie: " + "; ".join(cookies_list) + "\r\n"
+            except Exception as cookie_err:
+                logger.warning(f"Failed to load cookies for adaptive stream proxy: {cookie_err}")
+
+    if cookies_str:
+        headers_arg += cookies_str
 
     try:
         import static_ffmpeg
