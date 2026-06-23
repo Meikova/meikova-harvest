@@ -65,7 +65,7 @@
     />
     <link
       rel="stylesheet"
-      href="{{ url_for('static', filename='css/styles.css') }}?v=11.0"
+      href="{{ url_for('static', filename='css/styles.css') }}?v=16.0"
     />
     <script src="https://cdn.jsdelivr.net/npm/hls.js@1.5.8/dist/hls.min.js"></script>
     <script>
@@ -632,6 +632,15 @@
                   />
                   <span class="toggle-switch-slider"></span>
                   <span>Interactive Ripples</span>
+                </label>
+                <label class="toggle-switch-container">
+                  <input
+                    type="checkbox"
+                    id="customizer-sound-reactive-enable"
+                    checked
+                  />
+                  <span class="toggle-switch-slider"></span>
+                  <span>Sound Reactive Grid</span>
                 </label>
                 <label class="toggle-switch-container">
                   <input
@@ -1462,9 +1471,8 @@
       </div>
     </div>
 
-    <!-- Preview Modal -->
-    <div id="preview-modal" class="modal-overlay hidden">
-      <div class="modal-card modal-card-preview">
+    <div id="preview-modal" class="modal-overlay hidden" style="background: rgba(2, 3, 6, 0.25) !important; backdrop-filter: blur(3px) !important; -webkit-backdrop-filter: blur(3px) !important;">
+      <div class="modal-card modal-card-preview" style="background: rgba(10, 12, 22, 0.2) !important; backdrop-filter: blur(4px) saturate(150%) !important; -webkit-backdrop-filter: blur(4px) saturate(150%) !important;">
         <div class="modal-header">
           <h3 id="preview-title">Media Preview</h3>
           <div class="modal-header-actions" style="display: flex; align-items: center; gap: 8px;">
@@ -1928,47 +1936,50 @@
               <div class="audio-main-layout">
                 <!-- Left Side: Visualizer Area -->
                 <div class="audio-visualizer-area">
-                  <div class="visualizer-glow-backdrop"></div>
-                  <div class="vinyl-container">
-                    <div class="vinyl-record">
-                      <div class="vinyl-label">
-                        <svg
-                          class="audio-wave-icon"
-                          viewBox="0 0 24 24"
-                          fill="none"
-                          stroke="currentColor"
-                          stroke-width="1.5"
-                          stroke-linecap="round"
-                          stroke-linejoin="round"
-                        >
-                          <path d="M9 18V5l12-2v13" />
-                          <circle cx="6" cy="18" r="3" />
-                          <circle cx="18" cy="16" r="3" />
-                        </svg>
+                  <div class="audio-visualizer-wrapper">
+                    <div class="vinyl-container">
+                      <div class="visualizer-glow-backdrop"></div>
+                      <div class="vinyl-record">
+                        <div class="vinyl-label">
+                          <svg
+                            class="audio-wave-icon"
+                            viewBox="0 0 24 24"
+                            fill="none"
+                            stroke="currentColor"
+                            stroke-width="1.5"
+                            stroke-linecap="round"
+                            stroke-linejoin="round"
+                          >
+                            <path d="M9 18V5l12-2v13" />
+                            <circle cx="6" cy="18" r="3" />
+                            <circle cx="18" cy="16" r="3" />
+                          </svg>
+                        </div>
                       </div>
                     </div>
-                  </div>
-                  <div class="waveform-animation">
-                    <span class="bar"></span>
-                    <span class="bar"></span>
-                    <span class="bar"></span>
-                    <span class="bar"></span>
-                    <span class="bar"></span>
-                    <span class="bar"></span>
-                    <span class="bar"></span>
-                    <span class="bar"></span>
-                    <span class="bar"></span>
-                    <span class="bar"></span>
-                    <span class="bar"></span>
-                    <span class="bar"></span>
-                    <span class="bar"></span>
-                    <span class="bar"></span>
-                    <span class="bar"></span>
-                    <span class="bar"></span>
-                    <span class="bar"></span>
-                    <span class="bar"></span>
-                    <span class="bar"></span>
-                    <span class="bar"></span>
+                    <div class="waveform-animation">
+                      <span class="bar"></span>
+                      <span class="bar"></span>
+                      <span class="bar"></span>
+                      <span class="bar"></span>
+                      <span class="bar"></span>
+                      <span class="bar"></span>
+                      <span class="bar"></span>
+                      <span class="bar"></span>
+                      <span class="bar"></span>
+                      <span class="bar"></span>
+                      <span class="bar"></span>
+                      <span class="bar"></span>
+                      <span class="bar"></span>
+                      <span class="bar"></span>
+                      <span class="bar"></span>
+                      <span class="bar"></span>
+                      <span class="bar"></span>
+                      <span class="bar"></span>
+                      <span class="bar"></span>
+                      <span class="bar"></span>
+                    </div>
+                    <canvas id="audio-visualizer-canvas" class="audio-visualizer-canvas hidden"></canvas>
                   </div>
                 </div>
 
@@ -2143,6 +2154,11 @@
                       <button id="audio-eq-btn" class="audio-btn audio-tool-btn" title="EQ &amp; Effects">
                         <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="4" y1="21" x2="4" y2="14"/><line x1="4" y1="10" x2="4" y2="3"/><line x1="12" y1="21" x2="12" y2="12"/><line x1="12" y1="8" x2="12" y2="3"/><line x1="20" y1="21" x2="20" y2="16"/><line x1="20" y1="12" x2="20" y2="3"/><line x1="1" y1="14" x2="7" y2="14"/><line x1="9" y1="8" x2="15" y2="8"/><line x1="17" y1="16" x2="23" y2="16"/></svg>
                       </button>
+                      <label class="visualizer-toggle-container" title="Bật/tắt sóng nhạc">
+                        <input type="checkbox" id="toggle-visualizer-checkbox" checked>
+                        <span class="toggle-switch"></span>
+                        <span class="toggle-label">Sóng nhạc</span>
+                      </label>
                     </div>
                   </div>
                   

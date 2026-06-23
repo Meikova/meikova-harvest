@@ -22,11 +22,11 @@ Chúng ta sẽ thực hiện tuần tự từng tính năng. Sau khi hoàn thàn
 - [x] **Độ nhạy & Lọc trùng**: Đảm bảo bỏ qua các link đã được quét hoặc không phải định dạng được hỗ trợ.
 - *Trạng thái checkpoint*: ⏸️ **Dừng lại để người dùng kiểm thử Task 2**
 
-### [ ] Task 3: Hiệu ứng sóng nhạc trực quan khi phát Audio (Waveform Visualizer)
-- [ ] **Thêm thẻ Canvas**: Tạo thẻ `<canvas>` động và CSS đi kèm trong vùng chứa trình nghe nhạc.
-- [ ] **Xử lý Web Audio**: Kết nối trình phát nhạc với `AudioContext` và `AnalyserNode` ở Frontend.
-- [ ] **Vẽ cột tần số**: Lập trình vòng lặp vẽ sóng nhạc chuyển động theo nhịp độ tần số thực tế.
-- [ ] **Giải phóng bộ nhớ**: Hủy kết nối AudioContext khi đóng trình xem trước để tránh rò rỉ bộ nhớ.
+### [x] Task 3: Hiệu ứng sóng nhạc trực quan khi phát Audio (Waveform Visualizer)
+- [x] **Thêm thẻ Canvas**: Tạo thẻ `<canvas>` động và CSS đi kèm trong vùng chứa trình nghe nhạc.
+- [x] **Xử lý Web Audio**: Kết nối trình phát nhạc với `AudioContext` và `AnalyserNode` ở Frontend.
+- [x] **Vẽ cột tần số**: Lập trình vòng lặp vẽ sóng nhạc chuyển động theo nhịp độ tần số thực tế.
+- [x] **Giải phóng bộ nhớ**: Hủy kết nối AudioContext khi đóng trình xem trước để tránh rò rỉ bộ nhớ.
 - *Trạng thái checkpoint*: ⏸️ **Dừng lại để người dùng kiểm thử Task 3**
 
 ### [ ] Task 4: Tải Phụ đề & Dịch tự động (Subtitle Downloader & Translator)

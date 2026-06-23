@@ -11,7 +11,8 @@ window.canvasSettings = {
     springCoeffXY: 0.06,
     gridEnabled: true,
     ripplesEnabled: true,
-    sparklesEnabled: true
+    sparklesEnabled: true,
+    soundReactiveEnabled: true
 };
 
 document.addEventListener("DOMContentLoaded", () => {
@@ -208,6 +209,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
     const customizerGridEnable = document.getElementById("customizer-grid-enable");
     const customizerRipplesEnable = document.getElementById("customizer-ripples-enable");
+    const customizerSoundReactiveEnable = document.getElementById("customizer-sound-reactive-enable");
     const customizerSparklesEnable = document.getElementById("customizer-sparkles-enable");
 
     const customizerSpacing = document.getElementById("customizer-spacing");
@@ -626,6 +628,9 @@ document.addEventListener("DOMContentLoaded", () => {
     if (customizerRipplesEnable) {
         customizerRipplesEnable.addEventListener("change", (e) => updateCanvasOption("ripplesEnabled", e.target.checked));
     }
+    if (customizerSoundReactiveEnable) {
+        customizerSoundReactiveEnable.addEventListener("change", (e) => updateCanvasOption("soundReactiveEnabled", e.target.checked));
+    }
     if (customizerSparklesEnable) {
         customizerSparklesEnable.addEventListener("change", (e) => updateCanvasOption("sparklesEnabled", e.target.checked));
     }
@@ -658,6 +663,10 @@ document.addEventListener("DOMContentLoaded", () => {
             if (customizerRipplesEnable) {
                 customizerRipplesEnable.checked = true;
                 updateCanvasOption("ripplesEnabled", true);
+            }
+            if (customizerSoundReactiveEnable) {
+                customizerSoundReactiveEnable.checked = true;
+                updateCanvasOption("soundReactiveEnabled", true);
             }
             if (customizerSparklesEnable) {
                 customizerSparklesEnable.checked = true;
@@ -717,6 +726,12 @@ document.addEventListener("DOMContentLoaded", () => {
     if (customizerRipplesEnable) {
         customizerRipplesEnable.checked = savedRipples;
         window.canvasSettings.ripplesEnabled = savedRipples;
+    }
+
+    const savedSoundReactive = localStorage.getItem("customizer-soundReactiveEnabled") !== null ? localStorage.getItem("customizer-soundReactiveEnabled") === "true" : true;
+    if (customizerSoundReactiveEnable) {
+        customizerSoundReactiveEnable.checked = savedSoundReactive;
+        window.canvasSettings.soundReactiveEnabled = savedSoundReactive;
     }
 
     const savedSparkles = localStorage.getItem("customizer-sparklesEnabled") !== null ? localStorage.getItem("customizer-sparklesEnabled") === "true" : true;
@@ -1473,6 +1488,20 @@ document.addEventListener("DOMContentLoaded", () => {
             try {
                 previewAudioPlayer.load();
             } catch (e) {}
+
+            // Reset visualizer canvas and placeholder animation state
+            const audioCanvas = document.getElementById("audio-visualizer-canvas");
+            if (audioCanvas) {
+                audioCanvas.classList.add("hidden");
+                const audioCtx2D = audioCanvas.getContext("2d");
+                if (audioCtx2D) {
+                    audioCtx2D.clearRect(0, 0, audioCanvas.width, audioCanvas.height);
+                }
+            }
+            const staticVisualizer = document.querySelector(".waveform-animation");
+            if (staticVisualizer) {
+                staticVisualizer.classList.remove("hidden-visualizer");
+            }
         }
 
         // Reset subtitles state
@@ -1602,6 +1631,7 @@ document.addEventListener("DOMContentLoaded", () => {
     let audioCtx = null;
     let analyser = null;
     let sourceNode = null;
+    let videoSourceNode = null;
     let visualizerAnimationId = null;
 
     // EQ & Effect Web Audio Nodes
@@ -1623,7 +1653,10 @@ document.addEventListener("DOMContentLoaded", () => {
 
             audioCtx = new AudioContextClass();
             analyser = audioCtx.createAnalyser();
-            analyser.fftSize = 64; // Gives 32 frequency bins, perfect for our 20 bars
+            analyser.fftSize = 256; // 128 bins for high-density visualizer
+
+            // Expose globally for the background grid
+            window.audioAnalyser = analyser;
 
             // Make sure the audio player supports CORS requests so the Web Audio node doesn't get blocked
             previewAudioPlayer.crossOrigin = "anonymous";
@@ -1687,6 +1720,16 @@ document.addEventListener("DOMContentLoaded", () => {
             delayFeedbackNode.connect(delayNode); // feedback loop
             delayNode.connect(delayGainNode);
             delayGainNode.connect(analyser); // mix back into analyser
+
+            // Set up video preview player Web Audio routing
+            if (previewVideoPlayer) {
+                try {
+                    videoSourceNode = audioCtx.createMediaElementSource(previewVideoPlayer);
+                    videoSourceNode.connect(analyser);
+                } catch (e) {
+                    console.log("videoSourceNode already created or failed:", e);
+                }
+            }
 
             // Connect Analyser to Destination
             analyser.connect(audioCtx.destination);
@@ -2180,30 +2223,142 @@ document.addEventListener("DOMContentLoaded", () => {
     function renderAudioVisualizer() {
         if (!analyser) return;
 
-        const bars = document.querySelectorAll(".waveform-animation .bar");
-        if (bars.length === 0) return;
+        const canvas = document.getElementById("audio-visualizer-canvas");
+        if (!canvas) return;
+
+        const toggleVisualizerCheckbox = document.getElementById("toggle-visualizer-checkbox");
+        if (toggleVisualizerCheckbox && !toggleVisualizerCheckbox.checked) {
+            canvas.classList.add("hidden");
+            return;
+        }
+
+        const staticVisualizer = document.querySelector(".waveform-animation");
+        if (staticVisualizer) {
+            staticVisualizer.classList.add("hidden-visualizer");
+        }
+        canvas.classList.remove("hidden");
 
         const bufferLength = analyser.frequencyBinCount;
         const dataArray = new Uint8Array(bufferLength);
-        // Target the outer visible box for border/glow effects (card is now transparent)
         const contentArea = document.querySelector(".preview-content-area");
 
+        // Keep decayValues in a variable that can be resized
+        let decayValues = new Float32Array(0);
+
         const draw = () => {
-            if (!previewAudioPlayer || previewAudioPlayer.paused) {
-                // Smoothly decay bars and backdrop back to rest height/state
-                let stillDecaying = false;
-                bars.forEach(bar => {
-                    const currentHeight = parseFloat(bar.style.height) || 10;
-                    if (currentHeight > 10) {
-                        bar.style.height = `${Math.max(10, currentHeight * 0.85 - 0.5)}px`;
+            const ctx = canvas.getContext("2d");
+            if (!ctx) return;
+
+            // Make sure resolution matches container size
+            if (canvas.width !== canvas.clientWidth || canvas.height !== canvas.clientHeight) {
+                canvas.width = canvas.clientWidth || 300;
+                canvas.height = canvas.clientHeight || 60;
+            }
+
+            const W = canvas.width;
+            const H = canvas.height;
+
+                       // Dynamically determine the number of bars based on screen width
+            // to keep the visualizer beautiful and elegant without turning into a dense comb in fullscreen.
+            let numBars = 64;
+            if (W > 1200) {
+                numBars = 72; // Perfect balance for large screens / fullscreen
+            } else if (W < 500) {
+                numBars = 44; // Compact count for small windows / mobile
+            }
+            
+            const halfLength = numBars / 2;
+
+            // Calculate dynamic bar space, width and gap to fill the container perfectly
+            const barSpace = W / numBars;
+            const barWidth = Math.max(3, barSpace * 0.55);
+            const gap = Math.max(2, barSpace * 0.45);
+            
+            // Adjust decayValues array size if needed
+            if (decayValues.length !== halfLength) {
+                const oldDecay = decayValues;
+                decayValues = new Float32Array(halfLength);
+                if (oldDecay.length > 0) {
+                    for (let i = 0; i < Math.min(oldDecay.length, halfLength); i++) {
+                        decayValues[i] = oldDecay[i];
+                    }
+                }
+            }
+
+            const minH = 4; // Rest level height (4px)
+            const maxH = H * 0.95; // Max height to fit within canvas
+
+            let stillDecaying = false;
+            let sum = 0;
+
+            if (previewAudioPlayer && !previewAudioPlayer.paused) {
+                analyser.getByteFrequencyData(dataArray);
+                const maxFreqIdx = Math.floor(bufferLength * 0.85);
+
+                for (let i = 0; i < halfLength; i++) {
+                    const percentIdx = i / (halfLength - 1 || 1);
+                    const dataIdx = Math.floor(Math.pow(percentIdx, 1.25) * maxFreqIdx);
+                    const value = dataArray[dataIdx] || 0;
+                    sum += value;
+
+                    // Apply visual gain multiplier (1.6) and progressive mid/high boost
+                    const boostedValue = Math.min(255, value * 1.6 * (1.0 + percentIdx * 0.9));
+                    const targetH = minH + (boostedValue / 255) * (maxH - minH);
+                    
+                    // Smooth transition
+                    decayValues[i] = decayValues[i] * 0.35 + targetH * 0.65;
+                }
+                stillDecaying = true;
+            } else {
+                // Smoothly decay bars
+                for (let i = 0; i < halfLength; i++) {
+                    if (decayValues[i] > minH + 0.1) {
+                        decayValues[i] = decayValues[i] * 0.82;
                         stillDecaying = true;
                     } else {
-                        bar.style.height = "10px";
+                        decayValues[i] = minH;
                     }
-                });
+                }
+            }
 
-                const backdrop = document.querySelector(".visualizer-glow-backdrop");
-                if (backdrop) {
+            // Draw the bars
+            ctx.clearRect(0, 0, W, H);
+            
+            // Create horizontal gradient from left to right centered at middle
+            const grad = ctx.createLinearGradient(0, 0, W, 0);
+            grad.addColorStop(0, '#00f3ff'); // Cyan (left outer)
+            grad.addColorStop(0.35, '#8b5cf6'); // Purple
+            grad.addColorStop(0.5, '#ff007f'); // Magenta (center)
+            grad.addColorStop(0.65, '#8b5cf6'); // Purple
+            grad.addColorStop(1, '#00f3ff'); // Cyan (right outer)
+            ctx.fillStyle = grad;
+
+            for (let i = 0; i < halfLength; i++) {
+                const barHeight = decayValues[i];
+                const y = H - barHeight;
+
+                // Left bar
+                const leftX = (W / 2) - gap/2 - (i + 1) * barWidth - i * gap;
+                ctx.beginPath();
+                ctx.roundRect(leftX, y, barWidth, barHeight, barWidth / 2);
+                ctx.fill();
+
+                // Right bar
+                const rightX = (W / 2) + gap/2 + i * barWidth + i * gap;
+                ctx.beginPath();
+                ctx.roundRect(rightX, y, barWidth, barHeight, barWidth / 2);
+                ctx.fill();
+            }
+
+            const average = halfLength > 0 ? (sum / halfLength) : 0;
+            const backdrop = document.querySelector(".visualizer-glow-backdrop");
+            if (backdrop) {
+                if (previewAudioPlayer && !previewAudioPlayer.paused) {
+                    const scale = 1.0 + (average / 255) * 0.35;
+                    const opacity = 0.15 + (average / 255) * 0.65;
+                    backdrop.style.transform = `translate(-50%, -50%) scale(${scale})`;
+                    backdrop.style.opacity = opacity;
+                } else {
                     const currentTransform = backdrop.style.transform || "";
                     const scaleMatch = currentTransform.match(/scale\(([^)]+)\)/);
                     let currentScale = scaleMatch ? parseFloat(scaleMatch[1]) : 1.0;
@@ -2220,9 +2375,14 @@ document.addEventListener("DOMContentLoaded", () => {
                         stillDecaying = true;
                     }
                 }
+            }
 
-                const vinylLabel = document.querySelector(".vinyl-label");
-                if (vinylLabel) {
+            const vinylLabel = document.querySelector(".vinyl-label");
+            if (vinylLabel) {
+                if (previewAudioPlayer && !previewAudioPlayer.paused) {
+                    const labelScale = 1.0 + (average / 255) * 0.18;
+                    vinylLabel.style.transform = `scale(${labelScale})`;
+                } else {
                     const currentTransform = vinylLabel.style.transform || "";
                     const scaleMatch = currentTransform.match(/scale\(([^)]+)\)/);
                     let currentScale = scaleMatch ? parseFloat(scaleMatch[1]) : 1.0;
@@ -2232,85 +2392,47 @@ document.addEventListener("DOMContentLoaded", () => {
                         stillDecaying = true;
                     }
                 }
+            }
 
-                // Reset the content-area glow back to CSS-driven state
-                if (contentArea) {
+            if (contentArea) {
+                if (previewAudioPlayer && !previewAudioPlayer.paused) {
+                    const innerBlur = 10 + (average / 255) * 25;
+                    const outerBlur = 40 + (average / 255) * 60;
+                    const innerOpacity = 0.15 + (average / 255) * 0.5;
+                    const outerOpacity = 0.08 + (average / 255) * 0.3;
+                    const borderOpacity = 0.1 + (average / 255) * 0.5;
+
+                    contentArea.style.boxShadow = `0 0 ${innerBlur}px rgba(var(--cyan-rgb), ${innerOpacity}), 0 0 ${outerBlur}px rgba(var(--cyan-rgb), ${outerOpacity})`;
+                    contentArea.style.borderColor = `rgba(var(--cyan-rgb), ${borderOpacity})`;
+                } else {
                     contentArea.style.boxShadow = "";
                     contentArea.style.borderColor = "";
                 }
-
-                const vinylRecord = document.querySelector(".vinyl-record");
-                if (vinylRecord) {
-                    vinylRecord.style.boxShadow = "";
-                }
-
-                if (stillDecaying) {
-                    visualizerAnimationId = requestAnimationFrame(draw);
-                } else {
-                    visualizerAnimationId = null;
-                }
-                return;
-            }
-
-            visualizerAnimationId = requestAnimationFrame(draw);
-            analyser.getByteFrequencyData(dataArray);
-
-            let sum = 0;
-            const barCount = bars.length;
-            for (let i = 0; i < barCount; i++) {
-                // Focus on lower-mid frequencies (mostly 0% to 75% of the spectrum)
-                const percentIdx = i / barCount;
-                const dataIdx = Math.floor(percentIdx * bufferLength * 0.75);
-                const value = dataArray[dataIdx] || 0;
-                sum += value;
-
-                // Map value (0-255) to height (10px - 55px)
-                const height = 10 + (value / 255) * 45;
-                bars[i].style.height = `${height}px`;
-            }
-
-            // Pulse the background glow backdrop and vinyl record center label in sync with average audio energy
-            const average = sum / barCount;
-            const backdrop = document.querySelector(".visualizer-glow-backdrop");
-            if (backdrop) {
-                const scale = 1.0 + (average / 255) * 0.35;
-                const opacity = 0.15 + (average / 255) * 0.65;
-                backdrop.style.transform = `translate(-50%, -50%) scale(${scale})`;
-                backdrop.style.opacity = opacity;
-            }
-            
-            const vinylLabel = document.querySelector(".vinyl-label");
-            if (vinylLabel) {
-                const labelScale = 1.0 + (average / 255) * 0.18;
-                vinylLabel.style.transform = `scale(${labelScale})`;
-            }
-
-            // Dynamically pulse the outer box border & glow in sync with audio energy
-            if (contentArea) {
-                const innerBlur = 10 + (average / 255) * 25; // 10px → 35px
-                const outerBlur = 40 + (average / 255) * 60; // 40px → 100px
-                const innerOpacity = 0.15 + (average / 255) * 0.5;  // 0.15 → 0.65
-                const outerOpacity = 0.08 + (average / 255) * 0.3;  // 0.08 → 0.38
-                const borderOpacity = 0.1 + (average / 255) * 0.5;  // 0.1 → 0.6
-
-                contentArea.style.boxShadow = `0 0 ${innerBlur}px rgba(var(--cyan-rgb), ${innerOpacity}), 0 0 ${outerBlur}px rgba(var(--cyan-rgb), ${outerOpacity})`;
-                contentArea.style.borderColor = `rgba(var(--cyan-rgb), ${borderOpacity})`;
             }
 
             const vinylRecord = document.querySelector(".vinyl-record");
             if (vinylRecord) {
-                const innerBlur = 8 + (average / 255) * 20; // 8px to 28px blur
-                const outerBlur = 30 + (average / 255) * 50; // 30px to 80px blur
-                
-                const innerOpacity = 0.3 + (average / 255) * 0.5; // 0.3 to 0.8 opacity
-                const outerOpacity = 0.15 + (average / 255) * 0.45; // 0.15 to 0.6 opacity
-                
-                vinylRecord.style.boxShadow = `
-                    0 10px 30px rgba(0, 0, 0, 0.7), 
-                    0 0 ${innerBlur}px rgba(var(--cyan-rgb), ${innerOpacity}), 
-                    0 0 ${outerBlur}px rgba(var(--cyan-rgb), ${outerOpacity}), 
-                    inset 0 0 1px rgba(255, 255, 255, 0.15)
-                `;
+                if (previewAudioPlayer && !previewAudioPlayer.paused) {
+                    const innerBlur = 8 + (average / 255) * 20;
+                    const outerBlur = 30 + (average / 255) * 50;
+                    const innerOpacity = 0.3 + (average / 255) * 0.5;
+                    const outerOpacity = 0.15 + (average / 255) * 0.45;
+                    
+                    vinylRecord.style.boxShadow = `
+                        0 10px 30px rgba(0, 0, 0, 0.7), 
+                        0 0 ${innerBlur}px rgba(var(--cyan-rgb), ${innerOpacity}), 
+                        0 0 ${outerBlur}px rgba(var(--cyan-rgb), ${outerOpacity}), 
+                        inset 0 0 1px rgba(255, 255, 255, 0.15)
+                    `;
+                } else {
+                    vinylRecord.style.boxShadow = "";
+                }
+            }
+
+            if (stillDecaying) {
+                visualizerAnimationId = requestAnimationFrame(draw);
+            } else {
+                visualizerAnimationId = null;
             }
         };
 
@@ -2527,6 +2649,33 @@ document.addEventListener("DOMContentLoaded", () => {
                 audioEqBtn.classList.add("active");
                 audioSettingsPanel.classList.remove("hidden");
                 if (audioSidePanel) audioSidePanel.classList.remove("hidden");
+            }
+        });
+    }
+
+    const toggleVisualizerCheckbox = document.getElementById("toggle-visualizer-checkbox");
+    if (toggleVisualizerCheckbox) {
+        toggleVisualizerCheckbox.addEventListener("change", function() {
+            const staticVisualizer = document.querySelector(".waveform-animation");
+            const audioCanvas = document.getElementById("audio-visualizer-canvas");
+            const visualizerArea = document.querySelector(".audio-visualizer-area");
+
+            if (this.checked) {
+                if (visualizerArea) visualizerArea.classList.remove("visualizer-disabled");
+                if (analyser) {
+                    if (audioCanvas) audioCanvas.classList.remove("hidden");
+                    if (staticVisualizer) staticVisualizer.classList.add("hidden-visualizer");
+                    if (previewAudioPlayer && !previewAudioPlayer.paused && !visualizerAnimationId) {
+                        renderAudioVisualizer();
+                    }
+                } else {
+                    if (staticVisualizer) staticVisualizer.classList.remove("hidden-visualizer");
+                    if (audioCanvas) audioCanvas.classList.add("hidden");
+                }
+            } else {
+                if (visualizerArea) visualizerArea.classList.add("visualizer-disabled");
+                if (staticVisualizer) staticVisualizer.classList.add("hidden-visualizer");
+                if (audioCanvas) audioCanvas.classList.add("hidden");
             }
         });
     }
@@ -2764,6 +2913,12 @@ document.addEventListener("DOMContentLoaded", () => {
                 if (pauseIcon) pauseIcon.classList.remove("hidden");
             }
             showPreviewControls();
+
+            // Initialize visualizer on play (requires user gesture)
+            initAudioVisualizer();
+            if (audioCtx && audioCtx.state === "suspended") {
+                audioCtx.resume();
+            }
         });
 
         previewVideoPlayer.addEventListener("pause", () => {
@@ -3527,6 +3682,14 @@ document.addEventListener("DOMContentLoaded", () => {
                 const ambientCtx = ambientCanvas.getContext("2d");
                 if (ambientCtx) {
                     ambientCtx.clearRect(0, 0, ambientCanvas.width, ambientCanvas.height);
+                }
+            }
+
+            const audioCanvas = document.getElementById("audio-visualizer-canvas");
+            if (audioCanvas) {
+                const audioCtx2D = audioCanvas.getContext("2d");
+                if (audioCtx2D) {
+                    audioCtx2D.clearRect(0, 0, audioCanvas.width, audioCanvas.height);
                 }
             }
 
@@ -9206,6 +9369,9 @@ document.addEventListener("DOMContentLoaded", () => {
     const canvas = document.getElementById("cursor-canvas");
     if (!canvas) return;
 
+    const audioEl = document.getElementById("preview-audio-player");
+    const videoEl = document.getElementById("preview-video-player");
+
     const ctx = canvas.getContext("2d");
     let grid = [];
     let particles = [];
@@ -9484,13 +9650,22 @@ document.addEventListener("DOMContentLoaded", () => {
             this.anchorFactor = Math.min(1.0, distCol / 2.0) * Math.min(1.0, distRow / 2.0);
         }
 
-        update(mouse) {
+        update(mouse, volume = 0, freqData = null) {
             this.rotation += this.rotationSpeed;
 
             // 1. Slow wave movement for the floating effect (superimposed organic wave)
             let time = Date.now() * 0.0005;
-            let waveX = Math.sin(time * 1.3 + (this.col * 0.22) + (this.row * 0.15)) * 10 + Math.cos(time * 0.7 + (this.row * 0.35)) * 4;
-            let waveY = Math.cos(time * 1.1 + (this.col * 0.15) + (this.row * 0.22)) * 10 + Math.sin(time * 0.6 + (this.col * 0.35)) * 4;
+            
+            // Modify wave speed and size based on volume!
+            // When sound reactivity is enabled and music plays, the wave wiggles faster and wider
+            const isSoundReactive = window.canvasSettings.soundReactiveEnabled !== false;
+            const useVolume = isSoundReactive ? volume : 0;
+            
+            let waveSpeedMult = 1.0 + useVolume * 1.5;
+            let waveAmpMult = 1.0 + useVolume * 2.0;
+
+            let waveX = Math.sin(time * 1.3 * waveSpeedMult + (this.col * 0.22) + (this.row * 0.15)) * 10 * waveAmpMult + Math.cos(time * 0.7 * waveSpeedMult + (this.row * 0.35)) * 4 * waveAmpMult;
+            let waveY = Math.cos(time * 1.1 * waveSpeedMult + (this.col * 0.15) + (this.row * 0.22)) * 10 * waveAmpMult + Math.sin(time * 0.6 * waveSpeedMult + (this.col * 0.35)) * 4 * waveAmpMult;
 
             // Keep grid coordinate stable globally
             let currentOrigX = this.baseX + waveX * this.anchorFactor;
@@ -9500,6 +9675,29 @@ document.addEventListener("DOMContentLoaded", () => {
             let targetZ = 0;
             if (window.canvasSettings.ripplesEnabled && rippleBuffer1[this.col] && rippleBuffer1[this.col][this.row] !== undefined) {
                 targetZ = rippleBuffer1[this.col][this.row] * this.anchorFactor;
+            }
+
+            // 2. Dynamic 3D Sound Wave Ripple propagating from the center
+            let soundZ = 0;
+            if (isSoundReactive && useVolume > 0 && freqData && freqData.length > 0) {
+                let screenCenterX = window.innerWidth / 2;
+                let screenCenterY = window.innerHeight / 2;
+                let dxCenter = this.x - screenCenterX;
+                let dyCenter = this.y - screenCenterY;
+                let distFromCenter = Math.sqrt(dxCenter * dxCenter + dyCenter * dyCenter);
+                let maxRadius = Math.sqrt(screenCenterX * screenCenterX + screenCenterY * screenCenterY) || 1;
+                
+                // Map distance to a frequency bin (closer = bass/low, outer = high frequencies)
+                let binIdx = Math.floor((1 - distFromCenter / maxRadius) * (freqData.length - 1));
+                binIdx = Math.max(0, Math.min(freqData.length - 1, binIdx));
+                let binVal = freqData[binIdx] / 255; // 0..1
+                
+                // Symmetrical wave traveling outward from center
+                let timeOffset = Date.now() * 0.008;
+                let waveParam = distFromCenter * 0.012 - timeOffset;
+                
+                // Sound displacement mixes the specific frequency bin value and overall volume (scaled up for dramatic effect)
+                soundZ = Math.sin(waveParam) * (binVal * 160 + useVolume * 160) * this.anchorFactor;
             }
 
             // Calculate constant mouse indentation (funnel effect) centered under the cursor
@@ -9524,17 +9722,17 @@ document.addEventListener("DOMContentLoaded", () => {
                 }
             }
 
-            // 2. Spring physics for Z depth (combine ripple height and funnel indentation)
-            let combinedTargetZ = targetZ + indentZ;
+            // 3. Spring physics for Z depth (combine ripple height, funnel indentation, and sound waves!)
+            let combinedTargetZ = targetZ + indentZ + soundZ;
             this.vz += (combinedTargetZ - this.z) * 0.07; // physical spring coefficient
             this.vz *= 0.91; // damping
             this.z += this.vz;
 
-            // 3. Horizontal coordinate restoration (let 3D perspective projection handle the funnel shift naturally)
+            // 4. Horizontal coordinate restoration
             let targetX = currentOrigX;
             let targetY = currentOrigY;
 
-            // 4. Spring physics for X and Y coordinate restoration
+            // 5. Spring physics for X and Y coordinate restoration
             this.vx += (targetX - this.x) * 0.06;
             this.vy += (targetY - this.y) * 0.06;
             this.vx *= 0.91;
@@ -9551,6 +9749,22 @@ document.addEventListener("DOMContentLoaded", () => {
             this.scale = scale;
             this.px = projX + (this.x - projX) * scale;
             this.py = projY + (this.y - projY) * scale;
+
+            // Direct 2D sound-reactive ripple displacement to make the wave extremely visible
+            const isSoundReactive = window.canvasSettings.soundReactiveEnabled !== false;
+            if (isSoundReactive && window.currentVolume > 0) {
+                let dxCenter = this.px - window.innerWidth / 2;
+                let dyCenter = this.py - window.innerHeight / 2;
+                let distFromCenter = Math.sqrt(dxCenter * dxCenter + dyCenter * dyCenter) || 1;
+                
+                let waveParam = distFromCenter * 0.015 - Date.now() * 0.012;
+                // Ripple amplitude: up to 25px displacement based on volume and anchor factor
+                let waveAmp = window.currentVolume * 25 * this.anchorFactor;
+                let angle = Math.atan2(dyCenter, dxCenter) || 0;
+                
+                this.px += Math.cos(angle) * Math.sin(waveParam) * waveAmp;
+                this.py += Math.sin(angle) * Math.sin(waveParam) * waveAmp;
+            }
         }
 
         draw(ctx) {
@@ -9560,11 +9774,16 @@ document.addEventListener("DOMContentLoaded", () => {
 
             // Tension increases brightness and size of the knot
             let tension = Math.min(1.5, Math.abs(this.z) / 80);
-            let size = (this.baseSize + (isLightTheme ? 0.5 : 0) + breathe + tension * 1.5) * this.scale;
+
+            // Add a direct pulsation based on currentVolume!
+            const isSoundReactive = window.canvasSettings.soundReactiveEnabled !== false;
+            const soundPulse = isSoundReactive ? (currentVolume * 6.5) : 0;
+
+            let size = (this.baseSize + (isLightTheme ? 0.5 : 0) + breathe + tension * 1.5 + soundPulse) * this.scale;
             if (size < 1) size = 1;
 
             let alpha = isLightTheme ? 0.45 + (this.scale * 0.45) : 0.2 + (this.scale * 0.6); // Deeper points fade away
-            alpha += tension * 0.3;
+            alpha += tension * 0.3 + (soundPulse * 0.1);
             if (alpha < 0.1) alpha = 0.1;
             if (alpha > 1) alpha = 1;
 
@@ -9643,6 +9862,10 @@ document.addEventListener("DOMContentLoaded", () => {
 
     // Loop
     let frameCount = 0;
+    let dataArray = null;
+    let bufferLength = 0;
+    let currentVolume = 0;
+
     function animate() {
         frameCount++;
         if (frameCount % 60 === 0) {
@@ -9655,6 +9878,25 @@ document.addEventListener("DOMContentLoaded", () => {
         if (window.canvasSettings.spacing !== currentSpacing) {
             initGrid();
         }
+
+        // Fetch audio frequencies if analyser is active and sound reactive is enabled
+        let volume = 0;
+        if (window.canvasSettings.soundReactiveEnabled !== false && window.audioAnalyser) {
+            const analyser = window.audioAnalyser;
+            if (bufferLength !== analyser.frequencyBinCount) {
+                bufferLength = analyser.frequencyBinCount;
+                dataArray = new Uint8Array(bufferLength);
+            }
+            
+            analyser.getByteFrequencyData(dataArray);
+            let sum = 0;
+            for (let i = 0; i < bufferLength; i++) {
+                sum += dataArray[i];
+            }
+            volume = sum / bufferLength; // average amplitude (0..255)
+        }
+        currentVolume = volume / 255; // normalize to 0..1
+        window.currentVolume = currentVolume; // expose globally for easy access
 
         const currentMaxDist = window.canvasSettings.maxDist || 180;
 
@@ -9704,7 +9946,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
         // 2. Update and Project all grid nodes
         particles.forEach(p => {
-            p.update(mouse);
+            p.update(mouse, currentVolume, dataArray);
             p.project(projX, projY, fov);
         });
 

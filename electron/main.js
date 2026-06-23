@@ -392,6 +392,16 @@ function createMainWindow() {
 
   mainWindow.on('closed', () => { mainWindow = null; });
 
+  mainWindow.on('focus', () => {
+    if (mainWindow && !mainWindow.isDestroyed()) {
+      setupKeyboardShortcuts();
+    }
+  });
+
+  mainWindow.on('blur', () => {
+    globalShortcut.unregisterAll();
+  });
+
   // Open DevTools in dev mode
   if (isDev) {
     mainWindow.webContents.openDevTools({ mode: 'detach' });
@@ -912,6 +922,9 @@ function buildAppMenu() {
 }
 
 function setupKeyboardShortcuts() {
+  // Unregister first to avoid double registration
+  globalShortcut.unregisterAll();
+
   // Reload page (ignoring cache)
   globalShortcut.register('CmdOrCtrl+R', () => mainWindow?.webContents.reloadIgnoringCache());
   globalShortcut.register('F5', () => mainWindow?.webContents.reloadIgnoringCache());
@@ -1005,8 +1018,6 @@ app.whenReady().then(async () => {
 
   // Remove native menu bar
   buildAppMenu();
-  // Register keyboard shortcuts
-  setupKeyboardShortcuts();
 
   app.on('second-instance', () => {
     if (mainWindow) {
