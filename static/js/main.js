@@ -827,6 +827,26 @@ document.addEventListener("DOMContentLoaded", () => {
         });
     }
 
+    // Load and save Clipboard Detect Checkbox & Default Quality Select
+    const clipboardDetectCb = document.getElementById("clipboard-detect-checkbox");
+    const globalDefaultQualitySelect = document.getElementById("global-default-quality");
+
+    if (clipboardDetectCb) {
+        const savedClipboardDetect = localStorage.getItem("global_clipboard_detect") !== null ? localStorage.getItem("global_clipboard_detect") === "true" : true;
+        clipboardDetectCb.checked = savedClipboardDetect;
+        clipboardDetectCb.addEventListener("change", () => {
+            localStorage.setItem("global_clipboard_detect", clipboardDetectCb.checked);
+        });
+    }
+
+    if (globalDefaultQualitySelect) {
+        const savedDefaultQuality = localStorage.getItem("global_default_quality") || "best";
+        globalDefaultQualitySelect.value = savedDefaultQuality;
+        globalDefaultQualitySelect.addEventListener("change", () => {
+            localStorage.setItem("global_default_quality", globalDefaultQualitySelect.value);
+        });
+    }
+
     if (cloudSyncSelect && telegramConfigInputs) {
         cloudSyncSelect.addEventListener("change", () => {
             if (cloudSyncSelect.value === "telegram") {
@@ -3603,6 +3623,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
             previewModal.classList.add("hidden");
             document.body.classList.remove("modal-open");
+            document.body.classList.remove("preview-active");
             
             // Clean up Web Fullscreen / Theater Mode states
             videoFullscreenMode = 0;
@@ -6797,6 +6818,7 @@ document.addEventListener("DOMContentLoaded", () => {
         // Open modal & lock background scrolling
         previewModal.classList.remove("hidden");
         document.body.classList.add("modal-open");
+        document.body.classList.add("preview-active");
 
         // Sync main page advanced settings to preview popover menu
         syncMainToPreviewSettings();
@@ -10089,6 +10111,10 @@ document.addEventListener("DOMContentLoaded", () => {
 
     if (window.electronAPI && window.electronAPI.onClipboardLink) {
         window.electronAPI.onClipboardLink((link) => {
+            // Respect the clipboard auto-detect toggle setting
+            const clipboardDetectCb = document.getElementById("clipboard-detect-checkbox");
+            if (clipboardDetectCb && !clipboardDetectCb.checked) return;
+
             // Only show Toast if the input field doesn't already contain this link
             // and the link is different from what's currently being entered/analyzed.
             if (urlInput && urlInput.value.trim() !== link.trim()) {

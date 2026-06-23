@@ -7795,3 +7795,8 @@ video::-webkit-media-text-track-display,
   display: none !important;
 }
 
+/* Hide the entire app layout shell during media previews for full background grid visibility */
+body.preview-active .app-shell {
+  display: none !important;
+}
+
