@@ -4004,6 +4004,16 @@ document.addEventListener("DOMContentLoaded", () => {
             if (subFormatSelect) {
                 subFormatSelect.value = "original";
             }
+            const previewSubModeSelect = document.getElementById("preview-sub-mode-select");
+            if (previewSubModeSelect) {
+                previewSubModeSelect.value = "none";
+                previewSubModeSelect.dispatchEvent(new Event("change"));
+            }
+            const previewSubTransSelect = document.getElementById("preview-sub-trans-select");
+            if (previewSubTransSelect) {
+                previewSubTransSelect.value = "none";
+                previewSubTransSelect.dispatchEvent(new Event("change"));
+            }
 
             const ambientCanvas = document.getElementById("video-ambient-glow");
             if (ambientCanvas) {
@@ -4996,6 +5006,7 @@ document.addEventListener("DOMContentLoaded", () => {
                 (document.getElementById("preview-color-filter") && document.getElementById("preview-color-filter").value !== "none") ||
                 (document.getElementById("preview-voiceover-active") && document.getElementById("preview-voiceover-active").checked) ||
                 (document.getElementById("preview-sub-trans-select") && document.getElementById("preview-sub-trans-select").value !== "none") ||
+                (document.getElementById("preview-sub-mode-select") && document.getElementById("preview-sub-mode-select").value !== "none") ||
                 (document.getElementById("preview-voiceover-select") && document.getElementById("preview-voiceover-select").value !== "none") ||
                 (document.getElementById("preview-cloud-sync") && document.getElementById("preview-cloud-sync").value !== "local")
             );
@@ -6812,6 +6823,31 @@ document.addEventListener("DOMContentLoaded", () => {
                     requestBody.translate_subs = "vi";
                 }
 
+                // Subtitle settings from preview modal
+                const previewSubSelect = document.getElementById("preview-sub-select");
+                const previewSubModeSelect = document.getElementById("preview-sub-mode-select");
+                const previewSubTransSelect = document.getElementById("preview-sub-trans-select");
+                
+                if (previewSubSelect && previewSubSelect.value !== "none") {
+                    if (previewSubSelect.value === "custom") {
+                        requestBody.subtitle_content = originalSubtitleContent;
+                        requestBody.subtitle_lang = "custom";
+                    } else if (previewSubSelect.value.startsWith("http")) {
+                        requestBody.subtitle_url = previewSubSelect.value;
+                        const selectedOpt = previewSubSelect.options[previewSubSelect.selectedIndex];
+                        requestBody.subtitle_lang = selectedOpt ? selectedOpt.getAttribute("data-lang") : "en";
+                    } else {
+                        requestBody.subtitle_lang = previewSubSelect.value;
+                    }
+                    
+                    if (previewSubModeSelect) {
+                        requestBody.subtitle_mode = previewSubModeSelect.value;
+                    }
+                    if (previewSubTransSelect) {
+                        requestBody.subtitle_translate = previewSubTransSelect.value;
+                    }
+                }
+
                 // Export Format Type
                 const exportTypeSelect = document.getElementById("export-type-select");
                 if (exportTypeSelect) {
@@ -7230,6 +7266,7 @@ document.addEventListener("DOMContentLoaded", () => {
                     const optionEl = document.createElement("option");
                     optionEl.value = opt.url || opt.lang_code;
                     optionEl.textContent = opt.name;
+                    optionEl.setAttribute("data-lang", opt.lang_code);
                     previewSubSelect.appendChild(optionEl);
                 });
                 // Auto-load first subtitle if available

@@ -29,11 +29,11 @@ Chúng ta sẽ thực hiện tuần tự từng tính năng. Sau khi hoàn thàn
 - [x] **Giải phóng bộ nhớ**: Hủy kết nối AudioContext khi đóng trình xem trước để tránh rò rỉ bộ nhớ.
 - *Trạng thái checkpoint*: ⏸️ **Dừng lại để người dùng kiểm thử Task 3**
 
-### [ ] Task 4: Tải Phụ đề & Dịch tự động (Subtitle Downloader & Translator)
-- [ ] **Trích xuất thông tin**: Trả về danh sách phụ đề có sẵn của video trong API `/api/info`.
-- [ ] **Giao diện cấu hình**: Thêm tùy chọn phụ đề (Chọn ngôn ngữ, chọn hình thức Softsub/Hardsub) khi bấm tải.
-- [ ] **Dịch tự động**: Tích hợp module dịch thuật miễn phí để chuyển đổi phụ đề sang tiếng Việt.
-- [ ] **Nhúng phụ đề**: Sử dụng FFmpeg để ghép cứng chữ vào khung hình hoặc nhúng file phụ đề mềm vào luồng video.
+### [x] Task 4: Tải Phụ đề & Dịch tự động (Subtitle Downloader & Translator)
+- [x] **Trích xuất thông tin**: Trả về danh sách phụ đề có sẵn của video trong API `/api/info`.
+- [x] **Giao diện cấu hình**: Thêm tùy chọn phụ đề (Chọn ngôn ngữ, chọn hình thức Softsub/Hardsub) khi bấm tải.
+- [x] **Dịch tự động**: Tích hợp module dịch thuật miễn phí để chuyển đổi phụ đề sang tiếng Việt.
+- [x] **Nhúng phụ đề**: Sử dụng FFmpeg để ghép cứng chữ vào khung hình hoặc nhúng file phụ đề mềm vào luồng video.
 - *Trạng thái checkpoint*: ⏸️ **Dừng lại để người dùng kiểm thử Task 4**
 
 ### [ ] Task 5: Tải Playlist & Hàng loạt (Playlist & Batch Downloader)

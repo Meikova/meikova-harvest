@@ -650,12 +650,22 @@ def bg_download_task(download_id, url, format_id, ext, quality="192", title="med
             "format": target_format,
             "merge_output_format": "mp4",
         })
-        if kwargs.get("voiceover_active") or translate_subs:
-            ydl_opts.update({
-                "writesubtitles": True,
-                "writeautomaticsub": True,
-                "subtitleslangs": ["vi", "en"],
-            })
+        
+        subtitle_lang = kwargs.get("subtitle_lang")
+        subtitle_url = kwargs.get("subtitle_url")
+        if not (subtitle_url and subtitle_url.startswith("http") and subtitle_url != "none"):
+            if subtitle_lang and subtitle_lang != "none":
+                ydl_opts.update({
+                    "writesubtitles": True,
+                    "writeautomaticsub": True,
+                    "subtitleslangs": [subtitle_lang],
+                })
+            elif kwargs.get("voiceover_active") or translate_subs:
+                ydl_opts.update({
+                    "writesubtitles": True,
+                    "writeautomaticsub": True,
+                    "subtitleslangs": ["vi", "en"],
+                })
 
     try:
         is_youtube_watch = any(domain in url.lower() for domain in ["youtube.com/watch", "youtu.be/"]) or ("youtube.com" in url.lower() and "timedtext" not in url.lower())
@@ -741,12 +751,78 @@ def bg_download_task(download_id, url, format_id, ext, quality="192", title="med
                 filename_on_disk = media_files[0]
                 filepath = os.path.join(temp_dir, filename_on_disk)
 
-            # Apply all post-processing: trim, voiceover, color filters, export formatting
-            vtt_files = [f for f in os.listdir(temp_dir) if f.endswith(".vtt")]
+            # Check for raw subtitle content uploaded
+            subtitle_content = kwargs.get("subtitle_content")
+            subtitle_url = kwargs.get("subtitle_url")
+            subtitle_lang = kwargs.get("subtitle_lang")
+            subtitle_mode = kwargs.get("subtitle_mode") or "none"
+            subtitle_translate = kwargs.get("subtitle_translate") or "none"
+            
             subtitles_path = None
-            if vtt_files:
-                vi_vtt = [f for f in vtt_files if f.endswith(".vi.vtt")]
-                subtitles_path = os.path.join(temp_dir, vi_vtt[0]) if vi_vtt else os.path.join(temp_dir, vtt_files[0])
+            
+            if subtitle_content:
+                try:
+                    sub_ext = "vtt"
+                    # simplistic check for SRT
+                    if "WEBVTT" not in subtitle_content and ("1" in subtitle_content.splitlines()[:5] or "00:" in subtitle_content):
+                        sub_ext = "srt"
+                    
+                    subtitles_path = os.path.join(temp_dir, f"custom_sub.{sub_ext}")
+                    with open(subtitles_path, "w", encoding="utf-8", errors="ignore") as f:
+                        f.write(subtitle_content)
+                    logger.info(f"Successfully wrote custom subtitle content to {subtitles_path}")
+                except Exception as e:
+                    logger.error(f"Failed to write custom subtitle content: {e}")
+            elif subtitle_url and subtitle_url.startswith("http") and subtitle_url != "none":
+                try:
+                    logger.info(f"Downloading custom subtitle URL: {subtitle_url}")
+                    cookies_dict = {}
+                    if client_id:
+                        client_cookies = os.path.join(TEMP_DOWNLOAD_DIR, "cookies", f"cookies_{client_id}.txt")
+                        if os.path.exists(client_cookies):
+                            try:
+                                with open(client_cookies, 'r', encoding='utf-8', errors='ignore') as f:
+                                    for line in f:
+                                        line = line.strip()
+                                        if not line or line.startswith('#'):
+                                            continue
+                                        parts = line.split('\t')
+                                        if len(parts) >= 7:
+                                            cookies_dict[parts[5]] = parts[6]
+                            except Exception as cookie_err:
+                                logger.warning(f"Failed to load cookies for custom subtitle URL: {cookie_err}")
+                    
+                    headers = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)"}
+                    response = requests.get(subtitle_url, headers=headers, cookies=cookies_dict, verify=False, timeout=15)
+                    response.raise_for_status()
+                    
+                    sub_ext = "vtt"
+                    if "fmt=srt" in subtitle_url.lower() or subtitle_url.lower().endswith(".srt"):
+                        sub_ext = "srt"
+                    
+                    subtitles_path = os.path.join(temp_dir, f"custom_sub.{sub_ext}")
+                    with open(subtitles_path, "w", encoding="utf-8", errors="ignore") as f:
+                        f.write(response.text)
+                    logger.info(f"Successfully downloaded custom subtitle to {subtitles_path}")
+                except Exception as sub_dl_err:
+                    logger.error(f"Failed to download custom subtitle URL: {sub_dl_err}")
+            
+            # If not custom, look for downloaded files
+            if not subtitles_path:
+                vtt_files = [f for f in os.listdir(temp_dir) if f.endswith((".vtt", ".srt"))]
+                if vtt_files:
+                    target_suffix = f".{subtitle_lang}.vtt" if subtitle_lang else None
+                    target_suffix_srt = f".{subtitle_lang}.srt" if subtitle_lang else None
+                    
+                    matched_files = []
+                    if target_suffix:
+                        matched_files = [f for f in vtt_files if f.endswith((target_suffix, target_suffix_srt))]
+                    
+                    if matched_files:
+                        subtitles_path = os.path.join(temp_dir, matched_files[0])
+                    else:
+                        vi_vtt = [f for f in vtt_files if f.endswith((".vi.vtt", ".vi.srt"))]
+                        subtitles_path = os.path.join(temp_dir, vi_vtt[0]) if vi_vtt else os.path.join(temp_dir, vtt_files[0])
         
         def progress_cb(message, progress_val):
             with downloads_status_lock:
@@ -756,7 +832,7 @@ def bg_download_task(download_id, url, format_id, ext, quality="192", title="med
                         "progress": progress_val,
                         "message": message
                     })
-
+ 
         try:
             filepath = apply_post_processing(
                 filepath, temp_dir, 
@@ -767,6 +843,9 @@ def bg_download_task(download_id, url, format_id, ext, quality="192", title="med
                 voiceover_voice=kwargs.get("voiceover_voice"),
                 subtitles_path=subtitles_path,
                 translate_subs=translate_subs,
+                subtitle_lang=subtitle_lang,
+                subtitle_mode=subtitle_mode,
+                subtitle_translate=subtitle_translate,
                 progress_callback=progress_cb,
                 voiceover_rate=kwargs.get("voiceover_rate"),
                 voiceover_pitch=kwargs.get("voiceover_pitch"),

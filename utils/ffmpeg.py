@@ -303,6 +303,59 @@ def split_text_and_time(text, start_ms, end_ms, max_words=10):
     return segments
 
 
+def ensure_vtt_format(sub_path):
+    """
+    Checks if the subtitle is SRT or other format, converts it to clean WebVTT,
+    and returns the new VTT file path. If it's already VTT, does nothing.
+    """
+    if not sub_path or not os.path.exists(sub_path):
+        return sub_path
+        
+    if sub_path.lower().endswith(".vtt"):
+        # Let's check if it has WEBVTT header, if not, prepend it
+        try:
+            with open(sub_path, 'r', encoding='utf-8', errors='ignore') as f:
+                content = f.read()
+            if not content.strip().startswith("WEBVTT"):
+                with open(sub_path, 'w', encoding='utf-8') as f:
+                    f.write("WEBVTT\n\n" + content)
+        except Exception as e:
+            logger.warning(f"Error checking VTT header: {e}")
+        return sub_path
+        
+    # If it is SRT, convert to VTT
+    if sub_path.lower().endswith(".srt"):
+        try:
+            with open(sub_path, 'r', encoding='utf-8', errors='ignore') as f:
+                lines = f.readlines()
+                
+            vtt_lines = ["WEBVTT\n\n"]
+            for line in lines:
+                line_stripped = line.strip()
+                # Skip numeric cue numbers
+                if line_stripped.isdigit():
+                    continue
+                # Replace comma with dot in timestamps line
+                if "-->" in line:
+                    line = line.replace(",", ".")
+                vtt_lines.append(line)
+                
+            vtt_path = sub_path.rsplit(".", 1)[0] + ".vtt"
+            with open(vtt_path, 'w', encoding='utf-8') as f:
+                f.writelines(vtt_lines)
+                
+            # Remove original srt file
+            try:
+                os.remove(sub_path)
+            except Exception:
+                pass
+            return vtt_path
+        except Exception as e:
+            logger.error(f"Failed to convert SRT to VTT: {e}")
+            
+    return sub_path
+
+
 def translate_vtt_file(vtt_path, target_lang="vi", trim_start=None, trim_end=None):
     """Reads a VTT file, translates all caption cues in batch, aggressively deduplicates
     YouTube rolling captions, filters and shifts according to trim range, and overwrites the file."""
@@ -433,10 +486,13 @@ def translate_vtt_file(vtt_path, target_lang="vi", trim_start=None, trim_end=Non
 
         # Step 4: Batch translate the deduplicated cues
         cues_to_translate = [(idx, text) for idx, m, start_ms, end_ms, text in final_cues]
-        translated_map = translate_cues_batch(cues_to_translate, target_lang)
+        if target_lang and target_lang != "none":
+            translated_map = translate_cues_batch(cues_to_translate, target_lang)
+        else:
+            translated_map = {idx: text for idx, text in cues_to_translate}
 
         # Step 5: Reconstruct WebVTT file with shifted, translated, deduplicated, and split cues
-        new_lines = ["WEBVTT", "Kind: captions", f"Language: {target_lang}", ""]
+        new_lines = ["WEBVTT", "Kind: captions", f"Language: {target_lang or 'original'}", ""]
         for idx, m, start_ms, end_ms, text in final_cues:
             translation = translated_map.get(idx, text)
             
@@ -850,7 +906,57 @@ def hardsub_video(video_path, subtitles_path):
         return video_path
 
 
-def apply_post_processing(filepath, temp_dir, trim_start=None, trim_end=None, export_type="default", color_filter="none", voiceover_active=False, voiceover_voice="vi-VN-HoaiMyNeural", subtitles_path=None, translate_subs=None, progress_callback=None, voiceover_rate=None, voiceover_pitch=None, audio_eq_bass=0, audio_eq_lowmid=0, audio_eq_highmid=0, audio_eq_treble=0, audio_speed=1.0, audio_voice_preset="normal"):
+
+def softsub_video(video_path, subtitles_path, lang_code="eng"):
+    """Muxes subtitles directly into the video stream as a soft subtitle track (no re-encoding)."""
+    if not video_path or not subtitles_path or not os.path.exists(video_path) or not os.path.exists(subtitles_path):
+        return video_path
+        
+    base, ext = os.path.splitext(video_path)
+    if ext.lower() not in [".mp4", ".mkv", ".mov", ".webm"]:
+        return video_path
+        
+    logger.info(f"Muxing soft subtitles from {subtitles_path} into {video_path}...")
+    output_path = base + "_softsubbed" + ext
+    
+    # Choose subtitle codec based on extension
+    sub_codec = "mov_text"
+    if ext.lower() == ".mkv":
+        sub_codec = "srt"
+    elif ext.lower() == ".webm":
+        sub_codec = "webvtt"
+        
+    cmd = [
+        "ffmpeg", "-y",
+        "-i", video_path,
+        "-i", subtitles_path,
+        "-map", "0",
+        "-map", "1",
+        "-c", "copy",
+        "-c:s", sub_codec,
+        "-metadata:s:s:0", f"language={lang_code}",
+        "-metadata:s:s:0", "title=Subtitles",
+        output_path
+    ]
+    
+    res = subprocess.run(cmd, capture_output=True, text=True, timeout=120)
+    if res.returncode == 0 and os.path.exists(output_path) and os.path.getsize(output_path) > 0:
+        try:
+            os.remove(video_path)
+            os.rename(output_path, video_path)
+            logger.info("Soft subtitles successfully muxed.")
+            return video_path
+        except Exception as err:
+            logger.warning(f"Failed to replace video with softsubbed video: {err}")
+            return output_path
+    else:
+        logger.error(f"Failed to mux soft subtitles (code {res.returncode}). Stderr: {res.stderr}")
+        if os.path.exists(output_path):
+            os.remove(output_path)
+        return video_path
+
+
+def apply_post_processing(filepath, temp_dir, trim_start=None, trim_end=None, export_type="default", color_filter="none", voiceover_active=False, voiceover_voice="vi-VN-HoaiMyNeural", subtitles_path=None, translate_subs=None, subtitle_lang=None, subtitle_mode="none", subtitle_translate="none", progress_callback=None, voiceover_rate=None, voiceover_pitch=None, audio_eq_bass=0, audio_eq_lowmid=0, audio_eq_highmid=0, audio_eq_treble=0, audio_speed=1.0, audio_voice_preset="normal"):
     """Applies all advanced filters, trimming, voiceovers, and formatting options to the downloaded media file."""
     if not filepath or not os.path.exists(filepath):
         return filepath
@@ -865,14 +971,21 @@ def apply_post_processing(filepath, temp_dir, trim_start=None, trim_end=None, ex
             logger.error(f"Error during post-process trimming: {e}")
 
     # 1.5. Translate, trim, and shift subtitles
+    target_lang = "none"
     if subtitles_path and os.path.exists(subtitles_path):
-        if voiceover_active or (translate_subs == "vi"):
+        subtitles_path = ensure_vtt_format(subtitles_path)
+        if subtitle_translate and subtitle_translate != "none":
+            target_lang = subtitle_translate
+        elif voiceover_active or (translate_subs == "vi"):
+            target_lang = "vi"
+
+        if target_lang != "none" or trim_start or trim_end:
             if progress_callback:
-                progress_callback("Translating and trimming subtitles...", 97)
+                progress_callback("Processing subtitles...", 97)
             try:
-                translate_vtt_file(subtitles_path, target_lang="vi", trim_start=trim_start, trim_end=trim_end)
+                translate_vtt_file(subtitles_path, target_lang=target_lang, trim_start=trim_start, trim_end=trim_end)
             except Exception as e:
-                logger.error(f"Error translating and trimming subtitles VTT: {e}")
+                logger.error(f"Error processing subtitles VTT: {e}")
 
     # 2. AI Voiceover Dubbing
     if voiceover_active and subtitles_path and os.path.exists(subtitles_path):
@@ -906,14 +1019,27 @@ def apply_post_processing(filepath, temp_dir, trim_start=None, trim_end=None, ex
         except Exception as e:
             logger.error(f"Error converting to vertical Shorts: {e}")
 
-    # 5. Burn translated subtitles directly onto video frames if requested (hardsub) and not a GIF
-    if translate_subs == "vi" and subtitles_path and os.path.exists(subtitles_path) and export_type != "gif":
-        if progress_callback:
-            progress_callback("Burning subtitles into video...", 99)
-        try:
-            filepath = hardsub_video(filepath, subtitles_path)
-        except Exception as e:
-            logger.error(f"Error burning subtitles: {e}")
+    # 5. Mux/Burn subtitles if requested
+    if subtitles_path and os.path.exists(subtitles_path) and export_type != "gif":
+        mode = subtitle_mode
+        if mode == "none" and translate_subs == "vi":
+            mode = "hard"
+
+        if mode == "hard":
+            if progress_callback:
+                progress_callback("Burning subtitles into video...", 99)
+            try:
+                filepath = hardsub_video(filepath, subtitles_path)
+            except Exception as e:
+                logger.error(f"Error burning subtitles: {e}")
+        elif mode == "soft":
+            if progress_callback:
+                progress_callback("Muxing soft subtitles...", 99)
+            try:
+                sub_lang_code = target_lang if (target_lang and target_lang != "none") else (subtitle_lang or "eng")
+                filepath = softsub_video(filepath, subtitles_path, lang_code=sub_lang_code)
+            except Exception as e:
+                logger.error(f"Error muxing soft subtitles: {e}")
 
     # 5.5. Apply Audio Effects (EQ, playback speed, and voice FX presets)
     if export_type != "gif":

@@ -39,6 +39,12 @@ def start_download():
     trim_end = data.get("trim_end")
     translate_subs = data.get("translate_subs")
     
+    subtitle_lang = data.get("subtitle_lang")
+    subtitle_mode = data.get("subtitle_mode") or "none"
+    subtitle_translate = data.get("subtitle_translate") or "none"
+    subtitle_url = data.get("subtitle_url")
+    subtitle_content = data.get("subtitle_content")
+    
     export_type = data.get("export_type") or "default"
     if export_type == "gif":
         ext = "gif"
@@ -92,6 +98,11 @@ def start_download():
             "audio_eq_treble": audio_eq_treble,
             "audio_speed": audio_speed,
             "audio_voice_preset": audio_voice_preset,
+            "subtitle_lang": subtitle_lang,
+            "subtitle_mode": subtitle_mode,
+            "subtitle_translate": subtitle_translate,
+            "subtitle_url": subtitle_url,
+            "subtitle_content": subtitle_content,
             "timestamp": time.time(),
         }
 
@@ -120,6 +131,11 @@ def start_download():
             "audio_eq_treble": audio_eq_treble,
             "audio_speed": audio_speed,
             "audio_voice_preset": audio_voice_preset,
+            "subtitle_lang": subtitle_lang,
+            "subtitle_mode": subtitle_mode,
+            "subtitle_translate": subtitle_translate,
+            "subtitle_url": subtitle_url,
+            "subtitle_content": subtitle_content,
         }
     )
     thread.start()
