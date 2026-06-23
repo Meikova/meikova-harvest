@@ -2623,7 +2623,7 @@ body[class*="theme-"] .card {
   overflow: hidden;
   display: flex;
   justify-content: center;
-  align-items: center;
+  align-items: stretch;
   margin: 8px 16px;
   transition: border-color 0.5s ease, box-shadow 0.5s ease;
   backdrop-filter: blur(6px);
@@ -3127,10 +3127,11 @@ body[class*="theme-"] .card {
   color: var(--text);
 }
 
-/* Video Preview Card Custom styling */
 .video-preview-card {
   width: 100%;
   height: 100%;
+  flex: 1;
+  min-height: 0;
   background: transparent;
   border: none;
   border-radius: 0;
@@ -3139,8 +3140,8 @@ body[class*="theme-"] .card {
   margin: 0;
   display: flex;
   flex-direction: column;
-  align-items: center;
-  justify-content: center;
+  align-items: stretch;
+  justify-content: flex-start;
   position: relative;
 }
 
@@ -3161,9 +3162,10 @@ body[class*="theme-"] .card {
 .video-wrapper {
   position: relative;
   width: 100%;
+  height: 100%;
   flex: 1;
   background: #000;
-  overflow: visible;
+  overflow: hidden;
   z-index: 0;
   border-radius: 8px;
 }
@@ -5777,13 +5779,17 @@ details[open] .error-summary::before {
   text-align: center;
   pointer-events: none;
   z-index: 12;
-  transition: all 0.1s ease;
+  transition: bottom 0.3s cubic-bezier(0.4, 0, 0.2, 1), top 0.3s cubic-bezier(0.4, 0, 0.2, 1);
   display: flex;
   justify-content: center;
 }
 
 .subtitles-overlay.pos-bottom {
   bottom: 105px;
+}
+
+.video-wrapper:has(.custom-video-controls.hidden-controls) .subtitles-overlay.pos-bottom {
+  bottom: 20px;
 }
 
 .subtitles-overlay.pos-top {

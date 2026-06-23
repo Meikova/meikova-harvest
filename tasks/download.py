@@ -355,7 +355,15 @@ def bg_download_task(download_id, url, format_id, ext, quality="192", title="med
                     audio_eq_highmid=kwargs.get("audio_eq_highmid", 0),
                     audio_eq_treble=kwargs.get("audio_eq_treble", 0),
                     audio_speed=kwargs.get("audio_speed", 1.0),
-                    audio_voice_preset=kwargs.get("audio_voice_preset", "normal")
+                    audio_voice_preset=kwargs.get("audio_voice_preset", "normal"),
+                    sub_font=kwargs.get("sub_font", "Arial"),
+                    sub_size=kwargs.get("sub_size", 1.4),
+                    sub_color=kwargs.get("sub_color", "#ffffff"),
+                    sub_bg_color=kwargs.get("sub_bg_color", "#000000"),
+                    sub_bg_opacity=kwargs.get("sub_bg_opacity", 50),
+                    sub_outline=kwargs.get("sub_outline", 2),
+                    sub_outline_color=kwargs.get("sub_outline_color", "#000000"),
+                    sub_pos=kwargs.get("sub_pos", "bottom")
                 )
                 ext = filepath.rsplit(".", 1)[-1].lower()
             except Exception as pp_err:
@@ -775,6 +783,13 @@ def bg_download_task(download_id, url, format_id, ext, quality="192", title="med
                     logger.error(f"Failed to write custom subtitle content: {e}")
             elif subtitle_url and subtitle_url.startswith("http") and subtitle_url != "none":
                 try:
+                    if "youtube.com/api/timedtext" in subtitle_url:
+                        if "fmt=" in subtitle_url:
+                            import re
+                            subtitle_url = re.sub(r'fmt=[^&]+', 'fmt=vtt', subtitle_url)
+                        else:
+                            subtitle_url += ("&" if "?" in subtitle_url else "?") + "fmt=vtt"
+                    
                     logger.info(f"Downloading custom subtitle URL: {subtitle_url}")
                     cookies_dict = {}
                     if client_id:
@@ -854,7 +869,15 @@ def bg_download_task(download_id, url, format_id, ext, quality="192", title="med
                 audio_eq_highmid=kwargs.get("audio_eq_highmid", 0),
                 audio_eq_treble=kwargs.get("audio_eq_treble", 0),
                 audio_speed=kwargs.get("audio_speed", 1.0),
-                audio_voice_preset=kwargs.get("audio_voice_preset", "normal")
+                audio_voice_preset=kwargs.get("audio_voice_preset", "normal"),
+                sub_font=kwargs.get("sub_font", "Arial"),
+                sub_size=kwargs.get("sub_size", 1.4),
+                sub_color=kwargs.get("sub_color", "#ffffff"),
+                sub_bg_color=kwargs.get("sub_bg_color", "#000000"),
+                sub_bg_opacity=kwargs.get("sub_bg_opacity", 50),
+                sub_outline=kwargs.get("sub_outline", 2),
+                sub_outline_color=kwargs.get("sub_outline_color", "#000000"),
+                sub_pos=kwargs.get("sub_pos", "bottom")
             )
             ext = filepath.rsplit(".", 1)[-1].lower()
         except Exception as pp_err:

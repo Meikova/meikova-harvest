@@ -45,6 +45,24 @@ def start_download():
     subtitle_url = data.get("subtitle_url")
     subtitle_content = data.get("subtitle_content")
     
+    sub_font = data.get("sub_font") or "Arial"
+    try:
+        sub_size = float(data.get("sub_size") or 1.4)
+    except:
+        sub_size = 1.4
+    sub_color = data.get("sub_color") or "#ffffff"
+    sub_bg_color = data.get("sub_bg_color") or "#000000"
+    try:
+        sub_bg_opacity = int(data.get("sub_bg_opacity") or 50)
+    except:
+        sub_bg_opacity = 50
+    try:
+        sub_outline = int(data.get("sub_outline") or 2)
+    except:
+        sub_outline = 2
+    sub_outline_color = data.get("sub_outline_color") or "#000000"
+    sub_pos = data.get("sub_pos") or "bottom"
+    
     export_type = data.get("export_type") or "default"
     if export_type == "gif":
         ext = "gif"
@@ -103,6 +121,14 @@ def start_download():
             "subtitle_translate": subtitle_translate,
             "subtitle_url": subtitle_url,
             "subtitle_content": subtitle_content,
+            "sub_font": sub_font,
+            "sub_size": sub_size,
+            "sub_color": sub_color,
+            "sub_bg_color": sub_bg_color,
+            "sub_bg_opacity": sub_bg_opacity,
+            "sub_outline": sub_outline,
+            "sub_outline_color": sub_outline_color,
+            "sub_pos": sub_pos,
             "timestamp": time.time(),
         }
 
@@ -136,6 +162,14 @@ def start_download():
             "subtitle_translate": subtitle_translate,
             "subtitle_url": subtitle_url,
             "subtitle_content": subtitle_content,
+            "sub_font": sub_font,
+            "sub_size": sub_size,
+            "sub_color": sub_color,
+            "sub_bg_color": sub_bg_color,
+            "sub_bg_opacity": sub_bg_opacity,
+            "sub_outline": sub_outline,
+            "sub_outline_color": sub_outline_color,
+            "sub_pos": sub_pos,
         }
     )
     thread.start()

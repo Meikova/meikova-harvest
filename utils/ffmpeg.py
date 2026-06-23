@@ -854,8 +854,80 @@ def convert_to_shorts(filepath):
         return filepath
 
 
-def hardsub_video(video_path, subtitles_path):
-    """Burns VTT subtitles directly onto the video frames (hardsub) using relative paths to avoid Windows drive letter colon issues."""
+def convert_vtt_to_srt(vtt_path, srt_path):
+    """Converts a WebVTT subtitle file to SubRip (SRT) format."""
+    try:
+        with open(vtt_path, 'r', encoding='utf-8') as f:
+            lines = f.readlines()
+            
+        out_lines = []
+        
+        # Skip WEBVTT header and any metadata
+        start_idx = 0
+        for i, line in enumerate(lines):
+            if line.strip() == "WEBVTT" or line.startswith("Kind:") or line.startswith("Language:"):
+                continue
+            if line.strip() == "" and i == 0:
+                continue
+            start_idx = i
+            break
+            
+        content = "".join(lines[start_idx:])
+        blocks = content.strip().split("\n\n")
+        
+        counter = 1
+        for block in blocks:
+            block_lines = block.strip().split("\n")
+            if not block_lines or block_lines[0] == "":
+                continue
+                
+            if "-->" in block_lines[0]:
+                time_line = block_lines[0]
+                text_lines = block_lines[1:]
+            elif len(block_lines) > 1 and "-->" in block_lines[1]:
+                time_line = block_lines[1]
+                text_lines = block_lines[2:]
+            else:
+                continue
+                
+            times = time_line.split("-->")
+            if len(times) != 2:
+                continue
+                
+            start_t = times[0].strip().replace('.', ',')
+            end_t = times[1].strip().replace('.', ',')
+            
+            def format_srt_time(t):
+                parts = t.split(':')
+                if len(parts) == 2:
+                    t = "00:" + t
+                elif len(parts) == 3:
+                    h, m, s_ms = parts
+                    h = h.zfill(2)
+                    m = m.zfill(2)
+                    t = f"{h}:{m}:{s_ms}"
+                return t
+                
+            start_t = format_srt_time(start_t)
+            end_t = format_srt_time(end_t)
+            
+            out_lines.append(str(counter))
+            out_lines.append(f"{start_t} --> {end_t}")
+            for t_line in text_lines:
+                out_lines.append(t_line)
+            out_lines.append("")
+            counter += 1
+            
+        with open(srt_path, 'w', encoding='utf-8') as f:
+            f.write("\n".join(out_lines))
+        return True
+    except Exception as e:
+        logger.error(f"Error converting VTT to SRT: {e}")
+        return False
+
+
+def hardsub_video(video_path, subtitles_path, font_name="Arial", font_size=1.4, color="#ffffff", bg_color="#000000", bg_opacity=50, outline=2, outline_color="#000000", position="bottom"):
+    """Burns VTT/SRT subtitles directly onto the video frames (hardsub) using relative paths and CWD to avoid Windows drive letter colon issues, applying custom styles."""
     if not video_path or not subtitles_path or not os.path.exists(video_path) or not os.path.exists(subtitles_path):
         return video_path
         
@@ -863,33 +935,95 @@ def hardsub_video(video_path, subtitles_path):
     if ext.lower() not in [".mp4", ".mkv", ".mov"]:
         return video_path
         
-    logger.info(f"Burning subtitles from {subtitles_path} into {video_path}...")
-    output_path = base + "_hardsubbed" + ext
+    logger.info(f"Preparing hardsub process for subtitles {subtitles_path} into {video_path}...")
     
-    # Format the subtitle path as relative to avoid drive letters and colons
-    abs_vtt = os.path.abspath(subtitles_path)
-    try:
-        rel_vtt = os.path.relpath(abs_vtt)
-    except Exception:
-        rel_vtt = abs_vtt
-        
-    rel_vtt = rel_vtt.replace('\\', '/')
-    rel_vtt = rel_vtt.replace("'", "'\\\\''")
-    if ':' in rel_vtt:
-        rel_vtt = rel_vtt.replace(":", "\\\\:")
-        
-    sub_filter = f"subtitles='{rel_vtt}'"
+    # 1. Identify directories and filenames
+    video_dir = os.path.dirname(os.path.abspath(video_path))
+    video_name = os.path.basename(video_path)
     
+    temp_srt_name = "temp_hardsub.srt"
+    temp_srt_path = os.path.join(video_dir, temp_srt_name)
+    
+    # 2. Convert or copy subtitles to temp_hardsub.srt in the video's directory
+    if subtitles_path.lower().endswith(".srt"):
+        try:
+            import shutil
+            shutil.copy2(subtitles_path, temp_srt_path)
+        except Exception as e:
+            logger.error(f"Failed to copy SRT subtitle to temp directory: {e}")
+            return video_path
+    else:
+        # Convert VTT to SRT
+        success = convert_vtt_to_srt(subtitles_path, temp_srt_path)
+        if not success or not os.path.exists(temp_srt_path):
+            logger.error("Failed to prepare SRT file for hardsub.")
+            return video_path
+
+    # Helper to convert HTML hex color + opacity to ASS ABGR color format (&HAABBGGRR)
+    def to_ass_color(hex_val, opacity_val=100):
+        hex_val = hex_val.strip().lstrip('#')
+        if len(hex_val) == 3:
+            hex_val = "".join([c*2 for c in hex_val])
+        if len(hex_val) != 6:
+            hex_val = "ffffff"
+        r = hex_val[0:2]
+        g = hex_val[2:4]
+        b = hex_val[4:6]
+        # ASS opacity: 00 is fully opaque, FF is fully transparent
+        alpha = int((100 - opacity_val) * 2.55)
+        alpha = max(0, min(255, alpha))
+        return f"&H{alpha:02X}{b}{g}{r}"
+
+    # Calculate styling parameters
+    primary_color = to_ass_color(color, 100)
+    outline_color_ass = to_ass_color(outline_color, 100)
+    back_color = to_ass_color(bg_color, bg_opacity)
+    
+    border_style = 3 if bg_opacity > 0 else 1
+    fontsize_px = max(10, min(100, int(font_size * 18)))
+    alignment = 6 if position == "top" else 2
+    outline_val = outline
+    shadow_val = 0 if bg_opacity > 0 else 1
+    
+    force_style = (
+        f"Fontname={font_name},"
+        f"Fontsize={fontsize_px},"
+        f"PrimaryColour={primary_color},"
+        f"OutlineColour={outline_color_ass},"
+        f"BackColour={back_color},"
+        f"BorderStyle={border_style},"
+        f"Outline={outline_val},"
+        f"Shadow={shadow_val},"
+        f"Alignment={alignment},"
+        f"MarginV=18"
+    )
+
+    # 3. Define output path in video_dir
+    output_name = os.path.splitext(video_name)[0] + "_hardsubbed" + ext
+    output_path = os.path.join(video_dir, output_name)
+    
+    logger.info(f"Burning subtitles in local directory: {video_dir} with style: {force_style}")
+    
+    # We use simple filenames relative to video_dir
     cmd = [
         "ffmpeg", "-y",
-        "-i", video_path,
-        "-vf", sub_filter,
+        "-i", video_name,
+        "-vf", f"subtitles='{temp_srt_name}':force_style='{force_style}'",
         "-c:v", "libx264", "-preset", "superfast", "-crf", "23",
         "-c:a", "copy",
-        output_path
+        output_name
     ]
     
-    res = subprocess.run(cmd, capture_output=True, text=True, timeout=300)
+    # Run FFmpeg in the context of the video directory
+    res = subprocess.run(cmd, capture_output=True, text=True, timeout=300, cwd=video_dir)
+    
+    # Clean up the temporary srt file immediately
+    if os.path.exists(temp_srt_path):
+        try:
+            os.remove(temp_srt_path)
+        except Exception as e:
+            logger.warning(f"Failed to remove temp srt file {temp_srt_path}: {e}")
+            
     if res.returncode == 0 and os.path.exists(output_path) and os.path.getsize(output_path) > 0:
         try:
             os.remove(video_path)
@@ -930,12 +1064,14 @@ def softsub_video(video_path, subtitles_path, lang_code="eng"):
         "ffmpeg", "-y",
         "-i", video_path,
         "-i", subtitles_path,
-        "-map", "0",
+        "-map", "0:v?",
+        "-map", "0:a?",
         "-map", "1",
         "-c", "copy",
         "-c:s", sub_codec,
         "-metadata:s:s:0", f"language={lang_code}",
         "-metadata:s:s:0", "title=Subtitles",
+        "-disposition:s:s:0", "default",
         output_path
     ]
     
@@ -956,7 +1092,7 @@ def softsub_video(video_path, subtitles_path, lang_code="eng"):
         return video_path
 
 
-def apply_post_processing(filepath, temp_dir, trim_start=None, trim_end=None, export_type="default", color_filter="none", voiceover_active=False, voiceover_voice="vi-VN-HoaiMyNeural", subtitles_path=None, translate_subs=None, subtitle_lang=None, subtitle_mode="none", subtitle_translate="none", progress_callback=None, voiceover_rate=None, voiceover_pitch=None, audio_eq_bass=0, audio_eq_lowmid=0, audio_eq_highmid=0, audio_eq_treble=0, audio_speed=1.0, audio_voice_preset="normal"):
+def apply_post_processing(filepath, temp_dir, trim_start=None, trim_end=None, export_type="default", color_filter="none", voiceover_active=False, voiceover_voice="vi-VN-HoaiMyNeural", subtitles_path=None, translate_subs=None, subtitle_lang=None, subtitle_mode="none", subtitle_translate="none", progress_callback=None, voiceover_rate=None, voiceover_pitch=None, audio_eq_bass=0, audio_eq_lowmid=0, audio_eq_highmid=0, audio_eq_treble=0, audio_speed=1.0, audio_voice_preset="normal", sub_font="Arial", sub_size=1.4, sub_color="#ffffff", sub_bg_color="#000000", sub_bg_opacity=50, sub_outline=2, sub_outline_color="#000000", sub_pos="bottom"):
     """Applies all advanced filters, trimming, voiceovers, and formatting options to the downloaded media file."""
     if not filepath or not os.path.exists(filepath):
         return filepath
@@ -979,13 +1115,14 @@ def apply_post_processing(filepath, temp_dir, trim_start=None, trim_end=None, ex
         elif voiceover_active or (translate_subs == "vi"):
             target_lang = "vi"
 
-        if target_lang != "none" or trim_start or trim_end:
-            if progress_callback:
-                progress_callback("Processing subtitles...", 97)
-            try:
-                translate_vtt_file(subtitles_path, target_lang=target_lang, trim_start=trim_start, trim_end=trim_end)
-            except Exception as e:
-                logger.error(f"Error processing subtitles VTT: {e}")
+        # We always process the subtitle file to clean HTML/XML tags, format timestamps,
+        # collapse rolling duplicate captions, and perform translation/trimming.
+        if progress_callback:
+            progress_callback("Processing subtitles...", 97)
+        try:
+            translate_vtt_file(subtitles_path, target_lang=target_lang, trim_start=trim_start, trim_end=trim_end)
+        except Exception as e:
+            logger.error(f"Error processing subtitles VTT: {e}")
 
     # 2. AI Voiceover Dubbing
     if voiceover_active and subtitles_path and os.path.exists(subtitles_path):
@@ -1029,7 +1166,17 @@ def apply_post_processing(filepath, temp_dir, trim_start=None, trim_end=None, ex
             if progress_callback:
                 progress_callback("Burning subtitles into video...", 99)
             try:
-                filepath = hardsub_video(filepath, subtitles_path)
+                filepath = hardsub_video(
+                    filepath, subtitles_path,
+                    font_name=sub_font,
+                    font_size=sub_size,
+                    color=sub_color,
+                    bg_color=sub_bg_color,
+                    bg_opacity=sub_bg_opacity,
+                    outline=sub_outline,
+                    outline_color=sub_outline_color,
+                    position=sub_pos
+                )
             except Exception as e:
                 logger.error(f"Error burning subtitles: {e}")
         elif mode == "soft":

@@ -4004,16 +4004,7 @@ document.addEventListener("DOMContentLoaded", () => {
             if (subFormatSelect) {
                 subFormatSelect.value = "original";
             }
-            const previewSubModeSelect = document.getElementById("preview-sub-mode-select");
-            if (previewSubModeSelect) {
-                previewSubModeSelect.value = "none";
-                previewSubModeSelect.dispatchEvent(new Event("change"));
-            }
-            const previewSubTransSelect = document.getElementById("preview-sub-trans-select");
-            if (previewSubTransSelect) {
-                previewSubTransSelect.value = "none";
-                previewSubTransSelect.dispatchEvent(new Event("change"));
-            }
+
 
             const ambientCanvas = document.getElementById("video-ambient-glow");
             if (ambientCanvas) {
@@ -5051,6 +5042,50 @@ document.addEventListener("DOMContentLoaded", () => {
                     audio_voice_preset: activeVoiceBtn ? activeVoiceBtn.dataset.voice : "normal"
                 };
 
+                // Capture the current custom subtitle settings before closing (which resets them)
+                const capturedSubtitleSettings = {};
+                const previewSubSelect = document.getElementById("preview-sub-select");
+                const previewSubModeSelect = document.getElementById("preview-sub-mode-select");
+                const previewSubTransSelect = document.getElementById("preview-sub-trans-select");
+                
+                if (previewSubSelect && previewSubSelect.value !== "none") {
+                    if (previewSubSelect.value === "custom") {
+                        capturedSubtitleSettings.subtitle_content = originalSubtitleContent;
+                        capturedSubtitleSettings.subtitle_lang = "custom";
+                    } else if (previewSubSelect.value.startsWith("http")) {
+                        let subUrl = previewSubSelect.value;
+                        if (subUrl.includes("youtube.com/api/timedtext")) {
+                            if (subUrl.includes("fmt=")) {
+                                subUrl = subUrl.replace(/fmt=[^&]+/, "fmt=vtt");
+                            } else {
+                                subUrl += subUrl.includes("?") ? "&fmt=vtt" : "?fmt=vtt";
+                            }
+                        }
+                        capturedSubtitleSettings.subtitle_url = subUrl;
+                        const selectedOpt = previewSubSelect.options[previewSubSelect.selectedIndex];
+                        capturedSubtitleSettings.subtitle_lang = selectedOpt ? selectedOpt.getAttribute("data-lang") : "en";
+                    } else {
+                        capturedSubtitleSettings.subtitle_lang = previewSubSelect.value;
+                    }
+                    
+                    if (previewSubModeSelect) {
+                        capturedSubtitleSettings.subtitle_mode = previewSubModeSelect.value;
+                    }
+                    if (previewSubTransSelect) {
+                        capturedSubtitleSettings.subtitle_translate = previewSubTransSelect.value;
+                    }
+                    
+                    // Style attributes
+                    capturedSubtitleSettings.sub_font = document.getElementById("preview-sub-font")?.value || "Arial";
+                    capturedSubtitleSettings.sub_size = parseFloat(document.getElementById("preview-sub-size")?.value || 1.4);
+                    capturedSubtitleSettings.sub_color = document.getElementById("preview-sub-color")?.value || "#ffffff";
+                    capturedSubtitleSettings.sub_bg_color = document.getElementById("preview-sub-bg-color")?.value || "#000000";
+                    capturedSubtitleSettings.sub_bg_opacity = parseInt(document.getElementById("preview-sub-bg-opacity")?.value || 50);
+                    capturedSubtitleSettings.sub_outline = parseInt(document.getElementById("preview-sub-outline")?.value || 2);
+                    capturedSubtitleSettings.sub_outline_color = document.getElementById("preview-sub-outline-color")?.value || "#000000";
+                    capturedSubtitleSettings.sub_pos = document.getElementById("preview-sub-pos")?.value || "bottom";
+                }
+
                 closePreviewModal();
 
                 triggerDownload(
@@ -5063,7 +5098,8 @@ document.addEventListener("DOMContentLoaded", () => {
                     previewActiveEpisode,
                     previewActiveServer,
                     false, // forceRaw = false (apply custom settings)
-                    capturedAudioSettings
+                    capturedAudioSettings,
+                    capturedSubtitleSettings
                 );
             } else {
                 if (previewActiveExt === "vtt" || previewActiveExt === "srt") {
@@ -6762,7 +6798,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
     // 3. Download Execution via Asynchronous Server Task & Polling
     // 3. Download Execution via Asynchronous Server Task & Polling
-    async function triggerDownload(btn, formatId, ext, label, quality, customUrl, episode = "", server = "", forceRaw = false, capturedAudioSettings = null) {
+    async function triggerDownload(btn, formatId, ext, label, quality, customUrl, episode = "", server = "", forceRaw = false, capturedAudioSettings = null, capturedSubtitleSettings = null) {
         // Reset previous polling if running
         if (pollingInterval) {
             clearInterval(pollingInterval);
@@ -6823,28 +6859,72 @@ document.addEventListener("DOMContentLoaded", () => {
                     requestBody.translate_subs = "vi";
                 }
 
-                // Subtitle settings from preview modal
-                const previewSubSelect = document.getElementById("preview-sub-select");
-                const previewSubModeSelect = document.getElementById("preview-sub-mode-select");
-                const previewSubTransSelect = document.getElementById("preview-sub-trans-select");
-                
-                if (previewSubSelect && previewSubSelect.value !== "none") {
-                    if (previewSubSelect.value === "custom") {
-                        requestBody.subtitle_content = originalSubtitleContent;
-                        requestBody.subtitle_lang = "custom";
-                    } else if (previewSubSelect.value.startsWith("http")) {
-                        requestBody.subtitle_url = previewSubSelect.value;
-                        const selectedOpt = previewSubSelect.options[previewSubSelect.selectedIndex];
-                        requestBody.subtitle_lang = selectedOpt ? selectedOpt.getAttribute("data-lang") : "en";
-                    } else {
-                        requestBody.subtitle_lang = previewSubSelect.value;
+                // Subtitle settings from preview modal or captured settings
+                if (capturedSubtitleSettings) {
+                    if (capturedSubtitleSettings.subtitle_content) {
+                        requestBody.subtitle_content = capturedSubtitleSettings.subtitle_content;
                     }
+                    if (capturedSubtitleSettings.subtitle_lang) {
+                        requestBody.subtitle_lang = capturedSubtitleSettings.subtitle_lang;
+                    }
+                    if (capturedSubtitleSettings.subtitle_url) {
+                        requestBody.subtitle_url = capturedSubtitleSettings.subtitle_url;
+                    }
+                    if (capturedSubtitleSettings.subtitle_mode) {
+                        requestBody.subtitle_mode = capturedSubtitleSettings.subtitle_mode;
+                    }
+                    if (capturedSubtitleSettings.subtitle_translate) {
+                        requestBody.subtitle_translate = capturedSubtitleSettings.subtitle_translate;
+                    }
+                    // Style attributes
+                    if (capturedSubtitleSettings.sub_font) requestBody.sub_font = capturedSubtitleSettings.sub_font;
+                    if (capturedSubtitleSettings.sub_size) requestBody.sub_size = capturedSubtitleSettings.sub_size;
+                    if (capturedSubtitleSettings.sub_color) requestBody.sub_color = capturedSubtitleSettings.sub_color;
+                    if (capturedSubtitleSettings.sub_bg_color) requestBody.sub_bg_color = capturedSubtitleSettings.sub_bg_color;
+                    if (capturedSubtitleSettings.sub_bg_opacity !== undefined) requestBody.sub_bg_opacity = capturedSubtitleSettings.sub_bg_opacity;
+                    if (capturedSubtitleSettings.sub_outline !== undefined) requestBody.sub_outline = capturedSubtitleSettings.sub_outline;
+                    if (capturedSubtitleSettings.sub_outline_color) requestBody.sub_outline_color = capturedSubtitleSettings.sub_outline_color;
+                    if (capturedSubtitleSettings.sub_pos) requestBody.sub_pos = capturedSubtitleSettings.sub_pos;
+                } else {
+                    const previewSubSelect = document.getElementById("preview-sub-select");
+                    const previewSubModeSelect = document.getElementById("preview-sub-mode-select");
+                    const previewSubTransSelect = document.getElementById("preview-sub-trans-select");
                     
-                    if (previewSubModeSelect) {
-                        requestBody.subtitle_mode = previewSubModeSelect.value;
-                    }
-                    if (previewSubTransSelect) {
-                        requestBody.subtitle_translate = previewSubTransSelect.value;
+                    if (previewSubSelect && previewSubSelect.value !== "none") {
+                        if (previewSubSelect.value === "custom") {
+                            requestBody.subtitle_content = originalSubtitleContent;
+                            requestBody.subtitle_lang = "custom";
+                        } else if (previewSubSelect.value.startsWith("http")) {
+                            let subUrl = previewSubSelect.value;
+                            if (subUrl.includes("youtube.com/api/timedtext")) {
+                                if (subUrl.includes("fmt=")) {
+                                    subUrl = subUrl.replace(/fmt=[^&]+/, "fmt=vtt");
+                                } else {
+                                    subUrl += subUrl.includes("?") ? "&fmt=vtt" : "?fmt=vtt";
+                                }
+                            }
+                            requestBody.subtitle_url = subUrl;
+                            const selectedOpt = previewSubSelect.options[previewSubSelect.selectedIndex];
+                            requestBody.subtitle_lang = selectedOpt ? selectedOpt.getAttribute("data-lang") : "en";
+                        } else {
+                            requestBody.subtitle_lang = previewSubSelect.value;
+                        }
+                        
+                        if (previewSubModeSelect) {
+                            requestBody.subtitle_mode = previewSubModeSelect.value;
+                        }
+                        if (previewSubTransSelect) {
+                            requestBody.subtitle_translate = previewSubTransSelect.value;
+                        }
+                        
+                        requestBody.sub_font = document.getElementById("preview-sub-font")?.value || "Arial";
+                        requestBody.sub_size = parseFloat(document.getElementById("preview-sub-size")?.value || 1.4);
+                        requestBody.sub_color = document.getElementById("preview-sub-color")?.value || "#ffffff";
+                        requestBody.sub_bg_color = document.getElementById("preview-sub-bg-color")?.value || "#000000";
+                        requestBody.sub_bg_opacity = parseInt(document.getElementById("preview-sub-bg-opacity")?.value || 50);
+                        requestBody.sub_outline = parseInt(document.getElementById("preview-sub-outline")?.value || 2);
+                        requestBody.sub_outline_color = document.getElementById("preview-sub-outline-color")?.value || "#000000";
+                        requestBody.sub_pos = document.getElementById("preview-sub-pos")?.value || "bottom";
                     }
                 }
 
@@ -9643,6 +9723,30 @@ document.addEventListener("DOMContentLoaded", () => {
     const subPosSelect = document.getElementById("preview-sub-pos");
     if (subPosSelect) {
         subPosSelect.addEventListener("change", applySubtitleStyles);
+    }
+
+    // Setup Subtitle Embed Mode and Subtitle Translation Lang listeners & initial load
+    const previewSubModeSelect = document.getElementById("preview-sub-mode-select");
+    if (previewSubModeSelect) {
+        const savedSubMode = localStorage.getItem("preview_sub_mode");
+        if (savedSubMode) {
+            previewSubModeSelect.value = savedSubMode;
+            previewSubModeSelect.dispatchEvent(new Event("change"));
+        }
+        previewSubModeSelect.addEventListener("change", function () {
+            localStorage.setItem("preview_sub_mode", this.value);
+        });
+    }
+
+    if (previewSubTransSelect) {
+        const savedSubTrans = localStorage.getItem("preview_sub_translate");
+        if (savedSubTrans) {
+            previewSubTransSelect.value = savedSubTrans;
+            previewSubTransSelect.dispatchEvent(new Event("change"));
+        }
+        previewSubTransSelect.addEventListener("change", function () {
+            localStorage.setItem("preview_sub_translate", this.value);
+        });
     }
 
     // Swatches listeners
