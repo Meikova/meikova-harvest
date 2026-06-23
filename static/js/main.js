@@ -975,8 +975,14 @@ document.addEventListener("DOMContentLoaded", () => {
     const previewVideoPlayer = document.getElementById("preview-video-player");
     const previewAudioContainer = document.getElementById("preview-audio-container");
     const previewAudioPlayer = document.getElementById("preview-audio-player");
+    if (previewAudioPlayer) {
+        previewAudioPlayer.crossOrigin = "anonymous";
+    }
     const previewImageContainer = document.getElementById("preview-image-container");
     const previewImageElement = document.getElementById("preview-image-element");
+    const btnImageAdjust = document.getElementById("btn-image-adjust");
+    const imageSidePanel = document.getElementById("image-side-panel");
+    const btnImgReset = document.getElementById("btn-img-reset");
     const previewSubtitleContainer = document.getElementById("preview-subtitle-container");
     const previewSubLang = document.getElementById("preview-sub-lang");
     const previewSubText = document.getElementById("preview-sub-text");
@@ -1001,6 +1007,25 @@ document.addEventListener("DOMContentLoaded", () => {
     const audioMuteBtn = document.getElementById("audio-mute-btn");
     const audioVolumeSlider = document.getElementById("audio-volume-slider");
     const audioFormatSelect = document.getElementById("audio-preview-format-select");
+
+    // Custom audio player expanded features elements
+    const audioLyricsBtn = document.getElementById("audio-lyrics-btn");
+    const audioEqBtn = document.getElementById("audio-eq-btn");
+    const audioSettingsPanel = document.getElementById("audio-settings-panel");
+    const audioSidePanel = document.getElementById("audio-side-panel");
+    const audioStabs = document.querySelectorAll(".audio-stab");
+    const audioStabContents = document.querySelectorAll(".audio-stab-content");
+    const audioSubSelect = document.getElementById("audio-sub-select");
+    const audioSubUploadBtn = document.getElementById("audio-sub-upload-btn");
+    const audioSubFile = document.getElementById("audio-sub-file");
+    const audioLyricsList = document.getElementById("audio-lyrics-list");
+    const audioLyricsOverlay = document.getElementById("audio-lyrics-overlay");
+    const audioSpeedSlider = document.getElementById("audio-speed-slider");
+    const audioSpeedDisplay = document.getElementById("audio-speed-display");
+    const speedPresetBtns = document.querySelectorAll(".speed-preset-btn");
+    const eqSliders = document.querySelectorAll(".eq-slider");
+    const eqPresets = document.querySelectorAll(".eq-preset");
+    const voicePresets = document.querySelectorAll(".voice-preset");
 
     // Custom video player elements
     const videoCard = document.querySelector(".video-preview-card");
@@ -1372,6 +1397,11 @@ document.addEventListener("DOMContentLoaded", () => {
     let isDraggingAudioSlider = false;
     let videoFullscreenMode = 0; // 0: Normal, 1: Theater, 2: Native Fullscreen
 
+    // --- Audio Player Feature Expansion State ---
+    let audioLyrics = []; // Array of parsed cues: { start: Number, end: Number, text: String }
+    let activeLyricIndex = -1;
+    let audioSubSelectUrl = "";
+
     function seekAdaptiveVideo(targetTime) {
         if (!previewIsAdaptive) return;
         
@@ -1531,6 +1561,7 @@ document.addEventListener("DOMContentLoaded", () => {
         if (customVideoControls) {
             customVideoControls.classList.add("hidden-controls");
         }
+        resetAudioEffects();
     }
 
     // Format Time helper (seconds -> mm:ss)
@@ -1573,6 +1604,17 @@ document.addEventListener("DOMContentLoaded", () => {
     let sourceNode = null;
     let visualizerAnimationId = null;
 
+    // EQ & Effect Web Audio Nodes
+    let eqBassNode = null;
+    let eqLowMidNode = null;
+    let eqHighMidNode = null;
+    let eqTrebleNode = null;
+    let voiceLowFilterNode = null;
+    let voiceHighFilterNode = null;
+    let delayNode = null;
+    let delayFeedbackNode = null;
+    let delayGainNode = null;
+
     function initAudioVisualizer() {
         if (audioCtx) return;
         try {
@@ -1587,7 +1629,66 @@ document.addEventListener("DOMContentLoaded", () => {
             previewAudioPlayer.crossOrigin = "anonymous";
 
             sourceNode = audioCtx.createMediaElementSource(previewAudioPlayer);
-            sourceNode.connect(analyser);
+
+            // Create EQ nodes
+            eqBassNode = audioCtx.createBiquadFilter();
+            eqBassNode.type = "peaking";
+            eqBassNode.frequency.value = 60;
+            eqBassNode.Q.value = 1.0;
+            eqBassNode.gain.value = 0;
+
+            eqLowMidNode = audioCtx.createBiquadFilter();
+            eqLowMidNode.type = "peaking";
+            eqLowMidNode.frequency.value = 500;
+            eqLowMidNode.Q.value = 1.0;
+            eqLowMidNode.gain.value = 0;
+
+            eqHighMidNode = audioCtx.createBiquadFilter();
+            eqHighMidNode.type = "peaking";
+            eqHighMidNode.frequency.value = 2000;
+            eqHighMidNode.Q.value = 1.0;
+            eqHighMidNode.gain.value = 0;
+
+            eqTrebleNode = audioCtx.createBiquadFilter();
+            eqTrebleNode.type = "peaking";
+            eqTrebleNode.frequency.value = 10000;
+            eqTrebleNode.Q.value = 1.0;
+            eqTrebleNode.gain.value = 0;
+
+            // Create Voice effect nodes
+            voiceLowFilterNode = audioCtx.createBiquadFilter();
+            voiceLowFilterNode.type = "allpass";
+
+            voiceHighFilterNode = audioCtx.createBiquadFilter();
+            voiceHighFilterNode.type = "allpass";
+
+            // Create Delay / Reverb nodes (for Concert Hall)
+            delayNode = audioCtx.createDelay(1.0);
+            delayNode.delayTime.value = 0.15; // 150ms delay
+            delayFeedbackNode = audioCtx.createGain();
+            delayFeedbackNode.gain.value = 0.45; // 45% feedback
+            delayGainNode = audioCtx.createGain();
+            delayGainNode.gain.value = 0.0; // dry by default
+
+            // Chain EQ & Voice filters
+            sourceNode.connect(eqBassNode);
+            eqBassNode.connect(eqLowMidNode);
+            eqLowMidNode.connect(eqHighMidNode);
+            eqHighMidNode.connect(eqTrebleNode);
+            eqTrebleNode.connect(voiceLowFilterNode);
+            voiceLowFilterNode.connect(voiceHighFilterNode);
+
+            // Connect Dry path to Analyser
+            voiceHighFilterNode.connect(analyser);
+
+            // Connect Wet path (Delay loop)
+            voiceHighFilterNode.connect(delayNode);
+            delayNode.connect(delayFeedbackNode);
+            delayFeedbackNode.connect(delayNode); // feedback loop
+            delayNode.connect(delayGainNode);
+            delayGainNode.connect(analyser); // mix back into analyser
+
+            // Connect Analyser to Destination
             analyser.connect(audioCtx.destination);
 
             // Add the class to disable simulated CSS animations
@@ -1595,8 +1696,484 @@ document.addEventListener("DOMContentLoaded", () => {
             if (waveformContainer) {
                 waveformContainer.classList.add("real-visualizer");
             }
+
+            // Sync with current UI states in case settings were modified before visualizer loaded
+            syncAudioEffectsToNodes();
+
         } catch (err) {
             console.warn("Failed to initialize Web Audio visualizer, falling back to CSS animation:", err);
+        }
+    }
+
+    function syncAudioEffectsToNodes() {
+        if (!audioCtx) return;
+
+        // Apply EQ slider gains
+        const bassVal = parseFloat(document.getElementById("eq-bass").value) || 0;
+        const lowmidVal = parseFloat(document.getElementById("eq-lowmid").value) || 0;
+        const highmidVal = parseFloat(document.getElementById("eq-highmid").value) || 0;
+        const trebleVal = parseFloat(document.getElementById("eq-treble").value) || 0;
+
+        if (eqBassNode) eqBassNode.gain.setValueAtTime(bassVal, audioCtx.currentTime);
+        if (eqLowMidNode) eqLowMidNode.gain.setValueAtTime(lowmidVal, audioCtx.currentTime);
+        if (eqHighMidNode) eqHighMidNode.gain.setValueAtTime(highmidVal, audioCtx.currentTime);
+        if (eqTrebleNode) eqTrebleNode.gain.setValueAtTime(trebleVal, audioCtx.currentTime);
+
+        // Apply Voice FX preset
+        const activeVoiceBtn = document.querySelector(".voice-preset.active");
+        if (activeVoiceBtn) {
+            const voicePreset = activeVoiceBtn.dataset.voice;
+            applyVoiceEffectsNodePreset(voicePreset);
+        }
+    }
+
+    function applyVoiceEffectsNodePreset(voicePreset) {
+        if (!audioCtx || !voiceLowFilterNode || !voiceHighFilterNode || !delayGainNode) return;
+
+        // Reset first to standard before applying preset
+        voiceLowFilterNode.type = "allpass";
+        voiceHighFilterNode.type = "allpass";
+        delayGainNode.gain.setValueAtTime(0.0, audioCtx.currentTime);
+
+        switch (voicePreset) {
+            case "normal":
+                // already reset
+                break;
+            case "deep":
+                voiceLowFilterNode.type = "lowshelf";
+                voiceLowFilterNode.frequency.setValueAtTime(150, audioCtx.currentTime);
+                voiceLowFilterNode.gain.setValueAtTime(8, audioCtx.currentTime);
+                
+                voiceHighFilterNode.type = "highshelf";
+                voiceHighFilterNode.frequency.setValueAtTime(3000, audioCtx.currentTime);
+                voiceHighFilterNode.gain.setValueAtTime(-8, audioCtx.currentTime);
+                break;
+            case "bright":
+                voiceLowFilterNode.type = "lowshelf";
+                voiceLowFilterNode.frequency.setValueAtTime(200, audioCtx.currentTime);
+                voiceLowFilterNode.gain.setValueAtTime(-4, audioCtx.currentTime);
+                
+                voiceHighFilterNode.type = "highshelf";
+                voiceHighFilterNode.frequency.setValueAtTime(4000, audioCtx.currentTime);
+                voiceHighFilterNode.gain.setValueAtTime(8, audioCtx.currentTime);
+                break;
+            case "hall":
+                delayGainNode.gain.setValueAtTime(0.4, audioCtx.currentTime);
+                break;
+            case "studio":
+                voiceLowFilterNode.type = "peaking";
+                voiceLowFilterNode.frequency.setValueAtTime(120, audioCtx.currentTime);
+                voiceLowFilterNode.gain.setValueAtTime(2, audioCtx.currentTime);
+                
+                voiceHighFilterNode.type = "peaking";
+                voiceHighFilterNode.frequency.setValueAtTime(3200, audioCtx.currentTime);
+                voiceHighFilterNode.gain.setValueAtTime(3, audioCtx.currentTime);
+                
+                delayGainNode.gain.setValueAtTime(0.08, audioCtx.currentTime);
+                break;
+            case "lofi":
+                voiceLowFilterNode.type = "lowpass";
+                voiceLowFilterNode.frequency.setValueAtTime(3200, audioCtx.currentTime);
+                
+                voiceHighFilterNode.type = "highpass";
+                voiceHighFilterNode.frequency.setValueAtTime(180, audioCtx.currentTime);
+                break;
+            case "telephone":
+                voiceLowFilterNode.type = "highpass";
+                voiceLowFilterNode.frequency.setValueAtTime(450, audioCtx.currentTime);
+                
+                voiceHighFilterNode.type = "lowpass";
+                voiceHighFilterNode.frequency.setValueAtTime(2800, audioCtx.currentTime);
+                break;
+            case "underwater":
+                voiceLowFilterNode.type = "lowpass";
+                voiceLowFilterNode.frequency.setValueAtTime(600, audioCtx.currentTime);
+                
+                delayGainNode.gain.setValueAtTime(0.2, audioCtx.currentTime);
+                break;
+        }
+    }
+
+    const EQ_PRESETS = {
+        flat: { bass: 0, lowmid: 0, highmid: 0, treble: 0 },
+        bass: { bass: 9, lowmid: 4, highmid: -1, treble: -2 },
+        vocal: { bass: -3, lowmid: 3, highmid: 7, treble: 4 },
+        acoustic: { bass: 4, lowmid: 2, highmid: 3, treble: 5 },
+        electronic: { bass: 7, lowmid: -2, highmid: 4, treble: 6 },
+        lofi: { bass: 4, lowmid: -2, highmid: -8, treble: -12 }
+    };
+
+    function applyEqPreset(presetName) {
+        const values = EQ_PRESETS[presetName];
+        if (!values) return;
+
+        // Set inputs in UI
+        const bassInput = document.getElementById("eq-bass");
+        const lowmidInput = document.getElementById("eq-lowmid");
+        const highmidInput = document.getElementById("eq-highmid");
+        const trebleInput = document.getElementById("eq-treble");
+
+        if (bassInput) {
+            bassInput.value = values.bass;
+            updateSliderBackground(bassInput);
+            document.getElementById("eq-bass-val").textContent = (values.bass > 0 ? "+" : "") + values.bass;
+        }
+        if (lowmidInput) {
+            lowmidInput.value = values.lowmid;
+            updateSliderBackground(lowmidInput);
+            document.getElementById("eq-lowmid-val").textContent = (values.lowmid > 0 ? "+" : "") + values.lowmid;
+        }
+        if (highmidInput) {
+            highmidInput.value = values.highmid;
+            updateSliderBackground(highmidInput);
+            document.getElementById("eq-highmid-val").textContent = (values.highmid > 0 ? "+" : "") + values.highmid;
+        }
+        if (trebleInput) {
+            trebleInput.value = values.treble;
+            updateSliderBackground(trebleInput);
+            document.getElementById("eq-treble-val").textContent = (values.treble > 0 ? "+" : "") + values.treble;
+        }
+
+        // Apply to nodes
+        if (audioCtx) {
+            if (eqBassNode) eqBassNode.gain.setValueAtTime(values.bass, audioCtx.currentTime);
+            if (eqLowMidNode) eqLowMidNode.gain.setValueAtTime(values.lowmid, audioCtx.currentTime);
+            if (eqHighMidNode) eqHighMidNode.gain.setValueAtTime(values.highmid, audioCtx.currentTime);
+            if (eqTrebleNode) eqTrebleNode.gain.setValueAtTime(values.treble, audioCtx.currentTime);
+        }
+    }
+
+    function saveAudioSettingsToStorage() {
+        const eqBassVal = parseFloat(document.getElementById("eq-bass")?.value || 0);
+        const eqLowMidVal = parseFloat(document.getElementById("eq-lowmid")?.value || 0);
+        const eqHighMidVal = parseFloat(document.getElementById("eq-highmid")?.value || 0);
+        const eqTrebleVal = parseFloat(document.getElementById("eq-treble")?.value || 0);
+        const audioSpeedVal = parseFloat(document.getElementById("audio-speed-slider")?.value || 1.0);
+        const activeVoiceBtn = document.querySelector(".voice-preset.active");
+        const voicePreset = activeVoiceBtn ? activeVoiceBtn.dataset.voice : "normal";
+
+        localStorage.setItem("audio_eq_bass", eqBassVal);
+        localStorage.setItem("audio_eq_lowmid", eqLowMidVal);
+        localStorage.setItem("audio_eq_highmid", eqHighMidVal);
+        localStorage.setItem("audio_eq_treble", eqTrebleVal);
+        localStorage.setItem("audio_speed", audioSpeedVal);
+        localStorage.setItem("audio_voice_preset", voicePreset);
+    }
+
+    function loadAudioSettingsFromStorage() {
+        const eqBass = localStorage.getItem("audio_eq_bass") !== null ? parseFloat(localStorage.getItem("audio_eq_bass")) : 0;
+        const eqLowMid = localStorage.getItem("audio_eq_lowmid") !== null ? parseFloat(localStorage.getItem("audio_eq_lowmid")) : 0;
+        const eqHighMid = localStorage.getItem("audio_eq_highmid") !== null ? parseFloat(localStorage.getItem("audio_eq_highmid")) : 0;
+        const eqTreble = localStorage.getItem("audio_eq_treble") !== null ? parseFloat(localStorage.getItem("audio_eq_treble")) : 0;
+        const audioSpeed = localStorage.getItem("audio_speed") !== null ? parseFloat(localStorage.getItem("audio_speed")) : 1.0;
+        const voicePreset = localStorage.getItem("audio_voice_preset") || "normal";
+
+        // Apply UI values
+        const bassInput = document.getElementById("eq-bass");
+        const lowmidInput = document.getElementById("eq-lowmid");
+        const highmidInput = document.getElementById("eq-highmid");
+        const trebleInput = document.getElementById("eq-treble");
+        const audioSpeedSliderEl = document.getElementById("audio-speed-slider");
+        const audioSpeedDisplayEl = document.getElementById("audio-speed-display");
+
+        if (bassInput) {
+            bassInput.value = eqBass;
+            updateSliderBackground(bassInput);
+            const valEl = document.getElementById("eq-bass-val");
+            if (valEl) valEl.textContent = (eqBass > 0 ? "+" : "") + eqBass;
+        }
+        if (lowmidInput) {
+            lowmidInput.value = eqLowMid;
+            updateSliderBackground(lowmidInput);
+            const valEl = document.getElementById("eq-lowmid-val");
+            if (valEl) valEl.textContent = (eqLowMid > 0 ? "+" : "") + eqLowMid;
+        }
+        if (highmidInput) {
+            highmidInput.value = eqHighMid;
+            updateSliderBackground(highmidInput);
+            const valEl = document.getElementById("eq-highmid-val");
+            if (valEl) valEl.textContent = (eqHighMid > 0 ? "+" : "") + eqHighMid;
+        }
+        if (trebleInput) {
+            trebleInput.value = eqTreble;
+            updateSliderBackground(trebleInput);
+            const valEl = document.getElementById("eq-treble-val");
+            if (valEl) valEl.textContent = (eqTreble > 0 ? "+" : "") + eqTreble;
+        }
+
+        if (audioSpeedSliderEl) {
+            audioSpeedSliderEl.value = audioSpeed;
+            updateSliderBackground(audioSpeedSliderEl);
+        }
+        if (audioSpeedDisplayEl) {
+            audioSpeedDisplayEl.textContent = audioSpeed.toFixed(2);
+        }
+
+        // Apply active presets styling
+        if (speedPresetBtns) {
+            speedPresetBtns.forEach(btn => {
+                const s = parseFloat(btn.dataset.speed);
+                if (Math.abs(s - audioSpeed) < 0.01) {
+                    btn.classList.add("active");
+                } else {
+                    btn.classList.remove("active");
+                }
+            });
+        }
+
+        // Match EQ Preset active highlight
+        if (eqPresets) {
+            eqPresets.forEach(btn => {
+                const preset = btn.dataset.preset;
+                const values = EQ_PRESETS[preset];
+                if (values && 
+                    Math.abs(values.bass - eqBass) < 0.01 && 
+                    Math.abs(values.lowmid - eqLowMid) < 0.01 && 
+                    Math.abs(values.highmid - eqHighMid) < 0.01 && 
+                    Math.abs(values.treble - eqTreble) < 0.01) {
+                    btn.classList.add("active");
+                } else {
+                    btn.classList.remove("active");
+                }
+            });
+        }
+
+        // Match Voice FX active highlight
+        if (voicePresets) {
+            voicePresets.forEach(btn => {
+                if (btn.dataset.voice === voicePreset) {
+                    btn.classList.add("active");
+                } else {
+                    btn.classList.remove("active");
+                }
+            });
+        }
+
+        // Apply to Web Audio nodes if audioCtx is already initialized
+        if (audioCtx) {
+            if (eqBassNode) eqBassNode.gain.setValueAtTime(eqBass, audioCtx.currentTime);
+            if (eqLowMidNode) eqLowMidNode.gain.setValueAtTime(eqLowMid, audioCtx.currentTime);
+            if (eqHighMidNode) eqHighMidNode.gain.setValueAtTime(eqHighMid, audioCtx.currentTime);
+            if (eqTrebleNode) eqTrebleNode.gain.setValueAtTime(eqTreble, audioCtx.currentTime);
+
+            // Re-apply voice FX
+            applyVoiceEffectsNodePreset(voicePreset);
+
+            // Re-apply playback speed to previewAudioPlayer
+            if (previewAudioPlayer) {
+                previewAudioPlayer.playbackRate = audioSpeed;
+            }
+        }
+    }
+
+    function resetAudioEffects() {
+        loadAudioSettingsFromStorage();
+
+        // Reset Lyrics
+        audioLyrics = [];
+        activeLyricIndex = -1;
+        if (audioLyricsList) {
+            audioLyricsList.innerHTML = '<div class="lyrics-placeholder">Upload a .vtt or .srt subtitle file to see lyrics</div>';
+        }
+        if (audioSubSelect) {
+            audioSubSelect.innerHTML = '<option value="none">None</option>';
+            audioSubSelect.value = "none";
+        }
+        audioSubSelectUrl = "";
+
+        // Hide Panels
+        if (audioSettingsPanel) {
+            audioSettingsPanel.classList.add("hidden");
+        }
+        if (audioSidePanel) {
+            audioSidePanel.classList.add("hidden");
+        }
+        if (audioEqBtn) {
+            audioEqBtn.classList.remove("active");
+        }
+        if (audioLyricsOverlay) {
+            audioLyricsOverlay.classList.add("hidden");
+        }
+        if (audioLyricsBtn) {
+            audioLyricsBtn.classList.remove("active");
+        }
+    }
+
+    function setupAudioPreviewSubtitles() {
+        if (!audioSubSelect) return;
+        audioSubSelect.innerHTML = '<option value="none">None</option>';
+        
+        let subOpts = (activeMetadata && activeMetadata.subtitles) ? activeMetadata.subtitles : [];
+        if (subOpts && typeof subOpts === "object" && !Array.isArray(subOpts)) {
+            subOpts = Object.keys(subOpts).map(key => {
+                const val = subOpts[key];
+                if (typeof val === "string") {
+                    return { lang_code: key, name: key.toUpperCase(), url: val };
+                }
+                return {
+                    lang_code: key,
+                    name: val.name || key.toUpperCase(),
+                    url: val.url || ""
+                };
+            });
+        }
+        if (!Array.isArray(subOpts)) {
+            subOpts = [];
+        }
+        subOpts.forEach(opt => {
+            const optionEl = document.createElement("option");
+            optionEl.value = opt.url || opt.lang_code;
+            optionEl.textContent = opt.name;
+            audioSubSelect.appendChild(optionEl);
+        });
+
+        // Clear existing lyrics
+        audioLyrics = [];
+        activeLyricIndex = -1;
+        if (audioLyricsList) {
+            audioLyricsList.innerHTML = '<div class="lyrics-placeholder">Upload a .vtt or .srt subtitle file to see lyrics</div>';
+        }
+
+        // Auto-load first subtitle if available
+        if (subOpts.length > 0) {
+            const autoSub = subOpts.find(s => s.lang_code === "vi") || subOpts.find(s => s.lang_code === "en") || subOpts[0];
+            if (autoSub) {
+                audioSubSelect.value = autoSub.url || autoSub.lang_code;
+                loadAudioSubtitle(autoSub.url || autoSub.lang_code);
+            }
+        }
+    }
+
+    async function loadAudioSubtitle(urlOrContent, isContent = false) {
+        try {
+            let text = "";
+            if (isContent) {
+                text = urlOrContent;
+            } else {
+                if (!urlOrContent || urlOrContent === "none") {
+                    audioLyrics = [];
+                    activeLyricIndex = -1;
+                    if (audioLyricsList) {
+                        audioLyricsList.innerHTML = '<div class="lyrics-placeholder">Upload a .vtt or .srt subtitle file to see lyrics</div>';
+                    }
+                    return;
+                }
+
+                audioSubSelectUrl = urlOrContent;
+                let requestUrl = urlOrContent;
+                if (requestUrl.includes("youtube.com/api/timedtext")) {
+                    if (requestUrl.includes("fmt=")) {
+                        requestUrl = requestUrl.replace(/fmt=[^&]+/, "fmt=vtt");
+                    } else {
+                        requestUrl += requestUrl.includes("?") ? "&fmt=vtt" : "?fmt=vtt";
+                    }
+                }
+
+                if (requestUrl.includes("youtube.com/api/timedtext")) {
+                    try {
+                        const res = await fetch(requestUrl);
+                        if (!res.ok) throw new Error("Direct fetch failed");
+                        text = await res.text();
+                    } catch (err) {
+                        console.warn("Direct timedtext fetch failed for audio, falling back to proxy...", err);
+                        const proxyUrl = `/api/system/proxy-sub?url=${encodeURIComponent(requestUrl)}&client_id=${encodeURIComponent(clientId)}`;
+                        const res = await fetch(proxyUrl);
+                        text = await res.text();
+                    }
+                } else {
+                    let fetchUrl = requestUrl;
+                    if (requestUrl.startsWith("http://") || requestUrl.startsWith("https://") || requestUrl.startsWith("/api/download/file/")) {
+                        fetchUrl = `/api/system/proxy-sub?url=${encodeURIComponent(requestUrl)}&client_id=${encodeURIComponent(clientId)}`;
+                    }
+                    const res = await fetch(fetchUrl);
+                    text = await res.text();
+                }
+            }
+
+            const cues = parseSubtitleText(text);
+            console.log(`Loaded ${cues.length} audio lyrics cues`);
+            renderAudioLyrics(cues);
+        } catch (err) {
+            console.error("Failed to load audio subtitles:", err);
+            if (audioLyricsList) {
+                audioLyricsList.innerHTML = '<div class="lyrics-placeholder" style="color:var(--red)">Failed to load subtitles file.</div>';
+            }
+        }
+    }
+
+    function renderAudioLyrics(cues) {
+        audioLyrics = cues;
+        activeLyricIndex = -1;
+
+        if (!audioLyricsList) return;
+
+        if (audioLyrics.length === 0) {
+            audioLyricsList.innerHTML = '<div class="lyrics-placeholder">No lyric lines found in file.</div>';
+            return;
+        }
+
+        audioLyricsList.innerHTML = "";
+        audioLyrics.forEach((cue, index) => {
+            const lineDiv = document.createElement("div");
+            lineDiv.className = "lyrics-line";
+            lineDiv.setAttribute("data-index", index);
+            lineDiv.innerHTML = cue.text.replace(/\n/g, "<br>");
+            
+            lineDiv.addEventListener("click", () => {
+                if (previewAudioPlayer) {
+                    previewAudioPlayer.currentTime = cue.start;
+                }
+            });
+
+            audioLyricsList.appendChild(lineDiv);
+        });
+    }
+
+    function syncAudioLyrics(currentTime) {
+        if (!audioLyrics || audioLyrics.length === 0 || !audioLyricsList) return;
+
+        // Find the matching cue
+        let matchIndex = -1;
+        
+        // Find the latest cue that started before currentTime
+        for (let i = 0; i < audioLyrics.length; i++) {
+            if (currentTime >= audioLyrics[i].start && currentTime <= audioLyrics[i].end) {
+                matchIndex = i;
+                break;
+            }
+        }
+        
+        // If not found in a specific range, find the closest active line
+        if (matchIndex === -1) {
+            for (let i = audioLyrics.length - 1; i >= 0; i--) {
+                if (currentTime >= audioLyrics[i].start) {
+                    matchIndex = i;
+                    break;
+                }
+            }
+        }
+
+        if (matchIndex !== -1 && matchIndex !== activeLyricIndex) {
+            // Remove active class from previous
+            const oldActive = audioLyricsList.querySelector(".lyrics-line.active");
+            if (oldActive) oldActive.classList.remove("active");
+
+            // Add active class to new
+            const newActive = audioLyricsList.querySelector(`.lyrics-line[data-index="${matchIndex}"]`);
+            if (newActive) {
+                newActive.classList.add("active");
+                
+                // Auto scroll
+                const containerHeight = audioLyricsList.clientHeight;
+                const lineOffsetTop = newActive.offsetTop;
+                const lineHeight = newActive.clientHeight;
+                
+                audioLyricsList.scrollTo({
+                    top: lineOffsetTop - (containerHeight / 2) + (lineHeight / 2),
+                    behavior: "smooth"
+                });
+            }
+            activeLyricIndex = matchIndex;
         }
     }
 
@@ -1608,6 +2185,8 @@ document.addEventListener("DOMContentLoaded", () => {
 
         const bufferLength = analyser.frequencyBinCount;
         const dataArray = new Uint8Array(bufferLength);
+        // Target the outer visible box for border/glow effects (card is now transparent)
+        const contentArea = document.querySelector(".preview-content-area");
 
         const draw = () => {
             if (!previewAudioPlayer || previewAudioPlayer.paused) {
@@ -1654,11 +2233,12 @@ document.addEventListener("DOMContentLoaded", () => {
                     }
                 }
 
-                // Decay the card frame and vinyl record shadows back to their rest CSS states
-                if (audioCard) {
-                    audioCard.style.boxShadow = "";
-                    audioCard.style.borderColor = "";
+                // Reset the content-area glow back to CSS-driven state
+                if (contentArea) {
+                    contentArea.style.boxShadow = "";
+                    contentArea.style.borderColor = "";
                 }
+
                 const vinylRecord = document.querySelector(".vinyl-record");
                 if (vinylRecord) {
                     vinylRecord.style.boxShadow = "";
@@ -1705,21 +2285,16 @@ document.addEventListener("DOMContentLoaded", () => {
                 vinylLabel.style.transform = `scale(${labelScale})`;
             }
 
-            // Dynamically pulse the card frame shadow/border and vinyl record outer glow
-            if (audioCard) {
-                const innerBlur = 10 + (average / 255) * 25; // 10px to 35px blur
-                const outerBlur = 40 + (average / 255) * 60; // 40px to 100px blur
-                
-                const innerOpacity = 0.2 + (average / 255) * 0.6; // 0.2 to 0.8 opacity
-                const outerOpacity = 0.1 + (average / 255) * 0.4; // 0.1 to 0.5 opacity
-                const borderOpacity = 0.1 + (average / 255) * 0.5; // 0.1 to 0.6 opacity
-                
-                audioCard.style.boxShadow = `
-                    0 20px 40px rgba(0, 0, 0, 0.4), 
-                    0 0 ${innerBlur}px rgba(var(--cyan-rgb), ${innerOpacity}), 
-                    0 0 ${outerBlur}px rgba(var(--cyan-rgb), ${outerOpacity})
-                `;
-                audioCard.style.borderColor = `rgba(var(--cyan-rgb), ${borderOpacity})`;
+            // Dynamically pulse the outer box border & glow in sync with audio energy
+            if (contentArea) {
+                const innerBlur = 10 + (average / 255) * 25; // 10px → 35px
+                const outerBlur = 40 + (average / 255) * 60; // 40px → 100px
+                const innerOpacity = 0.15 + (average / 255) * 0.5;  // 0.15 → 0.65
+                const outerOpacity = 0.08 + (average / 255) * 0.3;  // 0.08 → 0.38
+                const borderOpacity = 0.1 + (average / 255) * 0.5;  // 0.1 → 0.6
+
+                contentArea.style.boxShadow = `0 0 ${innerBlur}px rgba(var(--cyan-rgb), ${innerOpacity}), 0 0 ${outerBlur}px rgba(var(--cyan-rgb), ${outerOpacity})`;
+                contentArea.style.borderColor = `rgba(var(--cyan-rgb), ${borderOpacity})`;
             }
 
             const vinylRecord = document.querySelector(".vinyl-record");
@@ -1789,6 +2364,7 @@ document.addEventListener("DOMContentLoaded", () => {
                 if (audioTimeCurrent) {
                     audioTimeCurrent.textContent = formatTime(currentPlayTime);
                 }
+                syncAudioLyrics(currentPlayTime);
                 if (loopStartSecs !== null && loopEndSecs !== null) {
                     if (currentPlayTime >= loopEndSecs || currentPlayTime < loopStartSecs) {
                         previewAudioPlayer.currentTime = loopStartSecs;
@@ -1906,6 +2482,188 @@ document.addEventListener("DOMContentLoaded", () => {
             updateSliderBackground(audioVolumeSlider);
         });
     }
+
+    // --- AUDIO EXPANDED FEATURES HANDLERS ---
+    if (audioLyricsBtn && audioLyricsOverlay) {
+        audioLyricsBtn.addEventListener("click", () => {
+            const isCurrentlyActive = audioLyricsBtn.classList.contains("active");
+            
+            // Deactivate EQ button and hide settings panel
+            if (audioEqBtn) audioEqBtn.classList.remove("active");
+            if (audioSettingsPanel) audioSettingsPanel.classList.add("hidden");
+
+            if (isCurrentlyActive) {
+                // Deactivate lyrics
+                audioLyricsBtn.classList.remove("active");
+                audioLyricsOverlay.classList.add("hidden");
+                if (audioSidePanel) audioSidePanel.classList.add("hidden");
+            } else {
+                // Activate lyrics
+                audioLyricsBtn.classList.add("active");
+                audioLyricsOverlay.classList.remove("hidden");
+                if (audioSidePanel) audioSidePanel.classList.remove("hidden");
+                if (previewAudioPlayer) {
+                    syncAudioLyrics(previewAudioPlayer.currentTime);
+                }
+            }
+        });
+    }
+
+    if (audioEqBtn && audioSettingsPanel) {
+        audioEqBtn.addEventListener("click", () => {
+            const isCurrentlyActive = audioEqBtn.classList.contains("active");
+
+            // Deactivate lyrics button and hide lyrics overlay
+            if (audioLyricsBtn) audioLyricsBtn.classList.remove("active");
+            if (audioLyricsOverlay) audioLyricsOverlay.classList.add("hidden");
+
+            if (isCurrentlyActive) {
+                // Deactivate EQ
+                audioEqBtn.classList.remove("active");
+                audioSettingsPanel.classList.add("hidden");
+                if (audioSidePanel) audioSidePanel.classList.add("hidden");
+            } else {
+                // Activate EQ
+                audioEqBtn.classList.add("active");
+                audioSettingsPanel.classList.remove("hidden");
+                if (audioSidePanel) audioSidePanel.classList.remove("hidden");
+            }
+        });
+    }
+
+    audioStabs.forEach(tab => {
+        tab.addEventListener("click", () => {
+            audioStabs.forEach(t => t.classList.remove("active"));
+            tab.classList.add("active");
+
+            const targetTab = tab.dataset.stab;
+            audioStabContents.forEach(content => {
+                if (content.dataset.content === targetTab) {
+                    content.classList.remove("hidden");
+                } else {
+                    content.classList.add("hidden");
+                }
+            });
+        });
+    });
+
+    if (audioSubSelect) {
+        audioSubSelect.addEventListener("change", function() {
+            loadAudioSubtitle(this.value);
+        });
+    }
+
+    if (audioSubUploadBtn && audioSubFile) {
+        audioSubUploadBtn.addEventListener("click", () => {
+            audioSubFile.click();
+        });
+        audioSubFile.addEventListener("change", function(e) {
+            const file = e.target.files[0];
+            if (!file) return;
+
+            const reader = new FileReader();
+            reader.onload = function(evt) {
+                const text = evt.target.result;
+                const opt = document.createElement("option");
+                opt.value = "uploaded_file";
+                opt.textContent = file.name;
+                opt.selected = true;
+                
+                const existingCustom = audioSubSelect.querySelector('option[value="uploaded_file"]');
+                if (existingCustom) {
+                    existingCustom.remove();
+                }
+                
+                audioSubSelect.appendChild(opt);
+                audioSubSelect.value = "uploaded_file";
+
+                loadAudioSubtitle(text, true);
+            };
+            reader.readAsText(file);
+        });
+    }
+
+    if (audioSpeedSlider && previewAudioPlayer) {
+        audioSpeedSlider.addEventListener("input", function() {
+            const val = parseFloat(this.value);
+            previewAudioPlayer.playbackRate = val;
+            if (audioSpeedDisplay) audioSpeedDisplay.textContent = val.toFixed(2);
+            updateSliderBackground(this);
+
+            speedPresetBtns.forEach(btn => {
+                const s = parseFloat(btn.dataset.speed);
+                if (Math.abs(s - val) < 0.01) {
+                    btn.classList.add("active");
+                } else {
+                    btn.classList.remove("active");
+                }
+            });
+            saveAudioSettingsToStorage();
+        });
+    }
+
+    speedPresetBtns.forEach(btn => {
+        btn.addEventListener("click", () => {
+            const val = parseFloat(btn.dataset.speed);
+            if (previewAudioPlayer) {
+                previewAudioPlayer.playbackRate = val;
+            }
+            if (audioSpeedSlider) {
+                audioSpeedSlider.value = val;
+                updateSliderBackground(audioSpeedSlider);
+            }
+            if (audioSpeedDisplay) {
+                audioSpeedDisplay.textContent = val.toFixed(2);
+            }
+            speedPresetBtns.forEach(b => b.classList.remove("active"));
+            btn.classList.add("active");
+            saveAudioSettingsToStorage();
+        });
+    });
+
+    eqSliders.forEach(slider => {
+        slider.addEventListener("input", function() {
+            const val = parseFloat(this.value);
+            const bandName = this.id.replace("eq-", "");
+            const valEl = document.getElementById(`${this.id}-val`);
+            if (valEl) valEl.textContent = (val > 0 ? "+" : "") + val;
+            updateSliderBackground(this);
+
+            if (audioCtx) {
+                let node = null;
+                if (bandName === "bass") node = eqBassNode;
+                else if (bandName === "lowmid") node = eqLowMidNode;
+                else if (bandName === "highmid") node = eqHighMidNode;
+                else if (bandName === "treble") node = eqTrebleNode;
+
+                if (node) {
+                    node.gain.setValueAtTime(val, audioCtx.currentTime);
+                }
+            }
+
+            eqPresets.forEach(b => b.classList.remove("active"));
+            saveAudioSettingsToStorage();
+        });
+    });
+
+    eqPresets.forEach(btn => {
+        btn.addEventListener("click", () => {
+            eqPresets.forEach(b => b.classList.remove("active"));
+            btn.classList.add("active");
+            applyEqPreset(btn.dataset.preset);
+            saveAudioSettingsToStorage();
+        });
+    });
+
+    voicePresets.forEach(btn => {
+        btn.addEventListener("click", () => {
+            voicePresets.forEach(b => b.classList.remove("active"));
+            btn.classList.add("active");
+            const presetName = btn.dataset.voice;
+            applyVoiceEffectsNodePreset(presetName);
+            saveAudioSettingsToStorage();
+        });
+    });
 
     // --- PREVIEW MODAL HOVER & CURSOR AUTO-HIDE HANDLERS ---
     let videoHoverTimeout = null;
@@ -2749,6 +3507,21 @@ document.addEventListener("DOMContentLoaded", () => {
                 previewShortcutsOverlay.classList.add("hidden");
             }
 
+            if (imageSidePanel) {
+                imageSidePanel.classList.add("hidden");
+            }
+            if (btnImageAdjust) {
+                btnImageAdjust.classList.remove("active");
+            }
+            if (previewImageElement) {
+                previewImageElement.style.filter = "none";
+            }
+
+            const subFormatSelect = document.getElementById("preview-sub-format");
+            if (subFormatSelect) {
+                subFormatSelect.value = "original";
+            }
+
             stopAllPreviewPlaybacks();
         };
 
@@ -3311,6 +4084,225 @@ document.addEventListener("DOMContentLoaded", () => {
         };
     }
 
+    function updateImageFilters() {
+        const brightness = parseFloat(document.getElementById("img-brightness")?.value || 100);
+        const contrast = parseFloat(document.getElementById("img-contrast")?.value || 100);
+        const saturation = parseFloat(document.getElementById("img-saturation")?.value || 100);
+        const hue = parseFloat(document.getElementById("img-hue")?.value || 0);
+        const exposure = parseFloat(document.getElementById("img-exposure")?.value || 100);
+        const blur = parseFloat(document.getElementById("img-blur")?.value || 0);
+        const grayscale = parseFloat(document.getElementById("img-grayscale")?.value || 0);
+        const sepia = parseFloat(document.getElementById("img-sepia")?.value || 0);
+        const invert = parseFloat(document.getElementById("img-invert")?.value || 0);
+
+        const filterStr = `brightness(${brightness}%) contrast(${contrast}%) saturate(${saturation}%) hue-rotate(${hue}deg) brightness(${exposure}%) blur(${blur}px) grayscale(${grayscale}%) sepia(${sepia}%) invert(${invert}%)`;
+        
+        if (previewImageElement) {
+            previewImageElement.style.filter = filterStr;
+        }
+    }
+
+    function saveImageSettingsToStorage() {
+        const brightness = document.getElementById("img-brightness")?.value || 100;
+        const contrast = document.getElementById("img-contrast")?.value || 100;
+        const saturation = document.getElementById("img-saturation")?.value || 100;
+        const hue = document.getElementById("img-hue")?.value || 0;
+        const exposure = document.getElementById("img-exposure")?.value || 100;
+        const blur = document.getElementById("img-blur")?.value || 0;
+        const grayscale = document.getElementById("img-grayscale")?.value || 0;
+        const sepia = document.getElementById("img-sepia")?.value || 0;
+        const invert = document.getElementById("img-invert")?.value || 0;
+
+        localStorage.setItem("img_brightness", brightness);
+        localStorage.setItem("img_contrast", contrast);
+        localStorage.setItem("img_saturation", saturation);
+        localStorage.setItem("img_hue", hue);
+        localStorage.setItem("img_exposure", exposure);
+        localStorage.setItem("img_blur", blur);
+        localStorage.setItem("img_grayscale", grayscale);
+        localStorage.setItem("img_sepia", sepia);
+        localStorage.setItem("img_invert", invert);
+    }
+
+    function loadImageSettingsFromStorage() {
+        const brightness = localStorage.getItem("img_brightness") !== null ? parseFloat(localStorage.getItem("img_brightness")) : 100;
+        const contrast = localStorage.getItem("img_contrast") !== null ? parseFloat(localStorage.getItem("img_contrast")) : 100;
+        const saturation = localStorage.getItem("img_saturation") !== null ? parseFloat(localStorage.getItem("img_saturation")) : 100;
+        const hue = localStorage.getItem("img_hue") !== null ? parseFloat(localStorage.getItem("img_hue")) : 0;
+        const exposure = localStorage.getItem("img_exposure") !== null ? parseFloat(localStorage.getItem("img_exposure")) : 100;
+        const blur = localStorage.getItem("img_blur") !== null ? parseFloat(localStorage.getItem("img_blur")) : 0;
+        const grayscale = localStorage.getItem("img_grayscale") !== null ? parseFloat(localStorage.getItem("img_grayscale")) : 0;
+        const sepia = localStorage.getItem("img_sepia") !== null ? parseFloat(localStorage.getItem("img_sepia")) : 0;
+        const invert = localStorage.getItem("img_invert") !== null ? parseFloat(localStorage.getItem("img_invert")) : 0;
+
+        const brightnessInput = document.getElementById("img-brightness");
+        const contrastInput = document.getElementById("img-contrast");
+        const saturationInput = document.getElementById("img-saturation");
+        const hueInput = document.getElementById("img-hue");
+        const exposureInput = document.getElementById("img-exposure");
+        const blurInput = document.getElementById("img-blur");
+        const grayscaleInput = document.getElementById("img-grayscale");
+        const sepiaInput = document.getElementById("img-sepia");
+        const invertInput = document.getElementById("img-invert");
+
+        if (brightnessInput) brightnessInput.value = brightness;
+        if (contrastInput) contrastInput.value = contrast;
+        if (saturationInput) saturationInput.value = saturation;
+        if (hueInput) hueInput.value = hue;
+        if (exposureInput) exposureInput.value = exposure;
+        if (blurInput) blurInput.value = blur;
+        if (grayscaleInput) grayscaleInput.value = grayscale;
+        if (sepiaInput) sepiaInput.value = sepia;
+        if (invertInput) invertInput.value = invert;
+
+        const brightnessVal = document.getElementById("img-brightness-val");
+        const contrastVal = document.getElementById("img-contrast-val");
+        const saturationVal = document.getElementById("img-saturation-val");
+        const hueVal = document.getElementById("img-hue-val");
+        const exposureVal = document.getElementById("img-exposure-val");
+        const blurVal = document.getElementById("img-blur-val");
+        const grayscaleVal = document.getElementById("img-grayscale-val");
+        const sepiaVal = document.getElementById("img-sepia-val");
+        const invertVal = document.getElementById("img-invert-val");
+
+        if (brightnessVal) brightnessVal.textContent = `${brightness}%`;
+        if (contrastVal) contrastVal.textContent = `${contrast}%`;
+        if (saturationVal) saturationVal.textContent = `${saturation}%`;
+        if (hueVal) hueVal.textContent = `${hue}°`;
+        if (exposureVal) exposureVal.textContent = `${exposure}%`;
+        if (blurVal) blurVal.textContent = `${blur}px`;
+        if (grayscaleVal) grayscaleVal.textContent = `${grayscale}%`;
+        if (sepiaVal) sepiaVal.textContent = `${sepia}%`;
+        if (invertVal) invertVal.textContent = `${invert}%`;
+
+        if (brightnessInput) updateSliderBackground(brightnessInput);
+        if (contrastInput) updateSliderBackground(contrastInput);
+        if (saturationInput) updateSliderBackground(saturationInput);
+        if (hueInput) updateSliderBackground(hueInput);
+        if (exposureInput) updateSliderBackground(exposureInput);
+        if (blurInput) updateSliderBackground(blurInput);
+        if (grayscaleInput) updateSliderBackground(grayscaleInput);
+        if (sepiaInput) updateSliderBackground(sepiaInput);
+        if (invertInput) updateSliderBackground(invertInput);
+
+        updateImageFilters();
+    }
+
+    function resetImageFilters() {
+        const brightnessInput = document.getElementById("img-brightness");
+        const contrastInput = document.getElementById("img-contrast");
+        const saturationInput = document.getElementById("img-saturation");
+        const hueInput = document.getElementById("img-hue");
+        const exposureInput = document.getElementById("img-exposure");
+        const blurInput = document.getElementById("img-blur");
+        const grayscaleInput = document.getElementById("img-grayscale");
+        const sepiaInput = document.getElementById("img-sepia");
+        const invertInput = document.getElementById("img-invert");
+
+        if (brightnessInput) brightnessInput.value = 100;
+        if (contrastInput) contrastInput.value = 100;
+        if (saturationInput) saturationInput.value = 100;
+        if (hueInput) hueInput.value = 0;
+        if (exposureInput) exposureInput.value = 100;
+        if (blurInput) blurInput.value = 0;
+        if (grayscaleInput) grayscaleInput.value = 0;
+        if (sepiaInput) sepiaInput.value = 0;
+        if (invertInput) invertInput.value = 0;
+
+        const brightnessVal = document.getElementById("img-brightness-val");
+        const contrastVal = document.getElementById("img-contrast-val");
+        const saturationVal = document.getElementById("img-saturation-val");
+        const hueVal = document.getElementById("img-hue-val");
+        const exposureVal = document.getElementById("img-exposure-val");
+        const blurVal = document.getElementById("img-blur-val");
+        const grayscaleVal = document.getElementById("img-grayscale-val");
+        const sepiaVal = document.getElementById("img-sepia-val");
+        const invertVal = document.getElementById("img-invert-val");
+
+        if (brightnessVal) brightnessVal.textContent = "100%";
+        if (contrastVal) contrastVal.textContent = "100%";
+        if (saturationVal) saturationVal.textContent = "100%";
+        if (hueVal) hueVal.textContent = "0°";
+        if (exposureVal) exposureVal.textContent = "100%";
+        if (blurVal) blurVal.textContent = "0px";
+        if (grayscaleVal) grayscaleVal.textContent = "0%";
+        if (sepiaVal) sepiaVal.textContent = "0%";
+        if (invertVal) invertVal.textContent = "0%";
+
+        if (brightnessInput) updateSliderBackground(brightnessInput);
+        if (contrastInput) updateSliderBackground(contrastInput);
+        if (saturationInput) updateSliderBackground(saturationInput);
+        if (hueInput) updateSliderBackground(hueInput);
+        if (exposureInput) updateSliderBackground(exposureInput);
+        if (blurInput) updateSliderBackground(blurInput);
+        if (grayscaleInput) updateSliderBackground(grayscaleInput);
+        if (sepiaInput) updateSliderBackground(sepiaInput);
+        if (invertInput) updateSliderBackground(invertInput);
+
+        if (previewImageElement) {
+            previewImageElement.style.filter = "none";
+        }
+        saveImageSettingsToStorage();
+    }
+
+    function getFilteredImageDownloadUrl() {
+        const brightness = parseFloat(document.getElementById("img-brightness")?.value || 100);
+        const contrast = parseFloat(document.getElementById("img-contrast")?.value || 100);
+        const saturation = parseFloat(document.getElementById("img-saturation")?.value || 100);
+        const hue = parseFloat(document.getElementById("img-hue")?.value || 0);
+        const exposure = parseFloat(document.getElementById("img-exposure")?.value || 100);
+        const blur = parseFloat(document.getElementById("img-blur")?.value || 0);
+        const grayscale = parseFloat(document.getElementById("img-grayscale")?.value || 0);
+        const sepia = parseFloat(document.getElementById("img-sepia")?.value || 0);
+        const invert = parseFloat(document.getElementById("img-invert")?.value || 0);
+
+        const originalUrl = previewActiveCustomUrl;
+        let url = `/api/download/image?url=${encodeURIComponent(originalUrl)}&client_id=${encodeURIComponent(clientId)}`;
+        url += `&brightness=${brightness}&contrast=${contrast}&saturation=${saturation}&hue=${hue}&exposure=${exposure}&blur=${blur}&grayscale=${grayscale}&sepia=${sepia}&invert=${invert}`;
+        return url;
+    }
+
+    if (btnImageAdjust && imageSidePanel) {
+        btnImageAdjust.onclick = (e) => {
+            e.stopPropagation();
+            const isHidden = imageSidePanel.classList.contains("hidden");
+            if (isHidden) {
+                imageSidePanel.classList.remove("hidden");
+                btnImageAdjust.classList.add("active");
+            } else {
+                imageSidePanel.classList.add("hidden");
+                btnImageAdjust.classList.remove("active");
+            }
+        };
+    }
+
+    if (btnImgReset) {
+        btnImgReset.onclick = (e) => {
+            e.stopPropagation();
+            resetImageFilters();
+        };
+    }
+
+    const imgFilterSliders = document.querySelectorAll(".img-filter-slider");
+    imgFilterSliders.forEach(slider => {
+        slider.addEventListener("input", function() {
+            const val = this.value;
+            const labelEl = document.getElementById(`${this.id}-val`);
+            if (labelEl) {
+                if (this.id === "img-hue") {
+                    labelEl.textContent = `${val}°`;
+                } else if (this.id === "img-blur") {
+                    labelEl.textContent = `${val}px`;
+                } else {
+                    labelEl.textContent = `${val}%`;
+                }
+            }
+            updateSliderBackground(this);
+            updateImageFilters();
+            saveImageSettingsToStorage();
+        });
+    });
+
     function showPreviewImage(index) {
         if (!extractedImages || index < 0 || index >= extractedImages.length) return;
         
@@ -3342,6 +4334,8 @@ document.addEventListener("DOMContentLoaded", () => {
         if (previewImageElement) {
             previewImageContainer.classList.add("hidden");
             showPreviewLoader("Loading image...");
+
+            loadImageSettingsFromStorage();
 
             previewImageElement.onload = () => {
                 hidePreviewLoader();
@@ -3378,10 +4372,66 @@ document.addEventListener("DOMContentLoaded", () => {
         };
     }
 
+    function formatSecondsToVttTime(seconds) {
+        if (isNaN(seconds) || seconds < 0) return "00:00:00.000";
+        const hrs = Math.floor(seconds / 3600);
+        const mins = Math.floor((seconds % 3600) / 60);
+        const secs = Math.floor(seconds % 60);
+        const ms = Math.floor((seconds % 1) * 1000);
+        return `${hrs.toString().padStart(2, "0")}:${mins.toString().padStart(2, "0")}:${secs.toString().padStart(2, "0")}.${ms.toString().padStart(3, "0")}`;
+    }
+
+    function formatSecondsToSrtTime(seconds) {
+        if (isNaN(seconds) || seconds < 0) return "00:00:00,000";
+        const hrs = Math.floor(seconds / 3600);
+        const mins = Math.floor((seconds % 3600) / 60);
+        const secs = Math.floor(seconds % 60);
+        const ms = Math.floor((seconds % 1) * 1000);
+        return `${hrs.toString().padStart(2, "0")}:${mins.toString().padStart(2, "0")}:${secs.toString().padStart(2, "0")},${ms.toString().padStart(3, "0")}`;
+    }
+
+    function convertSubtitlesToFormat(text, targetFormat) {
+        if (!text) return "";
+        if (targetFormat === "original") return text;
+
+        const cues = parseSubtitleText(text);
+        if (!cues || cues.length === 0) return text;
+
+        if (targetFormat === "vtt") {
+            let out = "WEBVTT\n\n";
+            cues.forEach(cue => {
+                out += `${formatSecondsToVttTime(cue.start)} --> ${formatSecondsToVttTime(cue.end)}\n${cue.text}\n\n`;
+            });
+            return out.trim() + "\n";
+        } else if (targetFormat === "srt") {
+            let out = "";
+            cues.forEach((cue, index) => {
+                out += `${index + 1}\n${formatSecondsToSrtTime(cue.start)} --> ${formatSecondsToSrtTime(cue.end)}\n${cue.text}\n\n`;
+            });
+            return out.trim() + "\n";
+        } else if (targetFormat === "txt") {
+            let lastText = "";
+            const cleanLines = [];
+            cues.forEach(cue => {
+                const txt = cue.text.replace(/\r?\n/g, " ").trim();
+                if (txt && txt !== lastText) {
+                    cleanLines.push(txt);
+                    lastText = txt;
+                }
+            });
+            return cleanLines.join("\n");
+        }
+        return text;
+    }
+
     // Copy subtitles clipboard helper
     if (btnCopySub && previewSubText) {
         btnCopySub.onclick = () => {
-            const copyText = previewActiveSubtitleContent || previewSubText.textContent;
+            const formatSelect = document.getElementById("preview-sub-format");
+            const targetFormat = formatSelect ? formatSelect.value : "original";
+            const rawText = previewActiveSubtitleContent || previewSubText.textContent;
+            const copyText = convertSubtitlesToFormat(rawText, targetFormat);
+
             navigator.clipboard.writeText(copyText).then(() => {
                 const originalText = btnCopySub.textContent;
                 btnCopySub.textContent = "Copied!";
@@ -3395,8 +4445,48 @@ document.addEventListener("DOMContentLoaded", () => {
     // Preview modal footer download trigger
     if (previewDownloadBtn) {
         previewDownloadBtn.onclick = () => {
+            const eqBassVal = parseFloat(document.getElementById("eq-bass")?.value || 0);
+            const eqLowMidVal = parseFloat(document.getElementById("eq-lowmid")?.value || 0);
+            const eqHighMidVal = parseFloat(document.getElementById("eq-highmid")?.value || 0);
+            const eqTrebleVal = parseFloat(document.getElementById("eq-treble")?.value || 0);
+            const hasEqAdjustment = (eqBassVal !== 0 || eqLowMidVal !== 0 || eqHighMidVal !== 0 || eqTrebleVal !== 0);
+
+            const audioSpeedVal = parseFloat(document.getElementById("audio-speed-slider")?.value || 1.0);
+            const isAudioType = (previewActiveExt === "mp3" || previewActiveExt === "m4a" || previewActiveFormatId === "audio");
+            const finalSpeedVal = isAudioType ? audioSpeedVal : currentPlaybackSpeed;
+            const hasSpeedAdjustment = (finalSpeedVal !== 1.0);
+
+            const activeVoiceBtn = document.querySelector(".voice-preset.active");
+            const hasVoiceAdjustment = (activeVoiceBtn && activeVoiceBtn.dataset.voice !== "normal");
+
+            const imgBrightnessVal = parseFloat(document.getElementById("img-brightness")?.value || 100);
+            const imgContrastVal = parseFloat(document.getElementById("img-contrast")?.value || 100);
+            const imgSaturationVal = parseFloat(document.getElementById("img-saturation")?.value || 100);
+            const imgHueVal = parseFloat(document.getElementById("img-hue")?.value || 0);
+            const imgExposureVal = parseFloat(document.getElementById("img-exposure")?.value || 100);
+            const imgBlurVal = parseFloat(document.getElementById("img-blur")?.value || 0);
+            const imgGrayscaleVal = parseFloat(document.getElementById("img-grayscale")?.value || 0);
+            const imgSepiaVal = parseFloat(document.getElementById("img-sepia")?.value || 0);
+            const imgInvertVal = parseFloat(document.getElementById("img-invert")?.value || 0);
+
+            const hasImageAdjustment = (
+                imgBrightnessVal !== 100 ||
+                imgContrastVal !== 100 ||
+                imgSaturationVal !== 100 ||
+                imgHueVal !== 0 ||
+                imgExposureVal !== 100 ||
+                imgBlurVal !== 0 ||
+                imgGrayscaleVal !== 0 ||
+                imgSepiaVal !== 0 ||
+                imgInvertVal !== 0
+            );
+
             const isCustomized = (
                 (loopStartSecs !== null || loopEndSecs !== null) ||
+                hasEqAdjustment ||
+                hasSpeedAdjustment ||
+                hasVoiceAdjustment ||
+                hasImageAdjustment ||
                 (document.getElementById("preview-export-type") && document.getElementById("preview-export-type").value !== "default") ||
                 (document.getElementById("preview-color-filter") && document.getElementById("preview-color-filter").value !== "none") ||
                 (document.getElementById("preview-voiceover-active") && document.getElementById("preview-voiceover-active").checked) ||
@@ -3406,6 +4496,18 @@ document.addEventListener("DOMContentLoaded", () => {
             );
 
             if (isCustomized) {
+                if (previewActiveFormatId === "image_preview") {
+                    const downloadUrl = getFilteredImageDownloadUrl();
+                    const a = document.createElement("a");
+                    a.href = downloadUrl;
+                    a.download = previewActiveFilename || "image.jpg";
+                    document.body.appendChild(a);
+                    a.click();
+                    document.body.removeChild(a);
+                    closePreviewModal();
+                    return;
+                }
+
                 // Set the trim controls on the main page
                 const trimCheckbox = document.getElementById("trim-checkbox");
                 const trimStartInput = document.getElementById("trim-start");
@@ -3423,6 +4525,16 @@ document.addEventListener("DOMContentLoaded", () => {
                     trimEndInput.value = loopEndSecs !== null ? formatTimeDetailed(loopEndSecs) : "";
                 }
                 
+                // Capture the current custom audio settings before closing (which resets them)
+                const capturedAudioSettings = {
+                    audio_eq_bass: eqBassVal,
+                    audio_eq_lowmid: eqLowMidVal,
+                    audio_eq_highmid: eqHighMidVal,
+                    audio_eq_treble: eqTrebleVal,
+                    audio_speed: finalSpeedVal,
+                    audio_voice_preset: activeVoiceBtn ? activeVoiceBtn.dataset.voice : "normal"
+                };
+
                 closePreviewModal();
                 
                 triggerDownload(
@@ -3434,15 +4546,35 @@ document.addEventListener("DOMContentLoaded", () => {
                     previewActiveCustomUrl,
                     previewActiveEpisode,
                     previewActiveServer,
-                    false // forceRaw = false (apply custom settings)
+                    false, // forceRaw = false (apply custom settings)
+                    capturedAudioSettings
                 );
             } else {
                 if (previewActiveExt === "vtt" || previewActiveExt === "srt") {
-                    const cleanTitle = getSafeTitle(videoTitle.textContent, "subtitles");
-                    const cleanLabel = (previewActiveFilename || "subtitle").replace(/Subtitles\s*-\s*/, "").replace(/\s+/g, "_");
-                    const safeFilename = `${cleanTitle}_${cleanLabel}.${previewActiveExt}`;
+                    const formatSelect = document.getElementById("preview-sub-format");
+                    const targetFormat = formatSelect ? formatSelect.value : "original";
                     
-                    const blob = new Blob([previewActiveSubtitleContent || previewSubText.textContent], { type: "text/vtt;charset=utf-8" });
+                    const rawText = previewActiveSubtitleContent || previewSubText.textContent;
+                    const finalContent = convertSubtitlesToFormat(rawText, targetFormat);
+                    
+                    let targetExt = previewActiveExt;
+                    if (targetFormat === "vtt") targetExt = "vtt";
+                    else if (targetFormat === "srt") targetExt = "srt";
+                    else if (targetFormat === "txt") targetExt = "txt";
+                    
+                    const cleanTitle = getSafeTitle(videoTitle.textContent, "subtitles");
+                    let cleanLabel = (previewActiveFilename || "subtitle").replace(/Subtitles\s*-\s*/, "").replace(/\s+/g, "_");
+                    
+                    if (cleanLabel.endsWith(".vtt") || cleanLabel.endsWith(".srt")) {
+                        cleanLabel = cleanLabel.substring(0, cleanLabel.length - 4);
+                    }
+                    const safeFilename = `${cleanTitle}_${cleanLabel}.${targetExt}`;
+                    
+                    let mimeType = "text/vtt;charset=utf-8";
+                    if (targetExt === "srt") mimeType = "text/srt;charset=utf-8";
+                    else if (targetExt === "txt") mimeType = "text/plain;charset=utf-8";
+                    
+                    const blob = new Blob([finalContent], { type: mimeType });
                     const url = URL.createObjectURL(blob);
                     const a = document.createElement("a");
                     a.href = url;
@@ -5114,7 +6246,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
     // 3. Download Execution via Asynchronous Server Task & Polling
     // 3. Download Execution via Asynchronous Server Task & Polling
-    async function triggerDownload(btn, formatId, ext, label, quality, customUrl, episode = "", server = "", forceRaw = false) {
+    async function triggerDownload(btn, formatId, ext, label, quality, customUrl, episode = "", server = "", forceRaw = false, capturedAudioSettings = null) {
         // Reset previous polling if running
         if (pollingInterval) {
             clearInterval(pollingInterval);
@@ -5219,6 +6351,32 @@ document.addEventListener("DOMContentLoaded", () => {
                             requestBody.tg_chat_id = tgChatId.value.trim();
                         }
                     }
+                }
+
+                // Custom Audio Processing Settings
+                if (capturedAudioSettings) {
+                    requestBody.audio_eq_bass = capturedAudioSettings.audio_eq_bass;
+                    requestBody.audio_eq_lowmid = capturedAudioSettings.audio_eq_lowmid;
+                    requestBody.audio_eq_highmid = capturedAudioSettings.audio_eq_highmid;
+                    requestBody.audio_eq_treble = capturedAudioSettings.audio_eq_treble;
+                    requestBody.audio_speed = capturedAudioSettings.audio_speed;
+                    requestBody.audio_voice_preset = capturedAudioSettings.audio_voice_preset;
+                } else {
+                    const eqBassEl = document.getElementById("eq-bass");
+                    const eqLowMidEl = document.getElementById("eq-lowmid");
+                    const eqHighMidEl = document.getElementById("eq-highmid");
+                    const eqTrebleEl = document.getElementById("eq-treble");
+                    
+                    requestBody.audio_eq_bass = eqBassEl ? parseFloat(eqBassEl.value) : 0;
+                    requestBody.audio_eq_lowmid = eqLowMidEl ? parseFloat(eqLowMidEl.value) : 0;
+                    requestBody.audio_eq_highmid = eqHighMidEl ? parseFloat(eqHighMidEl.value) : 0;
+                    requestBody.audio_eq_treble = eqTrebleEl ? parseFloat(eqTrebleEl.value) : 0;
+
+                    const audioSpeedSliderEl = document.getElementById("audio-speed-slider");
+                    requestBody.audio_speed = audioSpeedSliderEl ? parseFloat(audioSpeedSliderEl.value) : 1.0;
+
+                    const activeVoiceBtn = document.querySelector(".voice-preset.active");
+                    requestBody.audio_voice_preset = activeVoiceBtn ? activeVoiceBtn.dataset.voice : "normal";
                 }
             }
 
@@ -5610,6 +6768,7 @@ document.addEventListener("DOMContentLoaded", () => {
             }
 
             if (previewImageElement) {
+                loadImageSettingsFromStorage();
                 previewImageElement.src = finalUrl;
                 previewImageElement.onload = () => {
                     hidePreviewLoader();
@@ -5756,6 +6915,7 @@ document.addEventListener("DOMContentLoaded", () => {
                     previewAudioPlayer.src = proxyStreamUrl;
                     previewAudioPlayer.load();
                     previewAudioContainer.classList.remove("hidden");
+                    setupAudioPreviewSubtitles();
                     previewAudioPlayer.play().catch(e => console.log("Playback blocked"));
                 }
             } else {
@@ -5870,6 +7030,7 @@ document.addEventListener("DOMContentLoaded", () => {
                                 previewAudioPlayer.src = previewStreamUrl;
                                 previewAudioPlayer.load();
                                 previewAudioContainer.classList.remove("hidden");
+                                setupAudioPreviewSubtitles();
                                 previewAudioPlayer.play().catch(e => console.log("Playback blocked"));
                             }
                         } else if (ext === "vtt") {

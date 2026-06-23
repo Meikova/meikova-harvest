@@ -850,7 +850,7 @@ def hardsub_video(video_path, subtitles_path):
         return video_path
 
 
-def apply_post_processing(filepath, temp_dir, trim_start=None, trim_end=None, export_type="default", color_filter="none", voiceover_active=False, voiceover_voice="vi-VN-HoaiMyNeural", subtitles_path=None, translate_subs=None, progress_callback=None, voiceover_rate=None, voiceover_pitch=None):
+def apply_post_processing(filepath, temp_dir, trim_start=None, trim_end=None, export_type="default", color_filter="none", voiceover_active=False, voiceover_voice="vi-VN-HoaiMyNeural", subtitles_path=None, translate_subs=None, progress_callback=None, voiceover_rate=None, voiceover_pitch=None, audio_eq_bass=0, audio_eq_lowmid=0, audio_eq_highmid=0, audio_eq_treble=0, audio_speed=1.0, audio_voice_preset="normal"):
     """Applies all advanced filters, trimming, voiceovers, and formatting options to the downloaded media file."""
     if not filepath or not os.path.exists(filepath):
         return filepath
@@ -915,4 +915,190 @@ def apply_post_processing(filepath, temp_dir, trim_start=None, trim_end=None, ex
         except Exception as e:
             logger.error(f"Error burning subtitles: {e}")
 
+    # 5.5. Apply Audio Effects (EQ, playback speed, and voice FX presets)
+    if export_type != "gif":
+        try:
+            has_eq = any(float(x) != 0 for x in [audio_eq_bass, audio_eq_lowmid, audio_eq_highmid, audio_eq_treble] if x is not None)
+        except:
+            has_eq = False
+        
+        has_speed = (audio_speed is not None and float(audio_speed) != 1.0)
+        has_voice = (audio_voice_preset and audio_voice_preset != "normal")
+
+        if has_eq or has_speed or has_voice:
+            if progress_callback:
+                progress_callback("Applying EQ & audio effects...", 98)
+            try:
+                filepath = apply_audio_effects(
+                    filepath,
+                    eq_bass=audio_eq_bass,
+                    eq_lowmid=audio_eq_lowmid,
+                    eq_highmid=audio_eq_highmid,
+                    eq_treble=audio_eq_treble,
+                    speed=audio_speed,
+                    voice_preset=audio_voice_preset
+                )
+            except Exception as ae_err:
+                logger.error(f"Error applying audio effects: {ae_err}")
+
     return filepath
+
+
+def has_audio_stream(filepath):
+    """Checks if the media file has an audio stream using ffprobe."""
+    try:
+        cmd = [
+            "ffprobe", "-v", "error",
+            "-show_entries", "stream=codec_type",
+            "-of", "csv=p=0", filepath
+        ]
+        res = subprocess.run(cmd, capture_output=True, text=True)
+        return "audio" in res.stdout
+    except Exception as e:
+        logger.error(f"Error checking audio stream: {e}")
+        return True
+
+
+def has_video_stream(filepath):
+    """Checks if the media file has a video stream using ffprobe."""
+    try:
+        cmd = [
+            "ffprobe", "-v", "error",
+            "-show_entries", "stream=codec_type",
+            "-of", "csv=p=0", filepath
+        ]
+        res = subprocess.run(cmd, capture_output=True, text=True)
+        return "video" in res.stdout
+    except Exception as e:
+        logger.error(f"Error checking video stream: {e}")
+        return False
+
+
+def apply_audio_effects(filepath, eq_bass=0, eq_lowmid=0, eq_highmid=0, eq_treble=0, speed=1.0, voice_preset="normal"):
+    """Applies EQ filters, voice FX, and playback speed to the audio track of the media file using FFmpeg."""
+    if not has_audio_stream(filepath):
+        logger.info(f"Skipping audio effects for {filepath} because it has no audio stream.")
+        return filepath
+
+    logger.info(f"Applying audio filters to {filepath}: EQ({eq_bass}, {eq_lowmid}, {eq_highmid}, {eq_treble}), speed={speed}, voice={voice_preset}")
+    base, ext = os.path.splitext(filepath)
+    output_filepath = base + "_audio_fx" + ext
+
+    audio_filters = []
+    
+    # EQ peaking filters matching Web Audio API
+    try:
+        b = float(eq_bass)
+        if b != 0:
+            audio_filters.append(f"equalizer=f=60:width_type=q:w=1.0:g={b}")
+    except Exception as e:
+        logger.error(f"Error parsing bass EQ: {e}")
+    
+    try:
+        lm = float(eq_lowmid)
+        if lm != 0:
+            audio_filters.append(f"equalizer=f=500:width_type=q:w=1.0:g={lm}")
+    except Exception as e:
+        logger.error(f"Error parsing lowmid EQ: {e}")
+
+    try:
+        hm = float(eq_highmid)
+        if hm != 0:
+            audio_filters.append(f"equalizer=f=2000:width_type=q:w=1.0:g={hm}")
+    except Exception as e:
+        logger.error(f"Error parsing highmid EQ: {e}")
+
+    try:
+        t = float(eq_treble)
+        if t != 0:
+            audio_filters.append(f"equalizer=f=10000:width_type=q:w=1.0:g={t}")
+    except Exception as e:
+        logger.error(f"Error parsing treble EQ: {e}")
+
+    # Voice FX filters matching applyVoiceEffectsNodePreset in JS
+    if voice_preset == "deep":
+        audio_filters.append("lowshelf=f=150:g=8:w=0.5")
+        audio_filters.append("highshelf=f=3000:g=-8:w=0.5")
+    elif voice_preset == "bright":
+        audio_filters.append("lowshelf=f=200:g=-4:w=0.5")
+        audio_filters.append("highshelf=f=4000:g=8:w=0.5")
+    elif voice_preset == "hall":
+        audio_filters.append("aecho=0.8:0.88:300:0.4")
+    elif voice_preset == "studio":
+        audio_filters.append("equalizer=f=120:width_type=q:w=1.0:g=2")
+        audio_filters.append("equalizer=f=3200:width_type=q:w=1.0:g=3")
+        audio_filters.append("aecho=0.8:0.88:300:0.08")
+    elif voice_preset == "lofi":
+        audio_filters.append("lowpass=f=3200")
+        audio_filters.append("highpass=f=180")
+    elif voice_preset == "telephone":
+        audio_filters.append("highpass=f=450")
+        audio_filters.append("lowpass=f=2800")
+    elif voice_preset == "underwater":
+        audio_filters.append("lowpass=f=600")
+        audio_filters.append("aecho=0.8:0.88:300:0.2")
+
+    # Playback Speed (tempo) filter
+    try:
+        s = float(speed)
+        if s != 1.0 and s > 0:
+            current_speed = s
+            # atempo only accepts between 0.5 and 2.0. Chain multiple filters if out of bounds.
+            while current_speed > 2.0:
+                audio_filters.append("atempo=2.0")
+                current_speed /= 2.0
+            while current_speed < 0.5:
+                audio_filters.append("atempo=0.5")
+                current_speed /= 0.5
+            if current_speed != 1.0:
+                audio_filters.append(f"atempo={current_speed:.2f}")
+    except Exception as speed_err:
+        logger.error(f"Error parsing speed: {speed_err}")
+
+    if not audio_filters:
+        return filepath
+
+    filter_str = ",".join(audio_filters)
+    
+    # Choose appropriate audio codec based on extension
+    # We must re-encode audio to apply filters.
+    ext_lower = ext.lower()
+    if ext_lower == ".mp3":
+        audio_codec = ["-c:a", "libmp3lame"]
+    else:
+        audio_codec = ["-c:a", "aac"]
+
+    # If speed is not 1.0 and this is a video file, we must also speed up the video stream using setpts and re-encode the video.
+    # Otherwise, we can copy the video stream if present to save CPU cycles.
+    is_speed_change = False
+    try:
+        is_speed_change = (float(speed) != 1.0 and float(speed) > 0)
+    except:
+        pass
+
+    if is_speed_change and has_video_stream(filepath):
+        video_speed = float(speed)
+        video_filters = f"setpts=1/{video_speed}*PTS"
+        cmd = [
+            "ffmpeg", "-y", "-i", filepath,
+            "-vf", video_filters,
+            "-af", filter_str,
+            "-c:v", "libx264", "-preset", "superfast", "-crf", "23"
+        ] + audio_codec + ["-map", "0:v?", "-map", "0:a", output_filepath]
+    else:
+        cmd = [
+            "ffmpeg", "-y", "-i", filepath,
+            "-af", filter_str,
+            "-c:v", "copy"
+        ] + audio_codec + ["-map", "0:v?", "-map", "0:a", output_filepath]
+    
+    res = subprocess.run(cmd, capture_output=True, text=True)
+    if res.returncode == 0 and os.path.exists(output_filepath) and os.path.getsize(output_filepath) > 0:
+        os.remove(filepath)
+        os.rename(output_filepath, filepath)
+        return filepath
+    else:
+        logger.error(f"Audio effects application failed (code {res.returncode}). Stderr: {res.stderr}")
+        if os.path.exists(output_filepath):
+            os.remove(output_filepath)
+        return filepath

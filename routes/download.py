@@ -52,6 +52,13 @@ def start_download():
     tg_bot_token = data.get("tg_bot_token")
     tg_chat_id = data.get("tg_chat_id")
 
+    audio_eq_bass = data.get("audio_eq_bass") or 0
+    audio_eq_lowmid = data.get("audio_eq_lowmid") or 0
+    audio_eq_highmid = data.get("audio_eq_highmid") or 0
+    audio_eq_treble = data.get("audio_eq_treble") or 0
+    audio_speed = data.get("audio_speed") or 1.0
+    audio_voice_preset = data.get("audio_voice_preset") or "normal"
+
     if not url or not format_id:
         return jsonify({"status": "error", "message": "URL and format_id are required."}), 400
 
@@ -79,6 +86,12 @@ def start_download():
             "trim_start": trim_start,
             "trim_end": trim_end,
             "cloud_destination": cloud_destination,
+            "audio_eq_bass": audio_eq_bass,
+            "audio_eq_lowmid": audio_eq_lowmid,
+            "audio_eq_highmid": audio_eq_highmid,
+            "audio_eq_treble": audio_eq_treble,
+            "audio_speed": audio_speed,
+            "audio_voice_preset": audio_voice_preset,
             "timestamp": time.time(),
         }
 
@@ -101,6 +114,12 @@ def start_download():
             "tg_chat_id": tg_chat_id,
             "episode": episode,
             "server": server,
+            "audio_eq_bass": audio_eq_bass,
+            "audio_eq_lowmid": audio_eq_lowmid,
+            "audio_eq_highmid": audio_eq_highmid,
+            "audio_eq_treble": audio_eq_treble,
+            "audio_speed": audio_speed,
+            "audio_voice_preset": audio_voice_preset,
         }
     )
     thread.start()
@@ -245,13 +264,119 @@ def get_download_file(download_id):
 
     preview_mode = request.args.get("preview", "false").lower() == "true"
 
-    return send_file(
+    resp = send_file(
         filepath,
         mimetype=content_type,
         as_attachment=not preview_mode,
         download_name=filename,
         conditional=True
     )
+    resp.headers["Access-Control-Allow-Origin"] = "*"
+    return resp
+
+
+
+def apply_image_effects(image_bytes, brightness=100.0, contrast=100.0, saturation=100.0, hue=0.0, exposure=100.0, blur=0.0, grayscale=0.0, sepia=0.0, invert=0.0):
+    from PIL import Image, ImageEnhance, ImageOps, ImageFilter
+    import io
+
+    img = Image.open(io.BytesIO(image_bytes))
+
+    # Convert to RGB or RGBA depending on mode
+    if img.mode in ("RGBA", "LA") or (img.mode == "P" and "transparency" in img.info):
+        img = img.convert("RGBA")
+        has_alpha = True
+    else:
+        img = img.convert("RGB")
+        has_alpha = False
+
+    # Apply Brightness
+    if brightness != 100.0:
+        enhancer = ImageEnhance.Brightness(img)
+        img = enhancer.enhance(brightness / 100.0)
+
+    # Apply Exposure (another pass of brightness)
+    if exposure != 100.0:
+        enhancer = ImageEnhance.Brightness(img)
+        img = enhancer.enhance(exposure / 100.0)
+
+    # Apply Contrast
+    if contrast != 100.0:
+        enhancer = ImageEnhance.Contrast(img)
+        img = enhancer.enhance(contrast / 100.0)
+
+    # Apply Saturation
+    if saturation != 100.0:
+        enhancer = ImageEnhance.Color(img)
+        img = enhancer.enhance(saturation / 100.0)
+
+    # Apply Hue Rotate
+    if hue != 0.0:
+        if has_alpha:
+            alpha = img.split()[-1]
+            rgb_img = img.convert("RGB")
+        else:
+            rgb_img = img
+        
+        hsv_img = rgb_img.convert("HSV")
+        h, s, v = hsv_img.split()
+        shift = int(hue * 255.0 / 360.0)
+        h = h.point(lambda x: (x + shift) % 256)
+        rotated_rgb = Image.merge("HSV", (h, s, v)).convert("RGB")
+        
+        if has_alpha:
+            img = Image.merge("RGBA", (*rotated_rgb.split(), alpha))
+        else:
+            img = rotated_rgb
+
+    # Apply Grayscale
+    if grayscale > 0.0:
+        if has_alpha:
+            alpha = img.split()[-1]
+            rgb_img = img.convert("RGB")
+            gray_img = rgb_img.convert("L").convert("RGB")
+            blended_rgb = Image.blend(rgb_img, gray_img, grayscale / 100.0)
+            img = Image.merge("RGBA", (*blended_rgb.split(), alpha))
+        else:
+            gray_img = img.convert("L").convert("RGB")
+            img = Image.blend(img, gray_img, grayscale / 100.0)
+
+    # Apply Sepia
+    if sepia > 0.0:
+        sepia_matrix = (
+            0.393, 0.769, 0.189, 0,
+            0.349, 0.686, 0.168, 0,
+            0.272, 0.534, 0.131, 0
+        )
+        if has_alpha:
+            alpha = img.split()[-1]
+            rgb_img = img.convert("RGB")
+            sepia_img = rgb_img.convert("RGB", sepia_matrix)
+            blended_rgb = Image.blend(rgb_img, sepia_img, sepia / 100.0)
+            img = Image.merge("RGBA", (*blended_rgb.split(), alpha))
+        else:
+            sepia_img = img.convert("RGB", sepia_matrix)
+            img = Image.blend(img, sepia_img, sepia / 100.0)
+
+    # Apply Invert
+    if invert > 0.0:
+        if has_alpha:
+            alpha = img.split()[-1]
+            rgb_img = img.convert("RGB")
+            inv_img = ImageOps.invert(rgb_img)
+            blended_rgb = Image.blend(rgb_img, inv_img, invert / 100.0)
+            img = Image.merge("RGBA", (*blended_rgb.split(), alpha))
+        else:
+            inv_img = ImageOps.invert(img)
+            img = Image.blend(img, inv_img, invert / 100.0)
+
+    # Apply Blur
+    if blur > 0.0:
+        img = img.filter(ImageFilter.GaussianBlur(radius=blur))
+
+    out_io = io.BytesIO()
+    img.save(out_io, format="PNG" if has_alpha else "JPEG")
+    return out_io.getvalue()
 
 
 @download_bp.route("/api/download/image", methods=["GET"])
@@ -261,6 +386,34 @@ def download_image():
     client_id = request.args.get("client_id")
     if not url:
         return "Missing url parameter", 400
+
+    # Parse Image Filter Parameters
+    try:
+        brightness = float(request.args.get("brightness", "100"))
+        contrast = float(request.args.get("contrast", "100"))
+        saturation = float(request.args.get("saturation", "100"))
+        hue = float(request.args.get("hue", "0"))
+        exposure = float(request.args.get("exposure", "100"))
+        blur = float(request.args.get("blur", "0"))
+        grayscale = float(request.args.get("grayscale", "0"))
+        sepia = float(request.args.get("sepia", "0"))
+        invert = float(request.args.get("invert", "0"))
+    except ValueError:
+        brightness = contrast = saturation = exposure = 100.0
+        hue = blur = grayscale = sepia = invert = 0.0
+
+    has_image_filters = (
+        brightness != 100.0 or
+        contrast != 100.0 or
+        saturation != 100.0 or
+        hue != 0.0 or
+        exposure != 100.0 or
+        blur != 0.0 or
+        grayscale != 0.0 or
+        sepia != 0.0 or
+        invert != 0.0
+    )
+
     try:
         headers = {
             "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
@@ -287,13 +440,31 @@ def download_image():
 
         resp = requests.get(url, headers=headers, cookies=cookies_dict, stream=True, timeout=15)
         if resp.status_code == 200:
+            content_data = resp.content
+            if has_image_filters:
+                try:
+                    content_data = apply_image_effects(
+                        content_data,
+                        brightness=brightness,
+                        contrast=contrast,
+                        saturation=saturation,
+                        hue=hue,
+                        exposure=exposure,
+                        blur=blur,
+                        grayscale=grayscale,
+                        sepia=sepia,
+                        invert=invert
+                    )
+                except Exception as img_err:
+                    logger.error(f"Failed to apply image filters: {img_err}")
+
             fallback_filename = "image.jpg"
             encoded_filename = quote(filename)
             resp_headers = {
                 "Content-Disposition": f'attachment; filename="{fallback_filename}"; filename*=UTF-8\'\'{encoded_filename}',
-                "Content-Type": resp.headers.get("Content-Type", "image/jpeg")
+                "Content-Type": "image/png" if (has_image_filters and ("transparency" in resp.headers.get("Content-Type", "").lower() or "png" in resp.headers.get("Content-Type", "").lower())) else resp.headers.get("Content-Type", "image/jpeg")
             }
-            return Response(resp.content, headers=resp_headers)
+            return Response(content_data, headers=resp_headers)
         else:
             return f"Failed to download image: HTTP {resp.status_code}", 500
     except Exception as e:

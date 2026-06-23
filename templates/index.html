@@ -1915,53 +1915,177 @@
             class="preview-player-container hidden"
           >
             <div class="audio-preview-card">
-              <div class="audio-visualizer-area">
-                <div class="visualizer-glow-backdrop"></div>
-                <div class="vinyl-container">
-                  <div class="vinyl-record">
-                    <div class="vinyl-label">
-                      <svg
-                        class="audio-wave-icon"
-                        viewBox="0 0 24 24"
-                        fill="none"
-                        stroke="currentColor"
-                        stroke-width="1.5"
-                        stroke-linecap="round"
-                        stroke-linejoin="round"
-                      >
-                        <path d="M9 18V5l12-2v13" />
-                        <circle cx="6" cy="18" r="3" />
-                        <circle cx="18" cy="16" r="3" />
-                      </svg>
+              <audio id="preview-audio-player" style="display:none"></audio>
+              <div class="audio-main-layout">
+                <!-- Left Side: Visualizer Area -->
+                <div class="audio-visualizer-area">
+                  <div class="visualizer-glow-backdrop"></div>
+                  <div class="vinyl-container">
+                    <div class="vinyl-record">
+                      <div class="vinyl-label">
+                        <svg
+                          class="audio-wave-icon"
+                          viewBox="0 0 24 24"
+                          fill="none"
+                          stroke="currentColor"
+                          stroke-width="1.5"
+                          stroke-linecap="round"
+                          stroke-linejoin="round"
+                        >
+                          <path d="M9 18V5l12-2v13" />
+                          <circle cx="6" cy="18" r="3" />
+                          <circle cx="18" cy="16" r="3" />
+                        </svg>
+                      </div>
+                    </div>
+                  </div>
+                  <div class="waveform-animation">
+                    <span class="bar"></span>
+                    <span class="bar"></span>
+                    <span class="bar"></span>
+                    <span class="bar"></span>
+                    <span class="bar"></span>
+                    <span class="bar"></span>
+                    <span class="bar"></span>
+                    <span class="bar"></span>
+                    <span class="bar"></span>
+                    <span class="bar"></span>
+                    <span class="bar"></span>
+                    <span class="bar"></span>
+                    <span class="bar"></span>
+                    <span class="bar"></span>
+                    <span class="bar"></span>
+                    <span class="bar"></span>
+                    <span class="bar"></span>
+                    <span class="bar"></span>
+                    <span class="bar"></span>
+                    <span class="bar"></span>
+                  </div>
+                </div>
+
+                <!-- Right Side: Side Panel -->
+                <div id="audio-side-panel" class="audio-side-panel hidden">
+                  <!-- Lyrics Overlay (shown when Lyrics btn is active) -->
+                  <div id="audio-lyrics-overlay" class="audio-lyrics-overlay hidden">
+                    <div class="lyrics-sub-bar">
+                      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="color:#94a3b8;flex-shrink:0"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+                      <label style="font-size:0.72rem;color:#64748b;flex-shrink:0">Lyrics:</label>
+                      <select id="audio-sub-select" class="audio-sub-select">
+                        <option value="none">None</option>
+                      </select>
+                      <button id="audio-sub-upload-btn" class="audio-btn-sm" title="Upload .vtt or .srt file">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="12" height="12"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M17 8l-5-5-5 5M12 3v12"/></svg>
+                      </button>
+                      <input type="file" id="audio-sub-file" accept=".vtt,.srt" style="display:none">
+                    </div>
+                    <div id="audio-lyrics-list" class="audio-lyrics-list">
+                      <div class="lyrics-placeholder">Upload a .vtt or .srt subtitle file to see lyrics</div>
+                    </div>
+                  </div>
+
+                  <!-- Audio Settings Panel: EQ / Speed / Voice Effects -->
+                  <div id="audio-settings-panel" class="audio-settings-panel hidden">
+                    <!-- Tab Headers -->
+                    <div class="audio-settings-tabs">
+                      <button class="audio-stab active" data-stab="eq">
+                        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="4" y1="21" x2="4" y2="14"/><line x1="4" y1="10" x2="4" y2="3"/><line x1="12" y1="21" x2="12" y2="12"/><line x1="12" y1="8" x2="12" y2="3"/><line x1="20" y1="21" x2="20" y2="16"/><line x1="20" y1="12" x2="20" y2="3"/><line x1="1" y1="14" x2="7" y2="14"/><line x1="9" y1="8" x2="15" y2="8"/><line x1="17" y1="16" x2="23" y2="16"/></svg>
+                        Equalizer
+                      </button>
+                      <button class="audio-stab" data-stab="speed">
+                        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+                        Speed
+                      </button>
+                      <button class="audio-stab" data-stab="voice">
+                        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" y1="19" x2="12" y2="23"/><line x1="8" y1="23" x2="16" y2="23"/></svg>
+                        Voice FX
+                      </button>
+                    </div>
+
+                    <!-- EQ Tab -->
+                    <div class="audio-stab-content" data-content="eq">
+                      <div class="eq-bands">
+                        <div class="eq-band-item">
+                          <span class="eq-label">Bass<br><small>60Hz</small></span>
+                          <input type="range" class="eq-slider" id="eq-bass" min="-12" max="12" value="0" step="0.5" orient="vertical" title="Bass">
+                          <span class="eq-value" id="eq-bass-val">0</span>
+                        </div>
+                        <div class="eq-band-item">
+                          <span class="eq-label">Low Mid<br><small>500Hz</small></span>
+                          <input type="range" class="eq-slider" id="eq-lowmid" min="-12" max="12" value="0" step="0.5" orient="vertical" title="Low Mid">
+                          <span class="eq-value" id="eq-lowmid-val">0</span>
+                        </div>
+                        <div class="eq-band-item">
+                          <span class="eq-label">High Mid<br><small>2kHz</small></span>
+                          <input type="range" class="eq-slider" id="eq-highmid" min="-12" max="12" value="0" step="0.5" orient="vertical" title="High Mid">
+                          <span class="eq-value" id="eq-highmid-val">0</span>
+                        </div>
+                        <div class="eq-band-item">
+                          <span class="eq-label">Treble<br><small>10kHz</small></span>
+                          <input type="range" class="eq-slider" id="eq-treble" min="-12" max="12" value="0" step="0.5" orient="vertical" title="Treble">
+                          <span class="eq-value" id="eq-treble-val">0</span>
+                        </div>
+                      </div>
+                      <div class="eq-presets-row">
+                        <button class="eq-preset active" data-preset="flat">Flat</button>
+                        <button class="eq-preset" data-preset="bass">Bass Boost</button>
+                        <button class="eq-preset" data-preset="vocal">Vocal</button>
+                        <button class="eq-preset" data-preset="acoustic">Acoustic</button>
+                        <button class="eq-preset" data-preset="electronic">Electronic</button>
+                        <button class="eq-preset" data-preset="lofi">Lo-Fi</button>
+                      </div>
+                    </div>
+
+                    <!-- Speed Tab -->
+                    <div class="audio-stab-content hidden" data-content="speed">
+                      <div class="speed-panel">
+                        <div class="speed-display-row">
+                          <span class="speed-display-val" id="audio-speed-display">1.0</span><small style="color:#64748b">x</small>
+                        </div>
+                        <input type="range" id="audio-speed-slider" class="audio-slider" min="0.25" max="3" step="0.05" value="1" style="margin: 6px 0 8px;">
+                        <div class="speed-preset-btns">
+                          <button class="speed-preset-btn" data-speed="0.5">0.5x</button>
+                          <button class="speed-preset-btn" data-speed="0.75">0.75x</button>
+                          <button class="speed-preset-btn active" data-speed="1">1x</button>
+                          <button class="speed-preset-btn" data-speed="1.25">1.25x</button>
+                          <button class="speed-preset-btn" data-speed="1.5">1.5x</button>
+                          <button class="speed-preset-btn" data-speed="2">2x</button>
+                        </div>
+                      </div>
+                    </div>
+
+                    <!-- Voice FX Tab -->
+                    <div class="audio-stab-content hidden" data-content="voice">
+                      <div class="voice-preset-grid">
+                        <button class="voice-preset active" data-voice="normal">
+                          <span class="voice-icon">🎙️</span><span>Normal</span>
+                        </button>
+                        <button class="voice-preset" data-voice="deep">
+                          <span class="voice-icon">🔊</span><span>Deep Bass</span>
+                        </button>
+                        <button class="voice-preset" data-voice="bright">
+                          <span class="voice-icon">✨</span><span>Bright</span>
+                        </button>
+                        <button class="voice-preset" data-voice="hall">
+                          <span class="voice-icon">🏛️</span><span>Concert Hall</span>
+                        </button>
+                        <button class="voice-preset" data-voice="studio">
+                          <span class="voice-icon">🎚️</span><span>Studio</span>
+                        </button>
+                        <button class="voice-preset" data-voice="lofi">
+                          <span class="voice-icon">📻</span><span>Lo-Fi</span>
+                        </button>
+                        <button class="voice-preset" data-voice="telephone">
+                          <span class="voice-icon">📞</span><span>Telephone</span>
+                        </button>
+                        <button class="voice-preset" data-voice="underwater">
+                          <span class="voice-icon">🌊</span><span>Underwater</span>
+                        </button>
+                      </div>
                     </div>
                   </div>
                 </div>
-                <div class="waveform-animation">
-                  <span class="bar"></span>
-                  <span class="bar"></span>
-                  <span class="bar"></span>
-                  <span class="bar"></span>
-                  <span class="bar"></span>
-                  <span class="bar"></span>
-                  <span class="bar"></span>
-                  <span class="bar"></span>
-                  <span class="bar"></span>
-                  <span class="bar"></span>
-                  <span class="bar"></span>
-                  <span class="bar"></span>
-                  <span class="bar"></span>
-                  <span class="bar"></span>
-                  <span class="bar"></span>
-                  <span class="bar"></span>
-                  <span class="bar"></span>
-                  <span class="bar"></span>
-                  <span class="bar"></span>
-                  <span class="bar"></span>
-                </div>
               </div>
-              
-              <audio id="preview-audio-player" style="display: none;"></audio>
-              
+
               <div class="custom-audio-controls">
                 <div class="audio-slider-container">
                   <input type="range" id="audio-seek-slider" class="audio-slider" min="0" max="100" value="0">
@@ -2001,6 +2125,16 @@
                       </button>
                       <input type="range" id="audio-volume-slider" class="audio-slider volume-slider" min="0" max="1" step="0.05" value="1">
                     </div>
+
+                    <!-- New: Lyrics & EQ toggle buttons -->
+                    <div class="audio-extra-btns">
+                      <button id="audio-lyrics-btn" class="audio-btn audio-tool-btn" title="Lyrics / Subtitles">
+                        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+                      </button>
+                      <button id="audio-eq-btn" class="audio-btn audio-tool-btn" title="EQ &amp; Effects">
+                        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="4" y1="21" x2="4" y2="14"/><line x1="4" y1="10" x2="4" y2="3"/><line x1="12" y1="21" x2="12" y2="12"/><line x1="12" y1="8" x2="12" y2="3"/><line x1="20" y1="21" x2="20" y2="16"/><line x1="20" y1="12" x2="20" y2="3"/><line x1="1" y1="14" x2="7" y2="14"/><line x1="9" y1="8" x2="15" y2="8"/><line x1="17" y1="16" x2="23" y2="16"/></svg>
+                      </button>
+                    </div>
                   </div>
                   
                   <div class="audio-selector-container">
@@ -2017,62 +2151,152 @@
             id="preview-image-container"
             class="preview-player-container hidden"
           >
-            <div class="image-preview-wrapper">
-              <!-- Prev / Next Navigation Buttons -->
-              <button id="btn-prev-image" class="nav-control prev hidden" title="Previous Image">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                  <polyline points="15 18 9 12 15 6"></polyline>
-                </svg>
-              </button>
-              <button id="btn-next-image" class="nav-control next hidden" title="Next Image">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                  <polyline points="9 18 15 12 9 6"></polyline>
-                </svg>
-              </button>
-              <img id="preview-image-element" src="" alt="Preview Image" />
-              <div class="image-controls">
-                <button id="btn-zoom-in" class="btn-control" title="Zoom In">
-                  <svg
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    stroke-width="2"
-                    stroke-linecap="round"
-                    stroke-linejoin="round"
-                  >
-                    <circle cx="11" cy="11" r="8" />
-                    <line x1="21" y1="21" x2="16.65" y2="16.65" />
-                    <line x1="11" y1="8" x2="11" y2="14" />
-                    <line x1="8" y1="11" x2="14" y2="11" />
+            <div class="image-main-layout">
+              <div class="image-preview-wrapper">
+                <!-- Prev / Next Navigation Buttons -->
+                <button id="btn-prev-image" class="nav-control prev hidden" title="Previous Image">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <polyline points="15 18 9 12 15 6"></polyline>
                   </svg>
                 </button>
-                <button id="btn-zoom-out" class="btn-control" title="Zoom Out">
-                  <svg
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    stroke-width="2"
-                    stroke-linecap="round"
-                    stroke-linejoin="round"
-                  >
-                    <circle cx="11" cy="11" r="8" />
-                    <line x1="21" y1="21" x2="16.65" y2="16.65" />
-                    <line x1="8" y1="11" x2="14" y2="11" />
+                <button id="btn-next-image" class="nav-control next hidden" title="Next Image">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <polyline points="9 18 15 12 9 6"></polyline>
                   </svg>
                 </button>
-                <button id="btn-rotate" class="btn-control" title="Rotate">
-                  <svg
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    stroke-width="2"
-                    stroke-linecap="round"
-                    stroke-linejoin="round"
-                  >
-                    <polyline points="23 4 23 10 17 10" />
-                    <path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10" />
-                  </svg>
-                </button>
+                <img id="preview-image-element" src="" alt="Preview Image" />
+                <div class="image-controls">
+                  <button id="btn-zoom-in" class="btn-control" title="Zoom In">
+                    <svg
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      stroke-width="2"
+                      stroke-linecap="round"
+                      stroke-linejoin="round"
+                    >
+                      <circle cx="11" cy="11" r="8" />
+                      <line x1="21" y1="21" x2="16.65" y2="16.65" />
+                      <line x1="11" y1="8" x2="11" y2="14" />
+                      <line x1="8" y1="11" x2="14" y2="11" />
+                    </svg>
+                  </button>
+                  <button id="btn-zoom-out" class="btn-control" title="Zoom Out">
+                    <svg
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      stroke-width="2"
+                      stroke-linecap="round"
+                      stroke-linejoin="round"
+                    >
+                      <circle cx="11" cy="11" r="8" />
+                      <line x1="21" y1="21" x2="16.65" y2="16.65" />
+                      <line x1="8" y1="11" x2="14" y2="11" />
+                    </svg>
+                  </button>
+                  <button id="btn-rotate" class="btn-control" title="Rotate">
+                    <svg
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      stroke-width="2"
+                      stroke-linecap="round"
+                      stroke-linejoin="round"
+                    >
+                      <polyline points="23 4 23 10 17 10" />
+                      <path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10" />
+                    </svg>
+                  </button>
+                  <button id="btn-image-adjust" class="btn-control" title="Adjust Image">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                      <path d="M12 20v-8M17 20v-4M7 20v-12M2 20h20M12 8V4M17 12V4M7 8V4"/>
+                    </svg>
+                  </button>
+                </div>
+              </div>
+              
+              <!-- Right Side Panel: Image Adjustments -->
+              <div id="image-side-panel" class="image-side-panel hidden">
+                <div class="image-settings-panel">
+                  <div class="settings-title" style="margin-bottom:12px;">Image Adjustments</div>
+                  
+                  <div class="settings-row flex-column">
+                    <div class="slider-label-row">
+                      <label for="img-brightness">Brightness</label>
+                      <span id="img-brightness-val">100%</span>
+                    </div>
+                    <input type="range" id="img-brightness" min="0" max="200" value="100" class="modern-slider img-filter-slider">
+                  </div>
+                  
+                  <div class="settings-row flex-column">
+                    <div class="slider-label-row">
+                      <label for="img-contrast">Contrast</label>
+                      <span id="img-contrast-val">100%</span>
+                    </div>
+                    <input type="range" id="img-contrast" min="0" max="200" value="100" class="modern-slider img-filter-slider">
+                  </div>
+                  
+                  <div class="settings-row flex-column">
+                    <div class="slider-label-row">
+                      <label for="img-saturation">Saturation</label>
+                      <span id="img-saturation-val">100%</span>
+                    </div>
+                    <input type="range" id="img-saturation" min="0" max="200" value="100" class="modern-slider img-filter-slider">
+                  </div>
+                  
+                  <div class="settings-row flex-column">
+                    <div class="slider-label-row">
+                      <label for="img-hue">Hue Rotate</label>
+                      <span id="img-hue-val">0°</span>
+                    </div>
+                    <input type="range" id="img-hue" min="0" max="360" value="0" class="modern-slider img-filter-slider">
+                  </div>
+
+                  <div class="settings-row flex-column">
+                    <div class="slider-label-row">
+                      <label for="img-exposure">Exposure</label>
+                      <span id="img-exposure-val">100%</span>
+                    </div>
+                    <input type="range" id="img-exposure" min="0" max="200" value="100" class="modern-slider img-filter-slider">
+                  </div>
+                  
+                  <div class="settings-row flex-column">
+                    <div class="slider-label-row">
+                      <label for="img-blur">Blur</label>
+                      <span id="img-blur-val">0px</span>
+                    </div>
+                    <input type="range" id="img-blur" min="0" max="20" value="0" class="modern-slider img-filter-slider">
+                  </div>
+
+                  <div class="settings-row flex-column">
+                    <div class="slider-label-row">
+                      <label for="img-grayscale">Grayscale</label>
+                      <span id="img-grayscale-val">0%</span>
+                    </div>
+                    <input type="range" id="img-grayscale" min="0" max="100" value="0" class="modern-slider img-filter-slider">
+                  </div>
+
+                  <div class="settings-row flex-column">
+                    <div class="slider-label-row">
+                      <label for="img-sepia">Sepia</label>
+                      <span id="img-sepia-val">0%</span>
+                    </div>
+                    <input type="range" id="img-sepia" min="0" max="100" value="0" class="modern-slider img-filter-slider">
+                  </div>
+
+                  <div class="settings-row flex-column">
+                    <div class="slider-label-row">
+                      <label for="img-invert">Invert</label>
+                      <span id="img-invert-val">0%</span>
+                    </div>
+                    <input type="range" id="img-invert" min="0" max="100" value="0" class="modern-slider img-filter-slider">
+                  </div>
+
+                  <div class="settings-row" style="margin-top: 15px;">
+                    <button id="btn-img-reset" class="btn-primary btn-sm" style="width: 100%; border-radius: 6px; padding: 8px;">Reset Adjustments</button>
+                  </div>
+                </div>
               </div>
             </div>
           </div>
@@ -2085,9 +2309,20 @@
             <div class="subtitle-preview-box">
               <div class="sub-header">
                 <span id="preview-sub-lang">Language</span>
-                <button id="btn-copy-sub" class="btn-primary btn-sm">
-                  Copy Subtitles
-                </button>
+                <div class="sub-header-controls" style="display: flex; align-items: center; gap: 12px;">
+                  <div style="display: flex; align-items: center; gap: 6px;">
+                    <label for="preview-sub-format" style="font-size: 0.74rem; color: var(--text-dim);">Export Format:</label>
+                    <select id="preview-sub-format" class="settings-select-menu" style="width: auto; height: 28px; padding: 0 28px 0 10px !important; margin: 0; background-color: rgba(255, 255, 255, 0.04); border: 1px solid var(--border); border-radius: 6px; font-size: 0.74rem; cursor: pointer; color: var(--text-main);">
+                      <option value="original">Original</option>
+                      <option value="vtt">VTT</option>
+                      <option value="srt">SRT</option>
+                      <option value="txt">TXT (Plain Text)</option>
+                    </select>
+                  </div>
+                  <button id="btn-copy-sub" class="btn-primary btn-sm">
+                    Copy Subtitles
+                  </button>
+                </div>
               </div>
               <div id="preview-sub-text" class="sub-text-area">
                 Loading subtitle content...

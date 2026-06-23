@@ -349,7 +349,13 @@ def bg_download_task(download_id, url, format_id, ext, quality="192", title="med
                     translate_subs=translate_subs,
                     progress_callback=progress_cb,
                     voiceover_rate=kwargs.get("voiceover_rate"),
-                    voiceover_pitch=kwargs.get("voiceover_pitch")
+                    voiceover_pitch=kwargs.get("voiceover_pitch"),
+                    audio_eq_bass=kwargs.get("audio_eq_bass", 0),
+                    audio_eq_lowmid=kwargs.get("audio_eq_lowmid", 0),
+                    audio_eq_highmid=kwargs.get("audio_eq_highmid", 0),
+                    audio_eq_treble=kwargs.get("audio_eq_treble", 0),
+                    audio_speed=kwargs.get("audio_speed", 1.0),
+                    audio_voice_preset=kwargs.get("audio_voice_preset", "normal")
                 )
                 ext = filepath.rsplit(".", 1)[-1].lower()
             except Exception as pp_err:
@@ -763,7 +769,13 @@ def bg_download_task(download_id, url, format_id, ext, quality="192", title="med
                 translate_subs=translate_subs,
                 progress_callback=progress_cb,
                 voiceover_rate=kwargs.get("voiceover_rate"),
-                voiceover_pitch=kwargs.get("voiceover_pitch")
+                voiceover_pitch=kwargs.get("voiceover_pitch"),
+                audio_eq_bass=kwargs.get("audio_eq_bass", 0),
+                audio_eq_lowmid=kwargs.get("audio_eq_lowmid", 0),
+                audio_eq_highmid=kwargs.get("audio_eq_highmid", 0),
+                audio_eq_treble=kwargs.get("audio_eq_treble", 0),
+                audio_speed=kwargs.get("audio_speed", 1.0),
+                audio_voice_preset=kwargs.get("audio_voice_preset", "normal")
             )
             ext = filepath.rsplit(".", 1)[-1].lower()
         except Exception as pp_err:
