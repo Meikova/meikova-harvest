@@ -3522,6 +3522,14 @@ document.addEventListener("DOMContentLoaded", () => {
                 subFormatSelect.value = "original";
             }
 
+            const ambientCanvas = document.getElementById("video-ambient-glow");
+            if (ambientCanvas) {
+                const ambientCtx = ambientCanvas.getContext("2d");
+                if (ambientCtx) {
+                    ambientCtx.clearRect(0, 0, ambientCanvas.width, ambientCanvas.height);
+                }
+            }
+
             stopAllPreviewPlaybacks();
         };
 
@@ -8400,6 +8408,128 @@ document.addEventListener("DOMContentLoaded", () => {
             } else {
                 loopEndSecs = null;
                 this.value = "";
+            }
+        });
+    }
+
+    // Video Ambient Light Glow System
+    const ambientCanvas = document.getElementById("video-ambient-glow");
+    const toggleAmbientGlow = document.getElementById("toggle-ambient-glow");
+    let ambientAnimationFrame = null;
+
+    if (ambientCanvas) {
+        ambientCanvas.width = 64;
+        ambientCanvas.height = 36;
+    }
+
+    function updateAmbientGlow() {
+        if (!previewVideoPlayer || previewVideoPlayer.paused || previewVideoPlayer.ended) {
+            return;
+        }
+
+        const isGlowEnabled = !toggleAmbientGlow || toggleAmbientGlow.checked;
+        if (isGlowEnabled && ambientCanvas) {
+            const ambientCtx = ambientCanvas.getContext("2d");
+            if (ambientCtx) {
+                try {
+                    ambientCtx.drawImage(previewVideoPlayer, 0, 0, ambientCanvas.width, ambientCanvas.height);
+                } catch (e) {}
+            }
+        }
+
+        ambientAnimationFrame = requestAnimationFrame(updateAmbientGlow);
+    }
+
+    if (previewVideoPlayer && ambientCanvas) {
+        previewVideoPlayer.addEventListener("play", () => {
+            if (!ambientAnimationFrame) {
+                updateAmbientGlow();
+            }
+        });
+        previewVideoPlayer.addEventListener("playing", () => {
+            if (!ambientAnimationFrame) {
+                updateAmbientGlow();
+            }
+        });
+        previewVideoPlayer.addEventListener("pause", () => {
+            if (ambientAnimationFrame) {
+                cancelAnimationFrame(ambientAnimationFrame);
+                ambientAnimationFrame = null;
+            }
+        });
+        previewVideoPlayer.addEventListener("ended", () => {
+            if (ambientAnimationFrame) {
+                cancelAnimationFrame(ambientAnimationFrame);
+                ambientAnimationFrame = null;
+            }
+            const ambientCtx = ambientCanvas.getContext("2d");
+            if (ambientCtx) {
+                ambientCtx.clearRect(0, 0, ambientCanvas.width, ambientCanvas.height);
+            }
+        });
+        previewVideoPlayer.addEventListener("seeked", () => {
+            const isGlowEnabled = !toggleAmbientGlow || toggleAmbientGlow.checked;
+            if (isGlowEnabled) {
+                const ambientCtx = ambientCanvas.getContext("2d");
+                if (ambientCtx) {
+                    try {
+                        ambientCtx.drawImage(previewVideoPlayer, 0, 0, ambientCanvas.width, ambientCanvas.height);
+                    } catch (e) {}
+                }
+            }
+        });
+    }
+
+    if (toggleAmbientGlow && ambientCanvas) {
+        const savedGlowState = localStorage.getItem("video-ambient-glow-enabled") !== "false";
+        toggleAmbientGlow.checked = savedGlowState;
+        const videoWrapper = ambientCanvas.parentElement;
+        if (savedGlowState) {
+            ambientCanvas.style.display = "";
+            if (videoWrapper) {
+                videoWrapper.classList.add("ambient-glow-active");
+            }
+        } else {
+            ambientCanvas.style.display = "none";
+            if (videoWrapper) {
+                videoWrapper.classList.remove("ambient-glow-active");
+            }
+            const ambientCtx = ambientCanvas.getContext("2d");
+            if (ambientCtx) {
+                ambientCtx.clearRect(0, 0, ambientCanvas.width, ambientCanvas.height);
+            }
+        }
+
+        toggleAmbientGlow.addEventListener("change", () => {
+            if (toggleAmbientGlow.checked) {
+                ambientCanvas.style.display = "";
+                if (videoWrapper) {
+                    videoWrapper.classList.add("ambient-glow-active");
+                }
+                localStorage.setItem("video-ambient-glow-enabled", "true");
+                const ambientCtx = ambientCanvas.getContext("2d");
+                if (ambientCtx && previewVideoPlayer) {
+                    try {
+                        ambientCtx.drawImage(previewVideoPlayer, 0, 0, ambientCanvas.width, ambientCanvas.height);
+                    } catch (e) {}
+                }
+                if (previewVideoPlayer && !previewVideoPlayer.paused && !ambientAnimationFrame) {
+                    updateAmbientGlow();
+                }
+            } else {
+                ambientCanvas.style.display = "none";
+                if (videoWrapper) {
+                    videoWrapper.classList.remove("ambient-glow-active");
+                }
+                localStorage.setItem("video-ambient-glow-enabled", "false");
+                if (ambientAnimationFrame) {
+                    cancelAnimationFrame(ambientAnimationFrame);
+                    ambientAnimationFrame = null;
+                }
+                const ambientCtx = ambientCanvas.getContext("2d");
+                if (ambientCtx) {
+                    ambientCtx.clearRect(0, 0, ambientCanvas.width, ambientCanvas.height);
+                }
             }
         });
     }

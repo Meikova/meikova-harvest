@@ -2537,8 +2537,7 @@ body[class*="theme-"] .card {
   background: rgba(0, 0, 0, 0.45);
   border-radius: var(--radius-sm);
   border: 1px solid var(--border);
-  overflow-x: hidden;
-  overflow-y: auto;
+  overflow: hidden;
   display: flex;
   justify-content: center;
   align-items: center;
@@ -2562,6 +2561,10 @@ body[class*="theme-"] .card {
   outline: none;
   border-radius: var(--radius-xs);
   background: #000;
+}
+
+.video-wrapper.ambient-glow-active #preview-video-player {
+  background: transparent;
 }
 
 /* Audio & Video Player Custom Styling */
@@ -3028,12 +3031,32 @@ body[class*="theme-"] .card {
   justify-content: center;
 }
 
+.video-ambient-glow {
+  position: absolute;
+  top: -4%;
+  left: -4%;
+  width: 108%;
+  height: 104%;
+  filter: blur(48px) opacity(0.65);
+  pointer-events: none;
+  z-index: -1;
+  transition: opacity 0.4s ease;
+  will-change: filter;
+  border-radius: 12px;
+}
+
 .video-wrapper {
   position: relative;
   width: 100%;
   flex: 1;
   background: #000;
-  overflow: hidden;
+  overflow: visible;
+  z-index: 0;
+  border-radius: 8px;
+}
+
+.video-wrapper.ambient-glow-active {
+  background: transparent;
 }
 
 .video-wrapper video {

@@ -1524,6 +1524,7 @@
             <div class="preview-video-main">
               <div class="video-preview-card">
                 <div class="video-wrapper">
+                  <canvas id="video-ambient-glow" class="video-ambient-glow"></canvas>
                   <video id="preview-video-player"></video>
                   <!-- Custom Subtitles Overlay -->
                   <div id="preview-subtitles-overlay" class="subtitles-overlay pos-bottom hidden">
@@ -1571,6 +1572,14 @@
                                 <option value="custom">Custom...</option>
                               </select>
                             </div>
+                          </div>
+
+                          <div class="settings-row" style="justify-content: space-between;">
+                            <label for="toggle-ambient-glow">Ambient Light Glow:</label>
+                            <label class="switch-toggle">
+                              <input type="checkbox" id="toggle-ambient-glow" checked>
+                              <span class="switch-slider"></span>
+                            </label>
                           </div>
 
                           <div class="settings-row" style="justify-content: space-between;">
