@@ -12,7 +12,10 @@ window.canvasSettings = {
     gridEnabled: true,
     ripplesEnabled: true,
     sparklesEnabled: true,
-    soundReactiveEnabled: true
+    soundReactiveEnabled: true,
+    previewBlurryBackdrop: false,
+    previewDraggable: true,
+    previewResizable: true
 };
 
 document.addEventListener("DOMContentLoaded", () => {
@@ -211,6 +214,9 @@ document.addEventListener("DOMContentLoaded", () => {
     const customizerRipplesEnable = document.getElementById("customizer-ripples-enable");
     const customizerSoundReactiveEnable = document.getElementById("customizer-sound-reactive-enable");
     const customizerSparklesEnable = document.getElementById("customizer-sparkles-enable");
+    const customizerPreviewBlur = document.getElementById("customizer-preview-blur");
+    const customizerPreviewDrag = document.getElementById("customizer-preview-drag");
+    const customizerPreviewZoom = document.getElementById("customizer-preview-zoom");
 
     const customizerSpacing = document.getElementById("customizer-spacing");
     const customizerSpacingVal = document.getElementById("customizer-spacing-val");
@@ -635,6 +641,41 @@ document.addEventListener("DOMContentLoaded", () => {
         customizerSparklesEnable.addEventListener("change", (e) => updateCanvasOption("sparklesEnabled", e.target.checked));
     }
 
+    function applyPreviewBlurryBackdrop(enabled) {
+        const modal = document.getElementById("preview-modal");
+        if (!modal) return;
+        if (enabled) {
+            modal.classList.add("blurry-backdrop");
+        } else {
+            modal.classList.remove("blurry-backdrop");
+        }
+    }
+
+    function applyPreviewResizable(enabled) {
+        const handles = document.querySelectorAll(".modal-card-preview .preview-resize-handle");
+        handles.forEach(handle => {
+            handle.style.display = enabled ? "" : "none";
+        });
+    }
+
+    if (customizerPreviewBlur) {
+        customizerPreviewBlur.addEventListener("change", (e) => {
+            updateCanvasOption("previewBlurryBackdrop", e.target.checked);
+            applyPreviewBlurryBackdrop(e.target.checked);
+        });
+    }
+    if (customizerPreviewDrag) {
+        customizerPreviewDrag.addEventListener("change", (e) => {
+            updateCanvasOption("previewDraggable", e.target.checked);
+        });
+    }
+    if (customizerPreviewZoom) {
+        customizerPreviewZoom.addEventListener("change", (e) => {
+            updateCanvasOption("previewResizable", e.target.checked);
+            applyPreviewResizable(e.target.checked);
+        });
+    }
+
     if (customizerResetBtn) {
         customizerResetBtn.addEventListener("click", () => {
             applyAccent("default");
@@ -671,6 +712,20 @@ document.addEventListener("DOMContentLoaded", () => {
             if (customizerSparklesEnable) {
                 customizerSparklesEnable.checked = true;
                 updateCanvasOption("sparklesEnabled", true);
+            }
+            if (customizerPreviewBlur) {
+                customizerPreviewBlur.checked = false;
+                updateCanvasOption("previewBlurryBackdrop", false);
+                applyPreviewBlurryBackdrop(false);
+            }
+            if (customizerPreviewDrag) {
+                customizerPreviewDrag.checked = true;
+                updateCanvasOption("previewDraggable", true);
+            }
+            if (customizerPreviewZoom) {
+                customizerPreviewZoom.checked = true;
+                updateCanvasOption("previewResizable", true);
+                applyPreviewResizable(true);
             }
         });
     }
@@ -738,6 +793,26 @@ document.addEventListener("DOMContentLoaded", () => {
     if (customizerSparklesEnable) {
         customizerSparklesEnable.checked = savedSparkles;
         window.canvasSettings.sparklesEnabled = savedSparkles;
+    }
+
+    const savedPreviewBlur = localStorage.getItem("customizer-previewBlurryBackdrop") !== null ? localStorage.getItem("customizer-previewBlurryBackdrop") === "true" : false;
+    if (customizerPreviewBlur) {
+        customizerPreviewBlur.checked = savedPreviewBlur;
+        window.canvasSettings.previewBlurryBackdrop = savedPreviewBlur;
+        applyPreviewBlurryBackdrop(savedPreviewBlur);
+    }
+
+    const savedPreviewDrag = localStorage.getItem("customizer-previewDraggable") !== null ? localStorage.getItem("customizer-previewDraggable") === "true" : true;
+    if (customizerPreviewDrag) {
+        customizerPreviewDrag.checked = savedPreviewDrag;
+        window.canvasSettings.previewDraggable = savedPreviewDrag;
+    }
+
+    const savedPreviewZoom = localStorage.getItem("customizer-previewResizable") !== null ? localStorage.getItem("customizer-previewResizable") === "true" : true;
+    if (customizerPreviewZoom) {
+        customizerPreviewZoom.checked = savedPreviewZoom;
+        window.canvasSettings.previewResizable = savedPreviewZoom;
+        applyPreviewResizable(savedPreviewZoom);
     }
 
     const savedSpacing = localStorage.getItem("customizer-spacing") !== null ? parseInt(localStorage.getItem("customizer-spacing")) : 54;
@@ -958,6 +1033,7 @@ document.addEventListener("DOMContentLoaded", () => {
     const previewModal = document.getElementById("preview-modal");
     const previewModalCloseBtn = document.getElementById("preview-modal-close-btn");
     const modalFullscreenBtn = document.getElementById("modal-fullscreen-btn");
+    const previewLightsOffBtn = document.getElementById("preview-lightsoff-btn");
     const previewShortcutsBtn = document.getElementById("preview-shortcuts-btn");
     const previewShortcutsOverlay = document.getElementById("preview-shortcuts-overlay");
     const shortcutsOverlayCloseBtn = document.getElementById("shortcuts-overlay-close-btn");
@@ -3265,8 +3341,16 @@ document.addEventListener("DOMContentLoaded", () => {
 
         // ── DRAG (header) ─────────────────────────────────────────────────
         header.style.cursor = "grab";
+        header.addEventListener("mouseenter", function () {
+            if (window.canvasSettings.previewDraggable === false) {
+                header.style.cursor = "default";
+            } else {
+                header.style.cursor = "grab";
+            }
+        });
 
         header.addEventListener("mousedown", function (e) {
+            if (window.canvasSettings.previewDraggable === false) return;
             // Ignore if clicking a button inside the header
             if (e.target.closest("button") || e.target.closest("a")) return;
             if (isFullscreenActive()) return;
@@ -3294,6 +3378,7 @@ document.addEventListener("DOMContentLoaded", () => {
         const handles = card.querySelectorAll(".preview-resize-handle");
         handles.forEach(function (handle) {
             handle.addEventListener("mousedown", function (e) {
+                if (window.canvasSettings.previewResizable === false) return;
                 if (isFullscreenActive()) return;
 
                 isResizing = true;
@@ -3700,6 +3785,38 @@ document.addEventListener("DOMContentLoaded", () => {
         });
     }
 
+    function toggleLightsOff(forceState) {
+        if (!previewModal) return;
+        
+        let targetState;
+        if (typeof forceState === "boolean") {
+            targetState = forceState;
+        } else {
+            targetState = !previewModal.classList.contains("lights-off");
+        }
+
+        if (targetState) {
+            previewModal.classList.add("lights-off");
+            if (previewLightsOffBtn) {
+                previewLightsOffBtn.classList.add("active");
+                previewLightsOffBtn.setAttribute("title", "Turn on lights (O)");
+            }
+        } else {
+            previewModal.classList.remove("lights-off");
+            if (previewLightsOffBtn) {
+                previewLightsOffBtn.classList.remove("active");
+                previewLightsOffBtn.setAttribute("title", "Turn off lights (O)");
+            }
+        }
+    }
+
+    if (previewLightsOffBtn) {
+        previewLightsOffBtn.addEventListener("click", (e) => {
+            e.stopPropagation();
+            toggleLightsOff();
+        });
+    }
+
     const handleFullscreenChange = () => {
         const isNative = document.fullscreenElement || document.webkitFullscreenElement || document.msFullscreenElement;
         if (!isNative && videoFullscreenMode === 2) {
@@ -3797,6 +3914,9 @@ document.addEventListener("DOMContentLoaded", () => {
     // Close preview modal behavior
     if (previewModal && previewModalCloseBtn) {
         closePreviewModal = () => {
+            // Turn off lights-off cinema mode if active
+            toggleLightsOff(false);
+
             // Exit native fullscreen if active
             if (document.fullscreenElement || document.webkitFullscreenElement || document.msFullscreenElement) {
                 if (document.exitFullscreen) {
@@ -3948,6 +4068,12 @@ document.addEventListener("DOMContentLoaded", () => {
                     if (previewShortcutsOverlay) {
                         previewShortcutsOverlay.classList.toggle("hidden");
                     }
+                    return;
+                }
+
+                if (e.key === "o" || e.key === "O") {
+                    e.preventDefault();
+                    toggleLightsOff();
                     return;
                 }
 
