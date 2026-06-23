@@ -23,6 +23,14 @@ contextBridge.exposeInMainWorld('electronAPI', {
 
   // Download folder
   openDownloadsFolder: () => ipcRenderer.send('open-downloads-folder'),
+
+  // Clipboard events
+  onClipboardLink: (callback) => {
+    const subscription = (_, link) => callback(link);
+    ipcRenderer.on('clipboard-link', subscription);
+    return () => ipcRenderer.removeListener('clipboard-link', subscription);
+  },
+  resetClipboardCache: () => ipcRenderer.send('reset-clipboard-cache'),
   
   // Platform
   platform: process.platform,

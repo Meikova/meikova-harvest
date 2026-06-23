@@ -2513,6 +2513,28 @@
       </div>
     </div>
 
+    <!-- Clipboard Toast Notification -->
+    <div id="clipboard-toast" class="clipboard-toast hidden">
+      <div class="toast-content">
+        <div class="toast-header">
+          <div class="toast-title-group">
+            <svg class="toast-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16">
+              <rect x="8" y="2" width="8" height="4" rx="1" ry="1"></rect>
+              <path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"></path>
+            </svg>
+            <span class="toast-title">Link Detected</span>
+          </div>
+          <button id="close-toast-btn" class="toast-close-btn" title="Dismiss">&times;</button>
+        </div>
+        <div class="toast-body">
+          <span id="toast-link-text" class="toast-link"></span>
+        </div>
+        <div class="toast-footer">
+          <button id="toast-analyze-btn" class="toast-btn toast-btn-primary">Analyze Now</button>
+        </div>
+      </div>
+    </div>
+
     <script src="https://cdnjs.cloudflare.com/ajax/libs/noUiSlider/15.7.1/nouislider.min.js"></script>
     <script src="{{ url_for('static', filename='js/main.js') }}?v=11.0"></script>
   </body>

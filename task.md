@@ -15,11 +15,11 @@ Chúng ta sẽ thực hiện tuần tự từng tính năng. Sau khi hoàn thàn
 - [x] **Phân tách Raw vs Custom**: Nút "GET" ngoài tải file nguyên bản, nút "Download Format" tải file đã tùy biến qua preview.
 - *Trạng thái checkpoint*: ⏸️ **Dừng lại để người dùng kiểm thử Task 1**
 
-### [ ] Task 2: Tự động nhận diện Link trong Clipboard (Clipboard Auto-Detect)
-- [ ] **Cơ chế quét (Main process)**: Cài đặt luồng check khay nhớ tạm định kỳ trong [electron/main.js](file:///d:/JOB/DEV/EveryThingDownloader/electron/main.js).
-- [ ] **Giao tiếp IPC**: Gửi sự kiện truyền link phát hiện được sang Renderer process.
-- [ ] **Thông báo (Giao diện)**: Tạo giao diện thông báo dạng Toast nhỏ gọn ở góc màn hình gợi ý phân tích link vừa copy.
-- [ ] **Độ nhạy & Lọc trùng**: Đảm bảo bỏ qua các link đã được quét hoặc không phải định dạng được hỗ trợ.
+### [x] Task 2: Tự động nhận diện Link trong Clipboard (Clipboard Auto-Detect)
+- [x] **Cơ chế quét (Main process)**: Cài đặt luồng check khay nhớ tạm định kỳ trong [electron/main.js](file:///d:/JOB/DEV/EveryThingDownloader/electron/main.js).
+- [x] **Giao tiếp IPC**: Gửi sự kiện truyền link phát hiện được sang Renderer process.
+- [x] **Thông báo (Giao diện)**: Tạo giao diện thông báo dạng Toast nhỏ gọn ở góc màn hình gợi ý phân tích link vừa copy.
+- [x] **Độ nhạy & Lọc trùng**: Đảm bảo bỏ qua các link đã được quét hoặc không phải định dạng được hỗ trợ.
 - *Trạng thái checkpoint*: ⏸️ **Dừng lại để người dùng kiểm thử Task 2**
 
 ### [ ] Task 3: Hiệu ứng sóng nhạc trực quan khi phát Audio (Waveform Visualizer)

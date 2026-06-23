@@ -19,6 +19,7 @@ const {
   dialog,
   nativeImage,
   globalShortcut,
+  clipboard,
 } = require('electron');
 
 const path  = require('path');
@@ -949,6 +950,50 @@ function setupKeyboardShortcuts() {
   }
 }
 
+// ─── Clipboard Monitoring ──────────────────────────────────────────────────────
+
+function isValidVideoUrl(text) {
+  if (!text) return false;
+  try {
+    const url = new URL(text.trim());
+    const hostname = url.hostname.toLowerCase();
+    const supportedDomains = [
+      'youtube.com', 'youtu.be', 'tiktok.com', 'facebook.com', 'fb.watch',
+      'instagram.com', 'twitter.com', 'x.com', 'reddit.com', 'threads.net',
+      'pinterest.com', 'pin.it'
+    ];
+    if (supportedDomains.some(domain => hostname.includes(domain))) {
+      return true;
+    }
+    const pathname = url.pathname.toLowerCase();
+    const directMediaExtensions = ['.mp4', '.m4v', '.webm', '.mkv', '.mov', '.avi', '.mp3', '.wav', '.m4a', '.aac', '.ogg'];
+    if (directMediaExtensions.some(ext => pathname.endsWith(ext))) {
+      return true;
+    }
+  } catch (e) {}
+  return false;
+}
+
+let lastClipboardText = '';
+function startClipboardMonitoring() {
+  setInterval(() => {
+    if (!mainWindow || mainWindow.isDestroyed()) return;
+    try {
+      const text = clipboard.readText().trim();
+      if (text && text !== lastClipboardText && isValidVideoUrl(text)) {
+        lastClipboardText = text;
+        mainWindow.webContents.send('clipboard-link', text);
+      }
+    } catch (e) {
+      log.error('Clipboard monitoring error:', e);
+    }
+  }, 1500);
+}
+
+ipcMain.on('reset-clipboard-cache', () => {
+  lastClipboardText = '';
+});
+
 // ─── App lifecycle ────────────────────────────────────────────────────────────
 
 app.whenReady().then(async () => {
@@ -983,6 +1028,7 @@ app.whenReady().then(async () => {
 
     createMainWindow();
     createTray();
+    startClipboardMonitoring();
 
     // If main window already loaded before server was marked ready
     if (mainWindow?.webContents.getURL().includes('127.0.0.1')) {

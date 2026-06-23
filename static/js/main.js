@@ -9803,4 +9803,78 @@ document.addEventListener("DOMContentLoaded", () => {
         requestAnimationFrame(animate);
     }
     animate();
+
+    // --- Clipboard Auto-Detect Toast Feature ---
+    const clipboardToast = document.getElementById("clipboard-toast");
+    const toastLinkText = document.getElementById("toast-link-text");
+    const closeToastBtn = document.getElementById("close-toast-btn");
+    const toastAnalyzeBtn = document.getElementById("toast-analyze-btn");
+    const urlInput = document.getElementById("url-input");
+    const analyzeBtn = document.getElementById("analyze-btn");
+    let toastDismissTimeout = null;
+
+    function showClipboardToast(link) {
+        if (!clipboardToast || !toastLinkText) return;
+        
+        // Update URL text
+        toastLinkText.textContent = link;
+        
+        // Show Toast
+        clipboardToast.classList.remove("hidden");
+        clipboardToast.classList.add("show");
+        
+        // Auto dismiss after 10s
+        if (toastDismissTimeout) {
+            clearTimeout(toastDismissTimeout);
+        }
+        toastDismissTimeout = setTimeout(() => {
+            hideClipboardToast();
+        }, 10000);
+    }
+
+    function hideClipboardToast() {
+        if (!clipboardToast) return;
+        clipboardToast.classList.remove("show");
+        clipboardToast.classList.add("hidden");
+        if (toastDismissTimeout) {
+            clearTimeout(toastDismissTimeout);
+            toastDismissTimeout = null;
+        }
+        if (window.electronAPI && window.electronAPI.resetClipboardCache) {
+            window.electronAPI.resetClipboardCache();
+        }
+    }
+
+    if (window.electronAPI && window.electronAPI.onClipboardLink) {
+        window.electronAPI.onClipboardLink((link) => {
+            // Only show Toast if the input field doesn't already contain this link
+            // and the link is different from what's currently being entered/analyzed.
+            if (urlInput && urlInput.value.trim() !== link.trim()) {
+                showClipboardToast(link);
+            }
+        });
+    }
+
+    if (closeToastBtn) {
+        closeToastBtn.addEventListener("click", () => {
+            hideClipboardToast();
+        });
+    }
+
+    if (toastAnalyzeBtn) {
+        toastAnalyzeBtn.addEventListener("click", () => {
+            const link = toastLinkText ? toastLinkText.textContent : "";
+            if (link && urlInput) {
+                urlInput.value = link;
+                // Dispatch input event to trigger clear button state updating
+                urlInput.dispatchEvent(new Event("input"));
+                
+                // Trigger analysis
+                if (analyzeBtn) {
+                    analyzeBtn.click();
+                }
+            }
+            hideClipboardToast();
+        });
+    }
 });
