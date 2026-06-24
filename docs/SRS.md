@@ -10,10 +10,12 @@ The system components are bound by the following version requirements and runtim
 | **Web Server** | Flask framework | `3.0.3` | WSGI local server instance |
 | **Desktop Shell** | Electron, Node.js | Electron `31.x` | Client desktop window container |
 | **Media Downloader** | `yt-dlp` | `>=2026.3.17` | Subprocess core download engine |
+| **JS Extractor** | `yt-dlp-ejs` | `>=0.8.0` | Extended JS extraction support |
 | **Image Downloader** | `gallery-dl` | Active Master | Subprocess photo/gallery scraper |
 | **Muxer / Trimmer** | FFmpeg binaries | Static `7.x` | Binary wrapper via `static-ffmpeg` |
-| **JS Runtime** | QuickJS | Active | JavaScript engine for yt-dlp signature handling |
+| **JS Runtime** | QuickJS, Deno, Node | Active | JavaScript engines for yt-dlp signature handling |
 | **HTTP Engine** | `curl-cffi` | Latest | Chrome-impersonating HTTP client for anti-bot bypass |
+| **TTS Engine** | `edge-tts` | Latest | Microsoft Edge TTS for AI voiceover dubbing |
 | **Compiler** | PyInstaller | `6.x` | Compiler for server binary packaging |
 | **Obfuscator Shield** | PyArmor | `8.x` (Free tier) | AST/Binary packer shielding |
 | **Supported Platforms** | Windows, macOS, Linux | — | All build targets and CI/CD runners |
@@ -103,11 +105,69 @@ Trimming is executed as a post-processing or direct transcoding pipeline using F
     "url": "https://www.youtube.com/watch?v=dQw4w9WgXcQ",
     "format_id": "137+140",
     "ext": "mp4",
+    "quality": "192",
+    "title": "Never Gonna Give You Up",
+    "thumbnail": "https://...",
+    "client_id": "abc123",
+    "episode": "",
+    "server": "",
     "trim_start": "00:00:10",
-    "trim_end": "00:01:00"
+    "trim_end": "00:01:00",
+    "subtitle_lang": "en",
+    "subtitle_mode": "hardsub",
+    "subtitle_translate": "vi",
+    "subtitle_url": "https://...",
+    "subtitle_content": "WEBVTT\n...",
+    "sub_font": "Arial",
+    "sub_size": 1.4,
+    "sub_color": "#ffffff",
+    "sub_bg_color": "#000000",
+    "sub_bg_opacity": 50,
+    "sub_outline": 2,
+    "sub_outline_color": "#000000",
+    "sub_pos": "bottom",
+    "export_type": "default",
+    "color_filter": "none",
+    "voiceover_active": false,
+    "voiceover_voice": "vi-VN-HoaiMyNeural",
+    "voiceover_rate": "+0%",
+    "voiceover_pitch": "+0Hz",
+    "audio_eq_bass": 0,
+    "audio_eq_lowmid": 0,
+    "audio_eq_highmid": 0,
+    "audio_eq_treble": 0,
+    "audio_speed": 1.0,
+    "audio_voice_preset": "normal",
+    "cloud_destination": "local",
+    "tg_bot_token": "",
+    "tg_chat_id": ""
   }
   ```
-- **Response**: Streams the output file back to the browser via chunked stream response:
+- **Responses**:
+  - `200 OK`: Returns the queued download task ID.
+    ```json
+    {
+      "status": "success",
+      "download_id": "3d9c79fa-8022-488f-9a74-d4b2e8a1d7f1"
+    }
+    ```
+
+#### GET `/api/download/status/<download_id>`
+- **Responses**:
+  - `200 OK`: Returns the progress and state of the download task.
+    ```json
+    {
+      "status": "completed",
+      "progress": 100,
+      "message": "Download and processing completed.",
+      "ext": "mp4",
+      "filename": "Never Gonna Give You Up [dQw4w9WgXcQ].mp4"
+    }
+    ```
+
+#### GET `/api/download/file/<download_id>`
+- **Responses**:
+  - `200 OK`: Streams the completed media file back to the browser.
   - **Headers**:
     - `Content-Type`: `application/octet-stream`
     - `Content-Disposition`: `attachment; filename="Never Gonna Give You Up [dQw4w9WgXcQ].mp4"`
@@ -170,6 +230,113 @@ The subtitle subsystem (`utils/ffmpeg.py` -> `translate_vtt_file`) performs stru
    - Adjusts timestamps according to video cropping parameters: `new_start = max(0, start - trim_start)`.
 6. **Sentence Visual Segmenting**:
    - Splits long translated caption cues into smaller sub-cues containing at most 10 words, calculating appropriate linear segment durations to keep captions highly readable.
+7. **Hardsub Styling & Muxing**:
+   - Translates custom style configurations from the UI (font family, size, colors, outline, background opacity, position) into FFmpeg ASS `force_style` string parameters.
+   - Translates standard HEX color values (`#RRGGBB`) into ASS hex format (`&HAABBGGRR`), mapping alpha channels correctly.
+   - Invokes FFmpeg video filter: `-filter:v "subtitles=sub.vtt:force_style='FontName=Arial,FontSize=20,...'"`.
+8. **Softsub Muxing & Track Mapping**:
+   - Uses FFmpeg stream copying (`-c:v copy -c:a copy`) to package subtitles into container formats (`mov_text` for MP4, `srt` for MKV, `webvtt` for WebM) without re-encoding.
+   - Maps input video and audio streams explicitly (`-map 0:v?`, `-map 0:a?`, `-map 1`) to avoid stream choice conflicts.
+   - Marks the subtitle track as default active: `-disposition:s:s:0 default`.
+
+---
+
+### 4.2b Additional Download & Proxy API Endpoints
+
+#### POST `/api/download/cancel/<download_id>`
+- Cancels a running download task by killing the `yt-dlp` subprocess.
+
+#### POST `/api/download/history/delete/<download_id>`
+- Deletes a single download history item from SQLite and optionally removes the physical file.
+
+#### GET `/api/download/progress/<download_id>` (SSE)
+- Server-Sent Events stream for real-time download progress, updated every 500ms. Reports: status, progress %, message (with speed and ETA).
+
+#### GET `/api/download/image`
+- Downloads/proxies a single image with optional PIL-based filters: brightness, contrast, saturation, hue, exposure, blur, grayscale, sepia, invert.
+
+#### POST `/api/download/images/zip`
+- Downloads multiple images and packages them as a single ZIP archive.
+
+#### GET `/api/proxy/image`
+- Proxies external images to bypass CORS and CDN anti-bot detection using `curl_cffi`.
+
+#### GET `/api/proxy/stream`
+- HLS/video stream proxy. Rewrites M3U8 manifests (relative → absolute proxied URLs), rewrites `#EXT-X-KEY` encryption URIs, forwards Range headers, handles binary segment passthrough.
+
+#### GET `/api/proxy/stream_adaptive`
+- Adaptive streaming proxy. Takes `video_url` + `audio_url` + optional `start_time`. FFmpeg muxes video-only and audio-only DASH streams on-the-fly to a single playable MP4/WebM pipe output.
+
+### 4.2c Cookie Management API Endpoints
+
+#### POST `/api/cookies/upload`
+- Uploads a cookie file (multipart form, supports JSON J2TEAM format + Netscape format). Merges with existing cookies.
+
+#### POST `/api/cookies/paste`
+- Pastes cookie text content (JSON body). Same merge logic as upload.
+
+#### GET `/api/cookies/status/<client_id>`
+- Returns whether cookies exist for the client and lists recognized platform domains (Facebook, Instagram, YouTube, TikTok, Threads, Twitter/X, Reddit, SoundCloud, Pinterest, Vimeo).
+
+#### POST `/api/cookies/clear/<client_id>`
+- Deletes all stored cookies for the specified client.
+
+### 4.2d System & Config API Endpoints
+
+#### GET `/api/system/proxy-image`
+- Proxies an image URL to bypass CORS restrictions. Query param: `url`.
+
+#### GET `/api/system/config` / POST `/api/system/config`
+- GET returns all persistent app configuration from `AppConfig`. POST updates key-value pairs. Config keys include: `embed_mode`, `translate_lang`, `cloud_destination`, `tg_bot_token`, `tg_chat_id`, subtitle styling defaults (`sub_font`, `sub_size`, `sub_color`, etc.).
+
+#### GET `/api/system/engine-version`
+- Returns the current `yt-dlp` version and frozen executable status.
+
+#### POST `/api/system/update-ytdl`
+- Updates `yt-dlp` via pip with hot-reload after completion.
+
+#### POST `/api/clear-temp`
+- Clears all temporary download cache files (preserves cookies directory and `downloads.db`).
+
+#### GET `/api/video/analyze-scenes`
+- Scene change detection using FFmpeg `showinfo` filter (scans first 10 minutes, 12-second timeout).
+
+### 4.2e Build System API Endpoints
+
+#### GET `/api/machine-id`
+- Returns the current machine's hardware fingerprint for machine-ID locking.
+
+#### GET `/api/platform`
+- Returns the current OS platform information.
+
+#### POST `/api/build/start`
+- Starts an asynchronous build process with all obfuscation, licensing, and packaging options. Returns `build_id`.
+
+#### GET `/api/build/log/<build_id>` (SSE)
+- Server-Sent Events stream of build log lines.
+
+#### POST `/api/build/cancel`
+- Cancels the most recent active build.
+
+#### GET `/api/build/config` / POST `/api/build/config`
+- GET/POST saved build configuration to SQLite.
+
+#### POST `/api/build/publish`
+- Git release publisher — creates tags, commits, and pushes to GitHub to trigger the CI/CD pipeline.
+
+---
+
+### 4.2f Post-Processing Pipelines
+
+The post-processing orchestrator (`apply_post_processing()` in `utils/ffmpeg.py`) executes the following pipelines in order:
+
+1. **Trimming** — Fast stream copy via `-ss`/`-to`, falls back to re-encoding with libx264+AAC.
+2. **Subtitle Processing** — Clean VTT, translate, shift timestamps, split long sentences.
+3. **AI Voiceover Dubbing** — Parse VTT cues → parallel edge-tts synthesis (15 concurrent, 3 retries) → sequential scheduling (150ms gap) → PCM buffer mixing (additive mixing with clamp) → WAV conversion → video overlay (original audio at 8%, voiceover at 150%).
+4. **Cinematic Color Filters** — FFmpeg presets: `cyberpunk` (curves+hue), `vintage` (gamma+saturation), `noir` (desaturate+contrast), `enhance` (eq+unsharp).
+5. **Format Conversion** — GIF (fps=15, scale=480, palettegen+paletteuse) or Shorts (9:16, blurred background padding).
+6. **Hard/Soft Subtitle Embedding** — Hardsub: VTT→SRT→ASS force_style burn-in. Softsub: codec-aware muxing with default disposition.
+7. **Audio Effects** — 4-band EQ (equalizer filters at 60Hz/500Hz/2kHz/10kHz), playback speed (chained atempo for out-of-range values), voice FX presets (7 modes via FFmpeg audio filters: lowshelf/highshelf, aecho, lowpass/highpass combinations).
 
 ---
 

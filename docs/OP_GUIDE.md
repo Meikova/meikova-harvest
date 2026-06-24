@@ -158,6 +158,108 @@ EveryThingDownloader features a highly optimized caption translation engine that
    - When downloading a trimmed video segment, the subtitle timestamps are automatically shifted (`new_start = max(0, original_start - trim_start)`). Cues outside the trimmed boundary are discarded.
 4. **Visual Layout Optimization**:
    - The engine automatically segments long translated sentences into slides containing a maximum of 10 words. This ensures text blocks never clutter the media player screen or overlap other UI elements.
+5. **Hardsub Burn-in & Custom Styling**:
+   - When choosing **Hardsub** mode, the subtitles are burned directly into the video frames.
+   - The interface features a full font customizer allowing you to choose font family (e.g. Arial to support Vietnamese accents), font size, text color, background box, opacity, outline width, outline color, and alignment/position. These options are synchronized with FFmpeg's subtitles filter.
+6. **Softsub Muxing & Auto-load**:
+   - When choosing **Softsub** mode, subtitles are muxed into the media file container as a separate stream without re-encoding the video/audio.
+   - The subtitle stream is tagged as the default active track, prompting standard media players (like VLC) to display it automatically upon launching the video.
+
+### 3.7 Color Filters & GIF/Shorts Export
+1. In the preview modal, open the **Export** tab in the Video Settings menu.
+2. **Cinematic Filters**: Select from `Cyberpunk`, `Vintage`, `Noir`, or `Enhance` in the filter dropdown. The filter is applied during download post-processing.
+3. **GIF Export**: Select `GIF` from the export type dropdown. The downloaded video segment is converted to a high-quality animated GIF using FFmpeg palettegen (fps=15, max width 480px).
+4. **Shorts Export**: Select `Shorts` from the export type dropdown. The video is converted from horizontal to vertical 9:16 format with blurred background padding.
+
+### 3.8 Audio Processing (EQ, Speed, Voice FX)
+1. In the Audio Player preview, click the **EQ** button on the control bar to open the side panel.
+2. **Equalizer (EQ)**: Adjust 4 frequency bands — Bass (60Hz), Low-Mid (500Hz), High-Mid (2kHz), Treble (10kHz). Use presets: Flat, Bass Boost, Vocal, Acoustic, Electronic, Lo-Fi.
+3. **Speed Control**: Navigate to the Speed tab and adjust from 0.25x to 3x. Quick presets: 0.5x, 0.75x, 1x, 1.25x, 1.5x, 2x.
+4. **Voice FX**: Navigate to the Voice FX tab and select a preset: Normal, Deep Bass, Bright, Concert Hall, Studio, Lo-Fi, Telephone, Underwater. These effects are applied as FFmpeg audio filters during download.
+
+### 3.9 AI Voiceover (TTS Dubbing)
+1. In the Video preview modal, open the **Voiceover** tab in the settings menu.
+2. Select a voiceover language and toggle the **AI Overlay** switch to enable.
+3. Choose a voice model (e.g., `vi-VN-HoaiMyNeural` for Vietnamese) and adjust rate/pitch sliders.
+4. When downloading, the system will: parse subtitle cues → synthesize speech in parallel (15 concurrent edge-tts workers) → sequence clips with 150ms gaps → mix into the video (original audio reduced to 8%, voiceover at 150%).
+
+### 3.10 Telegram Cloud Upload
+1. Open the **Settings** dropdown from the header bar.
+2. Enter your **Telegram Bot Token** and **Chat ID**.
+3. In the preview modal **Export** tab, select `Telegram` as the cloud sync destination.
+4. After downloading, the file is automatically uploaded to your Telegram chat via Bot API (supports sendVideo, sendAnimation, sendDocument) and optionally removed from local storage.
+
+### 3.11 Clipboard Auto-Detection (Electron Only)
+1. The app monitors the system clipboard every 1.5 seconds for recognized video URLs.
+2. Supported platforms: YouTube, TikTok, Facebook, Instagram, Twitter/X, Reddit, Threads, SoundCloud, Pinterest, Vimeo, and direct media file URLs.
+3. When a URL is detected, a **Toast notification** appears: *"Phát hiện link video: [URL]"* with a quick **Analyze** button.
+4. Toggle this feature on/off via the **Clipboard Auto-Detect** checkbox in the Settings dropdown.
+
+### 3.12 Image Viewer (Zoom, Rotate, Pan)
+1. Click **Preview** on any extracted image to open the Image Viewer.
+2. **Zoom**: Use `+`/`-` keys, mouse wheel, or the zoom slider (0.5x → 5x).
+3. **Rotate**: Press `R` or click the rotate button (90° increments).
+4. **Pan**: Click and drag to pan when zoomed in.
+5. **Navigate**: Use `←`/`→` arrow keys to move between images in a gallery.
+6. **Reset**: Press `0` to reset zoom and rotation to defaults.
+
+### 3.13 Download History Management
+1. The **Welcome Dashboard** shows two tabs: **Analyzed History** (localStorage, last 10) and **Downloads History** (SQLite-backed, last 50).
+2. Each download entry shows: title, format, file size, timestamp, and action buttons (re-download, delete).
+3. Clear all history via the respective **Clear** buttons on each tab.
+4. Individual items can be deleted from the server via the delete button on each row.
+
+### 3.14 Settings, UI Customizer & Theme Toggle
+1. **Theme Toggle**: Click the sun/moon icon in the header to switch between Dark and Light modes. The transition uses View Transitions API with a circular clip-path animation.
+2. **UI Customizer**: Click the palette icon in the header to open the customizer panel:
+   - **Accent Themes**: 10+ presets (Default, Emerald, Orchid, Amber, Purple, Rose, Orange, Blue, Peach, Lime) or custom hex colors.
+   - **Corner Radius**: Sharp (4px), Rounded (12px), Pill (24px).
+   - **Glass Blur**: Adjustable 0–100px backdrop blur intensity.
+   - **Typography**: Scale (75%–130%) and font family (Outfit, Jakarta, Inter, Grotesk, System).
+   - **Background Effects**: Star Grid, Interactive Ripples, Sound Reactive Grid, Sparkles — each toggleable.
+   - **Gravity**: Black Hole (pull), Bulge (push), or None — with adjustable radius and depth.
+3. All settings are automatically persisted to `localStorage` and restored on page load.
+
+### 3.15 Keyboard Shortcuts Reference
+
+**Video Player**:
+| Key | Action |
+|-----|--------|
+| `Space` | Play/Pause |
+| `M` | Mute/Unmute |
+| `←` / `→` | Seek ±10 seconds |
+| `↑` / `↓` | Volume up/down |
+| `F` | Toggle fullscreen |
+| `<` / `>` | Decrease/increase playback speed |
+| `[` / `]` | Set trim start/end point |
+| `0`–`9` | Jump to 0%–90% of duration |
+| `O` | Toggle lights off |
+| `H` or `?` | Toggle shortcuts overlay |
+| `D` | Export & Download |
+| `Esc` | Close preview |
+
+**Audio Player**: Same as Video (Space, M, arrows, `<` `>`, `[` `]`, `0`–`9`, `O`)
+
+**Image Viewer**:
+| Key | Action |
+|-----|--------|
+| `←` / `→` | Previous/Next image |
+| `+` / `-` | Zoom in/out |
+| `R` | Rotate 90° |
+| `0` | Reset zoom & rotation |
+
+**Text/Subtitle Viewer**:
+| Key | Action |
+|-----|--------|
+| `↑` / `↓` | Scroll up/down |
+| `PgUp` / `PgDn` | Page scroll |
+| `Home` / `End` | Top/bottom |
+| `W` | Toggle word wrap |
+| `+` / `-` | Font zoom |
+| `0` | Reset font & wrap |
+| `C` | Copy content |
+
+**Electron Global Shortcuts**: `Ctrl+R`/`F5` Reload, `Ctrl+H` Home, `Ctrl+Shift+D` Downloads folder, `Ctrl+`/`Ctrl-` Zoom, `Ctrl+0` Reset zoom.
 
 ---
 
@@ -225,7 +327,7 @@ The Electron desktop app includes built-in **Auto-Update** functionality:
 1. Periodically checks `update.json` from the public repository.
 2. Displays a dialog with version info and changelog.
 3. Offers automatic download with progress bar:
-   - Evaluates the client platform and pulls the matching package URL from the `platforms` key (`win32` for Windows `.exe`, `darwin` for macOS `.dmg`, `linux` for Linux `.AppImage`).
+   - Evaluates the client platform and pulls the matching package URL from the `platforms` key (`win32` for Windows `.exe`, `darwin_arm64` for macOS ARM `.dmg`, `darwin_x64` for macOS Intel `.dmg`, `linux_x64` for Linux `.AppImage`).
    - Downloads the package into a local temporary folder.
 4. Performs native installation:
    - **Windows**: Executes the installer `.exe` in a separate process and quits.

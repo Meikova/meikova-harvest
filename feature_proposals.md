@@ -8,11 +8,18 @@ Dưới đây là tổng hợp các tính năng hiện tại và các đề xu�
 
 ## 🔍 Tổng quan Các tính năng Hiện tại
 
-1. **Bộ Phân tích & Tải Phương tiện**: Hỗ trợ YouTube (bao gồm cả ghép luồng chất lượng cao Adaptive DASH), Facebook, Instagram, Pinterest, Reddit, Threads, TikTok, Twitter và các link video HTML5 thông thường.
-2. **Trình Xem trước Trực quan (Previewer)**: Hỗ trợ phát Video (tua luồng thích ứng DASH), nghe Audio, xem Ảnh (phóng to, xoay ảnh) cùng hệ thống phím tắt đầy đủ.
-3. **Quản lý Cookie**: Tích hợp công cụ import cookie để tránh bot-detection (chặn tải) của YouTube/Facebook.
-4. **Hệ thống Đóng gói & Bảo vệ mã nguồn**: Tự động hóa build file cài đặt đa nền tảng với PyInstaller và xáo trộn mã nguồn PyArmor.
-5. **Cập nhật Tự động (Self-Updater)**: Tự động kiểm tra bản cập nhật mới qua GitHub và cài đè an toàn.
+1. **Bộ Phân tích & Tải Phương tiện**: Hỗ trợ YouTube (bao gồm Shorts, Music, Kids, Live, Clip, ghép luồng DASH Adaptive), Facebook (Post, Reel, Story, Group, Live, Watch), Instagram (Reel, Story, IGTV, Carousel), TikTok (Video, Slideshow), Twitter/X, Reddit, Threads, Pinterest, SoundCloud, Vimeo, và các trang phim Việt Nam (GhienPhim, MotChill, LuPhim, PhimMoi, Phim1080, BiluTV, DongPhim, OPhim, GuPhim) với DNS Bypass qua DoH.
+2. **Trình Xem trước Đa phương tiện (Previewer)**: Video Player tùy chỉnh với DASH Adaptive Streaming proxy, Picture-in-Picture, A-B Loop, Ambient Glow. Audio Player với Waveform Visualizer (Web Audio API), đĩa Vinyl xoay động. Image Viewer với zoom/xoay/pan. Subtitle/Text Viewer đồng bộ thời gian. Webpage Viewer (sandbox iframe). 3 chế độ Fullscreen với auto-hide controls.
+3. **Xử lý Phụ đề thông minh**: Trích xuất, dịch tự động (Google Translate batch), làm sạch XML/HTML rác, gộp rolling captions, ngắt dòng 10 từ. Hardsub burn-in tùy chỉnh styling. Softsub muxing với default disposition.
+4. **Xử lý Âm thanh & Video nâng cao**: Bộ lọc màu Cinematic (Cyberpunk, Vintage, Noir, Enhance). Xuất GIF & Shorts (9:16). Audio EQ 4-band. Thay đổi tốc độ phát. Voice FX (8 preset). Cắt Video/Audio (Trimmer).
+5. **Lồng tiếng AI tự động (TTS Voiceover)**: Tổng hợp giọng nói song song bằng `edge-tts`, pha trộn PCM với âm thanh gốc.
+6. **Tích hợp đám mây**: Gửi file tải về trực tiếp lên Telegram qua Bot API.
+7. **Lịch sử tải xuống**: Lưu trữ SQLite, hỗ trợ xem lại/tải lại/xóa từng mục.
+8. **Quản lý Cookie**: Import cookie (JSON J2TEAM / Netscape) để bypass bot-detection. Tự động phát hiện cookie từ trình duyệt đã cài đặt (Chrome, Edge, Firefox, Opera, Vivaldi, Brave).
+9. **Hệ thống Đóng gói & Bảo vệ mã nguồn (Build Tool)**: AST Scrambling, String Encryption, Dead Code Injection, Anti-Debug, PyArmor (3 cấp độ). Licensing: IP Lock, Expiry Date, Machine ID. Xuất bản GitHub Release trực tiếp từ GUI. 3 chế độ vận hành: Web GUI, Interactive CLI Dashboard, Non-interactive CLI.
+10. **Electron Desktop UX/UI**: Giao diện Glassmorphic Frameless với Dark/Light Mode. UI Customizer (10+ accent theme, glass blur, typography, star grid, sparkles). System Tray, Single Instance, Auto-Update đa nền tảng. Clipboard Auto-Detect. 20+ phím tắt.
+11. **Cập nhật Tự động (Self-Updater)**: Kiểm tra bản cập nhật mới qua GitHub `update.json`, tải và cài đặt tự động theo nền tảng (exe/dmg/AppImage).
+12. **CI/CD Pipeline**: GitHub Actions build đa nền tảng (Windows, macOS, Linux), SHA-256 checksums, tự động cập nhật `update.json`.
 
 ---
 
@@ -20,7 +27,7 @@ Dưới đây là tổng hợp các tính năng hiện tại và các đề xu�
 
 Dưới đây là 6 tính năng đột phá có thể phát triển thêm:
 
-### 1. Cắt Video/Audio trước khi tải (Video Trimmer)
+### 1. Cắt Video/Audio trước khi tải (Video Trimmer) [ĐÃ HOÀN THÀNH]
 * **Mô tả**: Cho phép người dùng chọn điểm đầu (Start) và điểm cuối (End) trực tiếp trên thanh timeline của trình xem trước (Preview), sau đó bấm tải thì máy chủ sẽ chỉ cắt và tải đúng đoạn đó thay vì tải cả video dài.
 * **Tác dụng**: Tiết kiệm băng thông cực lớn khi người dùng chỉ muốn lấy một đoạn nhạc 30 giây trong một video dài 3 tiếng.
 * **Cách triển khai**: Tận dụng các tham số `-ss` và `-to` của FFmpeg trong backend khi xử lý luồng tải xuống.
@@ -38,17 +45,17 @@ Dưới đây là 6 tính năng đột phá có thể phát triển thêm:
 * **Tác dụng**: Người dùng không cần cài thêm các ứng dụng chuyển đổi định dạng bên ngoài.
 * **Cách triển khai**: Gọi các dòng lệnh convert của FFmpeg tích hợp sẵn trong ứng dụng ở backend.
 
-### 4. Hiệu ứng sóng nhạc trực quan khi nghe Audio (Waveform Visualizer)
+### 4. Hiệu ứng sóng nhạc trực quan khi nghe Audio (Waveform Visualizer) [ĐÃ HOÀN THÀNH]
 * **Mô tả**: Khi xem trước (Preview) file âm thanh (Audio), thay vì chỉ hiện màn hình trống kèm trình phát, ứng dụng sẽ vẽ các cột sóng nhạc nhấp nháy động theo nhịp nhạc (waveform bar visualizer).
 * **Tác dụng**: Làm giao diện phát nhạc trở nên sống động, hiện đại và vô cùng chuyên nghiệp.
 * **Cách triển khai**: Sử dụng Web Audio API (`AudioContext`, `AnalyserNode`) và vẽ biểu đồ tần số bằng Canvas trên frontend JS.
 
-### 5. Tự động nhận diện Link trong Clipboard (Clipboard Auto-Detect)
+### 5. Tự động nhận diện Link trong Clipboard (Clipboard Auto-Detect) [ĐÃ HOÀN THÀNH]
 * **Mô tả**: Khi ứng dụng đang chạy ngầm, nếu người dùng Copy một đường link video (như YouTube, TikTok...), ứng dụng sẽ tự động phát hiện, hiện một pop-up nhỏ ở góc màn hình hoặc tự động điền link vào ô nhập liệu để người dùng bấm "Analyze" ngay mà không cần Paste thủ công.
 * **Tác dụng**: Giảm thao tác cho người dùng, tạo cảm giác mượt mà và thông minh.
 * **Cách triển khai**: Sử dụng thư viện `clipboard` của Electron trên tiến trình Main để theo dõi thay đổi khay nhớ tạm.
 
-### 6. Trình Tải Phụ đề & Dịch phụ đề tự động (Subtitle Downloader & Translator)
+### 6. Trình Tải Phụ đề & Dịch phụ đề tự động (Subtitle Downloader & Translator) [ĐÃ HOÀN THÀNH]
 * **Mô tả**: Khi tải video nước ngoài, cho phép người dùng lựa chọn tải kèm phụ đề (soft subtitles) hoặc ghi đè phụ đề vào video (hardsub). Đồng thời tích hợp dịch phụ đề tự động sang Tiếng Việt.
 * **Tác dụng**: Cực kỳ hữu ích cho việc xem phim, học tập từ các video nước ngoài.
 * **Cách triển khai**: Gọi cờ `--write-subs` của `yt-dlp` và tích hợp một thư viện dịch miễn phí (như Google Translate API ẩn danh) ở backend.

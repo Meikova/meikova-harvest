@@ -6,7 +6,7 @@ Tài liệu này vạch ra thiết kế kiến trúc, các API cần thay đổi
 
 ## 🛠️ Thiết Kế Chi Tiết Từng Tính Năng
 
-### 1. Cắt Video/Audio trước khi tải (Video Trimmer)
+### 1. Cắt Video/Audio trước khi tải (Video Trimmer) [ĐÃ HOÀN THÀNH]
 *   **Mô tả**: Cho phép cắt và tải về một phân đoạn thời gian cụ thể thay vì tải toàn bộ file.
 *   **Giao diện (UI/UX)**:
     *   Thêm hai nút chọn mốc thời gian **Start (Giây đầu)** và **End (Giây cuối)** trên thanh trượt của trình xem trước (Previewer).
@@ -43,7 +43,7 @@ Tài liệu này vạch ra thiết kế kiến trúc, các API cần thay đổi
 
 ---
 
-### 4. Hiệu ứng sóng nhạc trực quan khi phát Audio (Waveform Visualizer)
+### 4. Hiệu ứng sóng nhạc trực quan khi phát Audio (Waveform Visualizer) [ĐÃ HOÀN THÀNH]
 *   **Mô tả**: Vẽ sóng nhạc động tương thích với tần số âm thanh thời gian thực.
 *   **Giao diện (UI/UX)**:
     *   Vẽ một khung hình `<canvas>` động thay thế cho màn hình trống của trình nghe nhạc `preview-audio-container`.
@@ -60,7 +60,7 @@ Tài liệu này vạch ra thiết kế kiến trúc, các API cần thay đổi
 
 ---
 
-### 5. Tự động nhận diện Link trong Clipboard (Clipboard Auto-Detect)
+### 5. Tự động nhận diện Link trong Clipboard (Clipboard Auto-Detect) [ĐÃ HOÀN THÀNH]
 *   **Mô tả**: Tự động phát hiện khi người dùng Copy link video để gợi ý tải ngay lập tức.
 *   **Giao diện (UI/UX)**:
     *   Một góc nhỏ trên màn hình sẽ hiện thông báo dạng Toast dịu mắt: *"Phát hiện link video: [Tên Link]. Click để phân tích"*.
@@ -79,7 +79,7 @@ Tài liệu này vạch ra thiết kế kiến trúc, các API cần thay đổi
 
 ---
 
-### 6. Tải Phụ đề & Dịch tự động (Subtitle Downloader & Translator)
+### 6. Tải Phụ đề & Dịch tự động (Subtitle Downloader & Translator) [ĐÃ HOÀN THÀNH]
 *   **Mô tả**: Trích xuất phụ đề gốc của video hoặc dịch phụ đề tự động sang Tiếng Việt.
 *   **Giao diện (UI/UX)**:
     *   Thêm menu lựa chọn phụ đề: "Không phụ đề", "Phụ đề gốc (chọn ngôn ngữ)", "Phụ đề dịch tự động sang Tiếng Việt".
@@ -102,17 +102,46 @@ gantt
     title Lộ trình Phát triển Tính năng Mới
     dateFormat  YYYY-MM-DD
     section Giai đoạn 1: Tiện ích Tải
-    Cắt video trước khi tải (Trimmer)        :active, des1, 2026-06-23, 3d
-    Tự động nhận diện Clipboard link        :active, des2, 2026-06-26, 2d
+    Cắt video trước khi tải (Trimmer)        :done, des1, 2026-06-23, 3d
+    Tự động nhận diện Clipboard link        :done, des2, 2026-06-26, 2d
     section Giai đoạn 2: Trải nghiệm Xem/Nghe
-    Vẽ sóng nhạc Audio Visualizer            :after des2, des3, 2d
-    Tải và dịch tự động phụ đề               :after des3, des4, 4d
+    Vẽ sóng nhạc Audio Visualizer            :done, des3, 2026-06-28, 2d
+    Tải và dịch tự động phụ đề               :done, des4, 2026-06-30, 4d
     section Giai đoạn 3: Quản lý & Chuyển đổi
-    Tải hàng loạt Playlist                   :after des4, des5, 5d
-    Bộ chuyển đổi định dạng File (Converter) :after des5, des6, 4d
+    Tải hàng loạt Playlist                   :active, des5, 2026-07-04, 5d
+    Bộ chuyển đổi định dạng File (Converter) :active, des6, 2026-07-09, 4d
 ```
 
 ### Chi tiết các Giai đoạn:
-1.  **Giai đoạn 1 (Tiện ích thông minh)**: Cắt video trước khi tải & Nhận diện clipboard. Đây là các tính năng cải thiện trực tiếp sự tiện dụng và tiết kiệm tài nguyên.
-2.  **Giai đoạn 2 (Trải nghiệm đa phương tiện)**: Sóng nhạc Audio & Tải dịch phụ đề. Tăng tính thẩm mỹ cao cấp và giúp xem video nước ngoài dễ dàng.
-3.  **Giai đoạn 3 (Quản lý nâng cao)**: Playlist Downloader & File Converter. Hoàn thiện hệ sinh thái quản lý file của ứng dụng.
+1.  **Giai đoạn 1 (Tiện ích thông minh) [ĐÃ HOÀN THÀNH]**: Cắt video trước khi tải & Nhận diện clipboard. Đây là các tính năng cải thiện trực tiếp sự tiện dụng và tiết kiệm tài nguyên.
+2.  **Giai đoạn 2 (Trải nghiệm đa phương tiện) [ĐÃ HOÀN THÀNH]**: Sóng nhạc Audio & Tải dịch phụ đề. Tăng tính thẩm mỹ cao cấp và giúp xem video nước ngoài dễ dàng.
+3.  **Giai đoạn 3 (Quản lý nâng cao) [ĐANG TRIỂN KHAI]**: Playlist Downloader & File Converter. Hoàn thiện hệ sinh thái quản lý file của ứng dụng.
+
+---
+
+## 🎁 Tính Năng Bổ Trợ Đã Triển Khai (Ngoài Kế Hoạch Gốc)
+
+Ngoài 6 tính năng trong lộ trình ban đầu, các tính năng cao cấp sau đã được xây dựng và tích hợp thành công:
+
+| # | Tính năng | Mô tả | Module chính |
+| :--- | :--- | :--- | :--- |
+| 1 | **Bộ lọc màu Cinematic** | 4 preset màu chuyên nghiệp: Cyberpunk, Vintage, Noir, Enhance | `utils/ffmpeg.py` → `apply_cinematic_filter()` |
+| 2 | **Xuất GIF & Shorts** | Chuyển đổi video → GIF động (palettegen) hoặc dọc 9:16 (nền mờ) | `utils/ffmpeg.py` → `convert_to_gif()`, `convert_to_shorts()` |
+| 3 | **Audio EQ 4-band** | Cân bằng Bass 60Hz, Low-Mid 500Hz, High-Mid 2kHz, Treble 10kHz | `utils/ffmpeg.py` → `apply_audio_effects()` |
+| 4 | **Thay đổi tốc độ phát** | Điều chỉnh 0.25x → 3x (chained atempo) | `utils/ffmpeg.py` → `apply_audio_effects()` |
+| 5 | **Voice FX (8 preset)** | Deep, Bright, Hall, Studio, Lo-Fi, Telephone, Underwater | `utils/ffmpeg.py` → `apply_audio_effects()` |
+| 6 | **Lồng tiếng AI (TTS)** | Edge-TTS song song 15 luồng, pha trộn PCM, overlay lên video | `utils/ffmpeg.py` → `overlay_voiceover_tts()` |
+| 7 | **Tải lên Telegram** | Gửi video/GIF/file qua Telegram Bot API | `tasks/download.py` → `upload_to_telegram()` |
+| 8 | **Dark/Light Mode** | Chuyển đổi chủ đề với View Transitions API (clip-path animation) | `main.js`, `styles.css` |
+| 9 | **UI Customizer** | 10+ accent theme, glass blur, font, grid effects, sparkles | `main.js` → UI Customizer module |
+| 10 | **Lịch sử tải xuống** | Lưu SQLite, xem lại/tải lại/xóa từng mục | `config.py` → `PersistentDownloadStatus` |
+| 11 | **SoundCloud & Vimeo** | Mở rộng hỗ trợ nền tảng nhạc/video | `routes/info.py` |
+| 12 | **Image Viewer** | Zoom 0.5x→5x, xoay 90°, kéo pan | `main.js` |
+| 13 | **Image Filters & Bulk ZIP** | Chỉnh brightness/contrast/saturation/hue/sepia, tải ZIP nhiều ảnh | `routes/download.py` |
+| 14 | **DASH Adaptive Preview** | FFmpeg mux on-the-fly video+audio → stream preview | `routes/download.py` → `/api/proxy/stream_adaptive` |
+| 15 | **SSE Progress Stream** | Real-time download progress qua Server-Sent Events | `routes/download.py` → `/api/download/progress/<id>` |
+| 16 | **DNS Bypass (DoH)** | Vượt chặn ISP qua DNS-over-HTTPS (Cloudflare, Google, AdGuard) | `extractors/generic.py` |
+| 17 | **Smart Cookie Detection** | Tự động phát hiện cookie từ 6+ trình duyệt đã cài đặt | `utils/ytdl.py` |
+| 18 | **Git Release Publisher** | Tạo tag/commit/push trực tiếp từ Build GUI | `routes/build.py` → `/api/build/publish` |
+| 19 | **Scene Analysis** | Phân tích cảnh video bằng FFmpeg showinfo filter | `routes/info.py` → `/api/video/analyze-scenes` |
+| 20 | **App Config Persistence** | Lưu cấu hình server-side vào `app_config.json` hoặc SQLite | `config.py` → `AppConfig` |

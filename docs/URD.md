@@ -47,11 +47,31 @@ This document details the user needs, target user personas, functional and non-f
 | **FR-15** | Subtitles | Aggressively deduplicate and collapse rolling subtitles (YouTube-style captions) by matching sequences and containment. | High |
 | **FR-16** | Subtitles | Align and shift subtitle timestamps automatically when downloading a trimmed video segment. | High |
 | **FR-17** | Subtitles | Automatically split long sentences in translated subtitles into shorter blocks of max 10 words per slide. | Medium |
-| **FR-18** | Auto-Update | Desktop app checks for updates from public GitHub `update.json`, downloads platform-specific format (.exe for Windows, .dmg for macOS, .AppImage for Linux), and performs native installation. | High |
+| **FR-18** | Auto-Update | Desktop app checks for updates from public GitHub `update.json`, downloads platform-specific format (.exe for Windows, .dmg per architecture arm64/x64 for macOS, .AppImage for Linux), and performs native installation. Platform keys in `update.json`: `win32`, `darwin_arm64`, `darwin_x64`, `linux_x64`. | High |
 | **FR-19** | CI/CD | GitHub Actions workflow builds for all 3 platforms (Windows, macOS, Linux) in parallel, publishes releases with SHA-256 checksums, and updates `update.json` automatically. | High |
 | **FR-20** | Docker | Support Docker/Docker Compose deployment for the web server and build tool GUI without local environment setup. | Medium |
-| **NFR-01** | Clean-up | Automatically delete temporary files immediately after completion or cancellation. | High |
-| **NFR-02** | Performance | Dynamic multi-threaded download segments to maximize bandwidth utilization. | High |
+| **FR-21** | Subtitles | Support hardsub burn-in with customizable styles (font family, size, text color, background box, outlines, opacity, and positioning). | High |
+| **FR-22** | Subtitles | Support softsub muxing with proper stream mapping and default active track configuration (auto-load disposition). | High |
+| **FR-23** | Post-Processing | Apply cinematic color filters (Cyberpunk, Vintage, Noir, Enhance) to video via FFmpeg color grading presets. | Medium |
+| **FR-24** | Post-Processing | Export video segments as animated GIF (palettegen) or convert horizontal video to vertical 9:16 Shorts with blurred background padding. | Medium |
+| **FR-25** | Audio | 4-band audio equalizer (Bass 60Hz, Low-Mid 500Hz, High-Mid 2kHz, Treble 10kHz) with presets (Flat, Bass Boost, Vocal, Acoustic, Electronic, Lo-Fi). | Medium |
+| **FR-26** | Audio | Playback speed control (0.25x–3x) with chained atempo filter for out-of-range values. | Low |
+| **FR-27** | Audio | Voice effect presets (8 modes: Normal, Deep, Bright, Hall, Studio, Lo-Fi, Telephone, Underwater) via FFmpeg audio filters. | Low |
+| **FR-28** | AI | AI voiceover dubbing via `edge-tts` — parallel TTS synthesis (15 concurrent), sequential scheduling, PCM mixing with original audio (8% original, 150% voiceover). | High |
+| **FR-29** | Cloud | Upload completed downloads to Telegram Chat/Group/Channel via Bot API (sendVideo, sendAnimation, sendDocument). | Medium |
+| **FR-30** | History | Persist all download tasks in SQLite database with review, re-download, and per-item deletion capabilities. | High |
+| **FR-31** | UX | Dark/Light theme toggle with View Transitions API circular clip-path animation. | Low |
+| **FR-32** | UX | UI Customizer with 10+ accent themes, glass blur, typography scale, font family, grid effects, sparkles, and gravity modes. | Low |
+| **FR-33** | Extraction | Support SoundCloud audio and Vimeo video downloading via yt-dlp. | Medium |
+| **FR-34** | Preview | Image viewer with zoom (0.5x–5x), 90° rotation, drag-to-pan, and arrow key navigation. | Medium |
+| **FR-35** | Preview | DASH Adaptive Streaming preview — FFmpeg on-the-fly muxing of separate video-only + audio-only streams via `/api/proxy/stream_adaptive`. | High |
+| **FR-36** | Network | DNS-over-HTTPS bypass (Cloudflare, Google, AdGuard, OpenDNS) to circumvent ISP-level DNS blocks on Vietnamese streaming sites. | High |
+| **FR-37** | Session | Smart browser cookie auto-detection from 6+ installed browsers (Chrome, Edge, Firefox, Opera, Vivaldi, Brave) with domain-aware prioritization. | Medium |
+| **FR-38** | UX | 20+ keyboard shortcuts for Video Player, Audio Player, Image Viewer, and Subtitle/Text Viewer. | Medium |
+| **FR-39** | Build | Git Release Publisher — create tags, commits, and push directly from Build GUI to trigger GitHub Actions CI/CD pipeline. | Medium |
+| **FR-40** | Progress | Real-time download progress reporting via Server-Sent Events (SSE) stream at `/api/download/progress/<id>`. | High |
+| **NFR-01** | Clean-up | Automatically delete temporary files immediately after completion or cancellation (5-minute delayed cleanup timer). | High |
+| **NFR-02** | Performance | Dynamic multi-threaded download segments (5 concurrent fragment downloads) to maximize bandwidth utilization. | High |
 
 ---
 
