@@ -10,3 +10,4 @@ quickjs
 requests
 pyinstaller
 pyarmor
+pillow-heif==1.4.0

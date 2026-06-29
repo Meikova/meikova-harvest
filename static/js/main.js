@@ -34,6 +34,23 @@ document.addEventListener("DOMContentLoaded", () => {
         return `${day}/${month}/${year} ${hours}:${minutes}:${seconds}`;
     }
 
+    function truncateMiddle(str, maxLength = 25) {
+        if (!str || str.length <= maxLength) return str;
+        const lastDot = str.lastIndexOf('.');
+        if (lastDot === -1 || str.length - lastDot > 8) {
+            return str.slice(0, maxLength - 3) + "...";
+        }
+        const ext = str.slice(lastDot);
+        const name = str.slice(0, lastDot);
+        const availSpace = maxLength - ext.length - 3;
+        if (availSpace <= 8) {
+            return str.slice(0, maxLength - 3) + "...";
+        }
+        const left = Math.ceil(availSpace / 2);
+        const right = Math.floor(availSpace / 2);
+        return name.slice(0, left) + "..." + name.slice(-right) + ext;
+    }
+
     // Theme Toggle Logic
     const themeToggle = document.getElementById("theme-toggle");
     const currentTheme = localStorage.getItem("theme");
@@ -1151,9 +1168,95 @@ document.addEventListener("DOMContentLoaded", () => {
     const videoFormatSelect = document.getElementById("video-preview-format-select");
     const customVideoControls = document.querySelector(".custom-video-controls");
 
+    // Seek thumbnail preview elements
+    const thumbPreviewVideo = document.getElementById("thumb-preview-video");
+    const seekThumbTooltip = document.getElementById("seek-thumb-tooltip");
+    const seekThumbCanvas = document.getElementById("seek-thumb-canvas");
+    const seekThumbTime = document.getElementById("seek-thumb-time");
+    const seekThumbPointer = document.getElementById("seek-thumb-pointer");
+    const seekThumbDot = document.getElementById("seek-thumb-dot");
+    const seekThumbCtx = seekThumbCanvas ? seekThumbCanvas.getContext("2d") : null;
+    const videoSliderContainer = document.querySelector(".video-slider-container");
+
+    // Episode Navigation Helpers and Click Listeners
+    function getGroupSiblingsAndIndex() {
+        if (!videoFormatSelect) return { siblings: [], currentIndex: -1 };
+        const selectedOption = videoFormatSelect.querySelector("option:checked") || videoFormatSelect.options[videoFormatSelect.selectedIndex];
+        if (!selectedOption) return { siblings: [], currentIndex: -1 };
+        
+        const parent = selectedOption.parentElement;
+        let siblings = [];
+        if (parent && parent.tagName.toLowerCase() === "optgroup") {
+            siblings = Array.from(parent.querySelectorAll("option"));
+        } else {
+            siblings = Array.from(videoFormatSelect.children).filter(child => child.tagName.toLowerCase() === "option");
+        }
+        const currentIndex = siblings.indexOf(selectedOption);
+        return { siblings, currentIndex };
+    }
+
+    function updateEpisodeNavigationButtonsState() {
+        const nextBtn = document.getElementById("video-next-btn");
+        const prevBtn = document.getElementById("video-prev-btn");
+        if (!nextBtn && !prevBtn) return;
+        if (!videoFormatSelect || videoFormatSelect.style.display === "none") {
+            if (nextBtn) nextBtn.classList.add("hidden");
+            if (prevBtn) prevBtn.classList.add("hidden");
+            return;
+        }
+        const { siblings, currentIndex } = getGroupSiblingsAndIndex();
+
+        if (nextBtn) {
+            if (currentIndex !== -1 && currentIndex < siblings.length - 1) {
+                nextBtn.classList.remove("hidden");
+            } else {
+                nextBtn.classList.add("hidden");
+            }
+        }
+        if (prevBtn) {
+            if (currentIndex > 0) {
+                prevBtn.classList.remove("hidden");
+            } else {
+                prevBtn.classList.add("hidden");
+            }
+        }
+    }
+
+    const videoNextBtn = document.getElementById("video-next-btn");
+    if (videoNextBtn) {
+        videoNextBtn.addEventListener("click", function (e) {
+            e.stopPropagation();
+            if (!videoFormatSelect) return;
+            const { siblings, currentIndex } = getGroupSiblingsAndIndex();
+            if (currentIndex !== -1 && currentIndex < siblings.length - 1) {
+                const nextOpt = siblings[currentIndex + 1];
+                videoFormatSelect.value = nextOpt.value;
+                videoFormatSelect.dispatchEvent(new Event("change"));
+            }
+        });
+    }
+
+    const videoPrevBtn = document.getElementById("video-prev-btn");
+    if (videoPrevBtn) {
+        videoPrevBtn.addEventListener("click", function (e) {
+            e.stopPropagation();
+            if (!videoFormatSelect) return;
+            const { siblings, currentIndex } = getGroupSiblingsAndIndex();
+            if (currentIndex > 0) {
+                const prevOpt = siblings[currentIndex - 1];
+                videoFormatSelect.value = prevOpt.value;
+                videoFormatSelect.dispatchEvent(new Event("change"));
+            }
+        });
+    }
+
     function getProxiedImageUrl(url) {
         if (!url) return "";
         if (url.startsWith("/")) return url;
+        // Local file path - proxy through Flask
+        if (/^[A-Za-z]:[/\\]/.test(url)) {
+            return `/api/proxy/image?url=${encodeURIComponent(url)}`;
+        }
         // Reject Reddit placeholder strings like 'image', 'self', 'default', 'nsfw', 'spoiler'
         if (!url.startsWith("http")) return "";
         // Reddit CDN (redd.it, redditmedia.com, redditstatic.com) blocks server-side
@@ -1179,6 +1282,28 @@ document.addEventListener("DOMContentLoaded", () => {
         });
         const cleaned = clean.replace(/[\\/*?:"<>|#]/g, "").replace(/\s+/g, " ").trim();
         return [...cleaned].slice(0, 80).join("").trim() || defaultVal;
+    }
+
+    // Local file path detection helpers
+    function isLocalPath(path) {
+        if (!path || typeof path !== "string") return false;
+        // Windows absolute path (e.g., C:\, D:\, F:/)
+        if (/^[A-Za-z]:[/\\]/.test(path)) return true;
+        // Unix absolute path (but exclude URLs like http://)
+        if (path.startsWith("/") && !path.startsWith("//") && !path.startsWith("/api/")) return true;
+        return false;
+    }
+
+    function getLocalStreamUrl(localPath) {
+        return `/api/proxy/stream?url=${encodeURIComponent(localPath)}`;
+    }
+
+    function getLocalImageUrl(localPath) {
+        return `/api/proxy/image?url=${encodeURIComponent(localPath)}`;
+    }
+
+    function getLocalSubUrl(localPath) {
+        return `/api/system/proxy-sub?url=${encodeURIComponent(localPath)}`;
     }
 
     // Cookies UI Elements
@@ -1513,6 +1638,13 @@ document.addEventListener("DOMContentLoaded", () => {
     let activeLyricIndex = -1;
     let audioSubSelectUrl = "";
 
+    // --- Seek Thumbnail Preview State ---
+    let thumbSeekPending = false;
+    let thumbNextSeekTime = null;
+    let thumbLastDrawnTime = -1;
+    let thumbSourceReady = false;
+    let thumbHlsInstance = null;
+
     function seekAdaptiveVideo(targetTime) {
         if (!previewIsAdaptive) return;
 
@@ -1568,6 +1700,24 @@ document.addEventListener("DOMContentLoaded", () => {
             try {
                 previewVideoPlayer.load();
             } catch (e) { }
+        }
+        // Clean up thumbnail preview video
+        if (thumbHlsInstance) {
+            thumbHlsInstance.destroy();
+            thumbHlsInstance = null;
+        }
+        if (thumbPreviewVideo) {
+            thumbPreviewVideo.removeAttribute("src");
+            thumbPreviewVideo.removeAttribute("data-thumb-src");
+            try { thumbPreviewVideo.load(); } catch (e) { }
+            thumbSourceReady = false;
+        }
+        thumbNextSeekTime = null;
+        if (seekThumbTooltip) {
+            seekThumbTooltip.classList.remove("visible");
+        }
+        if (seekThumbDot) {
+            seekThumbDot.classList.remove("visible");
         }
         if (previewAudioPlayer) {
             previewAudioPlayer.pause();
@@ -3160,14 +3310,32 @@ document.addEventListener("DOMContentLoaded", () => {
         });
     }
 
-    // Clicking on video itself toggles play/pause
+    // Clicking on video itself toggles play/pause, double clicking toggles fullscreen mode
     if (previewVideoPlayer) {
-        previewVideoPlayer.addEventListener("click", () => {
-            if (previewVideoPlayer.paused) {
-                previewVideoPlayer.play().catch(e => console.log("Play failed: ", e));
-            } else {
-                previewVideoPlayer.pause();
+        let clickTimeout = null;
+        previewVideoPlayer.addEventListener("click", (e) => {
+            if (clickTimeout !== null) {
+                clearTimeout(clickTimeout);
+                clickTimeout = null;
+                return;
             }
+            clickTimeout = setTimeout(() => {
+                clickTimeout = null;
+                if (previewVideoPlayer.paused) {
+                    previewVideoPlayer.play().catch(err => console.log("Play failed: ", err));
+                } else {
+                    previewVideoPlayer.pause();
+                }
+            }, 250);
+        });
+
+        previewVideoPlayer.addEventListener("dblclick", (e) => {
+            e.stopPropagation();
+            if (clickTimeout !== null) {
+                clearTimeout(clickTimeout);
+                clickTimeout = null;
+            }
+            toggleFullscreenMode();
         });
     }
 
@@ -3196,6 +3364,202 @@ document.addEventListener("DOMContentLoaded", () => {
             }, 300);
         });
     }
+
+    // ===== Seek Thumbnail Preview (YouTube-style) =====
+
+    function syncThumbnailVideoSource(srcUrl, isM3u8 = false) {
+        if (!thumbPreviewVideo) return;
+
+        // Clean up previous HLS instance if any
+        if (thumbHlsInstance) {
+            thumbHlsInstance.destroy();
+            thumbHlsInstance = null;
+        }
+
+        if (!srcUrl) {
+            thumbPreviewVideo.removeAttribute("src");
+            thumbPreviewVideo.load();
+            thumbSourceReady = false;
+            return;
+        }
+
+        let targetSrc = srcUrl;
+        if (previewIsAdaptive && previewAdaptiveVideoUrl) {
+            // For adaptive streams (e.g. YouTube), stream only the video track.
+            // This enables fast range-based seeking without server-side FFmpeg muxing overhead.
+            targetSrc = `/api/proxy/stream?url=${encodeURIComponent(previewAdaptiveVideoUrl)}&client_id=${encodeURIComponent(clientId)}`;
+        }
+
+        if (isM3u8 && typeof Hls !== "undefined" && Hls.isSupported()) {
+            thumbSourceReady = false;
+            thumbLastDrawnTime = -1;
+            
+            const hls = new Hls({
+                maxBufferSize: 10 * 1024 * 1024, // Smaller buffer (10MB) for thumbnail preview to save memory/speed
+                maxBufferLength: 10,
+                enableSubtitle: false
+            });
+            hls.loadSource(targetSrc);
+            hls.attachMedia(thumbPreviewVideo);
+            hls.on(Hls.Events.MANIFEST_PARSED, () => {
+                thumbSourceReady = true;
+                drawThumbnailFrame();
+            });
+            thumbHlsInstance = hls;
+        } else {
+            // Don't re-assign if already the same source
+            if (thumbPreviewVideo.src === targetSrc || thumbPreviewVideo.getAttribute("data-thumb-src") === targetSrc) return;
+            thumbPreviewVideo.setAttribute("data-thumb-src", targetSrc);
+            thumbSourceReady = false;
+            thumbLastDrawnTime = -1;
+            thumbPreviewVideo.src = targetSrc;
+            thumbPreviewVideo.load();
+        }
+    }
+
+    /**
+     * Draw the current frame of the hidden thumbnail video onto the canvas.
+     */
+    function drawThumbnailFrame() {
+        if (!seekThumbCtx || !thumbPreviewVideo || !thumbSourceReady) return;
+        if (thumbPreviewVideo.readyState < 2) return; // HAVE_CURRENT_DATA
+        try {
+            seekThumbCtx.drawImage(thumbPreviewVideo, 0, 0, seekThumbCanvas.width, seekThumbCanvas.height);
+        } catch (e) {
+            // Cross-origin or other errors — silently ignore
+        }
+    }
+
+    if (videoSliderContainer && thumbPreviewVideo && seekThumbTooltip && seekThumbCanvas && previewVideoPlayer) {
+        
+        // Listen to loadeddata once globally
+        thumbPreviewVideo.addEventListener("loadeddata", () => {
+            thumbSourceReady = true;
+            // Set canvas internal dimensions to match video native resolution to preserve aspect ratio
+            if (thumbPreviewVideo.videoWidth && thumbPreviewVideo.videoHeight) {
+                seekThumbCanvas.width = thumbPreviewVideo.videoWidth;
+                seekThumbCanvas.height = thumbPreviewVideo.videoHeight;
+            }
+            // Draw first frame if possible
+            drawThumbnailFrame();
+        });
+
+        // Helper: get total video duration
+        function getThumbTotalDuration() {
+            return previewIsAdaptive
+                ? (parseFloat(activeMetadata ? activeMetadata.duration_raw : 0) || 0)
+                : (previewVideoPlayer.duration || 0);
+        }
+
+        // On seeked: draw the frame and check if there's another pending seek
+        thumbPreviewVideo.addEventListener("seeked", () => {
+            drawThumbnailFrame();
+            if (thumbNextSeekTime !== null) {
+                const nextTime = thumbNextSeekTime;
+                thumbNextSeekTime = null;
+                thumbPreviewVideo.currentTime = nextTime;
+            } else {
+                thumbSeekPending = false;
+            }
+        });
+
+        // Mousemove on the slider container
+        videoSliderContainer.addEventListener("mousemove", (e) => {
+            // Don't show for adaptive video if we don't have the video-only stream URL
+            if (previewIsAdaptive && !previewAdaptiveVideoUrl) {
+                seekThumbTooltip.classList.remove("visible");
+                return;
+            }
+            // Don't show if no source loaded
+            if (!thumbSourceReady) {
+                seekThumbTooltip.classList.remove("visible");
+                return;
+            }
+
+            const totalDuration = getThumbTotalDuration();
+            if (!totalDuration || totalDuration <= 0) return;
+
+            const sliderRect = videoSeekSlider.getBoundingClientRect();
+            const containerRect = videoSliderContainer.getBoundingClientRect();
+
+            // ── Viewport Coordinate Calculation ──────────────────────────────────
+            // Viewport-relative coordinates (e.clientX, getBoundingClientRect) are
+            // immune to CSS transforms (like translate(-50%, -50%)) on parent containers.
+            
+            const sliderW = sliderRect.width || 1;
+            const sliderPct = Math.max(0, Math.min((e.clientX - sliderRect.left) / sliderW, 1));
+            const targetTime = sliderPct * totalDuration;
+
+            const containerW = containerRect.width || 1;
+            const visualPct = Math.max(0, Math.min((e.clientX - containerRect.left) / containerW, 1));
+
+            // Update timestamp text
+            if (seekThumbTime) {
+                seekThumbTime.textContent = formatTime(targetTime);
+            }
+
+            // Tooltip calculations (layout space)
+
+            const containerLayoutW = videoSliderContainer.clientWidth || 1;
+            const tooltipW   = seekThumbTooltip.offsetWidth || 160;
+            const halfPct    = (tooltipW / 2) / containerLayoutW;
+            const clampedPct = Math.max(halfPct, Math.min(visualPct, 1 - halfPct));
+
+            // Remove debug overlay if present
+            const _dbg2 = document.getElementById('_dbg2');
+            if (_dbg2) _dbg2.remove();
+
+
+            seekThumbTooltip.style.left = (clampedPct * 100) + '%';
+            if (seekThumbDot) {
+                seekThumbDot.style.left = (visualPct * 100) + '%';
+            }
+
+            // Pointer arrow follows cursor within tooltip
+            if (seekThumbPointer) {
+                const arrowPx   = (visualPct - clampedPct) * containerLayoutW;
+                const arrowLeft = tooltipW / 2 + arrowPx;
+                seekThumbPointer.style.left = Math.max(10, Math.min(arrowLeft, tooltipW - 10)) + 'px';
+            }
+
+
+            // Show tooltip & dot
+
+            seekThumbTooltip.classList.add("visible");
+            if (seekThumbDot) {
+                seekThumbDot.classList.add("visible");
+            }
+
+            // Seek the hidden thumbnail video using non-blocking queued seek pattern
+            if (thumbSeekPending) {
+                thumbNextSeekTime = targetTime;
+            } else {
+                thumbSeekPending = true;
+                thumbLastDrawnTime = targetTime;
+                thumbPreviewVideo.currentTime = targetTime;
+            }
+        });
+
+        // Show tooltip on mouseenter
+        videoSliderContainer.addEventListener("mouseenter", (e) => {
+            if ((previewIsAdaptive && !previewAdaptiveVideoUrl) || !thumbSourceReady) return;
+            seekThumbTooltip.classList.add("visible");
+            if (seekThumbDot) {
+                seekThumbDot.classList.add("visible");
+            }
+        });
+
+        // Hide tooltip on mouseleave
+        videoSliderContainer.addEventListener("mouseleave", () => {
+            seekThumbTooltip.classList.remove("visible");
+            if (seekThumbDot) {
+                seekThumbDot.classList.remove("visible");
+            }
+            thumbSeekPending = false;
+            thumbNextSeekTime = null;
+        });
+    }
+    // ===== End Seek Thumbnail Preview =====
 
     if (videoVolumeSlider && previewVideoPlayer) {
         videoVolumeSlider.addEventListener("input", function (e) {
@@ -3292,6 +3656,9 @@ document.addEventListener("DOMContentLoaded", () => {
         const card = document.querySelector(".modal-card-preview");
         const header = document.querySelector("#preview-modal .modal-header");
         if (!card || !header) return;
+
+        const alignV = document.getElementById("preview-align-v");
+        const alignH = document.getElementById("preview-align-h");
 
         const MIN_W = 480, MIN_H = 320;
         let isDragging = false, isResizing = false;
@@ -3412,6 +3779,43 @@ document.addEventListener("DOMContentLoaded", () => {
                 let newTop = startTop + dy;
                 const w = parseFloat(card.style.width) || card.offsetWidth;
                 const h = parseFloat(card.style.height) || card.offsetHeight;
+
+                // Alignment guidelines and center snapping
+                const vw = window.innerWidth;
+                const vh = window.innerHeight;
+                const cardCenterX = newLeft + w / 2;
+                const cardCenterY = newTop + h / 2;
+                const vpCenterX = vw / 2;
+                const vpCenterY = vh / 2;
+                const SNAP_THRESHOLD = 15;
+
+                let snappedX = false;
+                let snappedY = false;
+
+                // Horizontal snap (vertical guide line)
+                if (Math.abs(cardCenterX - vpCenterX) < SNAP_THRESHOLD) {
+                    newLeft = vpCenterX - w / 2;
+                    snappedX = true;
+                    if (alignV) {
+                        alignV.style.left = Math.round(vpCenterX) + "px";
+                        alignV.classList.remove("hidden");
+                    }
+                } else {
+                    if (alignV) alignV.classList.add("hidden");
+                }
+
+                // Vertical snap (horizontal guide line)
+                if (Math.abs(cardCenterY - vpCenterY) < SNAP_THRESHOLD) {
+                    newTop = vpCenterY - h / 2;
+                    snappedY = true;
+                    if (alignH) {
+                        alignH.style.top = Math.round(vpCenterY) + "px";
+                        alignH.classList.remove("hidden");
+                    }
+                } else {
+                    if (alignH) alignH.classList.add("hidden");
+                }
+
                 const clamped = clampPosition(newLeft, newTop, w, h);
                 applyPos(clamped.left, clamped.top);
             }
@@ -3446,8 +3850,185 @@ document.addEventListener("DOMContentLoaded", () => {
                 isResizing = false;
                 header.style.cursor = "grab";
                 document.body.style.userSelect = "";
+                // Hide alignment lines when drag stops
+                if (alignV) alignV.classList.add("hidden");
+                if (alignH) alignH.classList.add("hidden");
             }
         });
+
+        function fitPreviewToMedia() {
+            if (isFullscreenActive()) return;
+
+            let mediaW = 0;
+            let mediaH = 0;
+
+            const isVideoVisible = !previewVideoContainer.classList.contains("hidden");
+            const isImageVisible = !previewImageContainer.classList.contains("hidden");
+
+            if (isVideoVisible && previewVideoPlayer) {
+                mediaW = previewVideoPlayer.videoWidth;
+                mediaH = previewVideoPlayer.videoHeight;
+                // Fallback to standard 16:9 if dimensions are not reported yet
+                if (!mediaW || !mediaH) {
+                    mediaW = 1920;
+                    mediaH = 1080;
+                }
+            } else if (isImageVisible && previewImageElement) {
+                mediaW = previewImageElement.naturalWidth;
+                mediaH = previewImageElement.naturalHeight;
+                // Fallback to standard 3:2 if natural dimensions are unavailable
+                if (!mediaW || !mediaH) {
+                    mediaW = 1200;
+                    mediaH = 800;
+                }
+            }
+
+            if (!mediaW || !mediaH) {
+                console.warn("[FitPreview] Media dimensions are not available yet.");
+                return;
+            }
+
+            const vw = window.innerWidth;
+            const vh = window.innerHeight;
+            const aspect = mediaW / mediaH;
+
+            // Calculate extra dimensions (borders, margins, padding, sidebar)
+            const isSidebarVisible = isVideoVisible && document.getElementById("preview-transcript-sidebar") && !document.getElementById("preview-transcript-sidebar").classList.contains("hidden");
+            const sidebarW = isSidebarVisible ? 321 : 0;
+            
+            const horizontalExtra = 34 + sidebarW; // 16px*2 margin + 2px content border + sidebar width
+            const verticalExtra = 158; // 60px header + 80px footer toolbar + 16px margin + 2px border
+
+            // Constrain video/image dimensions to 85% of screen viewport
+            const maxVideoW = (vw * 0.85) - horizontalExtra;
+            const maxVideoH = (vh * 0.85) - verticalExtra;
+
+            // Safe minimum dimensions to accommodate player controls bar
+            // Video player needs at least 566px width (600px card width minus 34px margins)
+            // Image can shrink down to 446px width (480px card width minus 34px margins)
+            const minVideoW = isVideoVisible ? 566 : 446;
+            const minVideoH = 320 - verticalExtra;
+
+            let targetVideoW = mediaW;
+            let targetVideoH = mediaH;
+
+            // Scale down to fit viewport constraints
+            if (targetVideoW > maxVideoW) {
+                targetVideoW = maxVideoW;
+                targetVideoH = targetVideoW / aspect;
+            }
+            if (targetVideoH > maxVideoH) {
+                targetVideoH = maxVideoH;
+                targetVideoW = targetVideoH * aspect;
+            }
+
+            // Scale up to satisfy minimum controls width/height limits (preserving aspect ratio)
+            if (targetVideoW < minVideoW) {
+                targetVideoW = minVideoW;
+                targetVideoH = targetVideoW / aspect;
+            }
+            if (targetVideoH < minVideoH) {
+                targetVideoH = minVideoH;
+                targetVideoW = targetVideoH * aspect;
+            }
+
+            const finalW = Math.round(targetVideoW + horizontalExtra);
+            const finalH = Math.round(targetVideoH + verticalExtra);
+
+            // Centering coordinate calculations
+            const targetLeft = Math.round((vw - finalW) / 2);
+            const targetTop = Math.round((vh - finalH) / 2);
+
+            // Apply smoothly with temporary CSS transition
+            card.style.transition = "all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1)";
+            applyPos(targetLeft, targetTop, finalW, finalH);
+
+            setTimeout(() => {
+                card.style.removeProperty("transition");
+            }, 300);
+        }
+        window.fitPreviewToMedia = fitPreviewToMedia;
+
+        // ── preset positioning presets ────────────────────────────────────
+        function applyPositionPreset(preset) {
+            if (isFullscreenActive()) return;
+
+            const vw = window.innerWidth;
+            const vh = window.innerHeight;
+            const w = parseFloat(card.style.width) || card.offsetWidth;
+            const h = parseFloat(card.style.height) || card.offsetHeight;
+            const MARGIN = 20;
+
+            let targetLeft = 0;
+            let targetTop = 0;
+
+            switch (preset) {
+                case "center":
+                    targetLeft = (vw - w) / 2;
+                    targetTop = (vh - h) / 2;
+                    break;
+                case "left":
+                    targetLeft = MARGIN;
+                    targetTop = (vh - h) / 2;
+                    break;
+                case "right":
+                    targetLeft = vw - w - MARGIN;
+                    targetTop = (vh - h) / 2;
+                    break;
+                case "top":
+                    targetLeft = (vw - w) / 2;
+                    targetTop = MARGIN;
+                    break;
+                case "bottom":
+                    targetLeft = (vw - w) / 2;
+                    targetTop = vh - h - MARGIN;
+                    break;
+                default:
+                    return;
+            }
+
+            // Animate card smoothly to preset location
+            card.style.transition = "all 0.35s cubic-bezier(0.25, 0.8, 0.25, 1)";
+            applyPos(Math.round(targetLeft), Math.round(targetTop), w, h);
+
+            setTimeout(() => {
+                card.style.removeProperty("transition");
+            }, 350);
+        }
+
+        // ── bind buttons / dropdown listeners ──────────────────────────────
+        const fitBtn = document.getElementById("preview-fit-btn");
+        const alignBtn = document.getElementById("preview-align-btn");
+        const presetMenu = document.getElementById("preview-preset-menu");
+
+        if (fitBtn) {
+            fitBtn.addEventListener("click", function (e) {
+                e.stopPropagation();
+                fitPreviewToMedia();
+            });
+        }
+
+        if (alignBtn && presetMenu) {
+            alignBtn.addEventListener("click", function (e) {
+                e.stopPropagation();
+                presetMenu.classList.toggle("hidden");
+            });
+
+            document.addEventListener("click", function (e) {
+                if (!e.target.closest(".preset-dropdown-container")) {
+                    presetMenu.classList.add("hidden");
+                }
+            });
+
+            presetMenu.querySelectorAll(".preset-menu-item").forEach(function (item) {
+                item.addEventListener("click", function (e) {
+                    e.stopPropagation();
+                    const pos = item.dataset.pos;
+                    applyPositionPreset(pos);
+                    presetMenu.classList.add("hidden");
+                });
+            });
+        }
 
         // ── Reset position when modal opens (first time or after close) ───
         // We expose a helper so triggerPreview() can call it.
@@ -3457,6 +4038,8 @@ document.addEventListener("DOMContentLoaded", () => {
             card.style.removeProperty("top");
             card.style.removeProperty("width");
             card.style.removeProperty("height");
+            if (alignV) alignV.classList.add("hidden");
+            if (alignH) alignH.classList.add("hidden");
         };
     })();
 
@@ -3907,6 +4490,9 @@ document.addEventListener("DOMContentLoaded", () => {
                 if (opt) {
                     triggerPreview(null, opt.format_id, opt.ext, opt.label, opt.quality, opt.url, "", "", "video");
                 }
+            }
+            if (typeof updateEpisodeNavigationButtonsState === "function") {
+                updateEpisodeNavigationButtonsState();
             }
         });
     }
@@ -5358,6 +5944,10 @@ document.addEventListener("DOMContentLoaded", () => {
     });
 
     function isValidUrl(url) {
+        if (!url) return false;
+        // Accept local file/folder paths (Windows drive letter or Unix absolute)
+        if (/^[A-Za-z]:[/\\]/.test(url)) return true;
+        if (url.startsWith("/") && !url.startsWith("//")) return true;
         try {
             const parsed = new URL(url);
             return parsed.protocol === "http:" || parsed.protocol === "https:";
@@ -5478,6 +6068,10 @@ document.addEventListener("DOMContentLoaded", () => {
         "vimeo": {
             cyan: "#1ab7ea", purple: "#86d9f8",
             cyanRgb: "26, 183, 234", purpleRgb: "134, 217, 248"
+        },
+        "local": {
+            cyan: "#10b981", purple: "#3b82f6",
+            cyanRgb: "16, 185, 129", purpleRgb: "59, 130, 246"
         }
     };
 
@@ -5549,7 +6143,10 @@ document.addEventListener("DOMContentLoaded", () => {
                     voiceover_voice: voiceoverVoiceSelect ? voiceoverVoiceSelect.value : "vi-VN-HoaiMyNeural",
                     voiceover_rate: voiceoverRateSlider ? voiceoverRateSlider.value : "0",
                     voiceover_pitch: voiceoverPitchSlider ? voiceoverPitchSlider.value : "0",
-                    cloud_sync: cloudSyncSelect ? cloudSyncSelect.value : "local"
+                    cloud_sync: cloudSyncSelect ? cloudSyncSelect.value : "local",
+                    enhance_beautify: document.getElementById("enhance-beautify-checkbox")?.checked || false,
+                    enhance_sharpen: parseInt(document.getElementById("enhance-sharpen-slider")?.value || "0"),
+                    enhance_upscale: document.getElementById("enhance-upscale-select")?.value || "none"
                 };
             }
 
@@ -5638,7 +6235,7 @@ document.addEventListener("DOMContentLoaded", () => {
         }
 
         if (!isValidUrl(url)) {
-            showError("Invalid URL. Please enter a valid HTTP or HTTPS link.");
+            showError("Invalid input. Please enter a valid URL (http/https) or a local file/folder path.");
             return;
         }
 
@@ -5753,7 +6350,22 @@ document.addEventListener("DOMContentLoaded", () => {
         if (data.thumbnail) {
             videoThumbnail.setAttribute("data-original-url", data.thumbnail);
         }
-        videoThumbnail.src = getProxiedImageUrl(data.thumbnail) || "https://images.unsplash.com/photo-1611162617213-7d7a39e9b1d7?q=80&w=600";
+        // Smart thumbnail for local files
+        let thumbnailUrl = getProxiedImageUrl(data.thumbnail);
+        if (!thumbnailUrl && data.is_local) {
+            // For local folders, try to use first image entry as thumbnail
+            if (data.entries && data.entries.length > 0) {
+                const firstImage = data.entries.find(e => e.type === "image");
+                if (firstImage && firstImage.path) {
+                    thumbnailUrl = getLocalImageUrl(firstImage.path);
+                }
+            }
+            // For single local image files, use the image itself
+            if (!thumbnailUrl && data.images && data.images.length > 0 && data.images[0].url) {
+                thumbnailUrl = getProxiedImageUrl(data.images[0].url);
+            }
+        }
+        videoThumbnail.src = thumbnailUrl || "https://images.unsplash.com/photo-1611162617213-7d7a39e9b1d7?q=80&w=600";
         videoTitle.textContent = data.title;
         videoUploader.textContent = data.uploader;
         if (data.duration && data.duration !== "Unknown" && data.duration !== "N/A" && data.duration !== "0:00") {
@@ -5858,6 +6470,8 @@ document.addEventListener("DOMContentLoaded", () => {
 
         if (imagesToggleBtn && imagesModal && imagesModalCloseBtn && modalImagesGrid) {
             imagesToggleBtn.onclick = () => {
+                if (imagesSearchInput) imagesSearchInput.value = "";
+                if (imagesFilterSelect) imagesFilterSelect.value = "all";
                 renderImagesGrid();
                 imagesModal.classList.remove("hidden");
                 document.body.classList.add("modal-open");
@@ -5886,6 +6500,20 @@ document.addEventListener("DOMContentLoaded", () => {
             document.addEventListener("keydown", escImagesHandler);
         }
 
+        const imagesSearchInput = document.getElementById("images-search-input");
+        const imagesFilterSelect = document.getElementById("images-filter-select");
+
+        if (imagesSearchInput) {
+            imagesSearchInput.oninput = () => {
+                renderImagesGrid();
+            };
+        }
+        if (imagesFilterSelect) {
+            imagesFilterSelect.onchange = () => {
+                renderImagesGrid();
+            };
+        }
+
         function renderImagesGrid() {
             modalImagesGrid.innerHTML = "";
             if (selectAllCheckbox) {
@@ -5893,10 +6521,10 @@ document.addEventListener("DOMContentLoaded", () => {
                 selectAllCheckbox.indeterminate = false;
             }
 
-            extractedImages.forEach((img, idx) => {
-                const card = document.createElement("div");
-                card.className = "image-card";
+            const query = imagesSearchInput ? imagesSearchInput.value.toLowerCase().trim() : "";
+            const filterExt = imagesFilterSelect ? imagesFilterSelect.value : "all";
 
+            extractedImages.forEach((img, idx) => {
                 let imgLabel, imgUrl, imgExt;
                 if (typeof img === "string") {
                     imgUrl = img;
@@ -5909,6 +6537,26 @@ document.addEventListener("DOMContentLoaded", () => {
                 } else {
                     return; // Skip invalid entries
                 }
+
+                const lowerImgExt = (imgExt || "").toLowerCase();
+                // Match search query
+                if (query && !imgLabel.toLowerCase().includes(query)) {
+                    return;
+                }
+
+                // Match extension filter
+                if (filterExt !== "all") {
+                    if (filterExt === "jpg") {
+                        if (lowerImgExt !== "jpg" && lowerImgExt !== "jpeg") return;
+                    } else if (filterExt === "heic") {
+                        if (lowerImgExt !== "heic" && lowerImgExt !== "heif") return;
+                    } else {
+                        if (lowerImgExt !== filterExt) return;
+                    }
+                }
+
+                const card = document.createElement("div");
+                card.className = "image-card";
 
                 // Extract resolution label from name if present
                 const resMatch = imgLabel.match(/\((\d+x\d+)\)/);
@@ -5948,7 +6596,7 @@ document.addEventListener("DOMContentLoaded", () => {
                 const prevBtn = card.querySelector(".image-card-preview-btn");
                 prevBtn.onclick = (e) => {
                     e.stopPropagation(); // Prevent toggling checkbox
-                    triggerPreview(prevBtn, "image_preview", "jpg", cleanLabel, "", img.url);
+                    triggerPreview(prevBtn, "image_preview", imgExt, cleanLabel, "", imgUrl);
                 };
 
                 // Add click listener on preview to toggle checkbox
@@ -6084,6 +6732,145 @@ document.addEventListener("DOMContentLoaded", () => {
         // Render options list
         optionsContainer.innerHTML = "";
 
+        // ── Local Folder Playlist Rendering ──────────────────────────────
+        if (data.is_playlist && data.entries && data.entries.length > 0) {
+            const folderIconSvgs = {
+                video: `<svg class="format-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M23 7l-7 5 7 5V7z"/><rect x="1" y="5" width="15" height="14" rx="2" ry="2"/></svg>`,
+                audio: `<svg class="format-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/></svg>`,
+                image: `<svg class="format-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>`,
+                subtitle: `<svg class="format-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="color: var(--cyan);"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>`,
+                text: `<svg class="format-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>`,
+                other: `<svg class="format-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M13 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"/><polyline points="13 2 13 9 20 9"/></svg>`
+            };
+            const folderDownloadSvg = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>`;
+
+            const imageExtsLocal = ["jpg", "jpeg", "png", "webp", "gif", "bmp", "heic", "heif", "tiff", "tif", "svg", "ico", "avif"];
+            const videoExtsLocal = ["mp4", "mkv", "avi", "mov", "wmv", "flv", "webm", "ts", "mpg", "mpeg", "m4v", "3gp"];
+            const audioExtsLocal = ["mp3", "m4a", "wav", "flac", "ogg", "aac", "wma", "opus"];
+            const subtitleExtsLocal = ["vtt", "srt", "ass", "ssa", "sub", "idx", "lrc"];
+
+            // Group entries by type
+            const groups = { video: [], audio: [], image: [], subtitle: [], text: [], other: [] };
+            data.entries.forEach(entry => {
+                const t = entry.type || "other";
+                if (groups[t]) groups[t].push(entry);
+                else groups.other.push(entry);
+            });
+
+            const groupOrder = [
+                { key: "video", label: "Video Files", icon: folderIconSvgs.video },
+                { key: "audio", label: "Audio Files", icon: folderIconSvgs.audio },
+                { key: "image", label: "Image Files", icon: folderIconSvgs.image },
+                { key: "subtitle", label: "Subtitle Files", icon: folderIconSvgs.subtitle },
+                { key: "text", label: "Text / Document Files", icon: folderIconSvgs.text },
+                { key: "other", label: "Other Files", icon: folderIconSvgs.other }
+            ];
+
+            function createFolderFormatGroup(titleHtml, elements) {
+                if (!elements || elements.length === 0) return null;
+                const groupDiv = document.createElement("div");
+                groupDiv.className = "format-group";
+                const labelDiv = document.createElement("div");
+                labelDiv.className = "format-group-label";
+                labelDiv.innerHTML = `<div class="format-group-title-left">${titleHtml}</div><svg class="chevron-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"></polyline></svg>`;
+                const contentDiv = document.createElement("div");
+                contentDiv.className = "format-group-content";
+                const innerDiv = document.createElement("div");
+                innerDiv.className = "format-group-inner";
+                elements.forEach(el => innerDiv.appendChild(el));
+                contentDiv.appendChild(innerDiv);
+                groupDiv.appendChild(labelDiv);
+                groupDiv.appendChild(contentDiv);
+                labelDiv.addEventListener("click", () => {
+                    const isCollapsed = contentDiv.classList.toggle("collapsed");
+                    labelDiv.classList.toggle("collapsed", isCollapsed);
+                });
+                return groupDiv;
+            }
+
+            groupOrder.forEach(grp => {
+                const entries = groups[grp.key];
+                if (!entries || entries.length === 0) return;
+
+                const rowEls = [];
+                entries.forEach(entry => {
+                    const row = document.createElement("div");
+                    row.className = `format-row ${grp.key}-row`;
+                    const sizeBadge = entry.size ? `<span class="format-size">${entry.size}</span>` : '';
+                    const extBadge = entry.ext ? `<span class="format-size" style="text-transform:uppercase;">${entry.ext}</span>` : '';
+                    const entryPath = entry.path || "";
+                    const entryExt = (entry.ext || "").toLowerCase();
+
+                    // Determine data attributes for preview/download
+                    let previewType = "";
+                    let previewFormatId = "local_file";
+                    if (grp.key === "image") {
+                        previewFormatId = "image_preview";
+                        previewType = "";
+                    } else if (grp.key === "audio") {
+                        previewType = "audio";
+                    } else if (grp.key === "subtitle") {
+                        previewType = "subtitle";
+                    } else if (grp.key === "text") {
+                        previewType = "";
+                    }
+
+                    row.innerHTML = `
+                        <div class="format-left">
+                            ${folderIconSvgs[grp.key] || folderIconSvgs.other}
+                            <span class="format-name" title="${entry.title}">${truncateMiddle(entry.title)}</span>
+                            ${extBadge}
+                            ${sizeBadge}
+                        </div>
+                        <div class="format-actions">
+                            <button class="btn-preview" data-id="${previewFormatId}" data-ext="${entryExt}" data-label="${entry.title}" data-quality="" data-url="${entryPath}" data-type="${previewType}">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+                                <span>Preview</span>
+                            </button>
+                            <button class="btn-get" data-id="local_file" data-ext="${entryExt}" data-label="${entry.title}" data-quality="" data-url="${entryPath}">
+                                ${folderDownloadSvg}
+                                <span>Get</span>
+                            </button>
+                        </div>
+                    `;
+                    rowEls.push(row);
+                });
+
+                const titleHtml = `${grp.icon}<span>${grp.label} (${entries.length})</span>`;
+                const groupEl = createFolderFormatGroup(titleHtml, rowEls);
+                if (groupEl) optionsContainer.appendChild(groupEl);
+            });
+
+            // Bind event listeners for folder entries
+            const previewButtons = optionsContainer.querySelectorAll(".btn-preview");
+            previewButtons.forEach(btn => {
+                btn.addEventListener("click", () => {
+                    const formatId = btn.getAttribute("data-id");
+                    const ext = btn.getAttribute("data-ext");
+                    const label = btn.getAttribute("data-label");
+                    const quality = btn.getAttribute("data-quality");
+                    const customUrl = btn.getAttribute("data-url");
+                    const type = btn.getAttribute("data-type") || "";
+                    triggerPreview(btn, formatId, ext, label, quality, customUrl, "", "", type);
+                });
+            });
+
+            const downloadButtons = optionsContainer.querySelectorAll(".btn-get");
+            downloadButtons.forEach(btn => {
+                btn.addEventListener("click", () => {
+                    const formatId = btn.getAttribute("data-id");
+                    const ext = btn.getAttribute("data-ext");
+                    const label = btn.getAttribute("data-label");
+                    const quality = btn.getAttribute("data-quality");
+                    const customUrl = btn.getAttribute("data-url");
+                    triggerDownload(btn, formatId, ext, label, quality, customUrl, "", "", true);
+                });
+            });
+
+            resultSection.classList.remove("hidden");
+            return; // Exit early, don't render standard format groups
+        }
+
         const videoSvg = `<svg class="format-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M23 7l-7 5 7 5V7z"/><rect x="1" y="5" width="15" height="14" rx="2" ry="2"/></svg>`;
         const audioSvg = `<svg class="format-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/></svg>`;
         const downloadSvg = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>`;
@@ -6129,13 +6916,15 @@ document.addEventListener("DOMContentLoaded", () => {
 
         // Render Video options if present
         if (data.video_options && data.video_options.length > 0) {
-            const imageExts = ["jpg", "jpeg", "png", "webp", "gif", "bmp"];
+            const imageExts = ["jpg", "jpeg", "png", "webp", "gif", "bmp", "heic", "heif", "tiff", "tif", "svg", "ico", "avif"];
             const htmlExts = ["html", "htm"];
+            const docExts = ["txt", "xml", "json", "csv", "log", "md", "css", "js", "py", "yaml", "yml", "ini", "cfg", "conf"];
+            const subExts = ["vtt", "srt", "ass", "ssa", "sub", "idx", "lrc"];
 
             const videos = data.video_options.filter(opt => {
                 if (opt.type) return opt.type === "video";
                 const ext = (opt.ext || "").toLowerCase();
-                return !imageExts.includes(ext) && !htmlExts.includes(ext);
+                return !imageExts.includes(ext) && !htmlExts.includes(ext) && !docExts.includes(ext) && !subExts.includes(ext);
             });
 
             const photos = data.video_options.filter(opt => {
@@ -6148,6 +6937,22 @@ document.addEventListener("DOMContentLoaded", () => {
                 if (opt.type) return opt.type === "webpage";
                 const ext = (opt.ext || "").toLowerCase();
                 return htmlExts.includes(ext);
+            });
+
+            const documents = data.video_options.filter(opt => {
+                if (opt.type) return opt.type === "text";
+                const ext = (opt.ext || "").toLowerCase();
+                return docExts.includes(ext);
+            });
+
+            const subFiles = data.video_options.filter(opt => {
+                if (opt.type) return opt.type === "subtitle";
+                const ext = (opt.ext || "").toLowerCase();
+                return subExts.includes(ext);
+            });
+
+            const others = data.video_options.filter(opt => {
+                return !videos.includes(opt) && !photos.includes(opt) && !webpages.includes(opt) && !documents.includes(opt) && !subFiles.includes(opt);
             });
 
             if (videos.length > 0) {
@@ -6189,7 +6994,7 @@ document.addEventListener("DOMContentLoaded", () => {
                         row.innerHTML = `
                             <div class="format-left">
                                 ${videoSvg}
-                                <span class="format-name">${option.label}</span>
+                                <span class="format-name" title="${option.label}">${truncateMiddle(option.label)}</span>
                                 ${sizeBadge}
                                 ${drmBadge}
                             </div>
@@ -6241,7 +7046,7 @@ document.addEventListener("DOMContentLoaded", () => {
                         row.innerHTML = `
                             <div class="format-left">
                                 ${videoSvg}
-                                <span class="format-name">${displayLabel}</span>
+                                <span class="format-name" title="${displayLabel}">${truncateMiddle(displayLabel)}</span>
                                 ${sizeBadge}
                                 ${drmBadge}
                             </div>
@@ -6278,7 +7083,7 @@ document.addEventListener("DOMContentLoaded", () => {
                     row.innerHTML = `
                         <div class="format-left">
                             <svg class="format-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
-                            <span class="format-name">${option.label}</span>
+                            <span class="format-name" title="${option.label}">${truncateMiddle(option.label)}</span>
                             ${sizeBadge}
                         </div>
                         <div class="format-actions">
@@ -6312,7 +7117,7 @@ document.addEventListener("DOMContentLoaded", () => {
                     row.innerHTML = `
                         <div class="format-left">
                             <svg class="format-icon" viewBox="0 0 24 24" fill="none" stroke="var(--warning)" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="color: var(--warning); width: 18px; height: 18px; margin-right: 8px;"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
-                            <span class="format-name">${option.label}</span>
+                            <span class="format-name" title="${option.label}">${truncateMiddle(option.label)}</span>
                             ${sizeBadge}
                         </div>
                         <div class="format-actions">
@@ -6335,6 +7140,105 @@ document.addEventListener("DOMContentLoaded", () => {
                 const groupEl = createFormatGroup(titleHtml, rowEls);
                 if (groupEl) optionsContainer.appendChild(groupEl);
             }
+
+            if (documents.length > 0) {
+                const rowEls = [];
+                documents.forEach(option => {
+                    const row = document.createElement("div");
+                    row.className = "format-row document-row";
+                    const sizeBadge = option.size ? `<span class="format-size">${option.size}</span>` : '';
+                    row.innerHTML = `
+                        <div class="format-left">
+                            <svg class="format-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
+                            <span class="format-name" title="${option.label}">${truncateMiddle(option.label)}</span>
+                            ${sizeBadge}
+                        </div>
+                        <div class="format-actions">
+                            <button class="btn-preview" data-id="${option.format_id}" data-ext="${option.ext}" data-label="${option.label}" data-quality="${option.quality || ''}" data-url="${option.url || ''}" data-type="text">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+                                <span>Preview</span>
+                            </button>
+                            <button class="btn-get" data-id="${option.format_id}" data-ext="${option.ext}" data-label="${option.label}" data-quality="${option.quality || ''}" data-url="${option.url || ''}">
+                                ${downloadSvg}
+                                <span>Get</span>
+                            </button>
+                        </div>
+                    `;
+                    rowEls.push(row);
+                });
+                const titleHtml = `
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+                    <span>Document Options</span>
+                `;
+                const groupEl = createFormatGroup(titleHtml, rowEls);
+                if (groupEl) optionsContainer.appendChild(groupEl);
+            }
+
+            if (subFiles.length > 0) {
+                const rowEls = [];
+                subFiles.forEach(option => {
+                    const row = document.createElement("div");
+                    row.className = "format-row subtitle-row";
+                    const sizeBadge = option.size ? `<span class="format-size">${option.size}</span>` : '';
+                    row.innerHTML = `
+                        <div class="format-left">
+                            <svg class="format-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="color: var(--cyan);"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+                            <span class="format-name" title="${option.label}">${truncateMiddle(option.label)}</span>
+                            ${sizeBadge}
+                        </div>
+                        <div class="format-actions">
+                            <button class="btn-preview" data-id="${option.format_id}" data-ext="${option.ext}" data-label="${option.label}" data-quality="${option.quality || ''}" data-url="${option.url || ''}" data-type="subtitle">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+                                <span>Preview</span>
+                            </button>
+                            <button class="btn-get" data-id="${option.format_id}" data-ext="${option.ext}" data-label="${option.label}" data-quality="${option.quality || ''}" data-url="${option.url || ''}">
+                                ${downloadSvg}
+                                <span>Get</span>
+                            </button>
+                        </div>
+                    `;
+                    rowEls.push(row);
+                });
+                const titleHtml = `
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+                    <span>Subtitle Options</span>
+                `;
+                const groupEl = createFormatGroup(titleHtml, rowEls);
+                if (groupEl) optionsContainer.appendChild(groupEl);
+            }
+
+            if (others.length > 0) {
+                const rowEls = [];
+                others.forEach(option => {
+                    const row = document.createElement("div");
+                    row.className = "format-row other-row";
+                    const sizeBadge = option.size ? `<span class="format-size">${option.size}</span>` : '';
+                    row.innerHTML = `
+                        <div class="format-left">
+                            <svg class="format-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M13 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"/><polyline points="13 2 13 9 20 9"/></svg>
+                            <span class="format-name" title="${option.label}">${truncateMiddle(option.label)}</span>
+                            ${sizeBadge}
+                        </div>
+                        <div class="format-actions">
+                            <button class="btn-preview" data-id="${option.format_id}" data-ext="${option.ext}" data-label="${option.label}" data-quality="${option.quality || ''}" data-url="${option.url || ''}" data-type="text">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+                                <span>Preview</span>
+                            </button>
+                            <button class="btn-get" data-id="${option.format_id}" data-ext="${option.ext}" data-label="${option.label}" data-quality="${option.quality || ''}" data-url="${option.url || ''}">
+                                ${downloadSvg}
+                                <span>Get</span>
+                            </button>
+                        </div>
+                    `;
+                    rowEls.push(row);
+                });
+                const titleHtml = `
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M13 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"/><polyline points="13 2 13 9 20 9"/></svg>
+                    <span>Other Options</span>
+                `;
+                const groupEl = createFormatGroup(titleHtml, rowEls);
+                if (groupEl) optionsContainer.appendChild(groupEl);
+            }
         }
 
         // Render Audio options if present
@@ -6348,7 +7252,7 @@ document.addEventListener("DOMContentLoaded", () => {
                 row.innerHTML = `
                     <div class="format-left">
                         ${audioSvg}
-                        <span class="format-name">${option.label}</span>
+                        <span class="format-name" title="${option.label}">${truncateMiddle(option.label)}</span>
                         ${sizeBadge}
                     </div>
                     <div class="format-actions">
@@ -6594,11 +7498,9 @@ document.addEventListener("DOMContentLoaded", () => {
         // Setup Advanced Options panel state for the new media
         const trimCheckbox = document.getElementById("trim-checkbox");
         const trimInputsContainer = document.getElementById("trim-inputs-container");
-        const trimSliderContainer = document.getElementById("trim-slider-container");
         const trimStartInput = document.getElementById("trim-start");
         const trimEndInput = document.getElementById("trim-end");
         const trimPreviewContainer = document.getElementById("trim-preview-container");
-        const trimPreviewPlayer = document.getElementById("trim-preview-player");
         const trimRangeSlider = document.getElementById("trim-range-slider");
         const subTranslateContainer = document.getElementById("sub-translate-container");
         const translateCheckbox = document.getElementById("translate-subs-checkbox");
@@ -6835,7 +7737,7 @@ document.addEventListener("DOMContentLoaded", () => {
         }
         try {
             const requestBody = {
-                url: (formatId.startsWith("direct_") || formatId === "image_preview" || formatId === "image_download" || ext === "vtt") ? (customUrl || activeUrl) : activeUrl,
+                url: (formatId.startsWith("direct_") || formatId === "image_preview" || formatId === "image_download" || formatId === "local_file" || ext === "vtt") ? (customUrl || activeUrl) : activeUrl,
                 format_id: formatId,
                 ext: ext,
                 quality: quality,
@@ -6939,6 +7841,15 @@ document.addEventListener("DOMContentLoaded", () => {
                 if (colorFilterSelect) {
                     requestBody.color_filter = colorFilterSelect.value;
                 }
+
+                // Video Enhance settings
+                const enhanceBeautifyCb = document.getElementById("enhance-beautify-checkbox");
+                const enhanceSharpenSlider = document.getElementById("enhance-sharpen-slider");
+                const enhanceUpscaleSelect = document.getElementById("enhance-upscale-select");
+                
+                requestBody.enhance_beautify = enhanceBeautifyCb ? enhanceBeautifyCb.checked : false;
+                requestBody.enhance_sharpen = enhanceSharpenSlider ? parseInt(enhanceSharpenSlider.value) : 0;
+                requestBody.enhance_upscale = enhanceUpscaleSelect ? enhanceUpscaleSelect.value : "none";
 
                 // AI Voiceover settings
                 const voiceoverCb = document.getElementById("voiceover-checkbox");
@@ -7302,17 +8213,65 @@ document.addEventListener("DOMContentLoaded", () => {
                 const videoOpts = (activeMetadata && activeMetadata.video_options) ? activeMetadata.video_options : [];
                 if (videoOpts.length > 0) {
                     videoFormatSelect.style.display = "";
+
+                    const groups = {};
+                    const ungrouped = [];
+
                     videoOpts.forEach(opt => {
+                        const label = opt.label || "";
+                        const match = label.match(/^(.*?)\s*\((Episode\s+.*|Tập\s+.*|Ep\s+.*)\)$/i);
+                        if (match) {
+                            const groupName = match[1].trim();
+                            const optionText = match[2].trim();
+                            if (!groups[groupName]) {
+                                groups[groupName] = [];
+                            }
+                            groups[groupName].push({
+                                opt: opt,
+                                text: `${optionText}${opt.size ? ` (${opt.size})` : ""}`
+                            });
+                        } else {
+                            ungrouped.push({
+                                opt: opt,
+                                text: `${label}${opt.size ? ` (${opt.size})` : ""}`
+                            });
+                        }
+                    });
+
+                    // Append ungrouped options first
+                    ungrouped.forEach(item => {
                         const optionEl = document.createElement("option");
-                        optionEl.value = opt.format_id;
-                        optionEl.textContent = `${opt.label} ${opt.size ? `(${opt.size})` : ""}`;
-                        if (opt.format_id === formatId) {
+                        optionEl.value = item.opt.format_id;
+                        optionEl.textContent = item.text;
+                        if (item.opt.format_id === formatId) {
                             optionEl.selected = true;
                         }
                         videoFormatSelect.appendChild(optionEl);
                     });
+
+                    // Append grouped options inside optgroups
+                    for (const groupName in groups) {
+                        const optgroupEl = document.createElement("optgroup");
+                        optgroupEl.label = groupName;
+
+                        groups[groupName].forEach(item => {
+                            const optionEl = document.createElement("option");
+                            optionEl.value = item.opt.format_id;
+                            optionEl.textContent = item.text;
+                            if (item.opt.format_id === formatId) {
+                                optionEl.selected = true;
+                            }
+                            optgroupEl.appendChild(optionEl);
+                        });
+                        videoFormatSelect.appendChild(optgroupEl);
+                    }
                 } else {
                     videoFormatSelect.style.display = "none";
+                }
+
+                // Update Episode Navigation Buttons visibility
+                if (typeof updateEpisodeNavigationButtonsState === "function") {
+                    updateEpisodeNavigationButtonsState();
                 }
             }
         }
@@ -7363,10 +8322,16 @@ document.addEventListener("DOMContentLoaded", () => {
         }
 
         // Image Preview Flow
-        if (ext === "jpg" || ext === "png" || ext === "jpeg" || formatId === "image_preview") {
-            const finalUrl = formatId === "image_preview"
-                ? `/api/download/image?url=${encodeURIComponent(customUrl)}&client_id=${encodeURIComponent(clientId)}`
-                : customUrl;
+        const imageExtensions = ["jpg", "png", "jpeg", "webp", "gif", "bmp", "heic", "heif", "tiff", "tif", "svg", "ico", "avif"];
+        if (imageExtensions.includes(ext) || formatId === "image_preview") {
+            let finalUrl;
+            if (isLocalPath(customUrl)) {
+                finalUrl = getLocalImageUrl(customUrl);
+            } else if (formatId === "image_preview") {
+                finalUrl = `/api/download/image?url=${encodeURIComponent(customUrl)}&client_id=${encodeURIComponent(clientId)}`;
+            } else {
+                finalUrl = customUrl;
+            }
 
             previewActiveUrl = finalUrl;
             const cleanTitle = getSafeTitle(videoTitle.textContent, "image");
@@ -7413,9 +8378,9 @@ document.addEventListener("DOMContentLoaded", () => {
         const lowerExt = (ext || "").toLowerCase();
         const lowerType = (type || "").toLowerCase();
         const isHtmlPage = (lowerExt === "html" || lowerExt === "htm" || lowerType === "webpage");
-        const isRawTextFile = (lowerExt === "txt" || lowerExt === "xml");
+        const isRawTextFile = ["txt", "xml", "json", "csv", "log", "md", "css", "js", "py", "yaml", "yml", "ini", "cfg", "conf"].includes(lowerExt);
 
-        const isSubtitleFile = (lowerExt === "vtt" || lowerExt === "srt" || lowerType === "subtitle");
+        const isSubtitleFile = (["vtt", "srt", "ass", "ssa", "sub", "lrc"].includes(lowerExt) || lowerType === "subtitle");
 
         // Webpage / HTML / Text / Subtitle Preview Flow
         if (isHtmlPage || isRawTextFile || isSubtitleFile) {
@@ -7483,10 +8448,12 @@ document.addEventListener("DOMContentLoaded", () => {
         const isAdaptive = formatId.includes("+");
 
         // Direct stream preview (stream-on-demand)
+        const isLocalFile = isLocalPath(customUrl);
         const isDirectStream = (ext !== "vtt") && (
             formatId.startsWith("direct_") ||
             (type === "audio") ||
-            (customUrl && customUrl.startsWith("http"))
+            (customUrl && customUrl.startsWith("http")) ||
+            isLocalFile
         );
 
         console.log("[triggerPreview] streamUrl:", streamUrl);
@@ -7500,7 +8467,11 @@ document.addEventListener("DOMContentLoaded", () => {
             previewActiveFilename = `${cleanTitle}_Episode_${episode || 1}_${server || "Server"}.${ext}`;
 
             let proxyStreamUrl = "";
-            if (isAdaptive) {
+            if (isLocalFile) {
+                // Local file: route directly through proxy stream
+                previewIsAdaptive = false;
+                proxyStreamUrl = getLocalStreamUrl(customUrl);
+            } else if (isAdaptive) {
                 let audioUrl = "";
                 if (activeMetadata && activeMetadata.video_options) {
                     const opt = activeMetadata.video_options.find(o => o.format_id === formatId);
@@ -7570,10 +8541,12 @@ document.addEventListener("DOMContentLoaded", () => {
                             }
                         });
                         previewVideoPlayer.hlsInstance = hls;
+                        syncThumbnailVideoSource(proxyStreamUrl, true);
                     } else {
                         previewVideoPlayer.src = proxyStreamUrl;
                         previewVideoPlayer.load();
                         previewVideoPlayer.play().catch(e => console.log("Playback blocked"));
+                        syncThumbnailVideoSource(proxyStreamUrl);
                     }
                 }
             }
@@ -7583,7 +8556,7 @@ document.addEventListener("DOMContentLoaded", () => {
         // Audio, Video, Subtitle Preview Flow (Downloads to server & streams)
         try {
             const payload = {
-                url: (formatId.startsWith("direct_") || formatId === "image_preview" || formatId === "image_download" || (ext === "vtt" && !isYoutubeSub)) ? (customUrl || activeUrl) : activeUrl,
+                url: (formatId.startsWith("direct_") || formatId === "image_preview" || formatId === "image_download" || formatId === "local_file" || (ext === "vtt" && !isYoutubeSub)) ? (customUrl || activeUrl) : activeUrl,
                 format_id: formatId,
                 ext: ext,
                 quality: quality || "192",
@@ -7676,6 +8649,7 @@ document.addEventListener("DOMContentLoaded", () => {
                                 previewVideoPlayer.load();
                                 previewVideoContainer.classList.remove("hidden");
                                 previewVideoPlayer.play().catch(e => console.log("Playback blocked"));
+                                syncThumbnailVideoSource(previewStreamUrl);
                             }
                         }
                     } else if (statusData.status === "error") {
@@ -7742,7 +8716,10 @@ document.addEventListener("DOMContentLoaded", () => {
                 voiceover_voice: voiceoverVoiceSelect ? voiceoverVoiceSelect.value : "vi-VN-HoaiMyNeural",
                 voiceover_rate: voiceoverRateSlider ? voiceoverRateSlider.value : "0",
                 voiceover_pitch: voiceoverPitchSlider ? voiceoverPitchSlider.value : "0",
-                cloud_sync: cloudSyncSelect ? cloudSyncSelect.value : "local"
+                cloud_sync: cloudSyncSelect ? cloudSyncSelect.value : "local",
+                enhance_beautify: document.getElementById("enhance-beautify-checkbox")?.checked || false,
+                enhance_sharpen: parseInt(document.getElementById("enhance-sharpen-slider")?.value || "0"),
+                enhance_upscale: document.getElementById("enhance-upscale-select")?.value || "none"
             };
 
             let history = JSON.parse(localStorage.getItem("downloader_history") || "[]");
@@ -7809,6 +8786,23 @@ document.addEventListener("DOMContentLoaded", () => {
                 cloudSyncSelect.dispatchEvent(new Event("change"));
             }
 
+            const enhanceBeautifyCheckbox = document.getElementById("enhance-beautify-checkbox");
+            const enhanceSharpenSlider = document.getElementById("enhance-sharpen-slider");
+            const enhanceUpscaleSelect = document.getElementById("enhance-upscale-select");
+
+            if (enhanceBeautifyCheckbox) {
+                enhanceBeautifyCheckbox.checked = !!s.enhance_beautify;
+                enhanceBeautifyCheckbox.dispatchEvent(new Event("change"));
+            }
+            if (enhanceSharpenSlider) {
+                enhanceSharpenSlider.value = s.enhance_sharpen || "0";
+                enhanceSharpenSlider.dispatchEvent(new Event("input"));
+            }
+            if (enhanceUpscaleSelect) {
+                enhanceUpscaleSelect.value = s.enhance_upscale || "none";
+                enhanceUpscaleSelect.dispatchEvent(new Event("change"));
+            }
+
             isRestoringSettings = false;
         } catch (e) {
             console.error("Error restoring settings for URL:", e);
@@ -7860,6 +8854,23 @@ document.addEventListener("DOMContentLoaded", () => {
             if (cloudSyncSelect) {
                 cloudSyncSelect.value = "local";
                 cloudSyncSelect.dispatchEvent(new Event("change"));
+            }
+
+            const enhanceBeautifyCheckbox = document.getElementById("enhance-beautify-checkbox");
+            const enhanceSharpenSlider = document.getElementById("enhance-sharpen-slider");
+            const enhanceUpscaleSelect = document.getElementById("enhance-upscale-select");
+
+            if (enhanceBeautifyCheckbox) {
+                enhanceBeautifyCheckbox.checked = false;
+                enhanceBeautifyCheckbox.dispatchEvent(new Event("change"));
+            }
+            if (enhanceSharpenSlider) {
+                enhanceSharpenSlider.value = "0";
+                enhanceSharpenSlider.dispatchEvent(new Event("input"));
+            }
+            if (enhanceUpscaleSelect) {
+                enhanceUpscaleSelect.value = "none";
+                enhanceUpscaleSelect.dispatchEvent(new Event("change"));
             }
 
             isRestoringSettings = false;
@@ -8159,13 +9170,25 @@ document.addEventListener("DOMContentLoaded", () => {
     function formatVttToHtml(vttText) {
         if (!vttText) return "";
         if (!vttText.includes("WEBVTT") && !vttText.includes("-->")) {
-            return `<div class="sub-plain-text">${vttText}</div>`;
+            const escaped = vttText
+                .replace(/&/g, "&amp;")
+                .replace(/</g, "&lt;")
+                .replace(/>/g, "&gt;")
+                .replace(/"/g, "&quot;")
+                .replace(/'/g, "&#039;");
+            return `<div class="sub-plain-text">${escaped}</div>`;
         }
 
         try {
             const cues = parseSubtitleText(vttText);
             if (!cues || cues.length === 0) {
-                return `<div class="sub-plain-text"><div style="color: #ff4d4d; margin-bottom: 10px; font-weight: bold;">[DEBUG] Parsed 0 cues from VTT content. Fallback to raw text:</div>${vttText}</div>`;
+                const escapedFallback = vttText
+                    .replace(/&/g, "&amp;")
+                    .replace(/</g, "&lt;")
+                    .replace(/>/g, "&gt;")
+                    .replace(/"/g, "&quot;")
+                    .replace(/'/g, "&#039;");
+                return `<div class="sub-plain-text"><div style="color: #ff4d4d; margin-bottom: 10px; font-weight: bold;">[DEBUG] Parsed 0 cues from VTT content. Fallback to raw text:</div>${escapedFallback}</div>`;
             }
 
             let html = '<div class="sub-timeline-list">';
@@ -9078,6 +10101,19 @@ document.addEventListener("DOMContentLoaded", () => {
             if (ambientCtx) {
                 ambientCtx.clearRect(0, 0, ambientCanvas.width, ambientCanvas.height);
             }
+
+            // Autoplay next episode within same server group
+            const toggleAutoplayNext = document.getElementById("toggle-autoplay-next");
+            if (toggleAutoplayNext && toggleAutoplayNext.checked) {
+                if (videoFormatSelect && typeof getGroupSiblingsAndIndex === "function") {
+                    const { siblings, currentIndex } = getGroupSiblingsAndIndex();
+                    if (currentIndex !== -1 && currentIndex < siblings.length - 1) {
+                        const nextOpt = siblings[currentIndex + 1];
+                        videoFormatSelect.value = nextOpt.value;
+                        videoFormatSelect.dispatchEvent(new Event("change"));
+                    }
+                }
+            }
         });
         previewVideoPlayer.addEventListener("seeked", () => {
             const isGlowEnabled = !toggleAmbientGlow || toggleAmbientGlow.checked;
@@ -9143,6 +10179,16 @@ document.addEventListener("DOMContentLoaded", () => {
                     ambientCtx.clearRect(0, 0, ambientCanvas.width, ambientCanvas.height);
                 }
             }
+        });
+    }
+
+    // Toggle Autoplay Next Episode initialization
+    const toggleAutoplayNext = document.getElementById("toggle-autoplay-next");
+    if (toggleAutoplayNext) {
+        const savedAutoplayState = localStorage.getItem("video-autoplay-next-enabled") === "true";
+        toggleAutoplayNext.checked = savedAutoplayState;
+        toggleAutoplayNext.addEventListener("change", () => {
+            localStorage.setItem("video-autoplay-next-enabled", toggleAutoplayNext.checked ? "true" : "false");
         });
     }
 
@@ -9310,6 +10356,30 @@ document.addEventListener("DOMContentLoaded", () => {
             previewVoiceoverPitch.value = mainVoiceoverPitch.value;
             previewVoiceoverPitch.dispatchEvent(new Event("input"));
         }
+
+        // Sync Enhance parameters from main hidden inputs to preview inputs
+        const mainEnhanceBeautify = document.getElementById("enhance-beautify-checkbox");
+        const previewEnhanceBeautify = document.getElementById("preview-enhance-beautify");
+        if (mainEnhanceBeautify && previewEnhanceBeautify) {
+            previewEnhanceBeautify.checked = mainEnhanceBeautify.checked;
+            previewEnhanceBeautify.dispatchEvent(new Event("change"));
+        }
+
+        const mainEnhanceSharpen = document.getElementById("enhance-sharpen-slider");
+        const previewEnhanceSharpen = document.getElementById("preview-enhance-sharpen");
+        if (mainEnhanceSharpen && previewEnhanceSharpen) {
+            previewEnhanceSharpen.value = mainEnhanceSharpen.value;
+            previewEnhanceSharpen.dispatchEvent(new Event("input"));
+        }
+
+        const mainEnhanceUpscale = document.getElementById("enhance-upscale-select");
+        const previewEnhanceUpscale = document.getElementById("preview-enhance-upscale");
+        if (mainEnhanceUpscale && previewEnhanceUpscale) {
+            previewEnhanceUpscale.value = mainEnhanceUpscale.value;
+            previewEnhanceUpscale.dispatchEvent(new Event("change"));
+        }
+
+        applyPreviewVideoFilters();
     }
 
     // Set up listeners to sync preview settings back to main settings
@@ -9408,6 +10478,78 @@ document.addEventListener("DOMContentLoaded", () => {
             if (mainPitch && mainPitch.value !== this.value) {
                 mainPitch.value = this.value;
                 mainPitch.dispatchEvent(new Event("input"));
+            }
+        });
+    }
+
+    function applyPreviewVideoFilters() {
+        const previewVideo = document.getElementById("preview-video-player");
+        const trimVideo = document.getElementById("trim-preview-player");
+        
+        const previewEnhanceBeautify = document.getElementById("preview-enhance-beautify");
+        const previewEnhanceSharpen = document.getElementById("preview-enhance-sharpen");
+        
+        const beautifyActive = previewEnhanceBeautify ? previewEnhanceBeautify.checked : false;
+        const sharpenVal = previewEnhanceSharpen ? parseInt(previewEnhanceSharpen.value) : 0;
+        
+        let filterParts = [];
+        
+        if (sharpenVal > 0) {
+            if (sharpenVal < 35) {
+                filterParts.push("url(#svg-sharpen-low)");
+            } else if (sharpenVal < 70) {
+                filterParts.push("url(#svg-sharpen-medium)");
+            } else {
+                filterParts.push("url(#svg-sharpen-high)");
+            }
+        }
+        
+        if (beautifyActive) {
+            filterParts.push("saturate(1.12) contrast(1.05) brightness(1.02)");
+        }
+        
+        const filterString = filterParts.length > 0 ? filterParts.join(" ") : "none";
+        
+        if (previewVideo) previewVideo.style.filter = filterString;
+        if (trimVideo) trimVideo.style.filter = filterString;
+    }
+
+    const previewEnhanceBeautify = document.getElementById("preview-enhance-beautify");
+    if (previewEnhanceBeautify) {
+        previewEnhanceBeautify.addEventListener("change", function () {
+            const mainBeautify = document.getElementById("enhance-beautify-checkbox");
+            if (mainBeautify && mainBeautify.checked !== this.checked) {
+                mainBeautify.checked = this.checked;
+                mainBeautify.dispatchEvent(new Event("change"));
+            }
+            applyPreviewVideoFilters();
+        });
+    }
+
+    const previewEnhanceSharpen = document.getElementById("preview-enhance-sharpen");
+    const previewEnhanceSharpenVal = document.getElementById("preview-enhance-sharpen-val");
+    if (previewEnhanceSharpen) {
+        previewEnhanceSharpen.addEventListener("input", function () {
+            const val = parseInt(this.value);
+            if (previewEnhanceSharpenVal) {
+                previewEnhanceSharpenVal.textContent = val === 0 ? "Off" : `${val}%`;
+            }
+            const mainSharpen = document.getElementById("enhance-sharpen-slider");
+            if (mainSharpen && mainSharpen.value !== this.value) {
+                mainSharpen.value = this.value;
+                mainSharpen.dispatchEvent(new Event("input"));
+            }
+            applyPreviewVideoFilters();
+        });
+    }
+
+    const previewEnhanceUpscale = document.getElementById("preview-enhance-upscale");
+    if (previewEnhanceUpscale) {
+        previewEnhanceUpscale.addEventListener("change", function () {
+            const mainUpscale = document.getElementById("enhance-upscale-select");
+            if (mainUpscale && mainUpscale.value !== this.value) {
+                mainUpscale.value = this.value;
+                mainUpscale.dispatchEvent(new Event("change"));
             }
         });
     }

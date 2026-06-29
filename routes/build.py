@@ -483,6 +483,25 @@ def proxy_subtitle_endpoint():
     url = request.args.get("url")
     if not url:
         return "Missing url parameter", 400
+    # Serve local subtitle/text file directly
+    import os
+    if os.path.isabs(url) and os.path.isfile(url):
+        try:
+            with open(url, 'r', encoding='utf-8', errors='ignore') as local_f:
+                text = local_f.read()
+            from flask import make_response
+            resp = make_response(text)
+            ext = url.rsplit('.', 1)[-1].lower() if '.' in url else ''
+            if ext == 'vtt':
+                resp.headers['Content-Type'] = 'text/vtt; charset=utf-8'
+            elif ext in ('html', 'htm'):
+                resp.headers['Content-Type'] = 'text/html; charset=utf-8'
+            else:
+                resp.headers['Content-Type'] = 'text/plain; charset=utf-8'
+            resp.headers['Access-Control-Allow-Origin'] = '*'
+            return resp
+        except Exception as e:
+            return f"Error reading local file: {e}", 500
     
     mode = request.args.get("mode", "vtt").lower()
     client_id = request.args.get("client_id")

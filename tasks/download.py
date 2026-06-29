@@ -219,6 +219,109 @@ def bg_download_task(download_id, url, format_id, ext, quality="192", title="med
                     })
             return
 
+    # Local file copy-to-sandbox for post-processing
+    is_local_download = format_id in ("local_file", "direct_audio_local", "direct_video_local") or (format_id == "image_download" and os.path.isfile(url))
+    if is_local_download and os.path.isfile(url):
+        try:
+            with downloads_status_lock:
+                if download_id in downloads_status:
+                    downloads_status[download_id].update({
+                        "status": "downloading",
+                        "progress": 10,
+                        "message": "Copying local file to sandbox..."
+                    })
+            
+            src_ext = url.rsplit('.', 1)[-1].lower() if '.' in url else ext
+            user_filename = generate_smart_filename(title, ext=src_ext)
+            filepath = os.path.join(temp_dir, user_filename)
+            shutil.copy2(url, filepath)
+            
+            with downloads_status_lock:
+                if download_id in downloads_status:
+                    downloads_status[download_id].update({
+                        "status": "processing",
+                        "progress": 50,
+                        "message": "Processing local file..."
+                    })
+            
+            # Apply post-processing if any
+            def progress_cb(message, progress_val):
+                with downloads_status_lock:
+                    if download_id in downloads_status:
+                        downloads_status[download_id].update({
+                            "status": "processing",
+                            "progress": progress_val,
+                            "message": message
+                        })
+            
+            try:
+                filepath = apply_post_processing(
+                    filepath, temp_dir,
+                    trim_start=trim_start, trim_end=trim_end,
+                    export_type=kwargs.get("export_type", "default"),
+                    color_filter=kwargs.get("color_filter", "none"),
+                    voiceover_active=kwargs.get("voiceover_active", False),
+                    voiceover_voice=kwargs.get("voiceover_voice"),
+                    subtitles_path=None,
+                    translate_subs=translate_subs,
+                    progress_callback=progress_cb,
+                    voiceover_rate=kwargs.get("voiceover_rate", "+0%"),
+                    voiceover_pitch=kwargs.get("voiceover_pitch", "+0Hz"),
+                    sub_embed_mode=kwargs.get("sub_embed_mode", "none"),
+                    sub_style=kwargs.get("sub_style"),
+                    enhance_beautify=kwargs.get("enhance_beautify", False),
+                    enhance_sharpen=kwargs.get("enhance_sharpen", 0),
+                    enhance_upscale=kwargs.get("enhance_upscale", "none"),
+                )
+            except Exception as pp_err:
+                logger.warning(f"Post-processing failed for local file: {pp_err}")
+            
+            user_filename = os.path.basename(filepath)
+            
+            cloud_destination = kwargs.get("cloud_destination", "local")
+            tg_bot_token = kwargs.get("tg_bot_token")
+            tg_chat_id = kwargs.get("tg_chat_id")
+            
+            if cloud_destination == "telegram" and tg_bot_token and tg_chat_id:
+                with downloads_status_lock:
+                    if download_id in downloads_status:
+                        downloads_status[download_id].update({
+                            "status": "processing",
+                            "progress": 90,
+                            "message": "Uploading file to Telegram Bot..."
+                        })
+                success, msg = upload_to_telegram(filepath, tg_bot_token, tg_chat_id)
+                if not success:
+                    raise Exception(f"Telegram upload failed: {msg}")
+            
+            with downloads_status_lock:
+                if download_id in downloads_status:
+                    downloads_status[download_id].update({
+                        "status": "complete",
+                        "progress": 100,
+                        "message": "Ready!",
+                        "filepath": filepath,
+                        "temp_dir": temp_dir,
+                        "filename": user_filename,
+                    })
+            schedule_cleanup(temp_dir, download_id, delay=300)
+            return
+        except Exception as e:
+            logger.error(f"Task {download_id} failed on local file copy: {str(e)}")
+            try:
+                shutil.rmtree(temp_dir)
+            except Exception:
+                pass
+            with downloads_status_lock:
+                if download_id in downloads_status:
+                    downloads_status[download_id].update({
+                        "status": "error",
+                        "progress": 0,
+                        "message": f"Failed to process local file: {str(e)}",
+                        "error": str(e),
+                    })
+            return
+
     # Direct CDN stream download bypass (excluding manifest streams)
     if (format_id.startswith("direct_video") or format_id.startswith("direct_photo") or format_id.startswith("direct_audio")) and not any(x in url.lower() for x in [".m3u8", ".mpd", "/player/master/"]):
         try:
@@ -363,7 +466,10 @@ def bg_download_task(download_id, url, format_id, ext, quality="192", title="med
                     sub_bg_opacity=kwargs.get("sub_bg_opacity", 50),
                     sub_outline=kwargs.get("sub_outline", 2),
                     sub_outline_color=kwargs.get("sub_outline_color", "#000000"),
-                    sub_pos=kwargs.get("sub_pos", "bottom")
+                    sub_pos=kwargs.get("sub_pos", "bottom"),
+                    enhance_beautify=kwargs.get("enhance_beautify", False),
+                    enhance_sharpen=kwargs.get("enhance_sharpen", 0),
+                    enhance_upscale=kwargs.get("enhance_upscale", "none")
                 )
                 ext = filepath.rsplit(".", 1)[-1].lower()
             except Exception as pp_err:
@@ -877,7 +983,10 @@ def bg_download_task(download_id, url, format_id, ext, quality="192", title="med
                 sub_bg_opacity=kwargs.get("sub_bg_opacity", 50),
                 sub_outline=kwargs.get("sub_outline", 2),
                 sub_outline_color=kwargs.get("sub_outline_color", "#000000"),
-                sub_pos=kwargs.get("sub_pos", "bottom")
+                sub_pos=kwargs.get("sub_pos", "bottom"),
+                enhance_beautify=kwargs.get("enhance_beautify", False),
+                enhance_sharpen=kwargs.get("enhance_sharpen", 0),
+                enhance_upscale=kwargs.get("enhance_upscale", "none")
             )
             ext = filepath.rsplit(".", 1)[-1].lower()
         except Exception as pp_err:

@@ -68,6 +68,13 @@ def start_download():
         ext = "gif"
         
     color_filter = data.get("color_filter") or "none"
+    enhance_beautify = bool(data.get("enhance_beautify"))
+    try:
+        enhance_sharpen = int(data.get("enhance_sharpen") or 0)
+    except:
+        enhance_sharpen = 0
+    enhance_upscale = data.get("enhance_upscale") or "none"
+
     voiceover_active = bool(data.get("voiceover_active"))
     voiceover_voice = data.get("voiceover_voice") or "vi-VN-HoaiMyNeural"
     voiceover_rate = data.get("voiceover_rate")
@@ -142,6 +149,9 @@ def start_download():
             "translate_subs": translate_subs,
             "export_type": export_type,
             "color_filter": color_filter,
+            "enhance_beautify": enhance_beautify,
+            "enhance_sharpen": enhance_sharpen,
+            "enhance_upscale": enhance_upscale,
             "voiceover_active": voiceover_active,
             "voiceover_voice": voiceover_voice,
             "voiceover_rate": voiceover_rate,
@@ -527,6 +537,35 @@ def proxy_image():
     client_id = request.args.get("client_id")
     if not url:
         return "Missing url parameter", 400
+    # Serve local image file directly
+    if os.path.isabs(url) and os.path.isfile(url):
+        try:
+            ext = url.rsplit('.', 1)[-1].lower() if '.' in url else ''
+            
+            if ext in ['heic', 'heif']:
+                try:
+                    from PIL import Image
+                    import io
+                    from pillow_heif import register_heif_opener
+                    register_heif_opener()
+                    
+                    image = Image.open(url)
+                    if image.mode != 'RGB':
+                        image = image.convert('RGB')
+                    
+                    img_io = io.BytesIO()
+                    image.save(img_io, 'JPEG', quality=85)
+                    img_io.seek(0)
+                    return send_file(img_io, mimetype='image/jpeg', conditional=True)
+                except Exception as convert_err:
+                    logger.error(f"Failed to convert HEIC image {url}: {convert_err}")
+                    return f"HEIC conversion failed: {convert_err}", 500
+
+            mime_map = {'jpg': 'image/jpeg', 'jpeg': 'image/jpeg', 'png': 'image/png', 'gif': 'image/gif', 'webp': 'image/webp', 'bmp': 'image/bmp', 'svg': 'image/svg+xml', 'ico': 'image/x-icon', 'heic': 'image/heic', 'heif': 'image/heif', 'tiff': 'image/tiff', 'tif': 'image/tiff', 'avif': 'image/avif'}
+            mimetype = mime_map.get(ext, 'application/octet-stream')
+            return send_file(url, mimetype=mimetype, conditional=True)
+        except Exception as e:
+            return f"Error serving local image: {e}", 500
     try:
         headers = {
             "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
@@ -632,6 +671,24 @@ def proxy_stream():
     url = request.args.get("url")
     if not url:
         return "Missing url parameter", 400
+    # Serve local media file directly
+    if os.path.isabs(url) and os.path.isfile(url):
+        try:
+            ext = url.rsplit('.', 1)[-1].lower() if '.' in url else ''
+            mime_map = {
+                'mp4': 'video/mp4', 'mkv': 'video/x-matroska', 'avi': 'video/x-msvideo',
+                'mov': 'video/quicktime', 'webm': 'video/webm', 'flv': 'video/x-flv',
+                'ts': 'video/mp2t', 'mpg': 'video/mpeg', 'mpeg': 'video/mpeg', 'm4v': 'video/mp4',
+                'mp3': 'audio/mpeg', 'm4a': 'audio/mp4', 'wav': 'audio/wav',
+                'flac': 'audio/flac', 'ogg': 'audio/ogg', 'aac': 'audio/aac',
+                'wma': 'audio/x-ms-wma', 'opus': 'audio/opus',
+                'txt': 'text/plain', 'xml': 'application/xml', 'json': 'application/json',
+                'csv': 'text/csv', 'html': 'text/html', 'htm': 'text/html'
+            }
+            mimetype = mime_map.get(ext, 'application/octet-stream')
+            return send_file(url, mimetype=mimetype, conditional=True)
+        except Exception as e:
+            return f"Error serving local file: {e}", 500
         
     client_id = request.args.get("client_id")
     referer = get_referer_by_url(url)

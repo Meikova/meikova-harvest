@@ -802,6 +802,71 @@ def apply_cinematic_filter(filepath, color_filter):
         return filepath
 
 
+def apply_video_enhancements(filepath, enhance_beautify=False, enhance_sharpen=0, enhance_upscale="none"):
+    """Applies FFmpeg filters for video enhancements (sharpen, beautify, resolution upscaling)."""
+    if not enhance_beautify and not enhance_sharpen and (not enhance_upscale or enhance_upscale == "none"):
+        return filepath
+
+    logger.info(f"Applying video enhancements to {filepath} (beautify: {enhance_beautify}, sharpen: {enhance_sharpen}, upscale: {enhance_upscale})...")
+    base, ext = os.path.splitext(filepath)
+    output_filepath = base + "_enhanced" + ext
+
+    # Initialize FFmpeg static-ffmpeg paths if available
+    try:
+        import static_ffmpeg
+        static_ffmpeg.add_paths()
+    except Exception as path_e:
+        logger.warning(f"Failed to add static-ffmpeg paths: {path_e}")
+
+    filter_list = []
+
+    # 1. Auto-Beautify (eq filter for brightness, contrast, saturation)
+    if enhance_beautify:
+        filter_list.append("eq=contrast=1.05:saturation=1.12:brightness=0.01")
+
+    # 2. Sharpen (unsharp filter)
+    # Map sharpen_amount (0-100) to luma_amount (0.0 to 1.5)
+    if enhance_sharpen > 0:
+        amount = (float(enhance_sharpen) / 100.0) * 1.5
+        # Apply sharpen filter only to luma channel to prevent chroma/color noise
+        filter_list.append(f"unsharp=luma_msiz_x=5:luma_msiz_y=5:luma_amount={amount:.2f}:chroma_amount=0.0")
+
+    # 3. Resolution Upscale (scale filter with Lanczos)
+    if enhance_upscale and enhance_upscale != "none":
+        if enhance_upscale == "1080p":
+            filter_list.append("scale=-2:1080:flags=lanczos")
+        elif enhance_upscale == "1440p":
+            filter_list.append("scale=-2:1440:flags=lanczos")
+        elif enhance_upscale == "2160p":
+            filter_list.append("scale=-2:2160:flags=lanczos")
+        elif enhance_upscale == "2x":
+            filter_list.append("scale=2*iw:-2:flags=lanczos")
+
+    if not filter_list:
+        return filepath
+
+    filter_args = ",".join(filter_list)
+    cmd = ["ffmpeg", "-y", "-i", filepath, "-vf", filter_args, "-c:a", "copy", "-map", "0:v", "-map", "0:a?", output_filepath]
+
+    res = subprocess.run(cmd, capture_output=True, text=True, encoding='utf-8', errors='ignore')
+    if res.returncode == 0 and os.path.exists(output_filepath) and os.path.getsize(output_filepath) > 0:
+        try:
+            os.remove(filepath)
+            os.rename(output_filepath, filepath)
+            return filepath
+        except Exception as file_err:
+            logger.error(f"Failed to replace original file with enhanced version: {file_err}")
+            return output_filepath
+    else:
+        logger.error(f"Video enhancement failed (code {res.returncode}). Stderr: {res.stderr}")
+        if os.path.exists(output_filepath):
+            try:
+                os.remove(output_filepath)
+            except Exception:
+                pass
+        return filepath
+
+
 def convert_to_gif(filepath):
     """Converts the video file to a looping high-quality GIF."""
     logger.info(f"Converting {filepath} to high-quality GIF...")
@@ -1092,7 +1157,7 @@ def softsub_video(video_path, subtitles_path, lang_code="eng"):
         return video_path
 
 
-def apply_post_processing(filepath, temp_dir, trim_start=None, trim_end=None, export_type="default", color_filter="none", voiceover_active=False, voiceover_voice="vi-VN-HoaiMyNeural", subtitles_path=None, translate_subs=None, subtitle_lang=None, subtitle_mode="none", subtitle_translate="none", progress_callback=None, voiceover_rate=None, voiceover_pitch=None, audio_eq_bass=0, audio_eq_lowmid=0, audio_eq_highmid=0, audio_eq_treble=0, audio_speed=1.0, audio_voice_preset="normal", sub_font="Arial", sub_size=1.4, sub_color="#ffffff", sub_bg_color="#000000", sub_bg_opacity=50, sub_outline=2, sub_outline_color="#000000", sub_pos="bottom"):
+def apply_post_processing(filepath, temp_dir, trim_start=None, trim_end=None, export_type="default", color_filter="none", voiceover_active=False, voiceover_voice="vi-VN-HoaiMyNeural", subtitles_path=None, translate_subs=None, subtitle_lang=None, subtitle_mode="none", subtitle_translate="none", progress_callback=None, voiceover_rate=None, voiceover_pitch=None, audio_eq_bass=0, audio_eq_lowmid=0, audio_eq_highmid=0, audio_eq_treble=0, audio_speed=1.0, audio_voice_preset="normal", sub_font="Arial", sub_size=1.4, sub_color="#ffffff", sub_bg_color="#000000", sub_bg_opacity=50, sub_outline=2, sub_outline_color="#000000", sub_pos="bottom", enhance_beautify=False, enhance_sharpen=0, enhance_upscale="none"):
     """Applies all advanced filters, trimming, voiceovers, and formatting options to the downloaded media file."""
     if not filepath or not os.path.exists(filepath):
         return filepath
@@ -1139,6 +1204,20 @@ def apply_post_processing(filepath, temp_dir, trim_start=None, trim_end=None, ex
             filepath = apply_cinematic_filter(filepath, color_filter)
         except Exception as e:
             logger.error(f"Error during color filtering: {e}")
+
+    # 3.5. Video Enhancements (Beautify, Sharpen, Resolution Upscale)
+    if enhance_beautify or (enhance_sharpen and enhance_sharpen > 0) or (enhance_upscale and enhance_upscale != "none"):
+        if progress_callback:
+            progress_callback("Applying video enhancements...", 98)
+        try:
+            filepath = apply_video_enhancements(
+                filepath,
+                enhance_beautify=enhance_beautify,
+                enhance_sharpen=enhance_sharpen,
+                enhance_upscale=enhance_upscale
+            )
+        except Exception as e:
+            logger.error(f"Error during video enhancement: {e}")
 
     # 4. Export type conversions
     if export_type == "gif":

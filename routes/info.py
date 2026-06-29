@@ -103,7 +103,177 @@ def get_info():
     if "tiktok.com" in url.lower() and "/photo/" in url.lower():
         url = re.sub(r'/photo/', '/video/', url, flags=re.IGNORECASE)
     client_id = data.get("client_id")
-    
+
+    # --- Local file / folder support ---
+    if (os.path.isabs(url) or (len(url) >= 2 and url[1] == ':')) and os.path.exists(url):
+        VIDEO_EXTS = {'mp4', 'mkv', 'avi', 'mov', 'wmv', 'flv', 'webm', 'ts', 'mpg', 'mpeg', 'm4v', '3gp'}
+        AUDIO_EXTS = {'mp3', 'm4a', 'wav', 'flac', 'ogg', 'aac', 'wma', 'opus'}
+        IMAGE_EXTS = {'jpg', 'jpeg', 'png', 'webp', 'gif', 'bmp', 'heic', 'heif', 'tiff', 'tif', 'svg', 'ico', 'avif'}
+        SUBTITLE_EXTS = {'vtt', 'srt', 'ass', 'ssa', 'sub', 'idx', 'lrc'}
+        TEXT_EXTS = {'txt', 'xml', 'json', 'csv', 'log', 'md', 'html', 'htm', 'css', 'js', 'py', 'yaml', 'yml', 'ini', 'cfg', 'conf'}
+
+        def _detect_type(extension):
+            if extension in VIDEO_EXTS:
+                return 'video'
+            elif extension in AUDIO_EXTS:
+                return 'audio'
+            elif extension in IMAGE_EXTS:
+                return 'image'
+            elif extension in SUBTITLE_EXTS:
+                return 'subtitle'
+            elif extension in TEXT_EXTS:
+                return 'text'
+            return 'other'
+
+        import hashlib
+        def _get_video_thumbnail(video_path):
+            try:
+                path_hash = hashlib.md5(video_path.encode('utf-8')).hexdigest()
+                thumb_dir = os.path.join(TEMP_DOWNLOAD_DIR, "thumbnails")
+                os.makedirs(thumb_dir, exist_ok=True)
+                thumb_path = os.path.join(thumb_dir, f"{path_hash}.jpg")
+                if os.path.exists(thumb_path):
+                    return thumb_path.replace('\\', '/')
+                
+                cmd = [
+                    "ffmpeg", "-y",
+                    "-ss", "00:00:01",
+                    "-i", video_path,
+                    "-vframes", "1",
+                    "-f", "image2",
+                    thumb_path
+                ]
+                startupinfo = None
+                if os.name == 'nt':
+                    startupinfo = subprocess.STARTUPINFO()
+                    startupinfo.dwFlags |= subprocess.STARTF_USESHOWWINDOW
+                
+                res = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, startupinfo=startupinfo, timeout=5)
+                if res.returncode == 0 and os.path.exists(thumb_path):
+                    return thumb_path.replace('\\', '/')
+                
+                # Fallback to -ss 00:00:00 if 1 second failed
+                cmd[3] = "00:00:00"
+                res = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, startupinfo=startupinfo, timeout=5)
+                if res.returncode == 0 and os.path.exists(thumb_path):
+                    return thumb_path.replace('\\', '/')
+            except Exception as ex:
+                logging.error(f"Thumbnail generation failed: {ex}")
+            return ""
+
+        if os.path.isdir(url):
+            entries = []
+            for fname in os.listdir(url):
+                full_path = os.path.join(url, fname)
+                if not os.path.isfile(full_path):
+                    continue
+                file_ext = fname.rsplit('.', 1)[-1].lower() if '.' in fname else ''
+                file_size = os.path.getsize(full_path)
+                entries.append({
+                    "title": fname,
+                    "path": full_path.replace('\\', '/'),
+                    "ext": file_ext,
+                    "size": format_size(file_size),
+                    "size_bytes": file_size,
+                    "type": _detect_type(file_ext)
+                })
+            entries.sort(key=lambda e: e["title"].lower())
+            
+            # Smart thumbnail selection for local directories
+            folder_thumbnail = ""
+            first_image = next((e for e in entries if e["type"] == "image"), None)
+            if first_image:
+                folder_thumbnail = first_image["path"]
+            else:
+                first_video = next((e for e in entries if e["type"] == "video"), None)
+                if first_video:
+                    folder_thumbnail = _get_video_thumbnail(first_video["path"])
+                    
+            # Collect folder images for the frontend image grid view
+            folder_images = []
+            for entry in entries:
+                if entry["type"] == "image":
+                    folder_images.append({
+                        "url": entry["path"],
+                        "label": entry["title"],
+                        "ext": entry["ext"]
+                    })
+
+            return jsonify({
+                "status": "success",
+                "is_local": True,
+                "is_playlist": True,
+                "title": os.path.basename(url),
+                "uploader": url.replace('\\', '/'),
+                "duration": f"{len(entries)} files",
+                "thumbnail": folder_thumbnail,
+                "platform_label": "Local Folder",
+                "platform_class": "local",
+                "entries": entries,
+                "video_options": [],
+                "audio_options": [],
+                "subtitles": {},
+                "images": folder_images
+            })
+        else:
+            filepath = os.path.abspath(url)
+            filename = os.path.basename(filepath)
+            file_size = os.path.getsize(filepath)
+            ext = filename.rsplit('.', 1)[-1].lower() if '.' in filename else ''
+            detected_type = _detect_type(ext)
+            local_url = filepath.replace('\\', '/')
+            file_option = {
+                "format_id": "local_file",
+                "label": filename,
+                "resolution": "",
+                "ext": ext,
+                "url": local_url,
+                "size": format_size(file_size),
+                "type": detected_type,
+                "quality": "",
+                "is_local": True
+            }
+            video_opts = []
+            audio_opts = []
+            images_list = []
+            thumbnail_url = ""
+            if detected_type == 'audio':
+                file_option["format_id"] = "direct_audio_local"
+                audio_opts.append(file_option)
+            elif detected_type == 'image':
+                thumbnail_url = local_url
+                images_list.append({
+                    "url": local_url,
+                    "label": filename,
+                    "resolution": "",
+                    "size": format_size(file_size)
+                })
+                # Also add as video_option for direct download
+                file_option["format_id"] = "image_download"
+                video_opts.append(file_option)
+            else:
+                # video, subtitle, text, other — put in video_options
+                if detected_type == 'video':
+                    file_option["format_id"] = "direct_video_local"
+                    thumbnail_url = _get_video_thumbnail(filepath)
+                video_opts.append(file_option)
+                
+            return jsonify({
+                "status": "success",
+                "is_local": True,
+                "title": filename,
+                "uploader": os.path.dirname(filepath).replace('\\', '/'),
+                "duration": format_size(file_size),
+                "thumbnail": thumbnail_url,
+                "platform_label": "Local File",
+                "platform_class": "local",
+                "video_options": video_opts,
+                "audio_options": audio_opts,
+                "subtitles": {},
+                "images": images_list
+            })
+    # --- End local file / folder support ---
+
     original_pexels_url = None
     if "pexels.com" in url.lower():
         match_px_v = re.search(r"/download/video/(\d+)", url)

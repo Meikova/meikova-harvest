@@ -63,10 +63,7 @@
       rel="stylesheet"
       href="https://cdnjs.cloudflare.com/ajax/libs/noUiSlider/15.7.1/nouislider.min.css"
     />
-    <link
-      rel="stylesheet"
-      href="{{ url_for('static', filename='css/styles.css') }}?v=18.0"
-    />
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}?v=18.9">
     <script src="https://cdn.jsdelivr.net/npm/hls.js@1.5.8/dist/hls.min.js"></script>
     <script>
       (function () {
@@ -473,6 +470,16 @@
                 <option value="local">Local</option>
                 <option value="telegram">Telegram</option>
               </select>
+              <!-- Enhance sync inputs -->
+              <input type="checkbox" id="enhance-beautify-checkbox" />
+              <input type="range" id="enhance-sharpen-slider" min="0" max="100" value="0" />
+              <select id="enhance-upscale-select">
+                <option value="none">none</option>
+                <option value="2x">2x</option>
+                <option value="1080p">1080p</option>
+                <option value="1440p">1440p</option>
+                <option value="2160p">2160p</option>
+              </select>
             </div>
           </div>
 
@@ -820,7 +827,7 @@
             <input
               type="text"
               id="url-input"
-              placeholder="Paste a YouTube, Facebook, TikTok, or other media link here..."
+              placeholder="Paste a media link or local file/folder path (e.g. F:\My-Folder)..."
               autocomplete="off"
               spellcheck="false"
             />
@@ -1479,6 +1486,23 @@
             />
             <span>Select All</span>
           </label>
+
+          <!-- Search & Filter Controls -->
+          <div class="images-modal-search-filter">
+            <div class="images-search-input-wrap">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="search-icon"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+              <input type="text" id="images-search-input" placeholder="Search images by name..." />
+            </div>
+            <select id="images-filter-select" class="custom-select">
+              <option value="all">All Formats</option>
+              <option value="jpg">JPG / JPEG</option>
+              <option value="png">PNG</option>
+              <option value="webp">WEBP</option>
+              <option value="heic">HEIC / HEIF</option>
+              <option value="gif">GIF</option>
+            </select>
+          </div>
+
           <button id="images-download-selected" class="btn-primary btn-sm">
             <svg
               viewBox="0 0 24 24"
@@ -1518,7 +1542,57 @@
         <div class="preview-resize-handle preview-resize-se" data-dir="se"></div>
         <div class="modal-header">
           <h3 id="preview-title">Media Preview</h3>
-          <div class="modal-header-actions" style="display: flex; align-items: center; gap: 8px;">
+          <div class="modal-header-actions" style="display: flex; align-items: center; gap: 8px; position: relative;">
+            <button id="preview-fit-btn" class="modal-action-btn" title="Fit to Media Size">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="18" height="18">
+                <path d="M15 3h6v6M9 21H3v-6M21 3l-7 7M3 21l7-7"/>
+              </svg>
+            </button>
+            <div class="preset-dropdown-container" style="position: relative;">
+              <button id="preview-align-btn" class="modal-action-btn" title="Position Presets">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="18" height="18">
+                  <rect x="3" y="3" width="18" height="18" rx="2"/>
+                  <path d="M9 3v18M15 3v18M3 9h18M3 15h18"/>
+                </svg>
+              </button>
+              <div id="preview-preset-menu" class="preset-dropdown-menu hidden">
+                <button class="preset-menu-item" data-pos="center">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="14" height="14" style="flex-shrink: 0;">
+                    <rect x="3" y="3" width="18" height="18" rx="2"/>
+                    <rect x="9" y="9" width="6" height="6" rx="1" fill="currentColor"/>
+                  </svg>
+                  <span>Center</span>
+                </button>
+                <button class="preset-menu-item" data-pos="left">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="14" height="14" style="flex-shrink: 0;">
+                    <rect x="3" y="3" width="18" height="18" rx="2"/>
+                    <rect x="5" y="9" width="6" height="6" rx="1" fill="currentColor"/>
+                  </svg>
+                  <span>Left</span>
+                </button>
+                <button class="preset-menu-item" data-pos="right">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="14" height="14" style="flex-shrink: 0;">
+                    <rect x="3" y="3" width="18" height="18" rx="2"/>
+                    <rect x="13" y="9" width="6" height="6" rx="1" fill="currentColor"/>
+                  </svg>
+                  <span>Right</span>
+                </button>
+                <button class="preset-menu-item" data-pos="top">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="14" height="14" style="flex-shrink: 0;">
+                    <rect x="3" y="3" width="18" height="18" rx="2"/>
+                    <rect x="9" y="5" width="6" height="6" rx="1" fill="currentColor"/>
+                  </svg>
+                  <span>Top</span>
+                </button>
+                <button class="preset-menu-item" data-pos="bottom">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="14" height="14" style="flex-shrink: 0;">
+                    <rect x="3" y="3" width="18" height="18" rx="2"/>
+                    <rect x="9" y="13" width="6" height="6" rx="1" fill="currentColor"/>
+                  </svg>
+                  <span>Bottom</span>
+                </button>
+              </div>
+            </div>
             <button id="preview-shortcuts-btn" class="modal-action-btn" title="Keyboard Shortcuts (H or ?)">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="18" height="18">
                 <circle cx="12" cy="12" r="10"></circle>
@@ -1601,6 +1675,7 @@
                       <button type="button" class="settings-tab-btn active" data-tab="tab-playback" style="flex: 1; padding: 8px 4px; background: none; border: none; color: var(--cyan); font-size: 0.72rem; font-weight: 700; font-family: var(--font); cursor: pointer; border-bottom: 2px solid var(--cyan); transition: all 0.2s; outline: none;">Playback</button>
                       <button type="button" class="settings-tab-btn" data-tab="tab-subtitles" style="flex: 1; padding: 8px 4px; background: none; border: none; color: #94a3b8; font-size: 0.72rem; font-weight: 500; font-family: var(--font); cursor: pointer; border-bottom: 2px solid transparent; transition: all 0.2s; outline: none;">Subtitles</button>
                       <button type="button" class="settings-tab-btn" data-tab="tab-voiceover" style="flex: 1; padding: 8px 4px; background: none; border: none; color: #94a3b8; font-size: 0.72rem; font-weight: 500; font-family: var(--font); cursor: pointer; border-bottom: 2px solid transparent; transition: all 0.2s; outline: none;">Voiceover</button>
+                      <button type="button" class="settings-tab-btn" data-tab="tab-enhance" style="flex: 1; padding: 8px 4px; background: none; border: none; color: #94a3b8; font-size: 0.72rem; font-weight: 500; font-family: var(--font); cursor: pointer; border-bottom: 2px solid transparent; transition: all 0.2s; outline: none;">Enhance</button>
                       <button type="button" class="settings-tab-btn" data-tab="tab-export" style="flex: 1; padding: 8px 4px; background: none; border: none; color: #94a3b8; font-size: 0.72rem; font-weight: 500; font-family: var(--font); cursor: pointer; border-bottom: 2px solid transparent; transition: all 0.2s; outline: none;">Export</button>
                     </div>
                     
@@ -1656,6 +1731,14 @@
                               <button id="btn-loop-b-set" class="btn-menu-action" title="Set End (Hotkey: ])">Set B</button>
                               <button id="btn-loop-clear" class="btn-menu-action btn-menu-clear" title="Clear Loop">×</button>
                             </div>
+                          </div>
+                          
+                          <div class="settings-row" style="justify-content: space-between;">
+                            <label for="toggle-autoplay-next">Autoplay Next Episode:</label>
+                            <label class="switch-toggle">
+                              <input type="checkbox" id="toggle-autoplay-next">
+                              <span class="switch-slider"></span>
+                            </label>
                           </div>
                         </div>
                       </div>
@@ -1848,7 +1931,41 @@
                         </div>
                       </div>
 
-                      <!-- Tab 4: Export Panel -->
+                      <!-- Tab 4: Enhance Panel -->
+                      <div id="tab-enhance" class="settings-tab-panel hidden">
+                        <div class="settings-group">
+                          <div class="settings-title">Video Enhancement (Làm đẹp & Làm nét)</div>
+                          
+                          <!-- Auto-Beautify Toggle -->
+                          <div class="settings-row" style="display: flex; justify-content: space-between; align-items: center;">
+                            <label for="preview-enhance-beautify" style="cursor: pointer; font-size: 0.8rem;">Auto-Beautify (Làm đẹp màu):</label>
+                            <input type="checkbox" id="preview-enhance-beautify" style="width: 16px; height: 16px; cursor: pointer; accent-color: var(--cyan);" />
+                          </div>
+
+                          <!-- Sharpen Slider -->
+                          <div class="settings-row" style="flex-direction: column; align-items: stretch; gap: 4px; margin-top: 10px;">
+                            <div style="display: flex; justify-content: space-between; font-size: 0.68rem; color: rgba(255,255,255,0.6);">
+                              <span>Sharpen (Làm nét):</span>
+                              <span id="preview-enhance-sharpen-val" style="color: var(--cyan); font-weight: 500;">Off</span>
+                            </div>
+                            <input type="range" id="preview-enhance-sharpen" min="0" max="100" value="0" style="width: 100%; accent-color: var(--cyan); background: rgba(255,255,255,0.05); border-radius: 4px; height: 6px; cursor: pointer;" />
+                          </div>
+
+                          <!-- Resolution Upscale Select -->
+                          <div class="settings-row" style="margin-top: 10px;">
+                            <label for="preview-enhance-upscale" style="font-size: 0.8rem; margin-right: 10px;">Resolution Upscale:</label>
+                            <select id="preview-enhance-upscale" class="custom-select-menu" style="flex-grow: 1;" title="Resolution Upscale">
+                              <option value="none">Original (Giữ nguyên)</option>
+                              <option value="2x">2x Scale (Tăng gấp đôi)</option>
+                              <option value="1080p">Upscale to 1080p (FHD)</option>
+                              <option value="1440p">Upscale to 2K (QHD)</option>
+                              <option value="2160p">Upscale to 4K (UHD)</option>
+                            </select>
+                          </div>
+                        </div>
+                      </div>
+
+                      <!-- Tab 5: Export Panel -->
                       <div id="tab-export" class="settings-tab-panel hidden">
                         <!-- Group: Advanced Export -->
                         <div class="settings-group">
@@ -1888,6 +2005,15 @@
                   <!-- Custom Video Controls Overlay -->
                   <div class="custom-video-controls hidden-controls">
                     <div class="video-slider-container">
+                      <!-- Seek Thumbnail Preview Tooltip -->
+                      <div id="seek-thumb-tooltip" class="seek-thumb-tooltip">
+                        <canvas id="seek-thumb-canvas" width="160" height="90"></canvas>
+                        <span id="seek-thumb-time">00:00</span>
+                        <div id="seek-thumb-pointer" class="seek-thumb-pointer"></div>
+                      </div>
+                      <!-- Seek Hover Dot Indicator -->
+                      <div id="seek-thumb-dot" class="seek-thumb-dot"></div>
+                      <video id="thumb-preview-video" muted preload="auto" crossorigin="anonymous" style="position:absolute;width:1px;height:1px;opacity:0.01;pointer-events:none;z-index:-9999;left:0;top:0;"></video>
                       <input type="range" id="video-seek-slider" class="audio-slider video-slider" min="0" max="100" value="0">
                       <div class="video-time-row">
                         <span id="video-time-current">00:00</span>
@@ -1897,9 +2023,21 @@
                     
                     <div class="video-buttons-row">
                       <div class="video-left-controls">
+                        <button id="video-prev-btn" class="audio-btn video-btn hidden" title="Previous Episode">
+                          <svg viewBox="0 0 24 24" fill="currentColor" width="18" height="18">
+                            <path d="M6 6h2v12H6V6zm3.5 6l8.5 6V6l-8.5 6z"/>
+                          </svg>
+                        </button>
+
                         <button id="video-play-pause-btn" class="audio-btn video-btn" title="Play">
                           <svg class="play-icon" viewBox="0 0 24 24" fill="currentColor" width="20" height="20"><path d="M8 5v14l11-7z"/></svg>
                           <svg class="pause-icon hidden" viewBox="0 0 24 24" fill="currentColor" width="20" height="20"><path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"/></svg>
+                        </button>
+                        
+                        <button id="video-next-btn" class="audio-btn video-btn hidden" title="Next Episode">
+                          <svg viewBox="0 0 24 24" fill="currentColor" width="18" height="18">
+                            <path d="M6 18l8.5-6L6 6v12zM16 6v12h2V6h-2z"/>
+                          </svg>
                         </button>
                         
                         <button id="video-loop-btn" class="audio-btn video-btn" title="Repeat (Off)">
@@ -2612,7 +2750,26 @@
       </div>
     </div>
 
+    <!-- SVG Sharpen Filters -->
+    <svg style="position: absolute; width: 0; height: 0;" width="0" height="0">
+      <defs>
+        <filter id="svg-sharpen-low">
+          <feConvolveMatrix order="3" kernelMatrix="0 -0.5 0 -0.5 3 -0.5 0 -0.5 0" preserveAlpha="true"/>
+        </filter>
+        <filter id="svg-sharpen-medium">
+          <feConvolveMatrix order="3" kernelMatrix="0 -1 0 -1 5 -1 0 -1 0" preserveAlpha="true"/>
+        </filter>
+        <filter id="svg-sharpen-high">
+          <feConvolveMatrix order="3" kernelMatrix="-1 -1 -1 -1 9 -1 -1 -1 -1" preserveAlpha="true"/>
+        </filter>
+      </defs>
+    </svg>
+
+    <!-- Alignment Snapping Guidelines -->
+    <div id="preview-align-v" class="preview-align-line hidden"></div>
+    <div id="preview-align-h" class="preview-align-line hidden"></div>
+
     <script src="https://cdnjs.cloudflare.com/ajax/libs/noUiSlider/15.7.1/nouislider.min.js"></script>
-    <script src="{{ url_for('static', filename='js/main.js') }}?v=16.0"></script>
+    <script src="{{ url_for('static', filename='js/main.js') }}?v=18.9"></script>
   </body>
 </html>
