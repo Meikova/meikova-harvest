@@ -63,7 +63,7 @@
       rel="stylesheet"
       href="https://cdnjs.cloudflare.com/ajax/libs/noUiSlider/15.7.1/nouislider.min.css"
     />
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}?v=18.9">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}?v=19.0">
     <script src="https://cdn.jsdelivr.net/npm/hls.js@1.5.8/dist/hls.min.js"></script>
     <script>
       (function () {
@@ -1342,32 +1342,24 @@
           </div>
         </section>
 
-        <!-- Progress -->
-        <section id="download-progress" class="progress-panel hidden">
-          <div class="progress-header">
-            <div class="progress-title-row">
-              <div class="progress-spinner-mini"></div>
-              <span id="download-status-title">Preparing...</span>
-              <span id="download-format-label" class="progress-format-label"></span>
+        <!-- Progress / Downloads Manager (Floating Concurrent Panel) -->
+        <div id="downloads-manager" class="downloads-manager hidden">
+          <div class="downloads-manager-header" id="downloads-manager-header">
+            <div class="downloads-manager-title-group">
+              <span class="downloads-manager-spinner"></span>
+              <span class="downloads-manager-title">Downloads Manager</span>
+              <span id="downloads-active-count" class="downloads-count-badge">0</span>
             </div>
-            <div class="progress-actions-row">
-              <span id="progress-percent" class="progress-pct">0%</span>
-              <button
-                id="cancel-download-btn"
-                class="btn-cancel-download"
-                title="Cancel Download"
-              >
-                Cancel
-              </button>
+            <div class="downloads-manager-controls">
+              <button id="downloads-toggle-btn" class="downloads-toggle-btn" title="Minimize/Maximize">&#9662;</button>
             </div>
           </div>
-          <div class="progress-track">
-            <div class="progress-fill" id="progress-fill"></div>
+          <div class="downloads-manager-body" id="downloads-manager-body">
+            <div id="downloads-tasks-list" class="downloads-tasks-list">
+              <!-- Dynamic task cards will be appended here -->
+            </div>
           </div>
-          <p id="download-status-message" class="progress-msg">
-            Starting download...
-          </p>
-        </section>
+        </div>
       </main>
 
       <footer class="footer">
@@ -2053,7 +2045,9 @@
                           <button id="video-mute-btn" class="audio-btn video-btn" title="Mute">
                             <svg class="volume-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="18" height="18">
                               <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon>
-                              <path class="volume-waves" d="M19.07 4.93a10 10 0 0 1 0 14.14M15.54 8.46a5 5 0 0 1 0 7.07"></path>
+                              <path class="volume-wave-1" d="M15 10a3 3 0 0 1 0 4"></path>
+                              <path class="volume-wave-2" d="M17.5 7.5a6 6 0 0 1 0 9"></path>
+                              <path class="volume-wave-3" d="M20 5a9 9 0 0 1 0 14"></path>
                             </svg>
                             <svg class="mute-icon hidden" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="18" height="18">
                               <line x1="23" y1="9" x2="17" y2="15"></line>
@@ -2332,7 +2326,9 @@
                       <button id="audio-mute-btn" class="audio-btn" title="Mute">
                         <svg class="volume-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="18" height="18">
                           <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon>
-                          <path class="volume-waves" d="M19.07 4.93a10 10 0 0 1 0 14.14M15.54 8.46a5 5 0 0 1 0 7.07"></path>
+                          <path class="volume-wave-1" d="M15 10a3 3 0 0 1 0 4"></path>
+                          <path class="volume-wave-2" d="M17.5 7.5a6 6 0 0 1 0 9"></path>
+                          <path class="volume-wave-3" d="M20 5a9 9 0 0 1 0 14"></path>
                         </svg>
                         <svg class="mute-icon hidden" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="18" height="18">
                           <line x1="23" y1="9" x2="17" y2="15"></line>
@@ -2770,6 +2766,6 @@
     <div id="preview-align-h" class="preview-align-line hidden"></div>
 
     <script src="https://cdnjs.cloudflare.com/ajax/libs/noUiSlider/15.7.1/nouislider.min.js"></script>
-    <script src="{{ url_for('static', filename='js/main.js') }}?v=18.9"></script>
+    <script src="{{ url_for('static', filename='js/main.js') }}?v=19.3"></script>
   </body>
 </html>

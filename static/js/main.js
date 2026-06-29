@@ -1039,12 +1039,34 @@ document.addEventListener("DOMContentLoaded", () => {
         });
     }
 
-    const downloadProgress = document.getElementById("download-progress");
-    const progressPercent = document.getElementById("progress-percent");
-    const progressBarFill = document.getElementById("progress-fill");
-    const downloadStatusTitle = document.getElementById("download-status-title");
-    const downloadStatusMessage = document.getElementById("download-status-message");
-    const downloadFormatLabel = document.getElementById("download-format-label");
+    const downloadsManager = document.getElementById("downloads-manager");
+    const downloadsTasksList = document.getElementById("downloads-tasks-list");
+    const downloadsActiveCount = document.getElementById("downloads-active-count");
+    const downloadsToggleBtn = document.getElementById("downloads-toggle-btn");
+    const downloadsManagerHeader = document.getElementById("downloads-manager-header");
+
+    const activeTasks = {}; // Key: downloadId, Value: { sse, cardEl, progress }
+
+    if (downloadsManagerHeader && downloadsManager) {
+        downloadsManagerHeader.addEventListener("click", () => {
+            downloadsManager.classList.toggle("collapsed");
+        });
+    }
+
+    function updateDownloadsCount() {
+        if (!downloadsActiveCount) return;
+        const activeCount = Object.values(activeTasks).filter(t => t.sse).length;
+        downloadsActiveCount.textContent = activeCount;
+        
+        const spinner = downloadsManager ? downloadsManager.querySelector(".downloads-manager-spinner") : null;
+        if (spinner) {
+            if (activeCount > 0) {
+                spinner.classList.add("active");
+            } else {
+                spinner.classList.remove("active");
+            }
+        }
+    }
 
     // Preview Modal DOM Elements
     const previewModal = document.getElementById("preview-modal");
@@ -1591,8 +1613,6 @@ document.addEventListener("DOMContentLoaded", () => {
     // Global state
     let activeUrl = "";
     let activeMetadata = null;
-    let pollingInterval = null;
-    let activeDownloadId = null;
     let extractedImages = [];
 
     // Preview state variables
@@ -2822,22 +2842,35 @@ document.addEventListener("DOMContentLoaded", () => {
         });
     }
 
+    function updateVolumeWavesState(volume, isMuted, muteBtn) {
+        if (!muteBtn) return;
+        const volIcon = muteBtn.querySelector(".volume-icon");
+        const muteIcon = muteBtn.querySelector(".mute-icon");
+
+        if (isMuted || volume === 0) {
+            if (volIcon) volIcon.classList.add("hidden");
+            if (muteIcon) muteIcon.classList.remove("hidden");
+        } else {
+            if (volIcon) volIcon.classList.remove("hidden");
+            if (muteIcon) muteIcon.classList.add("hidden");
+
+            const wave1 = volIcon.querySelector(".volume-wave-1");
+            const wave2 = volIcon.querySelector(".volume-wave-2");
+            const wave3 = volIcon.querySelector(".volume-wave-3");
+
+            if (wave1) wave1.classList.toggle("hidden", false);
+            if (wave2) wave2.classList.toggle("hidden", volume <= 0.33);
+            if (wave3) wave3.classList.toggle("hidden", volume <= 0.66);
+        }
+    }
+
     if (audioVolumeSlider && previewAudioPlayer) {
         audioVolumeSlider.addEventListener("input", function () {
             previewAudioPlayer.volume = parseFloat(this.value);
             updateSliderBackground(this);
-            // Sync mute icon if needed
             if (audioMuteBtn) {
-                const volIcon = audioMuteBtn.querySelector(".volume-icon");
-                const muteIcon = audioMuteBtn.querySelector(".mute-icon");
-                if (previewAudioPlayer.volume === 0) {
-                    if (volIcon) volIcon.classList.add("hidden");
-                    if (muteIcon) muteIcon.classList.remove("hidden");
-                } else {
-                    if (volIcon) volIcon.classList.remove("hidden");
-                    if (muteIcon) muteIcon.classList.add("hidden");
-                    previewAudioPlayer.muted = false;
-                }
+                previewAudioPlayer.muted = (previewAudioPlayer.volume === 0);
+                updateVolumeWavesState(previewAudioPlayer.volume, previewAudioPlayer.muted, audioMuteBtn);
             }
         });
     }
@@ -2846,20 +2879,14 @@ document.addEventListener("DOMContentLoaded", () => {
         let prevVolume = 1.0;
         audioMuteBtn.addEventListener("click", () => {
             previewAudioPlayer.muted = !previewAudioPlayer.muted;
-            const volIcon = audioMuteBtn.querySelector(".volume-icon");
-            const muteIcon = audioMuteBtn.querySelector(".mute-icon");
-
             if (previewAudioPlayer.muted) {
-                if (volIcon) volIcon.classList.add("hidden");
-                if (muteIcon) muteIcon.classList.remove("hidden");
                 prevVolume = parseFloat(audioVolumeSlider.value) || 1.0;
                 audioVolumeSlider.value = 0;
             } else {
-                if (volIcon) volIcon.classList.remove("hidden");
-                if (muteIcon) muteIcon.classList.add("hidden");
                 audioVolumeSlider.value = prevVolume;
                 previewAudioPlayer.volume = prevVolume;
             }
+            updateVolumeWavesState(previewAudioPlayer.volume, previewAudioPlayer.muted, audioMuteBtn);
             updateSliderBackground(audioVolumeSlider);
         });
     }
@@ -3566,18 +3593,9 @@ document.addEventListener("DOMContentLoaded", () => {
             e.stopPropagation();
             previewVideoPlayer.volume = parseFloat(this.value);
             updateSliderBackground(this);
-            // Sync mute icon if needed
             if (videoMuteBtn) {
-                const volIcon = videoMuteBtn.querySelector(".volume-icon");
-                const muteIcon = videoMuteBtn.querySelector(".mute-icon");
-                if (previewVideoPlayer.volume === 0) {
-                    if (volIcon) volIcon.classList.add("hidden");
-                    if (muteIcon) muteIcon.classList.remove("hidden");
-                } else {
-                    if (volIcon) volIcon.classList.remove("hidden");
-                    if (muteIcon) muteIcon.classList.add("hidden");
-                    previewVideoPlayer.muted = false;
-                }
+                previewVideoPlayer.muted = (previewVideoPlayer.volume === 0);
+                updateVolumeWavesState(previewVideoPlayer.volume, previewVideoPlayer.muted, videoMuteBtn);
             }
         });
     }
@@ -3587,22 +3605,39 @@ document.addEventListener("DOMContentLoaded", () => {
         videoMuteBtn.addEventListener("click", (e) => {
             e.stopPropagation();
             previewVideoPlayer.muted = !previewVideoPlayer.muted;
-            const volIcon = videoMuteBtn.querySelector(".volume-icon");
-            const muteIcon = videoMuteBtn.querySelector(".mute-icon");
 
             if (previewVideoPlayer.muted) {
-                if (volIcon) volIcon.classList.add("hidden");
-                if (muteIcon) muteIcon.classList.remove("hidden");
                 prevVideoVolume = parseFloat(videoVolumeSlider.value) || 1.0;
                 videoVolumeSlider.value = 0;
             } else {
-                if (volIcon) volIcon.classList.remove("hidden");
-                if (muteIcon) muteIcon.classList.add("hidden");
                 videoVolumeSlider.value = prevVideoVolume;
                 previewVideoPlayer.volume = prevVideoVolume;
             }
+            updateVolumeWavesState(previewVideoPlayer.volume, previewVideoPlayer.muted, videoMuteBtn);
             updateSliderBackground(videoVolumeSlider);
         });
+
+        const videoVolumeContainer = document.querySelector(".video-volume-container");
+        if (videoVolumeContainer) {
+            videoVolumeContainer.addEventListener("wheel", (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+
+                let volume = previewVideoPlayer.volume;
+                if (e.deltaY < 0) {
+                    volume = Math.min(1.0, volume + 0.05);
+                } else {
+                    volume = Math.max(0.0, volume - 0.05);
+                }
+
+                previewVideoPlayer.volume = volume;
+                videoVolumeSlider.value = volume;
+                updateSliderBackground(videoVolumeSlider);
+
+                previewVideoPlayer.muted = (volume === 0);
+                updateVolumeWavesState(volume, previewVideoPlayer.muted, videoMuteBtn);
+            });
+        }
     }
 
     function updateFullscreenUI() {
@@ -5585,7 +5620,10 @@ document.addEventListener("DOMContentLoaded", () => {
                 (document.getElementById("preview-sub-trans-select") && document.getElementById("preview-sub-trans-select").value !== "none") ||
                 (document.getElementById("preview-sub-mode-select") && document.getElementById("preview-sub-mode-select").value !== "none") ||
                 (document.getElementById("preview-voiceover-select") && document.getElementById("preview-voiceover-select").value !== "none") ||
-                (document.getElementById("preview-cloud-sync") && document.getElementById("preview-cloud-sync").value !== "local")
+                (document.getElementById("preview-cloud-sync") && document.getElementById("preview-cloud-sync").value !== "local") ||
+                (document.getElementById("preview-enhance-beautify") && document.getElementById("preview-enhance-beautify").checked) ||
+                (document.getElementById("preview-enhance-sharpen") && parseFloat(document.getElementById("preview-enhance-sharpen").value) > 0) ||
+                (document.getElementById("preview-enhance-upscale") && document.getElementById("preview-enhance-upscale").value !== "none")
             );
 
             if (isCustomized) {
@@ -5616,6 +5654,80 @@ document.addEventListener("DOMContentLoaded", () => {
                 }
                 if (trimEndInput) {
                     trimEndInput.value = loopEndSecs !== null ? formatTimeDetailed(loopEndSecs) : "";
+                }
+
+                // Copy Video Enhance settings to main page
+                const previewEnhanceBeautify = document.getElementById("preview-enhance-beautify");
+                const mainEnhanceBeautify = document.getElementById("enhance-beautify-checkbox");
+                if (previewEnhanceBeautify && mainEnhanceBeautify) {
+                    mainEnhanceBeautify.checked = previewEnhanceBeautify.checked;
+                    mainEnhanceBeautify.dispatchEvent(new Event("change"));
+                }
+
+                const previewEnhanceSharpen = document.getElementById("preview-enhance-sharpen");
+                const mainEnhanceSharpen = document.getElementById("enhance-sharpen-slider");
+                if (previewEnhanceSharpen && mainEnhanceSharpen) {
+                    mainEnhanceSharpen.value = previewEnhanceSharpen.value;
+                    mainEnhanceSharpen.dispatchEvent(new Event("input"));
+                }
+
+                const previewEnhanceUpscale = document.getElementById("preview-enhance-upscale");
+                const mainEnhanceUpscale = document.getElementById("enhance-upscale-select");
+                if (previewEnhanceUpscale && mainEnhanceUpscale) {
+                    mainEnhanceUpscale.value = previewEnhanceUpscale.value;
+                    mainEnhanceUpscale.dispatchEvent(new Event("change"));
+                }
+
+                // Copy Export settings to main page
+                const previewExportType = document.getElementById("preview-export-type");
+                const mainExportType = document.getElementById("export-type-select");
+                if (previewExportType && mainExportType) {
+                    mainExportType.value = previewExportType.value;
+                    mainExportType.dispatchEvent(new Event("change"));
+                }
+
+                const previewColorFilter = document.getElementById("preview-color-filter");
+                const mainColorFilter = document.getElementById("color-filter-select");
+                if (previewColorFilter && mainColorFilter) {
+                    mainColorFilter.value = previewColorFilter.value;
+                    mainColorFilter.dispatchEvent(new Event("change"));
+                }
+
+                // Copy Cloud Sync settings to main page
+                const previewCloudSync = document.getElementById("preview-cloud-sync");
+                const mainCloudSync = document.getElementById("cloud-sync-select");
+                if (previewCloudSync && mainCloudSync) {
+                    mainCloudSync.value = previewCloudSync.value;
+                    mainCloudSync.dispatchEvent(new Event("change"));
+                }
+
+                // Copy Voiceover settings to main page
+                const previewVoiceoverActive = document.getElementById("preview-voiceover-active");
+                const mainVoiceoverActive = document.getElementById("voiceover-checkbox");
+                if (previewVoiceoverActive && mainVoiceoverActive) {
+                    mainVoiceoverActive.checked = previewVoiceoverActive.checked;
+                    mainVoiceoverActive.dispatchEvent(new Event("change"));
+                }
+
+                const previewVoiceoverVoice = document.getElementById("preview-voiceover-voice");
+                const mainVoiceoverVoice = document.getElementById("voiceover-voice-select");
+                if (previewVoiceoverVoice && mainVoiceoverVoice) {
+                    mainVoiceoverVoice.value = previewVoiceoverVoice.value;
+                    mainVoiceoverVoice.dispatchEvent(new Event("change"));
+                }
+
+                const previewVoiceoverRate = document.getElementById("preview-voiceover-rate-slider");
+                const mainVoiceoverRate = document.getElementById("voiceover-rate-slider");
+                if (previewVoiceoverRate && mainVoiceoverRate) {
+                    mainVoiceoverRate.value = previewVoiceoverRate.value;
+                    mainVoiceoverRate.dispatchEvent(new Event("input"));
+                }
+
+                const previewVoiceoverPitch = document.getElementById("preview-voiceover-pitch-slider");
+                const mainVoiceoverPitch = document.getElementById("voiceover-pitch-slider");
+                if (previewVoiceoverPitch && mainVoiceoverPitch) {
+                    mainVoiceoverPitch.value = previewVoiceoverPitch.value;
+                    mainVoiceoverPitch.dispatchEvent(new Event("input"));
                 }
 
                 // Capture the current custom audio settings before closing (which resets them)
@@ -5724,9 +5836,19 @@ document.addEventListener("DOMContentLoaded", () => {
                     return;
                 }
 
+                let isExternalUrl = false;
+                if (previewActiveUrl) {
+                    try {
+                        const urlObj = new URL(previewActiveUrl, window.location.origin);
+                        isExternalUrl = (urlObj.origin !== window.location.origin);
+                    } catch (e) {
+                        isExternalUrl = true;
+                    }
+                }
+
                 if (previewActiveDownloadId) {
                     window.location.href = `/api/download/file/${previewActiveDownloadId}`;
-                } else if (previewActiveUrl) {
+                } else if (previewActiveUrl && !isExternalUrl) {
                     const a = document.createElement("a");
                     a.href = previewActiveUrl;
                     a.download = previewActiveFilename || "download";
@@ -5830,27 +5952,32 @@ document.addEventListener("DOMContentLoaded", () => {
                 analysisAbortController = null;
             }
 
-            // Abort active download if any
-            if (activeDownloadId) {
+            // Cancel all active background tasks on logo click
+            Object.keys(activeTasks).forEach(downloadId => {
+                const task = activeTasks[downloadId];
+                if (task && task.sse) {
+                    try {
+                        task.sse.close();
+                    } catch (err) {}
+                }
                 try {
-                    fetch(`/api/download/cancel/${activeDownloadId}`, { method: "POST" });
+                    fetch(`/api/download/cancel/${downloadId}`, { method: "POST" });
                 } catch (e) {
                     console.error("Failed to cancel download on logo click:", e);
                 }
-                activeDownloadId = null;
+                delete activeTasks[downloadId];
+            });
+            if (downloadsTasksList) {
+                downloadsTasksList.innerHTML = "";
             }
-
-            if (pollingInterval) {
-                pollingInterval.close();
-                pollingInterval = null;
+            if (downloadsManager) {
+                downloadsManager.classList.add("hidden");
             }
 
             // Hide all dynamic panels
             errorCard.classList.add("hidden");
             resultSection.classList.add("hidden");
             loaderSection.classList.add("hidden");
-            downloadProgress.classList.add("hidden");
-            downloadProgress.classList.remove("state-complete", "state-error");
             cookiesSection.classList.add("hidden");
 
             // Enable buttons
@@ -5866,46 +5993,7 @@ document.addEventListener("DOMContentLoaded", () => {
         });
     }
 
-    // Cancel active download and return to format options
-    const cancelDownloadBtn = document.getElementById("cancel-download-btn");
-    if (cancelDownloadBtn) {
-        cancelDownloadBtn.addEventListener("click", () => {
-            if (activeDownloadId) {
-                try {
-                    fetch(`/api/download/cancel/${activeDownloadId}`, { method: "POST" });
-                } catch (e) {
-                    console.error("Failed to call cancel download API:", e);
-                }
-            }
 
-            // Close SSE
-            if (pollingInterval) {
-                pollingInterval.close();
-                pollingInterval = null;
-            }
-
-            // Hide progress panel
-            downloadProgress.classList.add("hidden");
-            downloadProgress.classList.remove("state-complete", "state-error");
-
-            // Enable inputs & buttons
-            analyzeBtn.disabled = false;
-            urlInput.disabled = false;
-
-            // Re-enable format buttons
-            const formatRows = document.querySelectorAll(".format-row");
-            formatRows.forEach(row => {
-                row.classList.remove("is-downloading");
-                const btns = row.querySelectorAll("button");
-                btns.forEach(b => b.disabled = false);
-            });
-
-            const allPrimaryBtns = document.querySelectorAll(".format-btn");
-            allPrimaryBtns.forEach(b => b.disabled = false);
-
-            activeDownloadId = null;
-        });
-    }
 
     // Style helper for input glow
     function triggerGlowEffect() {
@@ -6249,7 +6337,6 @@ document.addEventListener("DOMContentLoaded", () => {
         setPlatformTheme(null);
         errorCard.classList.add("hidden");
         resultSection.classList.add("hidden");
-        downloadProgress.classList.add("hidden");
         cookiesSection.classList.add("hidden");
 
         // Reset stale metadata from previous analysis
@@ -7698,50 +7785,336 @@ document.addEventListener("DOMContentLoaded", () => {
         resultSection.scrollIntoView({ behavior: "smooth", block: "nearest" });
     }
 
-    // 3. Download Execution via Asynchronous Server Task & Polling
-    // 3. Download Execution via Asynchronous Server Task & Polling
-    async function triggerDownload(btn, formatId, ext, label, quality, customUrl, episode = "", server = "", forceRaw = false, capturedAudioSettings = null, capturedSubtitleSettings = null) {
-        // Reset previous polling if running
-        if (pollingInterval) {
-            clearInterval(pollingInterval);
+    function escapeHTML(str) {
+        if (!str) return "";
+        return str.replace(/&/g, "&amp;")
+            .replace(/</g, "&lt;")
+            .replace(/>/g, "&gt;")
+            .replace(/"/g, "&quot;")
+            .replace(/'/g, "&#039;");
+    }
+
+    function createTaskCard(taskId, title, label) {
+        const card = document.createElement("div");
+        card.className = "download-task-card";
+        card.id = `task-card-${taskId}`;
+        card.innerHTML = `
+            <div class="download-task-title-row">
+                <span class="download-task-title" title="${escapeHTML(title)}">${escapeHTML(title)}</span>
+                <span class="download-task-pct">Queued</span>
+            </div>
+            <div class="download-task-track">
+                <div class="download-task-fill striped" style="width: 5%"></div>
+            </div>
+            <div class="download-task-info-row">
+                <span class="download-task-msg">Preparing... • ${escapeHTML(label)}</span>
+                <div class="download-task-actions">
+                    <button class="btn-task-action btn-task-cancel" title="Cancel Download">Cancel</button>
+                </div>
+            </div>
+        `;
+
+        const cancelBtn = card.querySelector(".btn-task-cancel");
+        if (cancelBtn) {
+            cancelBtn.addEventListener("click", () => {
+                cancelTask(taskId);
+            });
         }
 
-        // Clear status states in progress panel
-        downloadProgress.className = "progress-panel";
-        downloadProgress.classList.remove("hidden");
+        if (downloadsTasksList) {
+            downloadsTasksList.prepend(card);
+        }
+        
+        if (downloadsManager) {
+            downloadsManager.classList.remove("hidden");
+            downloadsManager.classList.remove("collapsed");
+        }
 
-        progressBarFill.classList.add("striped");
-        progressBarFill.style.width = "5%";
-        progressPercent.textContent = "0%";
+        return card;
+    }
 
-        downloadStatusTitle.textContent = "Initializing queue...";
-        downloadStatusMessage.textContent = "Adding download request to local Python server...";
-        downloadFormatLabel.textContent = label;
+    function cancelTask(downloadId) {
+        const task = activeTasks[downloadId];
+        if (task) {
+            if (task.sse) {
+                try {
+                    task.sse.close();
+                } catch (e) {}
+            }
+            if (!downloadId.startsWith("temp-")) {
+                try {
+                    fetch(`/api/download/cancel/${downloadId}`, { method: "POST" });
+                } catch (e) {
+                    console.error(`Failed to cancel task ${downloadId}:`, e);
+                }
+            }
+            
+            const card = document.getElementById(`task-card-${downloadId}`);
+            if (card) {
+                card.classList.remove("state-complete");
+                card.classList.add("state-error");
+                
+                const pctSpan = card.querySelector(".download-task-pct");
+                if (pctSpan) pctSpan.textContent = "Cancelled";
+                
+                const fillBar = card.querySelector(".download-task-fill");
+                if (fillBar) {
+                    fillBar.classList.remove("striped");
+                    fillBar.style.width = "100%";
+                }
+                
+                const msgSpan = card.querySelector(".download-task-msg");
+                if (msgSpan) msgSpan.textContent = "Task cancelled by user.";
+                
+                const actionsDiv = card.querySelector(".download-task-actions");
+                if (actionsDiv) {
+                    actionsDiv.innerHTML = `
+                        <button class="btn-task-action btn-task-clear" title="Clear">Clear</button>
+                    `;
+                    const clearBtn = actionsDiv.querySelector(".btn-task-clear");
+                    if (clearBtn) {
+                        clearBtn.addEventListener("click", () => {
+                            card.remove();
+                            if (downloadsTasksList && downloadsTasksList.children.length === 0) {
+                                downloadsManager.classList.add("hidden");
+                            }
+                        });
+                    }
+                }
+            }
+            
+            if (task.btn) {
+                task.btn.disabled = false;
+                task.btn.style.opacity = "";
+            }
+            if (task.activeRow) {
+                task.activeRow.classList.remove("is-downloading");
+            }
+            
+            delete activeTasks[downloadId];
+            updateDownloadsCount();
+        } else {
+            const card = document.getElementById(`task-card-${downloadId}`);
+            if (card) {
+                card.remove();
+                if (downloadsTasksList && downloadsTasksList.children.length === 0) {
+                    downloadsManager.classList.add("hidden");
+                }
+            }
+        }
+    }
 
-        downloadProgress.scrollIntoView({ behavior: "smooth", block: "nearest" });
+    function completeTask(downloadId) {
+        const task = activeTasks[downloadId];
+        if (task) {
+            if (task.sse) {
+                try {
+                    task.sse.close();
+                } catch (e) {}
+                task.sse = null;
+            }
+            
+            const card = document.getElementById(`task-card-${downloadId}`);
+            if (card) {
+                card.className = "download-task-card state-complete";
+                
+                const pctSpan = card.querySelector(".download-task-pct");
+                if (pctSpan) pctSpan.textContent = "Done!";
+                
+                const fillBar = card.querySelector(".download-task-fill");
+                if (fillBar) {
+                    fillBar.classList.remove("striped");
+                    fillBar.style.width = "100%";
+                }
+                
+                const msgSpan = card.querySelector(".download-task-msg");
+                if (msgSpan) {
+                    msgSpan.textContent = "Finished downloading successfully.";
+                }
+                
+                const actionsDiv = card.querySelector(".download-task-actions");
+                if (actionsDiv) {
+                    actionsDiv.innerHTML = `
+                        <a href="/api/download/file/${downloadId}" class="btn-task-action btn-task-save" style="text-decoration: none;" target="_blank" title="Save file to device">Save</a>
+                        <button class="btn-task-action btn-task-clear" title="Clear">Clear</button>
+                    `;
+                    const clearBtn = actionsDiv.querySelector(".btn-task-clear");
+                    if (clearBtn) {
+                        clearBtn.addEventListener("click", () => {
+                            card.remove();
+                            if (downloadsTasksList && downloadsTasksList.children.length === 0) {
+                                downloadsManager.classList.add("hidden");
+                            }
+                        });
+                    }
+                }
+            }
+            
+            if (!task.isCloudUpload) {
+                const downloadAnchor = document.createElement("a");
+                downloadAnchor.href = `/api/download/file/${downloadId}`;
+                document.body.appendChild(downloadAnchor);
+                downloadAnchor.click();
+                downloadAnchor.remove();
+            } else {
+                if (card) {
+                    const msgSpan = card.querySelector(".download-task-msg");
+                    if (msgSpan) msgSpan.textContent = "Uploaded to cloud successfully!";
+                }
+            }
 
-        // Disable input panel to prevent interruptions
-        analyzeBtn.disabled = true;
-        urlInput.disabled = true;
+            if (task.btn) {
+                task.btn.disabled = false;
+                task.btn.style.opacity = "";
+            }
+            if (task.activeRow) {
+                task.activeRow.classList.remove("is-downloading");
+            }
+            
+            updateDownloadsCount();
+        }
+    }
 
-        // Disable all get buttons and highlight active downloading row
-        const allButtons = optionsContainer.querySelectorAll(".btn-get");
-        allButtons.forEach(b => b.disabled = true);
+    function failTask(downloadId, errorMessage) {
+        const task = activeTasks[downloadId];
+        if (task) {
+            if (task.sse) {
+                try {
+                    task.sse.close();
+                } catch (e) {}
+                task.sse = null;
+            }
+            
+            const card = document.getElementById(`task-card-${downloadId}`);
+            if (card) {
+                card.className = "download-task-card state-error";
+                
+                const pctSpan = card.querySelector(".download-task-pct");
+                if (pctSpan) pctSpan.textContent = "Error";
+                
+                const fillBar = card.querySelector(".download-task-fill");
+                if (fillBar) {
+                    fillBar.classList.remove("striped");
+                    fillBar.style.width = "100%";
+                }
+                
+                const msgSpan = card.querySelector(".download-task-msg");
+                if (msgSpan) {
+                    msgSpan.textContent = errorMessage || "An error occurred.";
+                }
+                
+                const actionsDiv = card.querySelector(".download-task-actions");
+                if (actionsDiv) {
+                    actionsDiv.innerHTML = `
+                        <button class="btn-task-action btn-task-clear" title="Clear">Clear</button>
+                    `;
+                    const clearBtn = actionsDiv.querySelector(".btn-task-clear");
+                    if (clearBtn) {
+                        clearBtn.addEventListener("click", () => {
+                            card.remove();
+                            if (downloadsTasksList && downloadsTasksList.children.length === 0) {
+                                downloadsManager.classList.add("hidden");
+                            }
+                        });
+                    }
+                }
+            }
+            
+            if (task.btn) {
+                task.btn.disabled = false;
+                task.btn.style.opacity = "";
+            }
+            if (task.activeRow) {
+                task.activeRow.classList.remove("is-downloading");
+            }
+            
+            delete activeTasks[downloadId];
+            updateDownloadsCount();
+        } else {
+            const card = document.getElementById(`task-card-${downloadId}`);
+            if (card) {
+                card.className = "download-task-card state-error";
+                const pctSpan = card.querySelector(".download-task-pct");
+                if (pctSpan) pctSpan.textContent = "Error";
+                const msgSpan = card.querySelector(".download-task-msg");
+                if (msgSpan) msgSpan.textContent = errorMessage || "Failed to start.";
+                const actionsDiv = card.querySelector(".download-task-actions");
+                if (actionsDiv) {
+                    actionsDiv.innerHTML = `
+                        <button class="btn-task-action btn-task-clear" title="Clear">Clear</button>
+                    `;
+                    const clearBtn = actionsDiv.querySelector(".btn-task-clear");
+                    if (clearBtn) {
+                        clearBtn.addEventListener("click", () => {
+                            card.remove();
+                            if (downloadsTasksList && downloadsTasksList.children.length === 0) {
+                                downloadsManager.classList.add("hidden");
+                            }
+                        });
+                    }
+                }
+            }
+        }
+    }
 
-        const allRows = optionsContainer.querySelectorAll(".format-row");
-        allRows.forEach(r => r.classList.remove("is-downloading"));
+    function handleDownloadFailure(downloadId, errorMessageText, activeRow, btn) {
+        let rawError = errorMessageText || "An error occurred while queuing the download.";
+        let friendlyMessage = "Download failed. Please check your connection or view technical details below.";
+        const lowerErr = rawError.toLowerCase();
+
+        if (lowerErr.includes("fallback download also failed") || lowerErr.includes("returned non-zero code")) {
+            friendlyMessage = "Cannot download from this source. The media might be encrypted or downloading is blocked.";
+        } else if (lowerErr.includes("429") || lowerErr.includes("too many requests") || lowerErr.includes("rate limit") || lowerErr.includes("rate-limit")) {
+            friendlyMessage = "Rate limit exceeded (Error 429). Please wait a few minutes.";
+        } else if (lowerErr.includes("403") || lowerErr.includes("forbidden") || lowerErr.includes("access denied")) {
+            friendlyMessage = "Access denied (Error 403). The source may require a valid login Cookie.";
+        } else if (lowerErr.includes("404") || lowerErr.includes("not found")) {
+            friendlyMessage = "Resource not found (Error 404). Please verify if the video exists.";
+        } else if (lowerErr.includes("sign in to confirm you're not a bot") || lowerErr.includes("confirm you're not a bot") || lowerErr.includes("confirm you are not a bot")) {
+            friendlyMessage = "Download blocked due to bot verification requirement. Please update your Cookie.";
+        } else if (lowerErr.includes("login") || lowerErr.includes("logged-in") || lowerErr.includes("cookie") || lowerErr.includes("private")) {
+            friendlyMessage = "This content requires a login cookie. Please update 'Cookie Settings'.";
+        } else if (lowerErr.includes("unsupported url")) {
+            friendlyMessage = "This URL is not supported for direct download.";
+        } else if (lowerErr.includes("connection refused") || lowerErr.includes("timeout") || lowerErr.includes("timed out")) {
+            friendlyMessage = "Connection error. Please check your connection.";
+        } else if (lowerErr.includes("could not resolve host") || lowerErr.includes("name or service not known")) {
+            friendlyMessage = "Cannot connect to server (DNS resolution error).";
+        }
+
+        let fullMsg = friendlyMessage;
+        if (errorMessageText) {
+            fullMsg += ` (Details: ${errorMessageText})`;
+        }
+        
+        failTask(downloadId, fullMsg);
+    }
+
+    async function triggerDownload(btn, formatId, ext, label, quality, customUrl, episode = "", server = "", forceRaw = false, capturedAudioSettings = null, capturedSubtitleSettings = null) {
+        const title = videoTitle.textContent;
+        const tempId = "temp-" + Date.now();
 
         const activeRow = btn ? btn.closest(".format-row") : null;
         if (activeRow) {
             activeRow.classList.add("is-downloading");
         }
+        if (btn) {
+            btn.disabled = true;
+            btn.style.opacity = "0.6";
+        }
+
+        createTaskCard(tempId, title, label);
+        
+        activeTasks[tempId] = { sse: null, btn, activeRow, isCloudUpload: false };
+        updateDownloadsCount();
+
         try {
             const requestBody = {
                 url: (formatId.startsWith("direct_") || formatId === "image_preview" || formatId === "image_download" || formatId === "local_file" || ext === "vtt") ? (customUrl || activeUrl) : activeUrl,
                 format_id: formatId,
                 ext: ext,
                 quality: quality,
-                title: videoTitle.textContent,
+                title: title,
                 thumbnail: videoThumbnail.getAttribute("data-original-url") || videoThumbnail.src,
                 episode: episode,
                 server: server,
@@ -7761,7 +8134,6 @@ document.addEventListener("DOMContentLoaded", () => {
                     requestBody.translate_subs = "vi";
                 }
 
-                // Subtitle settings from preview modal or captured settings
                 if (capturedSubtitleSettings) {
                     if (capturedSubtitleSettings.subtitle_content) {
                         requestBody.subtitle_content = capturedSubtitleSettings.subtitle_content;
@@ -7778,7 +8150,6 @@ document.addEventListener("DOMContentLoaded", () => {
                     if (capturedSubtitleSettings.subtitle_translate) {
                         requestBody.subtitle_translate = capturedSubtitleSettings.subtitle_translate;
                     }
-                    // Style attributes
                     if (capturedSubtitleSettings.sub_font) requestBody.sub_font = capturedSubtitleSettings.sub_font;
                     if (capturedSubtitleSettings.sub_size) requestBody.sub_size = capturedSubtitleSettings.sub_size;
                     if (capturedSubtitleSettings.sub_color) requestBody.sub_color = capturedSubtitleSettings.sub_color;
@@ -7830,19 +8201,16 @@ document.addEventListener("DOMContentLoaded", () => {
                     }
                 }
 
-                // Export Format Type
                 const exportTypeSelect = document.getElementById("export-type-select");
                 if (exportTypeSelect) {
                     requestBody.export_type = exportTypeSelect.value;
                 }
 
-                // Cinematic color filter preset
                 const colorFilterSelect = document.getElementById("color-filter-select");
                 if (colorFilterSelect) {
                     requestBody.color_filter = colorFilterSelect.value;
                 }
 
-                // Video Enhance settings
                 const enhanceBeautifyCb = document.getElementById("enhance-beautify-checkbox");
                 const enhanceSharpenSlider = document.getElementById("enhance-sharpen-slider");
                 const enhanceUpscaleSelect = document.getElementById("enhance-upscale-select");
@@ -7851,7 +8219,6 @@ document.addEventListener("DOMContentLoaded", () => {
                 requestBody.enhance_sharpen = enhanceSharpenSlider ? parseInt(enhanceSharpenSlider.value) : 0;
                 requestBody.enhance_upscale = enhanceUpscaleSelect ? enhanceUpscaleSelect.value : "none";
 
-                // AI Voiceover settings
                 const voiceoverCb = document.getElementById("voiceover-checkbox");
                 const voiceoverVoiceSelect = document.getElementById("voiceover-voice-select");
                 const voiceoverRateSlider = document.getElementById("voiceover-rate-slider");
@@ -7871,10 +8238,11 @@ document.addEventListener("DOMContentLoaded", () => {
                     }
                 }
 
-                // Cloud sync upload settings
                 const cloudSyncSelect = document.getElementById("cloud-sync-select");
                 if (cloudSyncSelect) {
                     requestBody.cloud_destination = cloudSyncSelect.value;
+                    const isCloudUpload = cloudSyncSelect.value !== "local";
+                    activeTasks[tempId].isCloudUpload = isCloudUpload;
                     if (cloudSyncSelect.value === "telegram") {
                         const tgBotToken = document.getElementById("tg-bot-token");
                         const tgChatId = document.getElementById("tg-chat-id");
@@ -7885,7 +8253,6 @@ document.addEventListener("DOMContentLoaded", () => {
                     }
                 }
 
-                // Custom Audio Processing Settings
                 if (capturedAudioSettings) {
                     requestBody.audio_eq_bass = capturedAudioSettings.audio_eq_bass;
                     requestBody.audio_eq_lowmid = capturedAudioSettings.audio_eq_lowmid;
@@ -7912,7 +8279,6 @@ document.addEventListener("DOMContentLoaded", () => {
                 }
             }
 
-            // Step A: Request the server to start the download task in the background
             const response = await fetch("/api/download", {
                 method: "POST",
                 headers: {
@@ -7928,29 +8294,57 @@ document.addEventListener("DOMContentLoaded", () => {
             }
 
             const downloadId = data.download_id;
-            activeDownloadId = downloadId;
             console.log(`Download enqueued. ID: ${downloadId}`);
 
-            // Step B: Set up Server-Sent Events (SSE) to fetch status progress
-            pollingInterval = new EventSource(`/api/download/progress/${downloadId}`);
+            const cardEl = document.getElementById(`task-card-${tempId}`);
+            if (cardEl) {
+                cardEl.id = `task-card-${downloadId}`;
+                const cancelBtn = cardEl.querySelector(".btn-task-cancel");
+                if (cancelBtn) {
+                    const newCancelBtn = cancelBtn.cloneNode(true);
+                    cancelBtn.parentNode.replaceChild(newCancelBtn, cancelBtn);
+                    newCancelBtn.addEventListener("click", () => {
+                        cancelTask(downloadId);
+                    });
+                }
+            }
 
-            pollingInterval.onmessage = (event) => {
+            activeTasks[downloadId] = {
+                sse: null,
+                btn: btn,
+                activeRow: activeRow,
+                isCloudUpload: activeTasks[tempId].isCloudUpload
+            };
+            delete activeTasks[tempId];
+
+            const sse = new EventSource(`/api/download/progress/${downloadId}`);
+            activeTasks[downloadId].sse = sse;
+            updateDownloadsCount();
+
+            sse.onmessage = (event) => {
                 try {
                     const statusData = JSON.parse(event.data);
+                    const card = document.getElementById(`task-card-${downloadId}`);
+                    if (!card) return;
+
+                    const fillBar = card.querySelector(".download-task-fill");
+                    const pctSpan = card.querySelector(".download-task-pct");
+                    const msgSpan = card.querySelector(".download-task-msg");
 
                     if (statusData.status === "pending") {
-                        progressBarFill.classList.add("striped");
-                        progressBarFill.style.width = "5%";
-                        progressPercent.textContent = "0%";
-                        downloadStatusTitle.textContent = "Queued...";
-                        downloadStatusMessage.textContent = statusData.message || "Waiting in line...";
+                        if (fillBar) {
+                            fillBar.classList.add("striped");
+                            fillBar.style.width = "5%";
+                        }
+                        if (pctSpan) pctSpan.textContent = "0%";
+                        if (msgSpan) msgSpan.textContent = statusData.message || "Waiting in line...";
                     }
                     else if (statusData.status === "downloading") {
-                        progressBarFill.classList.remove("striped");
-                        progressBarFill.style.width = `${statusData.progress}%`;
-                        progressPercent.textContent = `${statusData.progress}%`;
-                        const platform = mediaBadge ? mediaBadge.textContent : "YouTube";
-                        downloadStatusTitle.textContent = `Downloading from ${platform}...`;
+                        if (fillBar) {
+                            fillBar.classList.remove("striped");
+                            fillBar.style.width = `${statusData.progress}%`;
+                        }
+                        if (pctSpan) pctSpan.textContent = `${statusData.progress}%`;
 
                         let msg = statusData.message;
                         if (statusData.speed && statusData.eta) {
@@ -7960,132 +8354,42 @@ document.addEventListener("DOMContentLoaded", () => {
                         } else if (statusData.eta) {
                             msg += ` | ETA: ${statusData.eta}`;
                         }
-                        downloadStatusMessage.textContent = msg;
+                        if (msgSpan) msgSpan.textContent = msg;
                     }
                     else if (statusData.status === "merging" || statusData.status === "processing") {
-                        progressBarFill.classList.add("striped");
-                        progressBarFill.style.width = `${statusData.progress}%`;
-                        progressPercent.textContent = `${statusData.progress}%`;
-                        downloadStatusTitle.textContent = statusData.status === "merging" ? "Merging streams..." : "Processing audio...";
-                        downloadStatusMessage.textContent = statusData.message;
+                        if (fillBar) {
+                            fillBar.classList.add("striped");
+                            fillBar.style.width = `${statusData.progress}%`;
+                        }
+                        if (pctSpan) pctSpan.textContent = `${statusData.progress}%`;
+                        if (msgSpan) {
+                            const stepText = statusData.status === "merging" ? "Merging streams" : "Processing audio";
+                            msgSpan.textContent = `${stepText}: ${statusData.message}`;
+                        }
                     }
                     else if (statusData.status === "complete") {
-                        if (pollingInterval) {
-                            pollingInterval.close();
-                            pollingInterval = null;
-                        }
-
-                        progressBarFill.classList.remove("striped");
-                        progressBarFill.style.width = "100%";
-                        progressPercent.textContent = "Done!";
-
-                        downloadProgress.classList.add("state-complete");
-                        downloadStatusTitle.textContent = "Download complete!";
-                        downloadStatusMessage.innerHTML = `File downloaded successfully. <a href="/api/download/file/${downloadId}" class="download-again-btn" target="_blank" style="color: var(--cyan); text-decoration: underline; font-weight: 500; margin-left: 5px;">Click here</a> if the download did not start automatically.`;
-
-                        // Re-enable inputs & restore format buttons
-                        analyzeBtn.disabled = false;
-                        urlInput.disabled = false;
-                        allButtons.forEach(b => b.disabled = false);
-                        if (activeRow) {
-                            activeRow.classList.remove("is-downloading");
-                        }
-
-                        // Trigger file download only if not cloud sync upload
-                        const cloudSyncSelect = document.getElementById("cloud-sync-select");
-                        const isCloudUpload = cloudSyncSelect && cloudSyncSelect.value !== "local";
-
-                        if (isCloudUpload) {
-                            downloadStatusMessage.textContent = "File uploaded successfully to your Cloud storage!";
-                        } else {
-                            const downloadAnchor = document.createElement("a");
-                            downloadAnchor.href = `/api/download/file/${downloadId}`;
-                            document.body.appendChild(downloadAnchor);
-                            downloadAnchor.click();
-                            downloadAnchor.remove();
-                        }
+                        completeTask(downloadId);
                     }
                     else if (statusData.status === "error") {
                         throw new Error(statusData.error || statusData.message || "An error occurred on the downloader backend.");
                     }
                 } catch (pollErr) {
-                    if (pollingInterval) {
-                        pollingInterval.close();
-                        pollingInterval = null;
+                    if (sse) {
+                        sse.close();
                     }
-                    handleDownloadFailure(pollErr.message, activeRow, allButtons);
+                    handleDownloadFailure(downloadId, pollErr.message, activeRow, btn);
                 }
             };
 
-            pollingInterval.onerror = (err) => {
-                if (pollingInterval) {
-                    pollingInterval.close();
-                    pollingInterval = null;
+            sse.onerror = (err) => {
+                if (sse) {
+                    sse.close();
                 }
-                handleDownloadFailure("Loss of SSE connection to server progress handler.", activeRow, allButtons);
+                handleDownloadFailure(downloadId, "Loss of SSE connection to server progress handler.", activeRow, btn);
             };
 
         } catch (err) {
-            handleDownloadFailure(err.message, activeRow, allButtons);
-        }
-    }
-
-    function escapeHTML(str) {
-        if (!str) return "";
-        return str.replace(/&/g, "&amp;")
-            .replace(/</g, "&lt;")
-            .replace(/>/g, "&gt;")
-            .replace(/"/g, "&quot;")
-            .replace(/'/g, "&#039;");
-    }
-
-    function handleDownloadFailure(errorMessageText, activeRow, allButtons) {
-        progressBarFill.classList.remove("striped");
-        progressBarFill.style.width = "0%";
-        progressPercent.textContent = "Error";
-
-        downloadProgress.classList.add("state-error");
-        downloadStatusTitle.textContent = "Download failed";
-
-        let rawError = errorMessageText || "An error occurred while queuing the download.";
-        let friendlyMessage = "Download failed. Please check your connection or view technical details below.";
-        const lowerErr = rawError.toLowerCase();
-
-        if (lowerErr.includes("fallback download also failed") || lowerErr.includes("returned non-zero code")) {
-            friendlyMessage = "Cannot download from this source. The media might be encrypted or downloading is blocked. Please select another server (e.g. Server #1) or try again later.";
-        } else if (lowerErr.includes("429") || lowerErr.includes("too many requests") || lowerErr.includes("rate limit") || lowerErr.includes("rate-limit")) {
-            friendlyMessage = "Rate limit exceeded for this IP (Error 429 - Too Many Requests). Please wait a few minutes and try again, or update your Cookie/change network connection.";
-        } else if (lowerErr.includes("403") || lowerErr.includes("forbidden") || lowerErr.includes("access denied")) {
-            friendlyMessage = "Access denied (Error 403 - Forbidden). The source may require a valid login Cookie or is blocking the server IP.";
-        } else if (lowerErr.includes("404") || lowerErr.includes("not found")) {
-            friendlyMessage = "Resource not found (Error 404 - Not Found). Please check the URL and verify if the post/video still exists.";
-        } else if (lowerErr.includes("sign in to confirm you're not a bot") || lowerErr.includes("confirm you're not a bot") || lowerErr.includes("confirm you are not a bot")) {
-            friendlyMessage = "Download blocked due to bot verification requirement (Confirm you are not a bot). Please try again later or update your Cookie in 'Cookie Settings'.";
-        } else if (lowerErr.includes("login") || lowerErr.includes("logged-in") || lowerErr.includes("cookie") || lowerErr.includes("private")) {
-            friendlyMessage = "This content requires a login or account cookie. Please log in using your browser, export cookies, and update them in 'Cookie Settings'.";
-        } else if (lowerErr.includes("unsupported url")) {
-            friendlyMessage = "This URL is not supported for direct download. Please check the URL.";
-        } else if (lowerErr.includes("connection refused") || lowerErr.includes("timeout") || lowerErr.includes("timed out")) {
-            friendlyMessage = "Connection error to the source server. Please check your network connection or try again later.";
-        } else if (lowerErr.includes("could not resolve host") || lowerErr.includes("name or service not known")) {
-            friendlyMessage = "Cannot connect to the source server (DNS resolution error). Please check your system's network connection.";
-        }
-
-        let htmlContent = `<span>${friendlyMessage}</span>`;
-        if (errorMessageText) {
-            htmlContent += `<details class="error-details">
-                <summary class="error-summary">Technical details</summary>
-                <pre class="error-pre">${escapeHTML(errorMessageText)}</pre>
-            </details>`;
-        }
-
-        downloadStatusMessage.innerHTML = htmlContent;
-
-        analyzeBtn.disabled = false;
-        urlInput.disabled = false;
-        allButtons.forEach(b => b.disabled = false);
-        if (activeRow) {
-            activeRow.classList.remove("is-downloading");
+            handleDownloadFailure(tempId, err.message, activeRow, btn);
         }
     }
 

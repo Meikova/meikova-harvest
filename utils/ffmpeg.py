@@ -829,7 +829,7 @@ def apply_video_enhancements(filepath, enhance_beautify=False, enhance_sharpen=0
     if enhance_sharpen > 0:
         amount = (float(enhance_sharpen) / 100.0) * 1.5
         # Apply sharpen filter only to luma channel to prevent chroma/color noise
-        filter_list.append(f"unsharp=luma_msiz_x=5:luma_msiz_y=5:luma_amount={amount:.2f}:chroma_amount=0.0")
+        filter_list.append(f"unsharp=luma_msize_x=5:luma_msize_y=5:luma_amount={amount:.2f}:chroma_amount=0.0")
 
     # 3. Resolution Upscale (scale filter with Lanczos)
     if enhance_upscale and enhance_upscale != "none":

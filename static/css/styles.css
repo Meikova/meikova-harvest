@@ -1219,121 +1219,317 @@ body[class*="theme-"] .card {
   color: var(--text-dim);
 }
 
-/* === PROGRESS PANEL === */
-.progress-panel {
-  border: 1px solid rgba(var(--cyan-rgb), 0.12);
-  border-radius: var(--radius-sm);
-  padding: 14px 18px;
-  background: rgba(var(--cyan-rgb), 0.03);
+/* === FLOATING DOWNLOADS MANAGER === */
+.downloads-manager {
+  position: fixed;
+  bottom: 24px;
+  right: 24px;
+  z-index: 1000;
+  width: 380px;
+  max-height: 480px;
+  background: rgba(10, 12, 22, 0.45);
+  backdrop-filter: blur(20px) saturate(180%);
+  -webkit-backdrop-filter: blur(20px) saturate(180%);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: var(--radius);
+  box-shadow: 0 24px 80px rgba(0, 0, 0, 0.65), 0 0 0 1px rgba(255, 255, 255, 0.07);
   display: flex;
   flex-direction: column;
-  gap: 8px;
-  animation: slideUp 0.25s ease-out;
-}
-.progress-panel.state-complete {
-  border-color: rgba(104, 211, 145, 0.2);
-  background: rgba(104, 211, 145, 0.04);
-}
-.progress-panel.state-error {
-  border-color: rgba(252, 129, 129, 0.15);
-  background: rgba(252, 129, 129, 0.04);
+  overflow: hidden;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  opacity: 1;
 }
 
-.progress-header {
+.downloads-manager.hidden {
+  display: none !important;
+  opacity: 0;
+  pointer-events: none;
+}
+
+/* Collapsed state */
+.downloads-manager.collapsed {
+  height: 48px !important;
+  max-height: 48px !important;
+}
+
+/* Header */
+.downloads-manager-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
+  padding: 12px 18px;
+  background: rgba(255, 255, 255, 0.02);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+  cursor: pointer;
+  user-select: none;
 }
-.progress-title-row {
+
+.downloads-manager-title-group {
   display: flex;
   align-items: center;
   gap: 8px;
 }
-.progress-spinner-mini {
-  width: 16px;
-  height: 16px;
+
+.downloads-manager-spinner {
+  width: 14px;
+  height: 14px;
   border: 2px solid rgba(255, 255, 255, 0.05);
   border-top-color: var(--cyan);
   border-radius: 50%;
   animation: spin 0.8s linear infinite;
-}
-.state-complete .progress-spinner-mini {
   display: none;
 }
 
-#download-status-title {
+.downloads-manager:not(.collapsed) .downloads-manager-spinner.active {
+  display: block;
+}
+
+.downloads-manager-title {
   font-family: var(--font-display);
-  font-size: 0.9rem;
+  font-size: 0.85rem;
   font-weight: 600;
   letter-spacing: 0.3px;
+  color: var(--text);
 }
-.progress-pct {
+
+.downloads-count-badge {
+  background: var(--cyan-gradient);
+  color: #000;
+  font-size: 0.72rem;
+  font-weight: 700;
+  padding: 1px 6px;
+  border-radius: 20px;
+  box-shadow: 0 0 8px rgba(var(--cyan-rgb), 0.4);
+}
+
+.downloads-manager-controls {
+  display: flex;
+  align-items: center;
+}
+
+.downloads-toggle-btn {
+  background: transparent;
+  border: none;
+  color: var(--text-dim);
+  font-size: 1rem;
+  cursor: pointer;
+  padding: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: transform 0.3s;
+}
+
+.downloads-manager.collapsed .downloads-toggle-btn {
+  transform: rotate(-180deg);
+}
+
+/* Body */
+.downloads-manager-body {
+  flex: 1;
+  overflow-y: auto;
+  padding: 12px;
+  background: transparent;
+  max-height: 432px;
+}
+
+/* Scrollbar styling for tasks list */
+.downloads-manager-body::-webkit-scrollbar {
+  width: 4px;
+}
+.downloads-manager-body::-webkit-scrollbar-track {
+  background: transparent;
+}
+.downloads-manager-body::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 10px;
+}
+
+.downloads-tasks-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+/* Task Item Card */
+.download-task-card {
+  border: 1px solid rgba(255, 255, 255, 0.05);
+  background: rgba(255, 255, 255, 0.01);
+  border-radius: var(--radius-sm);
+  padding: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  position: relative;
+  transition: border-color 0.25s, background 0.25s;
+}
+
+.download-task-card.state-complete {
+  border-color: rgba(104, 211, 145, 0.15);
+  background: rgba(104, 211, 145, 0.02);
+}
+
+.download-task-card.state-error {
+  border-color: rgba(252, 129, 129, 0.12);
+  background: rgba(252, 129, 129, 0.02);
+}
+
+/* Task details */
+.download-task-title-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 10px;
+}
+
+.download-task-title {
+  font-family: var(--font);
+  font-weight: 500;
+  font-size: 0.8rem;
+  color: var(--text);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  line-height: 1.3;
+}
+
+.download-task-pct {
   font-family: var(--font-display);
   font-weight: 600;
-  font-size: 1rem;
+  font-size: 0.85rem;
   color: var(--cyan);
+  flex-shrink: 0;
 }
-.state-complete .progress-pct {
+
+.download-task-card.state-complete .download-task-pct {
   color: var(--green);
 }
 
-.progress-track {
+.download-task-card.state-error .download-task-pct {
+  color: #ff6666;
+}
+
+.download-task-track {
   width: 100%;
-  height: 6px;
+  height: 4px;
   background: rgba(255, 255, 255, 0.04);
   border-radius: 10px;
   overflow: hidden;
 }
-.progress-fill {
+
+.download-task-fill {
   height: 100%;
   width: 0%;
   border-radius: 10px;
   background: linear-gradient(90deg, var(--cyan), var(--purple));
-  box-shadow: 0 0 8px rgba(var(--cyan-rgb), 0.3);
-  transition: width 0.4s ease;
-}
-.state-complete .progress-fill {
-  background: var(--green);
-  box-shadow: 0 0 8px rgba(104, 211, 145, 0.3);
+  box-shadow: 0 0 6px rgba(var(--cyan-rgb), 0.25);
+  transition: width 0.3s ease;
 }
 
-.progress-fill.striped {
+.download-task-card.state-complete .download-task-fill {
+  background: var(--green);
+  box-shadow: 0 0 6px rgba(104, 211, 145, 0.25);
+  width: 100% !important;
+}
+
+.download-task-card.state-error .download-task-fill {
+  background: #ff4444;
+  box-shadow: 0 0 6px rgba(255, 68, 68, 0.25);
+}
+
+.download-task-fill.striped {
   background-image: repeating-linear-gradient(
     -45deg,
     transparent,
-    transparent 8px,
-    rgba(255, 255, 255, 0.15) 8px,
-    rgba(255, 255, 255, 0.15) 16px
+    transparent 6px,
+    rgba(255, 255, 255, 0.15) 6px,
+    rgba(255, 255, 255, 0.15) 12px
   );
-  background-size: 200% 100%;
-  animation: stripes-move 1s linear infinite;
-}
-@keyframes stripes-move {
-  from {
-    background-position: 0 0;
-  }
-  to {
-    background-position: 32px 0;
-  }
+  background-size: 24px 100%;
+  animation: stripes-move-mini 1s linear infinite;
 }
 
-.progress-msg {
-  color: var(--text-dim);
-  font-size: 0.82rem;
-  line-height: 1.4;
+@keyframes stripes-move-mini {
+  from { background-position: 0 0; }
+  to { background-position: 17px 0; }
 }
-.progress-format-label {
-  font-size: 0.76rem;
-  color: var(--text-dim);
-  opacity: 0.75;
-  font-weight: normal;
-  font-family: var(--font);
+
+.download-task-info-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
 }
-.progress-format-label::before {
-  content: "•";
-  margin-right: 6px;
-  margin-left: 6px;
-  color: var(--text-faint);
+
+.download-task-msg {
+  color: var(--text-dim);
+  font-size: 0.72rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.download-task-card.state-error .download-task-msg {
+  color: #ff8080;
+}
+
+.download-task-actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
+}
+
+.btn-task-action {
+  padding: 3px 8px;
+  border-radius: var(--radius-xs);
+  font-size: 0.68rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  border: 1px solid transparent;
+  line-height: 1.2;
+}
+
+.btn-task-cancel {
+  background: rgba(255, 68, 68, 0.06);
+  border-color: rgba(255, 68, 68, 0.15);
+  color: #ff8080;
+}
+.btn-task-cancel:hover {
+  background: rgba(255, 68, 68, 0.15);
+  border-color: rgba(255, 68, 68, 0.3);
+}
+
+.btn-task-save {
+  background: rgba(104, 211, 145, 0.08);
+  border-color: rgba(104, 211, 145, 0.25);
+  color: #a3e635;
+}
+.btn-task-save:hover {
+  background: rgba(104, 211, 145, 0.18);
+  border-color: rgba(104, 211, 145, 0.4);
+}
+
+.btn-task-clear {
+  background: rgba(255, 255, 255, 0.03);
+  border-color: rgba(255, 255, 255, 0.08);
+  color: var(--text-dim);
+}
+.btn-task-clear:hover {
+  background: rgba(255, 255, 255, 0.08);
+  border-color: rgba(255, 255, 255, 0.15);
+  color: var(--text);
+}
+
+@media (max-width: 480px) {
+  .downloads-manager {
+    width: 320px;
+    bottom: 12px;
+    right: 12px;
+  }
 }
 
 /* === RICH METADATA & SUBTITLES === */
@@ -2708,7 +2904,6 @@ body[class*="theme-"] .card {
   user-select: none;
   will-change: transform;
   zoom: 1 !important;
-  container-type: inline-size;
 }
 
 /* Container queries to adapt player controls bar dynamically inside modal */
@@ -5748,6 +5943,7 @@ details[open] .error-summary::before {
   height: 100%;
   min-width: 0;
   position: relative;
+  container-type: inline-size;
 }
 
 /* Sidebar for Subtitle Transcript */

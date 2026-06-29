@@ -136,6 +136,11 @@ def start_download():
             "sub_outline": sub_outline,
             "sub_outline_color": sub_outline_color,
             "sub_pos": sub_pos,
+            "enhance_beautify": enhance_beautify,
+            "enhance_sharpen": enhance_sharpen,
+            "enhance_upscale": enhance_upscale,
+            "color_filter": color_filter,
+            "export_type": export_type,
             "timestamp": time.time(),
         }
 
