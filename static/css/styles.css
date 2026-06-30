@@ -8992,4 +8992,24 @@ body.preview-active .app-shell {
   accent-color: var(--cyan);
 }
 
+/* === Extension Link Received Glow Animation === */
+@keyframes extensionPulse {
+  0% {
+    box-shadow: 0 0 0 0 rgba(255, 51, 68, 0.7);
+    border-color: rgba(255, 51, 68, 1);
+  }
+  75% {
+    box-shadow: 0 0 0 12px rgba(255, 51, 68, 0);
+    border-color: rgba(255, 51, 68, 1);
+  }
+  100% {
+    box-shadow: 0 0 0 0 rgba(255, 51, 68, 0);
+    border-color: rgba(255, 255, 255, 0.1);
+  }
+}
+
+.extension-received-pulse {
+  animation: extensionPulse 1.8s cubic-bezier(0.25, 0, 0, 1) forwards;
+}
+
 

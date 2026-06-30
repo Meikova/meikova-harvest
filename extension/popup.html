@@ -1,0 +1,731 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8">
+    <title>EveryThingDownloader Companion</title>
+    <style>
+      :root {
+        --bg-color: #0b0d19;
+        --card-bg: rgba(18, 24, 48, 0.65);
+        --card-border: rgba(255, 255, 255, 0.08);
+        --text-color: #f3f4f6;
+        --text-muted: #9ca3af;
+        --primary: #ff2a51;
+        --primary-glow: rgba(255, 42, 81, 0.35);
+        --cyan: #00e5ff;
+        --cyan-glow: rgba(0, 229, 255, 0.2);
+        --success: #10b981;
+        --success-glow: rgba(16, 185, 129, 0.2);
+        --warning: #f59e0b;
+        --purple: #8b5cf6;
+        --font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      }
+
+      body {
+        width: 380px;
+        margin: 0;
+        padding: 12px;
+        background-color: var(--bg-color);
+        color: var(--text-color);
+        font-family: var(--font-family);
+        overflow-x: hidden;
+        -webkit-font-smoothing: antialiased;
+      }
+
+      .mesh-bg {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        z-index: -1;
+        background: radial-gradient(circle at 90% 10%, rgba(255, 42, 81, 0.15), transparent 50%),
+                    radial-gradient(circle at 10% 90%, rgba(0, 229, 255, 0.1), transparent 50%);
+        pointer-events: none;
+      }
+
+      .card {
+        background: var(--card-bg);
+        border: 1px solid var(--card-border);
+        border-radius: 16px;
+        padding: 16px;
+        backdrop-filter: blur(24px);
+        -webkit-backdrop-filter: blur(24px);
+        box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5), inset 0 1px 0 rgba(255, 255, 255, 0.08);
+      }
+
+      .header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        margin-bottom: 10px;
+        padding: 2px 4px;
+      }
+
+      .header-left {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+      }
+
+      .logo-svg {
+        color: var(--primary);
+        filter: drop-shadow(0 0 6px var(--primary-glow));
+      }
+
+      .title {
+        font-size: 14px;
+        font-weight: 700;
+        letter-spacing: 0.3px;
+        margin: 0;
+        background: linear-gradient(135deg, #ffffff, #d1d5db);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+      }
+
+      .platform-badge {
+        font-size: 8px;
+        font-weight: 700;
+        padding: 2px 7px;
+        border-radius: 10px;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+      }
+
+      .badge-youtube { background: rgba(239, 68, 68, 0.12); color: #ef4444; border: 1px solid rgba(239, 68, 68, 0.2); }
+      .badge-tiktok { background: rgba(255, 255, 255, 0.08); color: #fff; border: 1px solid rgba(255, 255, 255, 0.15); }
+      .badge-facebook { background: rgba(59, 130, 246, 0.12); color: #3b82f6; border: 1px solid rgba(59, 130, 246, 0.2); }
+      .badge-instagram { background: rgba(236, 72, 153, 0.12); color: #ec4899; border: 1px solid rgba(236, 72, 153, 0.2); }
+      .badge-default { background: rgba(156, 163, 175, 0.12); color: #9ca3af; border: 1px solid rgba(156, 163, 175, 0.2); }
+
+      .divider {
+        height: 1px;
+        background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.06), transparent);
+        margin: 10px 0;
+      }
+
+      /* State Transitions */
+      .section-panel {
+        display: none;
+        animation: fadeIn 0.22s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+      }
+
+      .section-panel.active {
+        display: block;
+      }
+
+      @keyframes fadeIn {
+        from { opacity: 0; transform: translateY(4px); }
+        to { opacity: 1; transform: translateY(0); }
+      }
+
+      /* Loader Container */
+      .loader-container {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        padding: 44px 0;
+        gap: 14px;
+      }
+
+      .spinner-wrap {
+        position: relative;
+        width: 38px;
+        height: 38px;
+      }
+
+      .spinner {
+        width: 100%;
+        height: 100%;
+        border: 2px solid rgba(255, 255, 255, 0.02);
+        border-radius: 50%;
+        border-top-color: var(--primary);
+        animation: spin 0.8s cubic-bezier(0.5, 0.1, 0.5, 0.9) infinite;
+        filter: drop-shadow(0 0 6px var(--primary-glow));
+      }
+
+      .spinner-inner {
+        position: absolute;
+        top: 5px;
+        left: 5px;
+        right: 5px;
+        bottom: 5px;
+        border: 1.5px solid transparent;
+        border-radius: 50%;
+        border-top-color: var(--cyan);
+        animation: spin 0.5s linear infinite reverse;
+      }
+
+      @keyframes spin {
+        to { transform: rotate(360deg); }
+      }
+
+      .loader-text {
+        font-size: 12px;
+        font-weight: 500;
+        color: var(--text-muted);
+        letter-spacing: 0.3px;
+      }
+
+      /* Metadata Widget */
+      .meta-block {
+        display: flex;
+        gap: 10px;
+        margin-bottom: 12px;
+        background: rgba(255, 255, 255, 0.015);
+        border: 1px solid rgba(255, 255, 255, 0.04);
+        padding: 8px;
+        border-radius: 10px;
+        align-items: center;
+      }
+
+      .meta-thumbnail-wrap {
+        position: relative;
+        flex-shrink: 0;
+      }
+
+      .meta-thumbnail {
+        width: 80px;
+        height: 48px;
+        object-fit: cover;
+        border-radius: 6px;
+        border: 1px solid rgba(255, 255, 255, 0.08);
+      }
+
+      .duration-badge {
+        position: absolute;
+        bottom: 3px;
+        right: 3px;
+        background: rgba(0, 0, 0, 0.85);
+        color: #fff;
+        font-size: 8px;
+        font-weight: 600;
+        padding: 1px 3px;
+        border-radius: 3px;
+        font-family: monospace;
+      }
+
+      .meta-info {
+        flex: 1;
+        min-width: 0;
+      }
+
+      .meta-title {
+        font-size: 12px;
+        font-weight: 600;
+        line-height: 1.35;
+        margin-bottom: 2px;
+        display: -webkit-box;
+        -webkit-line-clamp: 2;
+        -webkit-box-orient: vertical;
+        overflow: hidden;
+        color: var(--text-color);
+      }
+
+      .meta-uploader {
+        font-size: 10px;
+        color: var(--text-muted);
+      }
+
+      /* Formats Scroll Container */
+      .formats-container {
+        max-height: 290px;
+        overflow-y: auto;
+        padding-right: 4px;
+      }
+
+      .formats-container::-webkit-scrollbar {
+        width: 4px;
+      }
+      .formats-container::-webkit-scrollbar-track {
+        background: transparent;
+      }
+      .formats-container::-webkit-scrollbar-thumb {
+        background: rgba(255, 255, 255, 0.06);
+        border-radius: 4px;
+      }
+      .formats-container::-webkit-scrollbar-thumb:hover {
+        background: rgba(0, 229, 255, 0.15);
+      }
+
+      .format-group {
+        margin-bottom: 12px;
+      }
+
+      .format-group-content {
+        transition: max-height 0.28s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.2s ease-out;
+        max-height: 500px;
+        opacity: 1;
+        overflow: hidden;
+      }
+
+      .format-group-content.collapsed {
+        max-height: 0 !important;
+        opacity: 0;
+        pointer-events: none;
+      }
+
+      .options-group-title {
+        font-size: 10px;
+        font-weight: 700;
+        text-transform: uppercase;
+        color: var(--color-accent, var(--text-muted));
+        letter-spacing: 0.8px;
+        margin: 10px 0 6px 2px;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        cursor: pointer;
+        user-select: none;
+        padding: 4px 2px;
+      }
+
+      .options-group-title:hover {
+        opacity: 0.85;
+      }
+
+      .options-group-title-left {
+        display: flex;
+        align-items: center;
+        gap: 5px;
+      }
+
+      .chevron-icon {
+        transition: transform 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+        color: var(--text-muted);
+      }
+
+      .options-group-title.collapsed .chevron-icon {
+        transform: rotate(-90deg);
+      }
+
+      .format-row {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 8px 10px;
+        background: rgba(255, 255, 255, 0.015);
+        border: 1px solid rgba(255, 255, 255, 0.03);
+        border-radius: 8px;
+        margin-bottom: 6px;
+        transition: all 0.22s cubic-bezier(0.4, 0, 0.2, 1);
+      }
+
+      .format-row:hover {
+        background: rgba(var(--color-accent-rgb), 0.02);
+        border-color: rgba(var(--color-accent-rgb), 0.12);
+        transform: translateX(2px);
+      }
+
+      .format-left {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        min-width: 0;
+        flex: 1;
+      }
+
+      .format-icon-wrap {
+        width: 26px;
+        height: 26px;
+        border-radius: 6px;
+        background: rgba(var(--color-accent-rgb), 0.06);
+        border: 1px solid rgba(var(--color-accent-rgb), 0.15);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        flex-shrink: 0;
+        color: var(--color-accent, var(--text-muted));
+      }
+
+      .format-details {
+        display: flex;
+        flex-direction: column;
+        min-width: 0;
+      }
+
+      .format-label {
+        font-size: 11px;
+        font-weight: 600;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        color: var(--text-color);
+      }
+
+      .format-meta {
+        font-size: 9px;
+        color: var(--text-muted);
+        display: flex;
+        gap: 5px;
+        margin-top: 1px;
+        align-items: center;
+      }
+
+      .badge-ext {
+        text-transform: uppercase;
+        color: var(--color-accent, var(--cyan));
+        font-weight: 700;
+      }
+
+      .btn-get {
+        padding: 5px 10px;
+        background: rgba(var(--color-accent-rgb), 0.08);
+        border: 1px solid rgba(var(--color-accent-rgb), 0.22);
+        border-radius: 6px;
+        color: var(--color-accent);
+        font-size: 10px;
+        font-weight: 600;
+        cursor: pointer;
+        transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+        display: flex;
+        align-items: center;
+        gap: 4px;
+      }
+
+      .btn-get:hover {
+        background: var(--color-accent);
+        border-color: transparent;
+        color: #0d0f1a;
+        box-shadow: 0 3px 8px rgba(var(--color-accent-rgb), 0.35);
+        transform: translateY(-0.5px);
+      }
+
+      .btn-get svg {
+        transition: transform 0.15s;
+      }
+
+      .btn-get:hover svg {
+        transform: translateY(0.5px);
+      }
+
+      /* Progress Block */
+      .progress-card {
+        padding: 14px 12px;
+        background: rgba(255, 255, 255, 0.015);
+        border: 1px solid rgba(255, 255, 255, 0.04);
+        border-radius: 12px;
+        margin-top: 8px;
+      }
+
+      .progress-title {
+        font-size: 12px;
+        font-weight: 600;
+        margin-bottom: 2px;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+      }
+
+      .progress-percent {
+        font-size: 11px;
+        color: var(--cyan);
+        font-weight: 700;
+        text-align: right;
+      }
+
+      .progress-header-row {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 6px;
+      }
+
+      .progress-track {
+        height: 5px;
+        background: rgba(255, 255, 255, 0.04);
+        border-radius: 3px;
+        overflow: hidden;
+        margin-bottom: 8px;
+        position: relative;
+      }
+
+      .progress-fill {
+        height: 100%;
+        width: 0%;
+        background: linear-gradient(90deg, var(--cyan), var(--primary));
+        border-radius: 3px;
+        transition: width 0.25s ease;
+        box-shadow: 0 0 8px var(--cyan-glow);
+      }
+
+      .progress-stats {
+        display: flex;
+        justify-content: space-between;
+        font-size: 10px;
+        color: var(--text-muted);
+        margin-bottom: 12px;
+      }
+
+      .btn-cancel {
+        width: 100%;
+        padding: 8px;
+        background: rgba(255, 42, 81, 0.08);
+        border: 1px solid rgba(255, 42, 81, 0.15);
+        border-radius: 6px;
+        color: var(--primary);
+        font-size: 11px;
+        font-weight: 600;
+        cursor: pointer;
+        transition: all 0.2s;
+      }
+
+      .btn-cancel:hover {
+        background: var(--primary);
+        color: #fff;
+        box-shadow: 0 3px 8px var(--primary-glow);
+      }
+
+      .btn-save {
+        width: 100%;
+        padding: 9px;
+        background: linear-gradient(135deg, var(--success), #059669);
+        border: none;
+        border-radius: 6px;
+        color: #0d0f1a;
+        font-size: 11px;
+        font-weight: 700;
+        cursor: pointer;
+        transition: all 0.2s;
+        box-shadow: 0 3px 10px var(--success-glow);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 5px;
+      }
+
+      .btn-save:hover {
+        transform: translateY(-0.5px);
+        box-shadow: 0 5px 12px rgba(16, 185, 129, 0.4);
+      }
+
+      .btn-back {
+        width: 100%;
+        margin-top: 6px;
+        padding: 8px;
+        background: rgba(255, 255, 255, 0.03);
+        border: 1px solid rgba(255, 255, 255, 0.06);
+        border-radius: 6px;
+        color: var(--text-color);
+        font-size: 11px;
+        font-weight: 500;
+        cursor: pointer;
+        transition: all 0.2s;
+      }
+
+      .btn-back:hover {
+        background: rgba(255, 255, 255, 0.06);
+      }
+
+      /* Error panel */
+      .error-card {
+        padding: 20px 10px;
+        text-align: center;
+      }
+
+      .error-icon {
+        color: var(--primary);
+        margin-bottom: 8px;
+        filter: drop-shadow(0 0 6px var(--primary-glow));
+      }
+
+      .error-text {
+        font-size: 12px;
+        color: var(--text-muted);
+        margin-bottom: 14px;
+        line-height: 1.45;
+      }
+
+      .open-fallback-btn {
+        width: 100%;
+        padding: 8px;
+        background: rgba(255, 255, 255, 0.03);
+        border: 1px solid rgba(255, 255, 255, 0.06);
+        border-radius: 6px;
+        color: var(--text-color);
+        font-size: 11px;
+        font-weight: 600;
+        cursor: pointer;
+        transition: all 0.2s;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 5px;
+      }
+
+      .open-fallback-btn:hover {
+        background: rgba(255, 255, 255, 0.06);
+        border-color: rgba(255, 255, 255, 0.12);
+      }
+
+      /* Collapsible Settings Panel */
+      .settings-toggle {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        font-size: 9px;
+        font-weight: 600;
+        color: var(--text-muted);
+        cursor: pointer;
+        margin-top: 14px;
+        user-select: none;
+        letter-spacing: 0.5px;
+      }
+
+      .settings-toggle:hover {
+        color: var(--text-color);
+      }
+
+      .settings-panel {
+        display: none;
+        margin-top: 8px;
+        padding-top: 8px;
+        border-top: 1px dashed rgba(255, 255, 255, 0.04);
+        animation: fadeIn 0.2s ease forwards;
+      }
+
+      .settings-panel.visible {
+        display: block;
+      }
+
+      .form-group {
+        margin-bottom: 6px;
+      }
+
+      .form-group label {
+        display: block;
+        font-size: 9px;
+        font-weight: 600;
+        color: var(--text-muted);
+        margin-bottom: 3px;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+      }
+
+      .form-input {
+        width: 100%;
+        box-sizing: border-box;
+        background: rgba(0, 0, 0, 0.2);
+        border: 1px solid var(--card-border);
+        border-radius: 6px;
+        color: var(--text-color);
+        padding: 6px 8px;
+        font-size: 10px;
+        outline: none;
+        font-family: var(--font-family);
+        transition: border-color 0.2s;
+      }
+
+      .form-input:focus {
+        border-color: var(--primary);
+      }
+    </style>
+  </head>
+  <body>
+    <div class="mesh-bg"></div>
+    <div class="card">
+      <!-- Header -->
+      <div class="header">
+        <div class="header-left">
+          <svg class="logo-svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+            <polyline points="7 10 12 15 17 10"></polyline>
+            <line x1="12" y1="15" x2="12" y2="3"></line>
+          </svg>
+          <h2 class="title">EveryThingDownloader</h2>
+        </div>
+        <span id="platform-badge" class="platform-badge badge-default">Link</span>
+      </div>
+
+      <div class="divider"></div>
+
+      <!-- State 1: Loader / Analyzing -->
+      <div id="loader-section" class="section-panel active">
+        <div class="loader-container">
+          <div class="spinner-wrap">
+            <div class="spinner"></div>
+            <div class="spinner-inner"></div>
+          </div>
+          <span class="loader-text" id="loader-text">Dò tìm liên kết trong tab...</span>
+        </div>
+      </div>
+
+      <!-- State 2: Metadata & Formats List -->
+      <div id="meta-section" class="section-panel">
+        <div class="meta-block">
+          <div class="meta-thumbnail-wrap">
+            <img id="meta-thumb" class="meta-thumbnail" src="https://images.unsplash.com/photo-1611162617213-7d7a39e9b1d7?q=80&w=150" alt="thumbnail">
+            <span id="duration-badge" class="duration-badge" style="display: none;">00:00</span>
+          </div>
+          <div class="meta-info">
+            <div id="video-title" class="meta-title">Video Title</div>
+            <div id="video-uploader" class="meta-uploader">Uploader</div>
+          </div>
+        </div>
+        <div class="divider" style="margin: 8px 0;"></div>
+        <div class="formats-container" id="formats-container">
+          <!-- Formats rows dynamically injected here -->
+        </div>
+      </div>
+
+      <!-- State 3: Download Progress Panel -->
+      <div id="progress-section" class="section-panel">
+        <div class="progress-card">
+          <div class="progress-header-row">
+            <span id="progress-target-title" class="progress-title">Video Title</span>
+            <span id="progress-percent" class="progress-percent">0%</span>
+          </div>
+          <div class="progress-track">
+            <div id="progress-fill" class="progress-fill"></div>
+          </div>
+          <div class="progress-stats">
+            <span id="progress-msg">Preparing download...</span>
+            <span id="progress-speed">-- KB/s</span>
+          </div>
+          <div id="progress-actions">
+            <button id="cancel-btn" class="btn-cancel">Hủy tải xuống</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- State 4: Connection Error & Fallback -->
+      <div id="error-section" class="section-panel">
+        <div class="error-card">
+          <div class="error-icon">
+            <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/>
+              <line x1="12" y1="9" x2="12" y2="13"/>
+              <line x1="12" y1="17" x2="12.01" y2="17"/>
+            </svg>
+          </div>
+          <div class="error-text" id="error-msg">Không thể kết nối đến EveryThingDownloader. Vui lòng kiểm tra ứng dụng đã khởi động chưa.</div>
+          <button id="fallback-btn" class="open-fallback-btn">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path>
+              <polyline points="15 3 21 3 21 9"></polyline>
+              <line x1="10" y1="14" x2="21" y2="3"></line>
+            </svg>
+            <span>Mở trang ứng dụng</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- Collapsible Settings Panel -->
+      <div class="settings-toggle" id="settings-toggle">
+        <span>CẤU HÌNH MÁY CHỦ</span>
+        <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <polyline points="6 9 12 15 18 9"></polyline>
+        </svg>
+      </div>
+
+      <div class="settings-panel" id="settings-panel">
+        <div class="form-group">
+          <label>Địa chỉ EveryThingDownloader</label>
+          <input type="text" id="server-url-input" class="form-input" placeholder="http://127.0.0.1:18650">
+        </div>
+      </div>
+    </div>
+    <script src="popup.js"></script>
+  </body>
+</html>

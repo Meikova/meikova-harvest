@@ -783,15 +783,20 @@ def bg_download_task(download_id, url, format_id, ext, quality="192", title="med
 
     try:
         is_youtube_watch = any(domain in url.lower() for domain in ["youtube.com/watch", "youtu.be/"]) or ("youtube.com" in url.lower() and "timedtext" not in url.lower())
+        
+        image_exts = ["jpg", "jpeg", "png", "webp", "gif", "bmp", "heic", "heif", "tiff", "tif", "svg", "ico", "avif"]
         is_direct_vtt = (ext == "vtt" and url.startswith("http") and not is_youtube_watch)
-        if is_direct_vtt:
+        is_direct_image = (ext in image_exts and url.startswith("http"))
+        
+        if is_direct_vtt or is_direct_image:
             try:
                 with downloads_status_lock:
                     if download_id in downloads_status:
+                        msg = "Downloading subtitle file directly..." if is_direct_vtt else "Downloading image file directly..."
                         downloads_status[download_id].update({
                             "status": "downloading",
                             "progress": 30,
-                            "message": "Downloading subtitle file directly..."
+                            "message": msg
                         })
                 
                 # Load cookies if available
@@ -809,24 +814,27 @@ def bg_download_task(download_id, url, format_id, ext, quality="192", title="med
                                     if len(parts) >= 7:
                                         cookies_dict[parts[5]] = parts[6]
                         except Exception as cookie_err:
-                            logger.warning(f"Failed to load cookies for direct subtitle download: {cookie_err}")
+                            logger.warning(f"Failed to load cookies for direct download: {cookie_err}")
                 
-                logger.info(f"Downloading VTT directly from: {url}")
+                logger.info(f"Downloading asset directly from: {url}")
                 response = requests.get(url, headers=headers, cookies=cookies_dict, verify=False, timeout=15)
                 response.raise_for_status()
                 
-                filepath = os.path.join(temp_dir, "subtitle.vtt")
-                with open(filepath, "w", encoding="utf-8", errors="ignore") as f:
-                    f.write(response.text)
-                    
-                logger.info(f"Direct VTT download completed: {filepath}")
-                subtitles_path = filepath
+                filename = "subtitle.vtt" if is_direct_vtt else f"image.{ext}"
+                filepath = os.path.join(temp_dir, filename)
+                with open(filepath, "wb") as f:
+                    f.write(response.content)
+                
+                logger.info(f"Direct asset download completed: {filepath}")
+                if is_direct_vtt:
+                    subtitles_path = filepath
                 
             except Exception as e:
-                logger.error(f"Direct VTT download failed: {e}. Falling back to standard yt-dlp flow...")
+                logger.error(f"Direct asset download failed: {e}. Falling back to standard yt-dlp flow...")
                 is_direct_vtt = False
+                is_direct_image = False
 
-        if not is_direct_vtt:
+        if not is_direct_vtt and not is_direct_image:
             try:
                 with create_ydl_instance(ydl_opts, url, client_id) as ydl:
                     ret_code = ydl.download([url])
@@ -856,6 +864,13 @@ def bg_download_task(download_id, url, format_id, ext, quality="192", title="med
                 if not sub_files:
                     raise Exception("Subtitle download completed but no subtitle file was found on disk.")
                 filename_on_disk = sub_files[0]
+                filepath = os.path.join(temp_dir, filename_on_disk)
+            elif ext in image_exts:
+                # For images/photos, we only look for image files
+                img_files = [f for f in downloaded_files if f.lower().endswith(tuple(f".{x}" for x in image_exts))]
+                if not img_files:
+                    raise Exception("Image download completed but no image file was found on disk.")
+                filename_on_disk = img_files[0]
                 filepath = os.path.join(temp_dir, filename_on_disk)
             else:
                 # Ignore subtitle, metadata and helper files to avoid alphabetical selection bug

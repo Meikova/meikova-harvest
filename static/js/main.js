@@ -11861,6 +11861,61 @@ document.addEventListener("DOMContentLoaded", () => {
     if (window.speechSynthesis) {
         window.speechSynthesis.onvoiceschanged = () => { };
     }
+
+    // ----------------------------------------------------
+    // BROWSER EXTENSION COMPANION INTEGRATION
+    // ----------------------------------------------------
+    function initExtensionSseListener() {
+        const sseSource = new EventSource("/api/extension/stream");
+        
+        sseSource.onmessage = (e) => {
+            try {
+                const data = JSON.parse(e.data);
+                if (data && data.url) {
+                    console.log("URL received from browser extension:", data.url);
+                    
+                    if (urlInput) {
+                        urlInput.value = data.url;
+                        updateUrlInputButtons();
+                        urlInput.focus();
+                        urlInput.classList.add("extension-received-pulse");
+                        setTimeout(() => {
+                            urlInput.classList.remove("extension-received-pulse");
+                        }, 2000);
+                        
+                        performAnalysis();
+                    }
+                }
+            } catch (err) {
+                console.error("Error parsing extension SSE event data:", err);
+            }
+        };
+        
+        sseSource.onerror = (err) => {
+            console.warn("Extension SSE connection error. Reconnecting in 3s...", err);
+            sseSource.close();
+            setTimeout(initExtensionSseListener, 3000);
+        };
+    }
+    
+    function checkUrlQueryParameter() {
+        const params = new URLSearchParams(window.location.search);
+        const urlParam = params.get("url");
+        if (urlParam) {
+            console.log("Auto-analyzing URL from query parameter:", urlParam);
+            if (urlInput) {
+                urlInput.value = urlParam;
+                updateUrlInputButtons();
+                performAnalysis();
+                
+                const cleanUrl = window.location.pathname;
+                window.history.replaceState({}, document.title, cleanUrl);
+            }
+        }
+    }
+
+    initExtensionSseListener();
+    checkUrlQueryParameter();
 });
 
 // --- Star Grid Mesh (3D Gravity Well & Elastic Net) Effect ---
