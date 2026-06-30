@@ -19,7 +19,7 @@ from flask_cors import CORS
 import static_ffmpeg
 
 from config import TEMP_DOWNLOAD_DIR
-from routes import pages_bp, cookies_bp, info_bp, download_bp, build_bp, extension_bp
+from routes import pages_bp, cookies_bp, info_bp, download_bp, build_bp, extension_bp, convert_bp
 
 # Setup logging
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
@@ -60,6 +60,7 @@ app.register_blueprint(info_bp)
 app.register_blueprint(download_bp)
 app.register_blueprint(build_bp)
 app.register_blueprint(extension_bp)
+app.register_blueprint(convert_bp)
 
 @app.route("/api/clear-temp", methods=["POST"])
 def clear_temporary_files():

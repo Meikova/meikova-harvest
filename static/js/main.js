@@ -12139,8 +12139,288 @@ document.addEventListener("DOMContentLoaded", () => {
         }
     }
 
+    // ----------------------------------------------------
+    // FORMAT CONVERTER TAB & OPERATIONS INTEGRATION
+    // ----------------------------------------------------
+    function initFormatConverter() {
+        let uploadedFilePath = null;
+        let uploadedFileName = null;
+
+        const tabBtns = document.querySelectorAll(".main-tab-btn");
+        const tabContents = document.querySelectorAll(".main-tab-content");
+
+        // Tab selection
+        tabBtns.forEach(btn => {
+            btn.addEventListener("click", () => {
+                tabBtns.forEach(b => b.classList.remove("active"));
+                btn.classList.add("active");
+
+                const targetTab = btn.getAttribute("data-tab");
+                tabContents.forEach(content => {
+                    if (content.id === targetTab) {
+                        content.classList.remove("hidden");
+                    } else {
+                        content.classList.add("hidden");
+                    }
+                });
+            });
+        });
+
+        const dropzone = document.getElementById("converter-dropzone");
+        const fileInput = document.getElementById("converter-file-input");
+        const fileCard = document.getElementById("converter-file-card");
+        const fileNameEl = document.getElementById("converter-file-name");
+        const fileSizeEl = document.getElementById("converter-file-size");
+        const removeFileBtn = document.getElementById("converter-remove-file-btn");
+        const optionsBoard = document.getElementById("converter-options-board");
+        const formatSelect = document.getElementById("converter-format-select");
+        const audioQualityGroup = document.getElementById("converter-audio-quality-group");
+        const videoResGroup = document.getElementById("converter-video-res-group");
+        const startConvertBtn = document.getElementById("btn-start-convert");
+
+        if (!dropzone || !fileInput) return;
+
+        // Trigger input file click
+        dropzone.addEventListener("click", () => fileInput.click());
+
+        fileInput.addEventListener("change", (e) => {
+            if (e.target.files.length > 0) {
+                handleSelectedFile(e.target.files[0]);
+            }
+        });
+
+        // Drag & Drop handlers
+        ["dragenter", "dragover"].forEach(eventName => {
+            dropzone.addEventListener(eventName, (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                dropzone.classList.add("dragover");
+            }, false);
+        });
+
+        ["dragleave", "drop"].forEach(eventName => {
+            dropzone.addEventListener(eventName, (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                dropzone.classList.remove("dragover");
+            }, false);
+        });
+
+        dropzone.addEventListener("drop", (e) => {
+            const dt = e.dataTransfer;
+            const files = dt.files;
+            if (files.length > 0) {
+                handleSelectedFile(files[0]);
+            }
+        });
+
+        // Format dropdown toggle audio/video settings dynamically
+        if (formatSelect) {
+            formatSelect.addEventListener("change", () => {
+                const fmt = formatSelect.value;
+                const isAudio = ["mp3", "wav", "flac", "m4a"].includes(fmt);
+                const isLosslessAudio = ["wav", "flac"].includes(fmt);
+                
+                if (isAudio) {
+                    if (isLosslessAudio) {
+                        if (audioQualityGroup) audioQualityGroup.classList.add("hidden");
+                    } else {
+                        if (audioQualityGroup) audioQualityGroup.classList.remove("hidden");
+                    }
+                    if (videoResGroup) videoResGroup.classList.add("hidden");
+                } else if (fmt === "gif") {
+                    if (audioQualityGroup) audioQualityGroup.classList.add("hidden");
+                    if (videoResGroup) videoResGroup.classList.remove("hidden");
+                } else {
+                    // Video formats (mp4, mkv, webm)
+                    if (audioQualityGroup) audioQualityGroup.classList.remove("hidden");
+                    if (videoResGroup) videoResGroup.classList.remove("hidden");
+                }
+            });
+        }
+
+        // Remove selected file click handler
+        if (removeFileBtn) {
+            removeFileBtn.addEventListener("click", (e) => {
+                e.stopPropagation();
+                resetConverterUI();
+            });
+        }
+
+        // Start Conversion handler
+        if (startConvertBtn) {
+            startConvertBtn.addEventListener("click", async (e) => {
+                e.stopPropagation();
+                if (!uploadedFilePath) {
+                    showAlert("Lỗi", "Vui lòng chọn hoặc kéo thả tệp tin cần chuyển đổi trước.");
+                    return;
+                }
+
+                startConvertBtn.disabled = true;
+                const origText = startConvertBtn.innerHTML;
+                startConvertBtn.innerHTML = `<span>Converting...</span> <svg class="downloads-manager-spinner" viewBox="0 0 24 24" style="width: 14px; height: 14px; margin-left: 4px;"></svg>`;
+
+                try {
+                    const fmt = formatSelect.value;
+                    const response = await fetch("/api/convert", {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({
+                            file_path: uploadedFilePath,
+                            filename: uploadedFileName,
+                            target_format: fmt,
+                            audio_bitrate: document.getElementById("converter-audio-quality")?.value || "320k",
+                            video_res: document.getElementById("converter-video-res")?.value || "original"
+                        })
+                    });
+
+                    const data = await response.json();
+                    if (!response.ok || data.status !== "success") {
+                        throw new Error(data.message || "Failed to trigger conversion.");
+                    }
+
+                    const taskId = data.download_id;
+                    console.log(`Conversion enqueued. ID: ${taskId}`);
+
+                    // Create standard task card inside the Downloads Manager
+                    createTaskCard(taskId, uploadedFileName, `Convert to ${fmt.toUpperCase()}`);
+
+                    // Reset Converter UI so they can run another conversion immediately
+                    resetConverterUI();
+
+                    // Open SSE listener for task progress updates
+                    const sse = new EventSource(`/api/download/progress/${taskId}`);
+                    activeTasks[taskId] = { sse, btn: null, activeRow: null, isCloudUpload: false };
+                    updateDownloadsCount();
+
+                    sse.onmessage = (event) => {
+                        try {
+                            const statusData = JSON.parse(event.data);
+                            const card = document.getElementById(`task-card-${taskId}`);
+                            if (!card) return;
+
+                            const fillBar = card.querySelector(".download-task-fill");
+                            const pctSpan = card.querySelector(".download-task-pct");
+                            const msgSpan = card.querySelector(".download-task-msg");
+
+                            if (statusData.status === "pending") {
+                                if (fillBar) {
+                                    fillBar.classList.add("striped");
+                                    fillBar.style.width = "5%";
+                                }
+                                if (pctSpan) pctSpan.textContent = "0%";
+                                if (msgSpan) msgSpan.textContent = statusData.message || "Initializing...";
+                            } 
+                            else if (statusData.status === "processing") {
+                                if (fillBar) {
+                                    fillBar.classList.remove("striped");
+                                    fillBar.style.width = `${statusData.progress}%`;
+                                }
+                                if (pctSpan) pctSpan.textContent = `${statusData.progress}%`;
+                                if (msgSpan) msgSpan.textContent = statusData.message || `Converting... ${statusData.progress}%`;
+                            } 
+                            else if (statusData.status === "complete") {
+                                completeTask(taskId);
+                            } 
+                            else if (statusData.status === "error") {
+                                throw new Error(statusData.error || statusData.message || "Conversion failed.");
+                            }
+                        } catch (err) {
+                            if (sse) sse.close();
+                            handleDownloadFailure(taskId, err.message, null, null);
+                        }
+                    };
+
+                    sse.onerror = (err) => {
+                        console.warn(`Conversion progress SSE stream closed or failed for ${taskId}`, err);
+                        if (sse) sse.close();
+                    };
+
+                } catch (err) {
+                    showAlert("Lỗi", "Không thể kích hoạt tiến trình chuyển đổi: " + err.message);
+                } finally {
+                    startConvertBtn.disabled = false;
+                    startConvertBtn.innerHTML = origText;
+                }
+            });
+        }
+
+        function handleSelectedFile(file) {
+            fileNameEl.textContent = file.name;
+            fileSizeEl.textContent = `${(file.size / 1024 / 1024).toFixed(2)} MB`;
+            
+            // Hide dropzone, show file card and options
+            dropzone.classList.add("hidden");
+            fileCard.classList.remove("hidden");
+            optionsBoard.classList.remove("hidden");
+
+            // Disable conversion trigger until upload is complete
+            if (startConvertBtn) {
+                startConvertBtn.disabled = true;
+                startConvertBtn.innerHTML = `<span>Uploading (0%)...</span>`;
+            }
+
+            // Upload via XMLHttpRequest to get progress percentage
+            const xhr = new XMLHttpRequest();
+            const formData = new FormData();
+            formData.append("file", file);
+
+            xhr.upload.addEventListener("progress", (e) => {
+                if (e.lengthComputable) {
+                    const pct = Math.round((e.loaded / e.total) * 100);
+                    if (startConvertBtn) {
+                        startConvertBtn.innerHTML = `<span>Uploading (${pct}%)...</span>`;
+                    }
+                }
+            });
+
+            xhr.onload = () => {
+                try {
+                    const resData = JSON.parse(xhr.responseText);
+                    if (xhr.status === 200 && resData.status === "success") {
+                        uploadedFilePath = resData.file_path;
+                        uploadedFileName = resData.filename;
+                        if (startConvertBtn) {
+                            startConvertBtn.disabled = false;
+                            startConvertBtn.innerHTML = `<span>Convert File</span> <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="16" height="16"><polyline points="23 4 23 10 17 10"></polyline><polyline points="1 20 1 14 7 14"></polyline><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"></path></svg>`;
+                        }
+                    } else {
+                        throw new Error(resData.message || "Upload failed.");
+                    }
+                } catch (err) {
+                    showAlert("Lỗi tải tệp tin", err.message);
+                    resetConverterUI();
+                }
+            };
+
+            xhr.onerror = () => {
+                showAlert("Lỗi kết nối", "Không thể gửi tệp tin lên máy chủ.");
+                resetConverterUI();
+            };
+
+            xhr.open("POST", "/api/convert/upload");
+            xhr.send(formData);
+        }
+
+        function resetConverterUI() {
+            uploadedFilePath = null;
+            uploadedFileName = null;
+            fileInput.value = "";
+
+            dropzone.classList.remove("hidden");
+            fileCard.classList.add("hidden");
+            optionsBoard.classList.add("hidden");
+
+            if (startConvertBtn) {
+                startConvertBtn.disabled = false;
+                startConvertBtn.innerHTML = `<span>Convert File</span> <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="16" height="16"><polyline points="23 4 23 10 17 10"></polyline><polyline points="1 20 1 14 7 14"></polyline><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"></path></svg>`;
+            }
+        }
+    }
+
     initExtensionSseListener();
     checkUrlQueryParameter();
+    initFormatConverter();
 });
 
 // --- Star Grid Mesh (3D Gravity Well & Elastic Net) Effect ---

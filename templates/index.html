@@ -805,7 +805,20 @@
 
       <!-- Main Card -->
       <main class="card">
-        <div class="search-bar">
+        <!-- Main Navigation Tabs -->
+        <div class="main-tabs">
+          <button class="main-tab-btn active" data-tab="downloader-tab">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="14" height="14"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
+            <span>Downloader</span>
+          </button>
+          <button class="main-tab-btn" data-tab="converter-tab">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="14" height="14"><polyline points="23 4 23 10 17 10"></polyline><polyline points="1 20 1 14 7 14"></polyline><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"></path></svg>
+            <span>Format Converter</span>
+          </button>
+        </div>
+
+        <div id="downloader-tab" class="main-tab-content">
+          <div class="search-bar">
           <div class="nav-history-controls">
             <button id="nav-back-btn" class="nav-hist-btn" title="Go back (Backspace / Alt + Left / Swipe Right)" disabled>
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="19" y1="12" x2="5" y2="12"></line><polyline points="12 19 5 12 12 5"></polyline></svg>
@@ -1367,6 +1380,75 @@
             </div>
           </div>
         </section>
+        </div> <!-- #downloader-tab -->
+
+        <!-- Format Converter Tab -->
+        <div id="converter-tab" class="main-tab-content hidden">
+          <div class="converter-container">
+            <div id="converter-dropzone" class="converter-dropzone">
+              <input type="file" id="converter-file-input" class="hidden" accept="video/*,audio/*" />
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" class="upload-arrow">
+                <polyline points="16 16 12 12 8 16"></polyline>
+                <line x1="12" y1="12" x2="12" y2="21"></line>
+                <path d="M20.39 18.39A5 5 0 0 0 18 9h-1.26A8 8 0 1 0 3 16.3"></path>
+              </svg>
+              <p id="converter-dropzone-text">Drag & drop your video or audio file here or <span>browse file</span></p>
+            </div>
+            
+            <!-- Selected File Metadata Card -->
+            <div id="converter-file-card" class="converter-file-card hidden">
+              <div class="file-card-details">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" width="24" height="24" class="file-card-icon"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line><polyline points="10 9 9 9 8 9"></polyline></svg>
+                <div class="file-card-info">
+                  <span id="converter-file-name" class="file-name">filename.mp4</span>
+                  <span id="converter-file-size" class="file-size">0.0 MB</span>
+                </div>
+              </div>
+              <button id="converter-remove-file-btn" class="converter-remove-btn" title="Remove File">&times;</button>
+            </div>
+            
+            <!-- Options Board -->
+            <div class="converter-options-board hidden" id="converter-options-board">
+              <div class="converter-option-group">
+                <label class="converter-label">Target Format</label>
+                <select id="converter-format-select" class="converter-select">
+                  <option value="mp3">MP3 (Audio Only)</option>
+                  <option value="wav">WAV (Lossless Audio)</option>
+                  <option value="flac">FLAC (Lossless Audio)</option>
+                  <option value="m4a">M4A (AAC Audio)</option>
+                  <option value="mp4" selected>MP4 (Universal Video)</option>
+                  <option value="mkv">MKV (Matroska Video)</option>
+                  <option value="webm">WebM (VP9/Opus Video)</option>
+                  <option value="gif">GIF (Animated Image)</option>
+                </select>
+              </div>
+              
+              <div class="converter-option-group" id="converter-audio-quality-group">
+                <label class="converter-label">Audio Bitrate</label>
+                <select id="converter-audio-quality" class="converter-select">
+                  <option value="128k">128 kbps (Low)</option>
+                  <option value="192k">192 kbps (Medium)</option>
+                  <option value="320k" selected>320 kbps (High Quality)</option>
+                </select>
+              </div>
+              
+              <div class="converter-option-group" id="converter-video-res-group">
+                <label class="converter-label">Video Resolution</label>
+                <select id="converter-video-res" class="converter-select">
+                  <option value="original" selected>Original Resolution</option>
+                  <option value="1080p">1080p (Full HD)</option>
+                  <option value="720p">720p (HD)</option>
+                  <option value="480p">480p (SD)</option>
+                </select>
+              </div>
+              
+              <button id="btn-start-convert" class="btn-primary btn-convert-action">
+                <span>Convert File</span>
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="16" height="16"><polyline points="23 4 23 10 17 10"></polyline><polyline points="1 20 1 14 7 14"></polyline><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"></path></svg>
+              </button>
+            </div>
+          </div>
+        </div>
 
         <!-- Progress / Downloads Manager (Floating Concurrent Panel) -->
         <div id="downloads-manager" class="downloads-manager hidden">
