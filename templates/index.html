@@ -63,7 +63,7 @@
       rel="stylesheet"
       href="https://cdnjs.cloudflare.com/ajax/libs/noUiSlider/15.7.1/nouislider.min.css"
     />
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}?v=19.0">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}?v=19.2">
     <script src="https://cdn.jsdelivr.net/npm/hls.js@1.5.8/dist/hls.min.js"></script>
     <script>
       (function () {
@@ -805,8 +805,15 @@
 
       <!-- Main Card -->
       <main class="card">
-        <!-- Search Bar -->
         <div class="search-bar">
+          <div class="nav-history-controls">
+            <button id="nav-back-btn" class="nav-hist-btn" title="Go back (Backspace / Alt + Left / Swipe Right)" disabled>
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="19" y1="12" x2="5" y2="12"></line><polyline points="12 19 5 12 12 5"></polyline></svg>
+            </button>
+            <button id="nav-forward-btn" class="nav-hist-btn" title="Go forward (Alt + Right / Swipe Left)" disabled>
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="5" y1="12" x2="19" y2="12"></line><polyline points="12 5 19 12 12 19"></polyline></svg>
+            </button>
+          </div>
           <div class="search-input-wrap">
             <svg
               class="search-icon"
@@ -2766,6 +2773,6 @@
     <div id="preview-align-h" class="preview-align-line hidden"></div>
 
     <script src="https://cdnjs.cloudflare.com/ajax/libs/noUiSlider/15.7.1/nouislider.min.js"></script>
-    <script src="{{ url_for('static', filename='js/main.js') }}?v=19.3"></script>
+    <script src="{{ url_for('static', filename='js/main.js') }}?v=19.7"></script>
   </body>
 </html>

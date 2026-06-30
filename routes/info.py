@@ -43,6 +43,24 @@ def strip_ansi_codes(text):
     return ansi_escape.sub('', text)
 
 
+def is_playlist_url(url):
+    if not url:
+        return False
+    url_lower = url.lower()
+    if "youtube.com" in url_lower or "youtu.be" in url_lower:
+        if "list=" in url_lower and "watch?v=" not in url_lower:
+            return True
+        if "/playlist" in url_lower:
+            return True
+    if "tiktok.com" in url_lower:
+        if "@" in url_lower and not "/video/" in url_lower and not "/photo/" in url_lower:
+            return True
+    if "pinterest.com" in url_lower:
+        if "/pin/" not in url_lower and "/pins/" not in url_lower:
+            return True
+    return False
+
+
 
 
 def save_bypass_domain(domain, reason="auto_learned"):
@@ -523,12 +541,14 @@ def get_info():
                 }), 400
 
     is_youtube = any(domain in url.lower() for domain in ["youtube.com", "youtu.be"])
+    is_playlist = is_playlist_url(url)
     ydl_opts = {
         "verbose": is_youtube,
         "quiet": not is_youtube,
         "no_warnings": not is_youtube,
         "nocheckcertificate": True,
-        "noplaylist": not is_instagram,
+        "noplaylist": not is_instagram if not is_playlist else False,
+        "extract_flat": True if is_playlist else False,
         "js_runtimes": {"deno": {}, "node": {}, "bun": {}, "quickjs": {}},
         "cookiesfrombrowser": "auto",
         "ignoreerrors": False,
@@ -881,8 +901,65 @@ def get_info():
             }), 400
 
         if True:
+            if info and not is_instagram and info.get("entries") and (info.get("_type") == "playlist" or is_playlist_url(url)):
+                logger.info("Playlist/multi-entry response detected. Formattering playlist entries.")
+                playlist_entries = []
+                for entry in info.get("entries", []):
+                    if not entry:
+                        continue
+                    entry_url = entry.get("url") or entry.get("webpage_url")
+                    if not entry_url and entry.get("id"):
+                        entry_url = f"https://www.youtube.com/watch?v={entry['id']}"
+                    
+                    duration_val = entry.get("duration")
+                    duration_str = ""
+                    if duration_val:
+                        try:
+                            seconds = int(duration_val)
+                            mins, secs = divmod(seconds, 60)
+                            hours, mins = divmod(mins, 60)
+                            if hours > 0:
+                                duration_str = f"{hours:02d}:{mins:02d}:{secs:02d}"
+                            else:
+                                duration_str = f"{mins:02d}:{secs:02d}"
+                        except Exception:
+                            pass
+
+                    entry_thumb = entry.get("thumbnail")
+                    if not entry_thumb and entry.get("thumbnails"):
+                        try:
+                            entry_thumb = entry["thumbnails"][-1]["url"]
+                        except Exception:
+                            pass
+                    
+                    if not entry_thumb and entry.get("id") and ("youtube" in (info.get("extractor_key") or "").lower() or "youtube" in (info.get("extractor") or "").lower() or "youtube" in url.lower()):
+                        entry_thumb = f"https://i.ytimg.com/vi/{entry['id']}/mqdefault.jpg"
+                    
+                    if not entry_thumb:
+                        entry_thumb = info.get("thumbnail") or ""
+
+                    playlist_entries.append({
+                        "id": entry.get("id"),
+                        "title": entry.get("title") or "Untitled",
+                        "url": entry_url,
+                        "duration": duration_str,
+                        "duration_raw": duration_val,
+                        "thumbnail": entry_thumb
+                    })
+
+                return jsonify({
+                    "status": "success",
+                    "is_playlist": True,
+                    "title": info.get("title") or "Playlist",
+                    "uploader": info.get("uploader") or info.get("uploader_id") or "",
+                    "thumbnail": info.get("thumbnail") or (playlist_entries[0]["thumbnail"] if playlist_entries else ""),
+                    "platform_label": info.get("extractor_key") or "Playlist",
+                    "platform_class": "playlist",
+                    "entries": playlist_entries
+                })
+
             if info and not is_instagram and info.get("entries"):
-                logger.info("Non-Instagram playlist/multi-entry response detected. Promoting first entry as primary media info.")
+                logger.info("Non-Instagram single multi-entry response detected. Promoting first entry as primary media info.")
                 entries = info.get("entries", [])
                 if entries and entries[0]:
                     main_title = info.get("title")

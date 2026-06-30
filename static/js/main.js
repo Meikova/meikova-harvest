@@ -981,6 +981,174 @@ document.addEventListener("DOMContentLoaded", () => {
         localStorage.setItem("client_id", clientId);
     }
 
+    // Navigation History State
+    const navigationHistory = [];
+    let navigationIndex = -1;
+    let isNavigating = false;
+
+    const navBackBtn = document.getElementById("nav-back-btn");
+    const navForwardBtn = document.getElementById("nav-forward-btn");
+
+    function updateNavigationButtons() {
+        if (navBackBtn) navBackBtn.disabled = (navigationIndex <= 0);
+        if (navForwardBtn) navForwardBtn.disabled = (navigationIndex >= navigationHistory.length - 1);
+    }
+
+    function pushToNavigationHistory(url) {
+        if (isNavigating) return;
+        if (!url) return;
+        
+        // Don't push duplicate sequentially
+        if (navigationIndex >= 0 && navigationHistory[navigationIndex] === url) {
+            return;
+        }
+
+        // Discard any forward history if we are in the middle of navigation and push new
+        if (navigationIndex < navigationHistory.length - 1) {
+            navigationHistory.splice(navigationIndex + 1);
+        }
+
+        navigationHistory.push(url);
+        if (navigationHistory.length > 50) {
+            navigationHistory.shift();
+        }
+        navigationIndex = navigationHistory.length - 1;
+        updateNavigationButtons();
+    }
+
+    async function navigateHistoryBack() {
+        if (navigationIndex > 0) {
+            isNavigating = true;
+            navigationIndex--;
+            urlInput.value = navigationHistory[navigationIndex];
+            updateNavigationButtons();
+            await performAnalysis();
+            isNavigating = false;
+        }
+    }
+
+    async function navigateHistoryForward() {
+        if (navigationIndex < navigationHistory.length - 1) {
+            isNavigating = true;
+            navigationIndex++;
+            urlInput.value = navigationHistory[navigationIndex];
+            updateNavigationButtons();
+            await performAnalysis();
+            isNavigating = false;
+        }
+    }
+
+    if (navBackBtn) navBackBtn.addEventListener("click", navigateHistoryBack);
+    if (navForwardBtn) navForwardBtn.addEventListener("click", navigateHistoryForward);
+
+    // Keyboard navigation shortcuts
+    document.addEventListener("keydown", (e) => {
+        const activeTag = document.activeElement ? document.activeElement.tagName.toLowerCase() : "";
+        if (activeTag === "input" || activeTag === "textarea") {
+            return;
+        }
+        
+        if (e.altKey) {
+            if (e.key === "ArrowLeft") {
+                e.preventDefault();
+                navigateHistoryBack();
+            } else if (e.key === "ArrowRight") {
+                e.preventDefault();
+                navigateHistoryForward();
+            }
+        } else if (e.key === "Backspace") {
+            e.preventDefault();
+            navigateHistoryBack();
+        }
+    });
+
+    // Touch Swipe gestures (left/right) for mobile
+    let touchStartX = 0;
+    let touchStartY = 0;
+    let touchEndX = 0;
+    let touchEndY = 0;
+
+    document.addEventListener("touchstart", (e) => {
+        touchStartX = e.changedTouches[0].screenX;
+        touchStartY = e.changedTouches[0].screenY;
+    }, { passive: true });
+
+    document.addEventListener("touchend", (e) => {
+        touchEndX = e.changedTouches[0].screenX;
+        touchEndY = e.changedTouches[0].screenY;
+        
+        const diffX = touchEndX - touchStartX;
+        const diffY = touchEndY - touchStartY;
+        
+        // Ensure swipe is horizontal and meets threshold
+        if (Math.abs(diffX) > 120 && Math.abs(diffY) < 60) {
+            if (diffX > 0) {
+                navigateHistoryBack(); // Swipe right -> Back
+            } else {
+                navigateHistoryForward(); // Swipe left -> Forward
+            }
+        }
+    }, { passive: true });
+
+    // Trackpad horizontal swipe detection (wheel scroll)
+    let wheelAccumulatorX = 0;
+    let wheelDebounceTimeout = null;
+
+    document.addEventListener("wheel", (e) => {
+        if (Math.abs(e.deltaX) > 5) {
+            wheelAccumulatorX += e.deltaX;
+            
+            clearTimeout(wheelDebounceTimeout);
+            wheelDebounceTimeout = setTimeout(() => {
+                if (wheelAccumulatorX > 150) {
+                    navigateHistoryForward(); // Scrolled right -> Go Forward
+                } else if (wheelAccumulatorX < -150) {
+                    navigateHistoryBack(); // Scrolled left -> Go Back
+                }
+                wheelAccumulatorX = 0;
+            }, 100);
+        }
+    }, { passive: true });
+
+    // Desktop Mouse Drag Swiping on neutral/empty background areas
+    let mouseStartX = 0;
+    let mouseStartY = 0;
+    let isMouseDown = false;
+
+    document.addEventListener("mousedown", (e) => {
+        const target = e.target;
+        // Ignore drag-swipe if clicking inside inputs, buttons, sliders, media elements, links, or specific panels
+        const interactiveTags = ["input", "textarea", "button", "select", "a", "option", "video", "audio"];
+        if (interactiveTags.includes(target.tagName.toLowerCase())) return;
+        if (target.closest(".card") || target.closest(".modal-card-preview") || target.closest("#downloads-manager") || target.closest(".nav-history-controls")) {
+            return;
+        }
+
+        isMouseDown = true;
+        mouseStartX = e.clientX;
+        mouseStartY = e.clientY;
+    });
+
+    document.addEventListener("mouseup", (e) => {
+        if (!isMouseDown) return;
+        isMouseDown = false;
+
+        const mouseEndX = e.clientX;
+        const mouseEndY = e.clientY;
+
+        const diffX = mouseEndX - mouseStartX;
+        const diffY = mouseEndY - mouseStartY;
+
+        // Require 150px drag, mostly horizontal
+        if (Math.abs(diffX) > 150 && Math.abs(diffY) < 60) {
+            if (diffX > 0) {
+                navigateHistoryBack(); // Dragged right -> Go Back
+            } else {
+                navigateHistoryForward(); // Dragged left -> Go Forward
+            }
+        }
+    });
+
     // UI Elements
     const urlInput = document.getElementById("url-input");
     const pasteBtn = document.getElementById("paste-btn");
@@ -6314,6 +6482,168 @@ document.addEventListener("DOMContentLoaded", () => {
         }
     }
 
+    function renderOnlinePlaylist(data) {
+        optionsContainer.innerHTML = "";
+
+        const container = document.createElement("div");
+        container.className = "playlist-container";
+
+        const headerHtml = `
+            <div class="playlist-header-controls">
+                <div class="playlist-controls-left">
+                    <label class="playlist-select-all-label">
+                        <input type="checkbox" id="playlist-toggle-all" checked>
+                        <span>Select All</span>
+                    </label>
+                    <span class="playlist-selected-count">Selected: <strong id="playlist-count-num">${data.entries.length}</strong> / ${data.entries.length} items</span>
+                </div>
+                <div class="playlist-controls-right">
+                    <div class="playlist-config-row">
+                        <select id="playlist-global-format" class="playlist-select">
+                            <option value="bestvideo+bestaudio/best">Video (MP4 / High Quality)</option>
+                            <option value="bestaudio/best">Audio Only (MP3 / High Quality)</option>
+                        </select>
+                        <button id="btn-playlist-download-all" class="btn-playlist-action">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+                            <span>Download Selected</span>
+                        </button>
+                    </div>
+                </div>
+            </div>
+            <div class="playlist-grid-container" id="playlist-grid"></div>
+        `;
+        container.innerHTML = headerHtml;
+        optionsContainer.appendChild(container);
+
+        const grid = container.querySelector("#playlist-grid");
+        const toggleAll = container.querySelector("#playlist-toggle-all");
+        const countNum = container.querySelector("#playlist-count-num");
+        const downloadBtn = container.querySelector("#btn-playlist-download-all");
+        const globalFormatSelect = container.querySelector("#playlist-global-format");
+
+        data.entries.forEach((entry, idx) => {
+            const card = document.createElement("div");
+            card.className = "playlist-item-card is-selected";
+            card.setAttribute("data-index", idx);
+
+            card.innerHTML = `
+                <div class="playlist-card-checkbox-container">
+                    <input type="checkbox" class="playlist-item-checkbox" data-index="${idx}" checked>
+                </div>
+                <div class="playlist-card-thumbnail-container" title="Click to analyze this video">
+                    <img class="playlist-card-thumb" src="${entry.thumbnail || data.thumbnail || '/static/img/default_thumb.jpg'}" alt="" loading="lazy">
+                    <span class="playlist-card-duration">${entry.duration || ''}</span>
+                </div>
+                <div class="playlist-card-info" title="Click to analyze this video">
+                    <span class="playlist-card-title" title="${escapeHTML(entry.title)}">${escapeHTML(entry.title)}</span>
+                </div>
+            `;
+
+            const checkboxContainer = card.querySelector(".playlist-card-checkbox-container");
+            checkboxContainer.addEventListener("click", (e) => {
+                e.stopPropagation();
+            });
+
+            const chk = card.querySelector(".playlist-item-checkbox");
+            chk.addEventListener("change", () => {
+                if (chk.checked) {
+                    card.classList.add("is-selected");
+                } else {
+                    card.classList.remove("is-selected");
+                }
+                updateSelectedCount();
+            });
+
+            const thumbContainer = card.querySelector(".playlist-card-thumbnail-container");
+            const infoContainer = card.querySelector(".playlist-card-info");
+
+            const handleItemAnalyze = (e) => {
+                e.stopPropagation();
+                if (entry.url) {
+                    urlInput.value = entry.url;
+                    performAnalysis();
+                }
+            };
+
+            thumbContainer.addEventListener("click", handleItemAnalyze);
+            infoContainer.addEventListener("click", handleItemAnalyze);
+
+            grid.appendChild(card);
+        });
+
+        function updateSelectedCount() {
+            const selectedChecks = grid.querySelectorAll(".playlist-item-checkbox:checked");
+            countNum.textContent = selectedChecks.length;
+            
+            const allChecks = grid.querySelectorAll(".playlist-item-checkbox");
+            toggleAll.checked = selectedChecks.length === allChecks.length;
+            toggleAll.indeterminate = selectedChecks.length > 0 && selectedChecks.length < allChecks.length;
+        }
+
+        toggleAll.addEventListener("change", () => {
+            const allChecks = grid.querySelectorAll(".playlist-item-checkbox");
+            allChecks.forEach(chk => {
+                chk.checked = toggleAll.checked;
+                const card = chk.closest(".playlist-item-card");
+                if (toggleAll.checked) {
+                    card.classList.add("is-selected");
+                } else {
+                    card.classList.remove("is-selected");
+                }
+            });
+            updateSelectedCount();
+        });
+
+        downloadBtn.addEventListener("click", async () => {
+            const selectedChecks = grid.querySelectorAll(".playlist-item-checkbox:checked");
+            if (selectedChecks.length === 0) {
+                alert("Please select at least one item to download.");
+                return;
+            }
+
+            const formatVal = globalFormatSelect.value;
+            const isAudio = formatVal.includes("audio");
+            const ext = isAudio ? "mp3" : "mp4";
+            const formatId = formatVal;
+
+            downloadBtn.disabled = true;
+            const originalText = downloadBtn.innerHTML;
+            downloadBtn.innerHTML = `<span>Enqueuing...</span>`;
+
+            for (const chk of selectedChecks) {
+                const idx = parseInt(chk.getAttribute("data-index"));
+                const entry = data.entries[idx];
+                
+                await new Promise(r => setTimeout(r, 100));
+                
+                triggerDownload(
+                    null, 
+                    formatId, 
+                    ext, 
+                    entry.title, 
+                    "best", 
+                    entry.url, 
+                    "", 
+                    "", 
+                    true,
+                    null,
+                    null,
+                    entry.thumbnail || data.thumbnail
+                );
+            }
+
+            downloadBtn.disabled = false;
+            downloadBtn.innerHTML = originalText;
+            
+            const downloadsManager = document.getElementById("downloads-manager");
+            if (downloadsManager && downloadsManager.classList.contains("collapsed")) {
+                downloadsManager.classList.remove("collapsed");
+            }
+        });
+
+        resultSection.classList.remove("hidden");
+    }
+
     async function performAnalysis() {
         const url = urlInput.value.trim();
 
@@ -6326,6 +6656,9 @@ document.addEventListener("DOMContentLoaded", () => {
             showError("Invalid input. Please enter a valid URL (http/https) or a local file/folder path.");
             return;
         }
+
+        // Push to navigation history stack
+        pushToNavigationHistory(url);
 
         // Initialize AbortController to support cancellation
         if (analysisAbortController) {
@@ -6820,7 +7153,7 @@ document.addEventListener("DOMContentLoaded", () => {
         optionsContainer.innerHTML = "";
 
         // ── Local Folder Playlist Rendering ──────────────────────────────
-        if (data.is_playlist && data.entries && data.entries.length > 0) {
+        if (data.is_playlist && data.is_local && data.entries && data.entries.length > 0) {
             const folderIconSvgs = {
                 video: `<svg class="format-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M23 7l-7 5 7 5V7z"/><rect x="1" y="5" width="15" height="14" rx="2" ry="2"/></svg>`,
                 audio: `<svg class="format-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/></svg>`,
@@ -6955,7 +7288,9 @@ document.addEventListener("DOMContentLoaded", () => {
             });
 
             resultSection.classList.remove("hidden");
-            return; // Exit early, don't render standard format groups
+        } else if (data.is_playlist && data.entries && data.entries.length > 0) {
+            renderOnlinePlaylist(data);
+            return;
         }
 
         const videoSvg = `<svg class="format-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M23 7l-7 5 7 5V7z"/><rect x="1" y="5" width="15" height="14" rx="2" ry="2"/></svg>`;
@@ -8090,7 +8425,7 @@ document.addEventListener("DOMContentLoaded", () => {
         failTask(downloadId, fullMsg);
     }
 
-    async function triggerDownload(btn, formatId, ext, label, quality, customUrl, episode = "", server = "", forceRaw = false, capturedAudioSettings = null, capturedSubtitleSettings = null) {
+    async function triggerDownload(btn, formatId, ext, label, quality, customUrl, episode = "", server = "", forceRaw = false, capturedAudioSettings = null, capturedSubtitleSettings = null, customThumbnail = "") {
         const title = videoTitle.textContent;
         const tempId = "temp-" + Date.now();
 
@@ -8103,19 +8438,21 @@ document.addEventListener("DOMContentLoaded", () => {
             btn.style.opacity = "0.6";
         }
 
-        createTaskCard(tempId, title, label);
+        const displayTitle = customUrl ? label : title;
+        const displayLabel = customUrl ? ext.toUpperCase() : label;
+        createTaskCard(tempId, displayTitle, displayLabel);
         
         activeTasks[tempId] = { sse: null, btn, activeRow, isCloudUpload: false };
         updateDownloadsCount();
 
         try {
             const requestBody = {
-                url: (formatId.startsWith("direct_") || formatId === "image_preview" || formatId === "image_download" || formatId === "local_file" || ext === "vtt") ? (customUrl || activeUrl) : activeUrl,
+                url: customUrl || activeUrl,
                 format_id: formatId,
                 ext: ext,
                 quality: quality,
-                title: title,
-                thumbnail: videoThumbnail.getAttribute("data-original-url") || videoThumbnail.src,
+                title: customUrl ? label : title,
+                thumbnail: customThumbnail || videoThumbnail.getAttribute("data-original-url") || videoThumbnail.src,
                 episode: episode,
                 server: server,
                 client_id: clientId
