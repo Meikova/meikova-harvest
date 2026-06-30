@@ -6003,12 +6003,13 @@ details[open] .error-summary::before {
 
 .transcript-header h4 {
   margin: 0;
-  font-size: 0.85rem;
+  font-size: 0.82rem;
   font-family: var(--font-display);
   color: var(--cyan);
   display: flex;
   align-items: center;
   gap: 6px;
+  white-space: nowrap;
 }
 
 .transcript-search-input {
@@ -6090,6 +6091,208 @@ details[open] .error-summary::before {
   text-align: center;
   color: var(--text-dim);
   font-size: 0.8rem;
+}
+
+/* Visual Subtitle Editor Edit-Mode Styles */
+.transcript-header-actions {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-top: 4px;
+}
+.transcript-btn-action {
+  background: rgba(0, 229, 255, 0.08);
+  border: 1px solid rgba(0, 229, 255, 0.25);
+  border-radius: 4px;
+  color: var(--cyan);
+  font-size: 0.72rem;
+  font-weight: 500;
+  cursor: pointer;
+  padding: 4px 10px;
+  transition: all 0.2s;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+.transcript-btn-action:hover {
+  background: var(--cyan);
+  color: #0b0d19;
+  box-shadow: 0 0 8px rgba(0, 229, 255, 0.3);
+}
+.transcript-btn-secondary {
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 4px;
+  color: var(--text-dim);
+  font-size: 0.72rem;
+  font-weight: 500;
+  cursor: pointer;
+  padding: 4px 10px;
+  transition: all 0.2s;
+}
+.transcript-btn-secondary:hover {
+  background: rgba(255, 255, 255, 0.08);
+  color: var(--text);
+}
+
+.toggle-edit-btn {
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  color: var(--text-dim);
+  font-size: 0.72rem;
+  font-weight: 500;
+  padding: 4px 10px;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  display: inline-flex;
+  align-items: center;
+  user-select: none;
+}
+.toggle-edit-btn:hover {
+  background: rgba(0, 229, 255, 0.08);
+  border-color: rgba(0, 229, 255, 0.3);
+  color: var(--cyan);
+}
+
+#transcript-editor-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.sidebar-action-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 0.7rem;
+  font-weight: 600;
+  padding: 4px 10px;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  border: 1px solid transparent;
+  user-select: none;
+}
+.sidebar-action-btn.primary {
+  background: rgba(var(--cyan-rgb), 0.08);
+  border-color: rgba(var(--cyan-rgb), 0.25);
+  color: var(--cyan);
+}
+.sidebar-action-btn.primary:hover {
+  background: var(--cyan);
+  color: #0b0d19;
+  box-shadow: 0 0 10px rgba(var(--cyan-rgb), 0.25);
+}
+.sidebar-action-btn.success {
+  background: rgba(16, 185, 129, 0.08);
+  border-color: rgba(16, 185, 129, 0.25);
+  color: #10b981;
+}
+.sidebar-action-btn.success:hover {
+  background: #10b981;
+  color: #0b0d19;
+  box-shadow: 0 0 10px rgba(16, 185, 129, 0.25);
+}
+.transcript-item.editing {
+  cursor: default !important;
+  background: rgba(30, 41, 59, 0.3) !important;
+  border: 1px solid rgba(255, 255, 255, 0.06) !important;
+  border-radius: 8px;
+  margin: 8px 12px;
+  padding: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+}
+.edit-cue-time-row {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+.edit-cue-time-input {
+  background: rgba(15, 23, 42, 0.6);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 6px;
+  color: var(--text);
+  padding: 4px 6px;
+  font-size: 0.75rem;
+  width: 112px;
+  font-family: 'JetBrains Mono', 'Fira Code', monospace;
+  text-align: center;
+  outline: none;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  box-sizing: border-box;
+}
+.edit-cue-time-input:focus {
+  border-color: var(--cyan);
+  background: rgba(15, 23, 42, 0.85);
+  box-shadow: 0 0 6px rgba(var(--cyan-rgb), 0.2);
+}
+.edit-cue-text {
+  background: rgba(15, 23, 42, 0.6);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 6px;
+  color: var(--text);
+  padding: 8px;
+  font-size: 0.78rem;
+  width: 100%;
+  box-sizing: border-box;
+  resize: vertical;
+  min-height: 44px;
+  font-family: inherit;
+  outline: none;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  line-height: 1.4;
+}
+.edit-cue-text:focus {
+  border-color: var(--cyan);
+  background: rgba(15, 23, 42, 0.85);
+  box-shadow: 0 0 8px rgba(0, 229, 255, 0.15);
+}
+.edit-cue-actions {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-top: 4px;
+}
+.edit-cue-delete-btn {
+  background: rgba(239, 68, 68, 0.06);
+  border: 1px solid rgba(239, 68, 68, 0.18);
+  color: #f87171;
+  font-size: 0.68rem;
+  font-weight: 500;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 8px;
+  border-radius: 5px;
+  transition: all 0.2s;
+}
+.edit-cue-delete-btn:hover {
+  background: rgba(239, 68, 68, 0.16);
+  border-color: rgba(239, 68, 68, 0.35);
+  color: #ef4444;
+}
+.edit-cue-seek-btn {
+  background: rgba(var(--cyan-rgb), 0.06);
+  border: 1px solid rgba(var(--cyan-rgb), 0.18);
+  color: var(--cyan);
+  font-size: 0.68rem;
+  font-weight: 500;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 8px;
+  border-radius: 5px;
+  transition: all 0.2s;
+}
+.edit-cue-seek-btn:hover {
+  background: rgba(var(--cyan-rgb), 0.16);
+  border-color: rgba(var(--cyan-rgb), 0.35);
 }
 
 /* Subtitle & Voiceover Control Panel */

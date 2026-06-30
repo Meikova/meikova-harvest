@@ -2133,9 +2133,22 @@
                     </svg>
                     <span>Interactive Transcript</span>
                   </h4>
-                  <button id="close-transcript-sidebar-btn" class="transcript-close-btn" title="Hide Transcript">&times;</button>
+                  <div style="display: flex; align-items: center; gap: 8px;">
+                    <button id="toggle-edit-transcript-btn" class="toggle-edit-btn" title="Toggle edit mode">Edit Mode</button>
+                    <button id="close-transcript-sidebar-btn" class="transcript-close-btn" title="Hide Transcript">&times;</button>
+                  </div>
                 </div>
                 <input type="text" id="transcript-search" class="transcript-search-input" placeholder="Search transcript...">
+                <div id="transcript-editor-toolbar" class="transcript-header-actions hidden">
+                  <button id="transcript-add-cue-btn" class="sidebar-action-btn primary" title="Add cue at current playback time">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" width="10" height="10"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
+                    <span>Add Cue</span>
+                  </button>
+                  <button id="transcript-save-subs-btn" class="sidebar-action-btn success" title="Save edited subtitles">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" width="10" height="10"><polyline points="20 6 9 17 4 12"></polyline></svg>
+                    <span>Save Changes</span>
+                  </button>
+                </div>
               </div>
               <div id="transcript-list" class="transcript-list">
                 <!-- Subtitle lines will be dynamically loaded here -->

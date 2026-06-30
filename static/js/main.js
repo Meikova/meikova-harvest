@@ -1812,6 +1812,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
     // Subtitles & advanced player states
     let currentCues = [];
+    let isEditingSubtitles = false;
     let activeSubUrl = "";
     let originalSubtitleContent = "";
     let loopStartSecs = null;
@@ -10151,6 +10152,175 @@ document.addEventListener("DOMContentLoaded", () => {
         return cleanAndMergeCues(cues);
     }
 
+    function rebuildVttFromCues(cues) {
+        let vtt = "WEBVTT\n\n";
+        cues.forEach(cue => {
+            const startStr = formatTimeDetailed(cue.start);
+            const endStr = formatTimeDetailed(cue.end);
+            vtt += `${startStr} --> ${endStr}\n${cue.text}\n\n`;
+        });
+        return vtt;
+    }
+
+    function renderTranscript() {
+        const transcriptList = document.getElementById("transcript-list");
+        if (!transcriptList) return;
+        transcriptList.innerHTML = "";
+
+        const query = (document.getElementById("transcript-search")?.value || "").toLowerCase().trim();
+        const filtered = currentCues.map((cue, idx) => ({ cue, idx })).filter(item => {
+            return !query || item.cue.text.toLowerCase().includes(query);
+        });
+
+        if (filtered.length === 0) {
+            transcriptList.innerHTML = '<div class="transcript-no-results">No lines match your search</div>';
+            return;
+        }
+
+        if (isEditingSubtitles) {
+            filtered.forEach(item => {
+                const cueEl = createEditableCueElement(item.cue, item.idx);
+                transcriptList.appendChild(cueEl);
+            });
+        } else {
+            filtered.forEach(item => {
+                const cueEl = createNormalCueElement(item.cue, item.idx);
+                transcriptList.appendChild(cueEl);
+            });
+        }
+    }
+
+    function createNormalCueElement(cue, index) {
+        const cueEl = document.createElement("div");
+        cueEl.className = "transcript-item";
+        cueEl.setAttribute("data-index", index);
+
+        if (previewVideoPlayer && !previewVideoPlayer.paused) {
+            const time = previewVideoPlayer.currentTime;
+            if (time >= cue.start && time <= cue.end) {
+                cueEl.classList.add("active");
+            }
+        }
+
+        const timeEl = document.createElement("span");
+        timeEl.className = "transcript-item-time";
+        timeEl.textContent = formatTime(cue.start);
+
+        const textEl = document.createElement("span");
+        textEl.className = "transcript-item-text";
+        textEl.textContent = cue.text;
+
+        cueEl.appendChild(timeEl);
+        cueEl.appendChild(textEl);
+
+        cueEl.addEventListener("click", () => {
+            if (previewVideoPlayer) {
+                previewVideoPlayer.currentTime = cue.start;
+                previewVideoPlayer.play().catch(e => console.log(e));
+            }
+        });
+
+        return cueEl;
+    }
+
+    function createEditableCueElement(cue, index) {
+        const cueEl = document.createElement("div");
+        cueEl.className = "transcript-item editing";
+        cueEl.setAttribute("data-index", index);
+
+        const timeRow = document.createElement("div");
+        timeRow.className = "edit-cue-time-row";
+
+        const startInput = document.createElement("input");
+        startInput.type = "text";
+        startInput.className = "edit-cue-time-input";
+        startInput.value = formatTimeDetailed(cue.start);
+        startInput.title = "Start Time";
+
+        const arrow = document.createElement("span");
+        arrow.textContent = "→";
+        arrow.style.color = "var(--text-dim)";
+        arrow.style.fontSize = "0.72rem";
+
+        const endInput = document.createElement("input");
+        endInput.type = "text";
+        endInput.className = "edit-cue-time-input";
+        endInput.value = formatTimeDetailed(cue.end);
+        endInput.title = "End Time";
+
+        timeRow.appendChild(startInput);
+        timeRow.appendChild(arrow);
+        timeRow.appendChild(endInput);
+
+        const textInput = document.createElement("textarea");
+        textInput.className = "edit-cue-text";
+        textInput.value = cue.text;
+        textInput.placeholder = "Subtitle text...";
+
+        const actionRow = document.createElement("div");
+        actionRow.className = "edit-cue-actions";
+
+        const seekBtn = document.createElement("button");
+        seekBtn.type = "button";
+        seekBtn.className = "edit-cue-seek-btn";
+        seekBtn.innerHTML = `
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" width="10" height="10"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+          <span>Seek</span>
+        `;
+        seekBtn.addEventListener("click", (e) => {
+            e.stopPropagation();
+            if (previewVideoPlayer) {
+                previewVideoPlayer.currentTime = cue.start;
+            }
+        });
+
+        const deleteBtn = document.createElement("button");
+        deleteBtn.type = "button";
+        deleteBtn.className = "edit-cue-delete-btn";
+        deleteBtn.innerHTML = `
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" width="10" height="10"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>
+          <span>Delete</span>
+        `;
+        deleteBtn.addEventListener("click", (e) => {
+            e.stopPropagation();
+            currentCues.splice(index, 1);
+            renderTranscript();
+        });
+
+        actionRow.appendChild(seekBtn);
+        actionRow.appendChild(deleteBtn);
+
+        cueEl.appendChild(timeRow);
+        cueEl.appendChild(textInput);
+        cueEl.appendChild(actionRow);
+
+        startInput.addEventListener("blur", () => {
+            const secs = parseTimeToSeconds(startInput.value);
+            if (!isNaN(secs)) {
+                cue.start = secs;
+                startInput.value = formatTimeDetailed(secs);
+            } else {
+                startInput.value = formatTimeDetailed(cue.start);
+            }
+        });
+
+        endInput.addEventListener("blur", () => {
+            const secs = parseTimeToSeconds(endInput.value);
+            if (!isNaN(secs)) {
+                cue.end = secs;
+                endInput.value = formatTimeDetailed(secs);
+            } else {
+                endInput.value = formatTimeDetailed(cue.end);
+            }
+        });
+
+        textInput.addEventListener("input", () => {
+            cue.text = textInput.value;
+        });
+
+        return cueEl;
+    }
+
     function getWordOverlap(text1, text2) {
         if (!text1 || !text2) return 0;
         const words1 = text1.toLowerCase().replace(/[.,\/#!$%\^&\*;:{}=\-_`~()?]/g, "").split(/\s+/).filter(Boolean);
@@ -10329,37 +10499,16 @@ document.addEventListener("DOMContentLoaded", () => {
             console.log(`Loaded ${currentCues.length} subtitles cues`);
 
             // Populate Interactive Transcript Sidebar
-            const transcriptList = document.getElementById("transcript-list");
+            isEditingSubtitles = false;
+            const toggleEditBtn = document.getElementById("toggle-edit-transcript-btn");
+            if (toggleEditBtn) toggleEditBtn.textContent = "Edit Mode";
+            const editorToolbar = document.getElementById("transcript-editor-toolbar");
+            if (editorToolbar) editorToolbar.classList.add("hidden");
             const sidebar = document.getElementById("preview-transcript-sidebar");
-            if (transcriptList) {
-                transcriptList.innerHTML = "";
-                currentCues.forEach((cue, index) => {
-                    const cueEl = document.createElement("div");
-                    cueEl.className = "transcript-item";
-                    cueEl.setAttribute("data-index", index);
+            if (sidebar) sidebar.classList.remove("edit-mode");
 
-                    const timeEl = document.createElement("span");
-                    timeEl.className = "transcript-item-time";
-                    timeEl.textContent = formatTime(cue.start);
+            renderTranscript();
 
-                    const textEl = document.createElement("span");
-                    textEl.className = "transcript-item-text";
-                    textEl.textContent = cue.text;
-
-                    cueEl.appendChild(timeEl);
-                    cueEl.appendChild(textEl);
-
-                    // Click to seek
-                    cueEl.addEventListener("click", () => {
-                        if (previewVideoPlayer) {
-                            previewVideoPlayer.currentTime = cue.start;
-                            previewVideoPlayer.play().catch(e => console.log(e));
-                        }
-                    });
-
-                    transcriptList.appendChild(cueEl);
-                });
-            }
             if (sidebar) {
                 if (currentCues.length > 0) {
                     sidebar.classList.remove("hidden");
@@ -10455,9 +10604,9 @@ document.addEventListener("DOMContentLoaded", () => {
             const activeEl = document.querySelector(`.transcript-item[data-index="${firstActiveIndex}"]`);
             if (activeEl) {
                 activeEl.classList.add("active");
-                // Scroll into view if not manual scrolling
+                // Scroll into view if not manual scrolling and not in edit mode
                 const listEl = document.getElementById("transcript-list");
-                if (listEl && !listEl.matches(':hover')) {
+                if (listEl && !listEl.matches(':hover') && !isEditingSubtitles) {
                     activeEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
                 }
             }
@@ -11123,6 +11272,91 @@ document.addEventListener("DOMContentLoaded", () => {
         closeTranscriptSidebarBtn.addEventListener("click", (e) => {
             e.stopPropagation();
             previewTranscriptSidebar.classList.add("hidden");
+        });
+    }
+
+    const toggleEditTranscriptBtn = document.getElementById("toggle-edit-transcript-btn");
+    const transcriptEditorToolbar = document.getElementById("transcript-editor-toolbar");
+
+    if (toggleEditTranscriptBtn) {
+        toggleEditTranscriptBtn.addEventListener("click", (e) => {
+            e.stopPropagation();
+            isEditingSubtitles = !isEditingSubtitles;
+            if (isEditingSubtitles) {
+                toggleEditTranscriptBtn.textContent = "View Mode";
+                if (transcriptEditorToolbar) transcriptEditorToolbar.classList.remove("hidden");
+                if (previewTranscriptSidebar) previewTranscriptSidebar.classList.add("edit-mode");
+            } else {
+                toggleEditTranscriptBtn.textContent = "Edit Mode";
+                if (transcriptEditorToolbar) transcriptEditorToolbar.classList.add("hidden");
+                if (previewTranscriptSidebar) previewTranscriptSidebar.classList.remove("edit-mode");
+            }
+            renderTranscript();
+        });
+    }
+
+    const transcriptAddCueBtn = document.getElementById("transcript-add-cue-btn");
+    if (transcriptAddCueBtn) {
+        transcriptAddCueBtn.addEventListener("click", (e) => {
+            e.stopPropagation();
+            const currentTime = previewVideoPlayer ? previewVideoPlayer.currentTime : 0;
+            const newCue = {
+                start: currentTime,
+                end: currentTime + 3.0,
+                text: "New subtitle line"
+            };
+            currentCues.push(newCue);
+            currentCues.sort((a, b) => a.start - b.start);
+            renderTranscript();
+
+            setTimeout(() => {
+                const listEl = document.getElementById("transcript-list");
+                if (listEl) {
+                    const items = listEl.querySelectorAll(".transcript-item");
+                    for (const item of items) {
+                        const idx = parseInt(item.getAttribute("data-index"));
+                        if (currentCues[idx] && Math.abs(currentCues[idx].start - currentTime) < 0.05) {
+                            item.scrollIntoView({ behavior: "smooth", block: "center" });
+                            const textInput = item.querySelector(".edit-cue-text");
+                            if (textInput) textInput.focus();
+                            break;
+                        }
+                    }
+                }
+            }, 100);
+        });
+    }
+
+    const transcriptSaveSubsBtn = document.getElementById("transcript-save-subs-btn");
+    if (transcriptSaveSubsBtn) {
+        transcriptSaveSubsBtn.addEventListener("click", (e) => {
+            e.stopPropagation();
+            originalSubtitleContent = rebuildVttFromCues(currentCues);
+            
+            const previewSubSelect = document.getElementById("preview-sub-select");
+            if (previewSubSelect) {
+                let customOpt = previewSubSelect.querySelector('option[value="custom"]');
+                if (!customOpt) {
+                    customOpt = document.createElement("option");
+                    customOpt.value = "custom";
+                    customOpt.textContent = "Custom Subtitles (Edited)";
+                    previewSubSelect.appendChild(customOpt);
+                }
+                previewSubSelect.value = "custom";
+            }
+            
+            if (previewVideoPlayer) {
+                updateSubtitlesOverlay(previewVideoPlayer.currentTime);
+            }
+            
+            showAlert("Thành công", "Đã lưu lại các chỉnh sửa phụ đề thành công! Tệp tin xuất ra sẽ chứa nội dung phụ đề mới này.");
+            
+            isEditingSubtitles = false;
+            if (toggleEditTranscriptBtn) toggleEditTranscriptBtn.textContent = "Edit Subtitles";
+            if (transcriptEditorToolbar) transcriptEditorToolbar.classList.add("hidden");
+            if (previewTranscriptSidebar) previewTranscriptSidebar.classList.remove("edit-mode");
+            
+            renderTranscript();
         });
     }
 
@@ -11828,16 +12062,7 @@ document.addEventListener("DOMContentLoaded", () => {
     const transcriptSearch = document.getElementById("transcript-search");
     if (transcriptSearch) {
         transcriptSearch.addEventListener("input", function () {
-            const query = this.value.toLowerCase().trim();
-            const cueEls = document.querySelectorAll(".transcript-item");
-            cueEls.forEach(el => {
-                const text = el.querySelector(".transcript-item-text").textContent.toLowerCase();
-                if (text.includes(query)) {
-                    el.style.display = "";
-                } else {
-                    el.style.display = "none";
-                }
-            });
+            renderTranscript();
         });
     }
 
