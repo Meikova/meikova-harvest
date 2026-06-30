@@ -152,42 +152,38 @@ document.addEventListener("DOMContentLoaded", () => {
     // Global settings button actions
     const clearTempCacheBtn = document.getElementById("btn-clear-temp-cache");
     if (clearTempCacheBtn) {
-        clearTempCacheBtn.addEventListener("click", async (e) => {
+        clearTempCacheBtn.addEventListener("click", (e) => {
             e.stopPropagation();
-            if (!confirm("Are you sure you want to delete all downloaded temporary files and cache? This won't affect active downloads.")) {
-                return;
-            }
-            clearTempCacheBtn.disabled = true;
-            const originalText = clearTempCacheBtn.textContent;
-            clearTempCacheBtn.textContent = "Clearing...";
-            try {
-                const response = await fetch("/api/clear-temp", { method: "POST" });
-                const data = await response.json();
-                if (data.success) {
-                    alert(data.message || "Successfully cleared temporary cache folder.");
-                } else {
-                    alert("Failed to clear temporary cache: " + (data.error || "Unknown error"));
+            showConfirm({
+                title: "Clear Temporary Cache",
+                message: "Are you sure you want to delete all downloaded temporary files and cache? This won't affect active downloads.",
+                yesText: "Clear",
+                noText: "Cancel",
+                onYes: async () => {
+                    clearTempCacheBtn.disabled = true;
+                    const originalText = clearTempCacheBtn.textContent;
+                    clearTempCacheBtn.textContent = "Clearing...";
+                    try {
+                        const response = await fetch("/api/clear-temp", { method: "POST" });
+                        const data = await response.json();
+                        if (data.success) {
+                            alert(data.message || "Successfully cleared temporary cache folder.");
+                        } else {
+                            alert("Failed to clear temporary cache: " + (data.error || "Unknown error"));
+                        }
+                    } catch (err) {
+                        console.error(err);
+                        alert("Failed to clear cache: network error.");
+                    } finally {
+                        clearTempCacheBtn.disabled = false;
+                        clearTempCacheBtn.textContent = originalText;
+                    }
                 }
-            } catch (err) {
-                console.error(err);
-                alert("Failed to clear cache: network error.");
-            } finally {
-                clearTempCacheBtn.disabled = false;
-                clearTempCacheBtn.textContent = originalText;
-            }
+            });
         });
     }
 
-    const resetUiBtn = document.getElementById("btn-reset-ui-settings");
-    if (resetUiBtn) {
-        resetUiBtn.addEventListener("click", (e) => {
-            e.stopPropagation();
-            const legacyResetBtn = document.getElementById("customizer-reset-btn");
-            if (legacyResetBtn) {
-                legacyResetBtn.click();
-            }
-        });
-    }
+
 
     if (customizerToggle && customizerDropdown) {
         customizerToggle.addEventListener("click", (e) => {
@@ -711,56 +707,62 @@ document.addEventListener("DOMContentLoaded", () => {
 
     if (customizerResetBtn) {
         customizerResetBtn.addEventListener("click", () => {
-            applyAccent("default");
-            applyRadius("rounded");
-            applyBlur(24);
-            applyFontSize("medium");
-            applyFontFamily("outfit");
-            applyAppHeight("100%");
-            applyGravityMode("pull");
-            applySparkleShape("star");
-            applySpacing(54, true);
-            applyGravityRadius(180, true);
-            applyGravityDepth(130, true);
+            showConfirm({
+                title: "Reset UI Settings",
+                message: "Are you sure you want to reset all UI themes, accents, heights, and custom interactive canvas settings back to their defaults?",
+                onYes: () => {
+                    applyAccent("default");
+                    applyRadius("rounded");
+                    applyBlur(24);
+                    applyFontSize("medium");
+                    applyFontFamily("outfit");
+                    applyAppHeight("100%");
+                    applyGravityMode("pull");
+                    applySparkleShape("star");
+                    applySpacing(54, true);
+                    applyGravityRadius(180, true);
+                    applyGravityDepth(130, true);
 
-            if (customizerGridEnable) {
-                customizerGridEnable.checked = true;
-                updateCanvasOption("gridEnabled", true);
-                const gridContainer = document.getElementById("grid-spacing-container");
-                const gravityContainer = document.getElementById("grid-gravity-container");
-                const modeContainer = document.querySelector('.customizer-preset-btn[data-type="gravity-mode"]')?.parentElement?.parentElement;
-                const depthContainer = document.getElementById("grid-gravity-depth-container");
-                if (gridContainer) gridContainer.style.display = "block";
-                if (gravityContainer) gravityContainer.style.display = "block";
-                if (modeContainer) modeContainer.style.display = "block";
-                if (depthContainer) depthContainer.style.display = "block";
-            }
-            if (customizerRipplesEnable) {
-                customizerRipplesEnable.checked = true;
-                updateCanvasOption("ripplesEnabled", true);
-            }
-            if (customizerSoundReactiveEnable) {
-                customizerSoundReactiveEnable.checked = true;
-                updateCanvasOption("soundReactiveEnabled", true);
-            }
-            if (customizerSparklesEnable) {
-                customizerSparklesEnable.checked = true;
-                updateCanvasOption("sparklesEnabled", true);
-            }
-            if (customizerPreviewBlur) {
-                customizerPreviewBlur.checked = false;
-                updateCanvasOption("previewBlurryBackdrop", false);
-                applyPreviewBlurryBackdrop(false);
-            }
-            if (customizerPreviewDrag) {
-                customizerPreviewDrag.checked = true;
-                updateCanvasOption("previewDraggable", true);
-            }
-            if (customizerPreviewZoom) {
-                customizerPreviewZoom.checked = true;
-                updateCanvasOption("previewResizable", true);
-                applyPreviewResizable(true);
-            }
+                    if (customizerGridEnable) {
+                        customizerGridEnable.checked = true;
+                        updateCanvasOption("gridEnabled", true);
+                        const gridContainer = document.getElementById("grid-spacing-container");
+                        const gravityContainer = document.getElementById("grid-gravity-container");
+                        const modeContainer = document.querySelector('.customizer-preset-btn[data-type="gravity-mode"]')?.parentElement?.parentElement;
+                        const depthContainer = document.getElementById("grid-gravity-depth-container");
+                        if (gridContainer) gridContainer.style.display = "block";
+                        if (gravityContainer) gravityContainer.style.display = "block";
+                        if (modeContainer) modeContainer.style.display = "block";
+                        if (depthContainer) depthContainer.style.display = "block";
+                    }
+                    if (customizerRipplesEnable) {
+                        customizerRipplesEnable.checked = true;
+                        updateCanvasOption("ripplesEnabled", true);
+                    }
+                    if (customizerSoundReactiveEnable) {
+                        customizerSoundReactiveEnable.checked = true;
+                        updateCanvasOption("soundReactiveEnabled", true);
+                    }
+                    if (customizerSparklesEnable) {
+                        customizerSparklesEnable.checked = true;
+                        updateCanvasOption("sparklesEnabled", true);
+                    }
+                    if (customizerPreviewBlur) {
+                        customizerPreviewBlur.checked = false;
+                        updateCanvasOption("previewBlurryBackdrop", false);
+                        applyPreviewBlurryBackdrop(false);
+                    }
+                    if (customizerPreviewDrag) {
+                        customizerPreviewDrag.checked = true;
+                        updateCanvasOption("previewDraggable", true);
+                    }
+                    if (customizerPreviewZoom) {
+                        customizerPreviewZoom.checked = true;
+                        updateCanvasOption("previewResizable", true);
+                        applyPreviewResizable(true);
+                    }
+                }
+            });
         });
     }
 
@@ -1587,6 +1589,20 @@ document.addEventListener("DOMContentLoaded", () => {
             const btnSpan = toggleCookiesBtn.querySelector("span");
             if (btnSpan) {
                 btnSpan.textContent = isHidden ? "Manage Cookies" : "Close Cookie Panel";
+            }
+        });
+    }
+
+    // Close Cookies Panel button
+    const btnCloseCookies = document.getElementById("btn-close-cookies");
+    if (btnCloseCookies && cookiesSection) {
+        btnCloseCookies.addEventListener("click", () => {
+            cookiesSection.classList.add("hidden");
+            if (toggleCookiesBtn) {
+                const btnSpan = toggleCookiesBtn.querySelector("span");
+                if (btnSpan) {
+                    btnSpan.textContent = "Manage Cookies";
+                }
             }
         });
     }
@@ -9730,7 +9746,7 @@ document.addEventListener("DOMContentLoaded", () => {
         if (deleteSelectedBtn) deleteSelectedBtn.classList.add("hidden");
 
         if (history.length === 0) {
-            downloadsList.innerHTML = `<div style="text-align: center; color: var(--text-muted); padding: 20px;">No downloaded files yet</div>`;
+            downloadsList.innerHTML = `<div style="text-align: center; color: var(--text-muted); padding: 20px; grid-column: 1 / -1;">No downloaded files yet</div>`;
             return;
         }
 
@@ -12393,10 +12409,54 @@ document.addEventListener("DOMContentLoaded", () => {
             fileNameEl.textContent = file.name;
             fileSizeEl.textContent = `${(file.size / 1024 / 1024).toFixed(2)} MB`;
             
-            // Hide dropzone, show file card and options
+            // Hide dropzone and welcome info, show file card and options
             dropzone.classList.add("hidden");
             fileCard.classList.remove("hidden");
             optionsBoard.classList.remove("hidden");
+            const welcomeInfo = document.getElementById("converter-welcome-info");
+            if (welcomeInfo) {
+                welcomeInfo.classList.add("hidden");
+            }
+
+            // Setup preview player
+            const previewContainer = document.getElementById("converter-preview-container");
+            const videoPlayer = document.getElementById("converter-video-player");
+            const audioWrapper = document.getElementById("converter-audio-wrapper");
+            const audioPlayer = document.getElementById("converter-audio-player");
+            const waveAnim = document.querySelector(".audio-wave-animation");
+
+            if (previewContainer && videoPlayer && audioWrapper && audioPlayer) {
+                // Clear any existing preview source
+                if (videoPlayer.src) URL.revokeObjectURL(videoPlayer.src);
+                if (audioPlayer.src) URL.revokeObjectURL(audioPlayer.src);
+                
+                videoPlayer.src = "";
+                videoPlayer.classList.add("hidden");
+                audioPlayer.src = "";
+                audioWrapper.classList.add("hidden");
+                if (waveAnim) waveAnim.classList.remove("animating");
+
+                const objectUrl = URL.createObjectURL(file);
+
+                if (file.type.startsWith("video/")) {
+                    videoPlayer.src = objectUrl;
+                    videoPlayer.classList.remove("hidden");
+                    previewContainer.classList.remove("hidden");
+                } else if (file.type.startsWith("audio/")) {
+                    audioPlayer.src = objectUrl;
+                    audioWrapper.classList.remove("hidden");
+                    previewContainer.classList.remove("hidden");
+
+                    // Bind play/pause events directly to wave animation class toggler
+                    if (waveAnim) {
+                        audioPlayer.onplay = () => waveAnim.classList.add("animating");
+                        audioPlayer.onpause = () => waveAnim.classList.remove("animating");
+                        audioPlayer.onended = () => waveAnim.classList.remove("animating");
+                    }
+                } else {
+                    previewContainer.classList.add("hidden");
+                }
+            }
 
             // Disable conversion trigger until upload is complete
             if (startConvertBtn) {
@@ -12454,6 +12514,39 @@ document.addEventListener("DOMContentLoaded", () => {
             dropzone.classList.remove("hidden");
             fileCard.classList.add("hidden");
             optionsBoard.classList.add("hidden");
+            const welcomeInfo = document.getElementById("converter-welcome-info");
+            if (welcomeInfo) {
+                welcomeInfo.classList.remove("hidden");
+            }
+
+            // Reset preview player and clean memory leak refs
+            const previewContainer = document.getElementById("converter-preview-container");
+            const videoPlayer = document.getElementById("converter-video-player");
+            const audioWrapper = document.getElementById("converter-audio-wrapper");
+            const audioPlayer = document.getElementById("converter-audio-player");
+            const waveAnim = document.querySelector(".audio-wave-animation");
+
+            if (previewContainer) {
+                previewContainer.classList.add("hidden");
+            }
+            if (videoPlayer) {
+                if (videoPlayer.src) URL.revokeObjectURL(videoPlayer.src);
+                videoPlayer.src = "";
+                videoPlayer.classList.add("hidden");
+            }
+            if (audioPlayer) {
+                if (audioPlayer.src) URL.revokeObjectURL(audioPlayer.src);
+                audioPlayer.src = "";
+                audioPlayer.onplay = null;
+                audioPlayer.onpause = null;
+                audioPlayer.onended = null;
+            }
+            if (audioWrapper) {
+                audioWrapper.classList.add("hidden");
+            }
+            if (waveAnim) {
+                waveAnim.classList.remove("animating");
+            }
 
             if (startConvertBtn) {
                 startConvertBtn.disabled = false;
