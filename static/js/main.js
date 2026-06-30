@@ -4096,22 +4096,46 @@ document.addEventListener("DOMContentLoaded", () => {
             const vh = window.innerHeight;
             const aspect = mediaW / mediaH;
 
-            // Calculate extra dimensions (borders, margins, padding, sidebar)
-            const isSidebarVisible = isVideoVisible && document.getElementById("preview-transcript-sidebar") && !document.getElementById("preview-transcript-sidebar").classList.contains("hidden");
-            const sidebarW = isSidebarVisible ? 321 : 0;
-            
-            const horizontalExtra = 34 + sidebarW; // 16px*2 margin + 2px content border + sidebar width
-            const verticalExtra = 158; // 60px header + 80px footer toolbar + 16px margin + 2px border
+            // ── Dynamically measure chrome dimensions from live DOM ──
+            const headerEl = card.querySelector(".modal-header");
+            const footerEl = card.querySelector(".preview-footer-toolbar");
+            const contentArea = card.querySelector(".preview-content-area");
+
+            // Measure header and footer actual rendered heights
+            const headerH = headerEl ? headerEl.getBoundingClientRect().height : 57;
+            const footerH = footerEl ? footerEl.getBoundingClientRect().height : 65;
+
+            // Measure content area margins and borders
+            let contentMarginH = 16; // top+bottom margin default
+            let contentMarginW = 32; // left+right margin default
+            let contentBorderH = 2;  // top+bottom border default
+            let contentBorderW = 2;  // left+right border default
+            if (contentArea) {
+                const cs = getComputedStyle(contentArea);
+                contentMarginH = parseFloat(cs.marginTop) + parseFloat(cs.marginBottom);
+                contentMarginW = parseFloat(cs.marginLeft) + parseFloat(cs.marginRight);
+                contentBorderH = parseFloat(cs.borderTopWidth) + parseFloat(cs.borderBottomWidth);
+                contentBorderW = parseFloat(cs.borderLeftWidth) + parseFloat(cs.borderRightWidth);
+            }
+
+            // Measure sidebar actual width (including its border-left)
+            const sidebarEl = isVideoVisible ? document.getElementById("preview-transcript-sidebar") : null;
+            const isSidebarVisible = sidebarEl && !sidebarEl.classList.contains("hidden");
+            let sidebarW = 0;
+            if (isSidebarVisible) {
+                sidebarW = sidebarEl.getBoundingClientRect().width;
+            }
+
+            const horizontalExtra = contentMarginW + contentBorderW + sidebarW;
+            const verticalExtra = headerH + footerH + contentMarginH + contentBorderH;
 
             // Constrain video/image dimensions to 85% of screen viewport
             const maxVideoW = (vw * 0.85) - horizontalExtra;
             const maxVideoH = (vh * 0.85) - verticalExtra;
 
             // Safe minimum dimensions to accommodate player controls bar
-            // Video player needs at least 566px width (600px card width minus 34px margins)
-            // Image can shrink down to 446px width (480px card width minus 34px margins)
             const minVideoW = isVideoVisible ? 566 : 446;
-            const minVideoH = 320 - verticalExtra;
+            const minVideoH = Math.max(200, 320 - verticalExtra);
 
             let targetVideoW = mediaW;
             let targetVideoH = mediaH;
