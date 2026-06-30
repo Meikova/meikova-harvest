@@ -200,7 +200,12 @@ class PersistentDownloadStatus(dict):
                         data = json.loads(data_str)
                         data["download_id"] = download_id
                         filepath = data.get("filepath")
-                        data["file_exists"] = bool(filepath and os.path.exists(filepath))
+                        if filepath and os.path.exists(filepath):
+                            data["file_exists"] = True
+                            data["file_size"] = os.path.getsize(filepath)
+                        else:
+                            data["file_exists"] = False
+                            data["file_size"] = 0
                         history_list.append(data)
                     except Exception:
                         pass

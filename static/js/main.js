@@ -5307,9 +5307,40 @@ document.addEventListener("DOMContentLoaded", () => {
         document.body.classList.add("modal-open");
     }
 
+    // Alert Modal Helper (uses confirm modal layout)
+    function showAlert(title, message, callback = null) {
+        if (!confirmModal) return;
+        confirmModalTitle.textContent = title || "Notification";
+        confirmModalMessage.textContent = message || "";
+        confirmModalBtnYes.textContent = "OK";
+        
+        if (confirmModalBtnNo) {
+            confirmModalBtnNo.classList.add("hidden");
+        }
+        
+        confirmYesCallback = () => {
+            if (confirmModalBtnNo) {
+                confirmModalBtnNo.classList.remove("hidden");
+            }
+            if (callback) callback();
+        };
+        confirmNoCallback = null;
+        
+        confirmModal.classList.remove("hidden");
+        document.body.classList.add("modal-open");
+    }
+
+    // Override window.alert to automatically use our custom modal
+    window.alert = function(msg) {
+        showAlert("Notification", msg);
+    };
+
     function hideConfirm() {
         if (!confirmModal) return;
         confirmModal.classList.add("hidden");
+        if (confirmModalBtnNo) {
+            confirmModalBtnNo.classList.remove("hidden");
+        }
         const anyVisible = Array.from(document.querySelectorAll(".modal-overlay")).some(el => !el.classList.contains("hidden"));
         if (!anyVisible) {
             document.body.classList.remove("modal-open");
@@ -5346,9 +5377,15 @@ document.addEventListener("DOMContentLoaded", () => {
         };
 
         document.addEventListener("keydown", (e) => {
-            if (e.key === "Escape" && !confirmModal.classList.contains("hidden")) {
+            if (confirmModal.classList.contains("hidden")) return;
+            if (e.key === "Escape") {
+                e.preventDefault();
                 hideConfirm();
                 if (confirmNoCallback) confirmNoCallback();
+            } else if (e.key === "Enter") {
+                e.preventDefault();
+                hideConfirm();
+                if (confirmYesCallback) confirmYesCallback();
             }
         });
     }
@@ -6127,11 +6164,11 @@ document.addEventListener("DOMContentLoaded", () => {
                     try {
                         task.sse.close();
                     } catch (err) {}
-                }
-                try {
-                    fetch(`/api/download/cancel/${downloadId}`, { method: "POST" });
-                } catch (e) {
-                    console.error("Failed to cancel download on logo click:", e);
+                    try {
+                        fetch(`/api/download/cancel/${downloadId}`, { method: "POST" });
+                    } catch (e) {
+                        console.error("Failed to cancel download on logo click:", e);
+                    }
                 }
                 delete activeTasks[downloadId];
             });
@@ -8306,6 +8343,7 @@ document.addEventListener("DOMContentLoaded", () => {
                 task.activeRow.classList.remove("is-downloading");
             }
             
+            delete activeTasks[downloadId];
             updateDownloadsCount();
         }
     }
@@ -9108,7 +9146,10 @@ document.addEventListener("DOMContentLoaded", () => {
             previewActiveFilename = `${cleanTitle}_Episode_${episode || 1}_${server || "Server"}.${ext}`;
 
             let proxyStreamUrl = "";
-            if (isLocalFile) {
+            if (streamUrl && (streamUrl.includes("/api/media/play/") || streamUrl.startsWith("/api/media/play/"))) {
+                previewIsAdaptive = false;
+                proxyStreamUrl = streamUrl;
+            } else if (isLocalFile) {
                 // Local file: route directly through proxy stream
                 previewIsAdaptive = false;
                 proxyStreamUrl = getLocalStreamUrl(customUrl);
@@ -9591,6 +9632,28 @@ document.addEventListener("DOMContentLoaded", () => {
         }
     }
 
+    async function performBulkDelete(downloadIds, deleteFile) {
+        try {
+            const promises = downloadIds.map(downloadId => 
+                fetch(`/api/download/history/delete/${downloadId}`, {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ delete_file: deleteFile })
+                }).then(res => res.json())
+            );
+            const results = await Promise.all(promises);
+            const errors = results.filter(r => r.status !== "success");
+            if (errors.length > 0) {
+                alert(`Removed items with some failures (${errors.length} failed).`);
+            }
+            loadDownloadHistory();
+        } catch (err) {
+            console.error("Bulk deletion error:", err);
+            alert("Error performing bulk deletion");
+            loadDownloadHistory();
+        }
+    }
+
     async function loadDownloadHistory() {
         const downloadsList = document.getElementById("downloads-history-list");
         if (!downloadsList) return;
@@ -9613,107 +9676,237 @@ document.addEventListener("DOMContentLoaded", () => {
         const downloadsList = document.getElementById("downloads-history-list");
         if (!downloadsList) return;
         downloadsList.innerHTML = "";
+
+        const selectAllCb = document.getElementById("library-select-all");
+        const deleteSelectedBtn = document.getElementById("delete-selected-btn");
+        const deleteSelectedCount = document.getElementById("delete-selected-count");
+
+        if (selectAllCb) selectAllCb.checked = false;
+        if (deleteSelectedBtn) deleteSelectedBtn.classList.add("hidden");
+
         if (history.length === 0) {
             downloadsList.innerHTML = `<div style="text-align: center; color: var(--text-muted); padding: 20px;">No downloaded files yet</div>`;
             return;
         }
+
+        // Helper to format bytes
+        const formatBytes = (bytes, decimals = 2) => {
+            if (!bytes || bytes === 0) return '0 Bytes';
+            const k = 1024;
+            const dm = decimals < 0 ? 0 : decimals;
+            const sizes = ['Bytes', 'KB', 'MB', 'GB', 'TB'];
+            const i = Math.floor(Math.log(bytes) / Math.log(k));
+            return parseFloat((bytes / Math.pow(k, i)).toFixed(dm)) + ' ' + sizes[i];
+        };
+
+        // Helper to format duration (seconds -> H:MM:SS or MM:SS)
+        const formatDuration = (seconds) => {
+            if (!seconds || isNaN(seconds)) return "";
+            const hrs = Math.floor(seconds / 3600);
+            const mins = Math.floor((seconds % 3600) / 60);
+            const secs = Math.floor(seconds % 60);
+            if (hrs > 0) {
+                return `${hrs}:${mins.toString().padStart(2, "0")}:${secs.toString().padStart(2, "0")}`;
+            }
+            return `${mins}:${secs.toString().padStart(2, "0")}`;
+        };
+
+        // Update bulk delete button state
+        const updateBulkDeleteState = () => {
+            const checkedCbs = downloadsList.querySelectorAll(".library-card-checkbox:checked");
+            const count = checkedCbs.length;
+            const allCbs = downloadsList.querySelectorAll(".library-card-checkbox");
+            
+            if (selectAllCb) {
+                selectAllCb.checked = (allCbs.length > 0 && count === allCbs.length);
+            }
+
+            if (deleteSelectedBtn) {
+                if (count > 0) {
+                    deleteSelectedBtn.classList.remove("hidden");
+                    if (deleteSelectedCount) deleteSelectedCount.textContent = count;
+                } else {
+                    deleteSelectedBtn.classList.add("hidden");
+                }
+            }
+        };
+
         history.forEach(item => {
-            const row = document.createElement("div");
-            row.className = "history-item";
-            row.style.cursor = "default";
+            const card = document.createElement("div");
+            card.className = "library-card";
 
             const thumbUrl = getProxiedImageUrl(item.thumbnail) || "https://images.unsplash.com/photo-1611162617213-7d7a39e9b1d7?q=80&w=120";
             const platformTag = getPlatformTag(item.url);
             const timestampStr = item.timestamp ? formatHistoryDateTime(item.timestamp * 1000) : "Unknown date";
+            const durationStr = item.duration ? formatDuration(item.duration) : "";
+            const sizeStr = item.file_size ? formatBytes(item.file_size) : (item.file_exists ? "Unknown size" : "Purged");
+            const extLabel = (item.ext || "mp4").toUpperCase();
+            const fileExists = !!item.file_exists;
+            const title = item.title || "Unknown Title";
 
-            let statusTag = "";
-            if (item.status === "complete") {
-                statusTag = `<span class="history-item-status-tag status-complete">Complete</span>`;
-            } else if (item.status === "error") {
-                statusTag = `<span class="history-item-status-tag status-error" title="${escapeHTML(item.error)}">Failed</span>`;
-            } else if (item.status === "cancelled") {
-                statusTag = `<span class="history-item-status-tag status-cancelled">Cancelled</span>`;
-            } else {
-                statusTag = `<span class="history-item-status-tag status-cancelled">${item.status}</span>`;
+            let mediaType = "video";
+            const lowerExt = (item.ext || "").toLowerCase();
+            if (["mp3", "m4a", "wav", "flac", "ogg", "aac", "opus"].includes(lowerExt)) {
+                mediaType = "audio";
+            } else if (["jpg", "jpeg", "png", "webp", "gif"].includes(lowerExt)) {
+                mediaType = "image";
             }
 
-            const title = item.title || "Unknown Title";
-            const fileExists = !!item.file_exists;
-            const extLabel = (item.ext || "mp4").toUpperCase();
+            let statusOverlayHtml = "";
+            if (item.status !== "complete") {
+                let statusLabel = "Interrupted";
+                let statusClass = "status-cancelled";
+                if (item.status === "error") {
+                    statusLabel = "Failed";
+                    statusClass = "status-error";
+                } else if (item.status === "cancelled") {
+                    statusLabel = "Cancelled";
+                    statusClass = "status-cancelled";
+                }
+                statusOverlayHtml = `<span class="history-item-status-tag ${statusClass}" style="position: absolute; top: 8px; left: 8px; z-index: 2;" title="${escapeHTML(item.error || '')}">${statusLabel}</span>`;
+            }
 
-            row.innerHTML = `
-                <div class="history-item-left" style="flex: 1; min-width: 0;">
-                    <img class="history-thumb" src="${thumbUrl}" alt="Thumb" style="cursor: pointer;">
-                    <div class="history-details" style="min-width: 0;">
-                        <span class="history-title" style="cursor: pointer;" title="${escapeHTML(title)}">${title}</span>
-                        <div class="history-meta" style="flex-wrap: wrap; gap: 6px 10px;">
-                            <span class="history-platform-tag ${platformTag.class}">${platformTag.label}</span>
-                            <span style="color: var(--cyan); font-weight: 600;">${extLabel}</span>
-                            <span>${timestampStr}</span>
-                            ${statusTag}
-                        </div>
+            card.innerHTML = `
+                <div class="library-card-thumb-container">
+                    ${statusOverlayHtml}
+                    
+                    <!-- Checkbox container -->
+                    <div class="library-card-checkbox-container" title="Select Item">
+                        <input type="checkbox" class="library-card-checkbox" data-id="${item.download_id}" data-file-exists="${fileExists}" data-title="${escapeHTML(title)}">
                     </div>
+
+                    <img class="library-card-thumb" src="${thumbUrl}" alt="Thumb">
+                    ${durationStr ? `<span class="library-card-duration">${durationStr}</span>` : ""}
+                    ${fileExists && item.status === "complete" ? `
+                        <div class="library-card-play-overlay">
+                            <div class="library-card-play-btn">
+                                <svg viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>
+                            </div>
+                        </div>
+                    ` : ""}
                 </div>
-                <div class="history-item-actions">
-                    <button class="history-action-btn btn-dl" ${fileExists ? '' : 'disabled'} title="${fileExists ? 'Download file directly from server' : 'File already purged from server'}">
-                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
-                        <span>Download</span>
-                    </button>
-                    <button class="history-action-btn btn-re" title="Re-download / Fill configuration">
-                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.57-8.38l5.67-5.67"></path></svg>
-                        <span>Re-download</span>
-                    </button>
-                    <button class="history-action-btn btn-del" title="Delete from history" style="border-color: rgba(239, 68, 68, 0.2); color: var(--red);">
-                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path><line x1="10" y1="11" x2="10" y2="17"></line><line x1="14" y1="11" x2="14" y2="17"></line></svg>
-                        <span>Delete</span>
-                    </button>
+                <div class="library-card-content">
+                    <span class="library-card-title" title="${escapeHTML(title)}">${title}</span>
+                    <div class="library-card-meta">
+                        <span class="history-platform-tag ${platformTag.class}">${platformTag.label}</span>
+                        <span class="library-card-ext-badge">${extLabel}</span>
+                        <span class="library-card-size-badge">${sizeStr}</span>
+                    </div>
+                    <div class="library-card-actions">
+                        <button class="library-card-action-btn btn-lib-play" ${fileExists && item.status === "complete" ? '' : 'disabled'} title="Play offline inside application">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="5 3 19 12 5 21 5 3"></polygon></svg>
+                            <span>Play</span>
+                        </button>
+                        <button class="library-card-action-btn btn-lib-tg" ${fileExists && item.status === "complete" ? '' : 'disabled'} title="Send/Share to Telegram Cloud">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"></line><polygon points="22 2 15 22 11 13 2 9 22 2"></polygon></svg>
+                            <span>Share</span>
+                        </button>
+                        <button class="library-card-action-btn btn-lib-del" title="Delete record / file">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path><line x1="10" y1="11" x2="10" y2="17"></line><line x1="14" y1="11" x2="14" y2="17"></line></svg>
+                            <span>Delete</span>
+                        </button>
+                    </div>
                 </div>
             `;
 
-            const titleEl = row.querySelector(".history-title");
-            const thumbEl = row.querySelector(".history-thumb");
-            const dlBtn = row.querySelector(".btn-dl");
-            const reBtn = row.querySelector(".btn-re");
-            const delBtn = row.querySelector(".btn-del");
+            // Bind triggers
+            const thumbOverlay = card.querySelector(".library-card-play-overlay");
+            const btnPlay = card.querySelector(".btn-lib-play");
+            const btnTg = card.querySelector(".btn-lib-tg");
+            const btnDel = card.querySelector(".btn-lib-del");
+            const titleEl = card.querySelector(".library-card-title");
+            const cbContainer = card.querySelector(".library-card-checkbox-container");
+            const cbInput = card.querySelector(".library-card-checkbox");
 
-            const startAnalyze = () => {
-                urlInput.value = item.url;
-                performAnalysis();
+            const playOffline = () => {
+                if (!fileExists || item.status !== "complete") return;
+                const localPlayUrl = window.location.origin + `/api/media/play/${item.download_id}`;
+                triggerPreview(
+                    null,
+                    "direct_local",
+                    item.ext || "mp4",
+                    item.title || "Offline Media",
+                    item.quality || "",
+                    localPlayUrl,
+                    "",
+                    "Offline Local Stream",
+                    mediaType
+                );
             };
-            titleEl.addEventListener("click", startAnalyze);
-            thumbEl.addEventListener("click", startAnalyze);
 
-            if (dlBtn && fileExists) {
-                dlBtn.addEventListener("click", () => {
-                    window.open(`/api/download/file/${item.download_id}`, "_blank");
+            if (thumbOverlay) thumbOverlay.addEventListener("click", playOffline);
+            if (btnPlay) btnPlay.addEventListener("click", playOffline);
+            if (titleEl) {
+                titleEl.addEventListener("click", () => {
+                    if (fileExists && item.status === "complete") {
+                        playOffline();
+                    } else {
+                        // fallback to re-analyzing link
+                        urlInput.value = item.url;
+                        performAnalysis();
+                    }
                 });
             }
 
-            if (reBtn) {
-                reBtn.addEventListener("click", () => {
-                    urlInput.value = item.url;
-                    autoFillSettingsAfterAnalysis = {
-                        format_id: item.format_id,
-                        ext: item.ext,
-                        quality: item.quality,
-                        trim_start: item.trim_start,
-                        trim_end: item.trim_end,
-                        voiceover_active: item.voiceover_active,
-                        voiceover_voice: item.voiceover_voice,
-                        voiceover_rate: item.voiceover_rate,
-                        voiceover_pitch: item.voiceover_pitch,
-                        cloud_destination: item.cloud_destination
-                    };
-                    performAnalysis();
+            // Stop propagation on checkbox click to prevent triggering playOffline/analyze
+            if (cbContainer && cbInput) {
+                cbContainer.addEventListener("click", (e) => {
+                    e.stopPropagation();
+                    if (e.target !== cbInput) {
+                        cbInput.checked = !cbInput.checked;
+                        cbInput.dispatchEvent(new Event("change"));
+                    }
+                });
+                cbInput.addEventListener("click", (e) => {
+                    e.stopPropagation();
+                });
+                cbInput.addEventListener("change", () => {
+                    updateBulkDeleteState();
                 });
             }
 
-            if (delBtn) {
-                delBtn.addEventListener("click", () => {
+            if (btnTg && fileExists && item.status === "complete") {
+                btnTg.addEventListener("click", async () => {
+                    const tgToken = (document.getElementById("tg-bot-token")?.value || localStorage.getItem("tg_bot_token") || "").trim();
+                    const tgChatId = (document.getElementById("tg-chat-id")?.value || localStorage.getItem("tg_chat_id") || "").trim();
+                    
+                    if (!tgToken || !tgChatId) {
+                        alert("Please configure your Telegram Bot Token and Chat ID in Settings first.");
+                        return;
+                    }
+
+                    btnTg.disabled = true;
+                    const originalText = btnTg.querySelector("span").textContent;
+                    btnTg.querySelector("span").textContent = "Sharing...";
+
+                    try {
+                        const response = await fetch(`/api/media/telegram/${item.download_id}`, {
+                            method: "POST",
+                            headers: { "Content-Type": "application/json" },
+                            body: JSON.stringify({ tg_bot_token: tgToken, tg_chat_id: tgChatId })
+                        });
+                        const resData = await response.json();
+                        if (resData.status === "success") {
+                            alert("Shared successfully to Telegram cloud!");
+                        } else {
+                            alert(resData.message || "An error occurred while sharing to Telegram.");
+                        }
+                    } catch (err) {
+                        console.error("Telegram sharing error:", err);
+                        alert("Failed to connect to application server.");
+                    } finally {
+                        btnTg.disabled = false;
+                        btnTg.querySelector("span").textContent = originalText;
+                    }
+                });
+            }
+
+            if (btnDel) {
+                btnDel.addEventListener("click", () => {
                     showConfirm({
-                        title: "Delete History Item",
-                        message: `Are you sure you want to delete "${title}" from your history?`,
-                        yesText: "Delete",
+                        title: "Delete Library Item",
+                        message: `Are you sure you want to remove "${title}" from the library?`,
+                        yesText: "Remove",
                         noText: "Cancel",
                         onYes: () => {
                             if (fileExists) {
@@ -9739,8 +9932,58 @@ document.addEventListener("DOMContentLoaded", () => {
                 });
             }
 
-            downloadsList.appendChild(row);
+            downloadsList.appendChild(card);
         });
+
+        // Set up select all checkbox listeners
+        if (selectAllCb) {
+            selectAllCb.onchange = () => {
+                const checked = selectAllCb.checked;
+                const cbs = downloadsList.querySelectorAll(".library-card-checkbox");
+                cbs.forEach(cb => {
+                    cb.checked = checked;
+                });
+                updateBulkDeleteState();
+            };
+        }
+
+        // Set up delete selected buttons listeners
+        if (deleteSelectedBtn) {
+            deleteSelectedBtn.onclick = () => {
+                const checkedCbs = Array.from(downloadsList.querySelectorAll(".library-card-checkbox:checked"));
+                const ids = checkedCbs.map(cb => cb.getAttribute("data-id"));
+                if (ids.length === 0) return;
+
+                const hasPhysicalFiles = checkedCbs.some(cb => cb.getAttribute("data-file-exists") === "true");
+
+                showConfirm({
+                    title: "Delete Selected Items",
+                    message: `Are you sure you want to remove ${ids.length} selected items from the library?`,
+                    yesText: "Remove",
+                    noText: "Cancel",
+                    onYes: () => {
+                        if (hasPhysicalFiles) {
+                            setTimeout(() => {
+                                showConfirm({
+                                    title: "Delete Physical Files",
+                                    message: "Do you want to delete the downloaded files from your disk as well?",
+                                    yesText: "Yes, delete",
+                                    noText: "No, keep",
+                                    onYes: () => {
+                                        performBulkDelete(ids, true);
+                                    },
+                                    onNo: () => {
+                                        performBulkDelete(ids, false);
+                                    }
+                                });
+                            }, 350);
+                        } else {
+                            performBulkDelete(ids, false);
+                        }
+                    }
+                });
+            };
+        }
     }
 
     function getPlatformTag(url) {

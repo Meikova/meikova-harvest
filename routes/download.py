@@ -270,6 +270,10 @@ def cancel_download(download_id):
         if not status_info:
             return jsonify({"status": "error", "message": "Download task not found."}), 404
         
+        # Protect finished tasks
+        if status_info.get("status") in ["complete", "error"]:
+            return jsonify({"status": "success", "message": "Task already finished, ignoring cancellation."})
+            
         # Mark as cancelled
         status_info["status"] = "cancelled"
         status_info["message"] = "Download cancelled by user."
@@ -965,3 +969,91 @@ def proxy_stream_adaptive():
         "Connection": "keep-alive"
     }
     return Response(generate(), mimetype=mimetype, headers=resp_headers)
+
+
+@download_bp.route("/api/media/play/<download_id>")
+def play_media(download_id):
+    # Fetch record from downloads_status
+    with downloads_status_lock:
+        task = downloads_status.get(download_id)
+        
+    if not task:
+        # Fallback to sqlite manual fetch
+        import sqlite3
+        from utils.helpers import DB_PATH
+        try:
+            conn = sqlite3.connect(DB_PATH, timeout=5.0)
+            cursor = conn.cursor()
+            cursor.execute("SELECT data FROM downloads WHERE download_id = ?", (download_id,))
+            row = cursor.fetchone()
+            conn.close()
+            if row:
+                task = json.loads(row[0])
+        except Exception:
+            pass
+
+    if not task:
+        return jsonify({"status": "error", "message": "Media download not found."}), 404
+
+    filepath = task.get("filepath")
+    if not filepath or not os.path.exists(filepath):
+        return jsonify({"status": "error", "message": "Offline media file not found on disk."}), 404
+
+    # Stream file using Flask send_file with conditional=True to support Range seeking
+    ext = filepath.rsplit('.', 1)[-1].lower() if '.' in filepath else ''
+    mime_map = {
+        'mp4': 'video/mp4', 'mkv': 'video/x-matroska', 'avi': 'video/x-msvideo',
+        'mov': 'video/quicktime', 'webm': 'video/webm', 'flv': 'video/x-flv',
+        'ts': 'video/mp2t', 'mpg': 'video/mpeg', 'mpeg': 'video/mpeg', 'm4v': 'video/mp4',
+        'mp3': 'audio/mpeg', 'm4a': 'audio/mp4', 'wav': 'audio/wav',
+        'flac': 'audio/flac', 'ogg': 'audio/ogg', 'aac': 'audio/aac',
+        'wma': 'audio/x-ms-wma', 'opus': 'audio/opus',
+        'jpg': 'image/jpeg', 'jpeg': 'image/jpeg', 'png': 'image/png', 'gif': 'image/gif'
+    }
+    mimetype = mime_map.get(ext, 'application/octet-stream')
+    try:
+        return send_file(filepath, mimetype=mimetype, conditional=True)
+    except Exception as e:
+        logger.error(f"Error serving media file: {e}")
+        return jsonify({"status": "error", "message": f"Failed to stream media: {e}"}), 500
+
+
+@download_bp.route("/api/media/telegram/<download_id>", methods=["POST"])
+def send_media_to_telegram(download_id):
+    data = request.get_json() or {}
+    bot_token = (data.get("tg_bot_token") or "").strip()
+    chat_id = (data.get("tg_chat_id") or "").strip()
+
+    if not bot_token or not chat_id:
+        return jsonify({"status": "error", "message": "Missing Telegram Bot Token or Chat ID."}), 400
+
+    with downloads_status_lock:
+        task = downloads_status.get(download_id)
+
+    if not task:
+        import sqlite3
+        from utils.helpers import DB_PATH
+        try:
+            conn = sqlite3.connect(DB_PATH, timeout=5.0)
+            cursor = conn.cursor()
+            cursor.execute("SELECT data FROM downloads WHERE download_id = ?", (download_id,))
+            row = cursor.fetchone()
+            conn.close()
+            if row:
+                task = json.loads(row[0])
+        except Exception:
+            pass
+
+    if not task:
+        return jsonify({"status": "error", "message": "Media download not found."}), 404
+
+    filepath = task.get("filepath")
+    if not filepath or not os.path.exists(filepath):
+        return jsonify({"status": "error", "message": "Physical file not found on server disk."}), 404
+
+    from tasks.download import upload_to_telegram
+    success, msg = upload_to_telegram(filepath, bot_token, chat_id)
+    if success:
+        return jsonify({"status": "success", "message": "Uploaded successfully to Telegram cloud!"})
+    else:
+        return jsonify({"status": "error", "message": msg}), 500
