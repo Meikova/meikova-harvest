@@ -2095,7 +2095,62 @@ document.addEventListener("DOMContentLoaded", () => {
         const min = parseFloat(slider.min) || 0;
         const max = parseFloat(slider.max) || 100;
         const pct = ((val - min) / (max - min)) * 100;
-        slider.style.background = `linear-gradient(to right, var(--cyan) 0%, var(--cyan) ${pct}%, var(--slider-track) ${pct}%, var(--slider-track) 100%)`;
+
+        let pct_buffered = 0;
+        let isMediaSeek = false;
+
+        if (slider === audioSeekSlider && previewAudioPlayer && previewAudioPlayer.duration) {
+            isMediaSeek = true;
+            if (previewAudioPlayer.buffered.length > 0) {
+                let bufferedEnd = 0;
+                for (let i = 0; i < previewAudioPlayer.buffered.length; i++) {
+                    if (previewAudioPlayer.buffered.start(i) <= previewAudioPlayer.currentTime && previewAudioPlayer.buffered.end(i) >= previewAudioPlayer.currentTime) {
+                        bufferedEnd = previewAudioPlayer.buffered.end(i);
+                        break;
+                    }
+                }
+                if (bufferedEnd === 0) {
+                    bufferedEnd = previewAudioPlayer.buffered.end(previewAudioPlayer.buffered.length - 1);
+                }
+                pct_buffered = (bufferedEnd / previewAudioPlayer.duration) * 100;
+            }
+        } else if (slider === videoSeekSlider && previewVideoPlayer) {
+            const totalDuration = previewIsAdaptive ? (parseFloat(activeMetadata ? activeMetadata.duration_raw : 0) || 0) : (previewVideoPlayer.duration || 0);
+            if (totalDuration > 0) {
+                isMediaSeek = true;
+                if (previewVideoPlayer.buffered.length > 0) {
+                    let bufferedEnd = 0;
+                    for (let i = 0; i < previewVideoPlayer.buffered.length; i++) {
+                        if (previewVideoPlayer.buffered.start(i) <= previewVideoPlayer.currentTime && previewVideoPlayer.buffered.end(i) >= previewVideoPlayer.currentTime) {
+                            bufferedEnd = previewVideoPlayer.buffered.end(i);
+                            break;
+                        }
+                    }
+                    if (bufferedEnd === 0) {
+                        bufferedEnd = previewVideoPlayer.buffered.end(previewVideoPlayer.buffered.length - 1);
+                    }
+                    const absBufferedEnd = previewIsAdaptive ? (previewCurrentTimeOffset + bufferedEnd) : bufferedEnd;
+                    pct_buffered = (absBufferedEnd / totalDuration) * 100;
+                }
+            }
+        }
+
+        if (isMediaSeek) {
+            pct_buffered = Math.max(pct, pct_buffered);
+            const isLightTheme = document.documentElement.classList.contains("light-theme");
+            const bufferedColor = isLightTheme ? "rgba(0, 0, 0, 0.25)" : "rgba(255, 255, 255, 0.4)";
+            slider.style.background = `linear-gradient(
+                to right,
+                var(--cyan) 0%,
+                var(--cyan) ${pct}%,
+                ${bufferedColor} ${pct}%,
+                ${bufferedColor} ${pct_buffered}%,
+                var(--slider-track) ${pct_buffered}%,
+                var(--slider-track) 100%
+            )`;
+        } else {
+            slider.style.background = `linear-gradient(to right, var(--cyan) 0%, var(--cyan) ${pct}%, var(--slider-track) ${pct}%, var(--slider-track) 100%)`;
+        }
     }
 
     // --- AUDIO VISUALIZER LOGIC (WEB AUDIO API) ---
@@ -2998,6 +3053,12 @@ document.addEventListener("DOMContentLoaded", () => {
                 audioTimeTotal.textContent = formatTime(previewAudioPlayer.duration);
             }
         });
+
+        previewAudioPlayer.addEventListener("progress", () => {
+            if (audioSeekSlider) {
+                updateSliderBackground(audioSeekSlider);
+            }
+        });
     }
 
     if (audioPlayPauseBtn && previewAudioPlayer) {
@@ -3507,6 +3568,12 @@ document.addEventListener("DOMContentLoaded", () => {
             const totalDuration = previewIsAdaptive ? (parseFloat(activeMetadata ? activeMetadata.duration_raw : 0) || 0) : (previewVideoPlayer.duration || 0);
             if (videoTimeTotal && totalDuration > 0) {
                 videoTimeTotal.textContent = formatTime(totalDuration);
+            }
+        });
+
+        previewVideoPlayer.addEventListener("progress", () => {
+            if (videoSeekSlider) {
+                updateSliderBackground(videoSeekSlider);
             }
         });
     }
@@ -6450,11 +6517,9 @@ document.addEventListener("DOMContentLoaded", () => {
                 document.documentElement.style.setProperty('--purple-rgb', colors.purpleRgb);
             }
         } else {
-            // Reset to defaults
-            document.documentElement.style.removeProperty('--cyan');
-            document.documentElement.style.removeProperty('--purple');
-            document.documentElement.style.removeProperty('--cyan-rgb');
-            document.documentElement.style.removeProperty('--purple-rgb');
+            // Restore user's customizer accent
+            const savedAccent = localStorage.getItem("customizer-accent") || "default";
+            applyAccent(savedAccent);
         }
     }
 
@@ -9266,8 +9331,8 @@ document.addEventListener("DOMContentLoaded", () => {
 
                     if (isM3u8 && typeof Hls !== "undefined" && Hls.isSupported()) {
                         const hls = new Hls({
-                            maxBufferSize: 30 * 1024 * 1024, // 30MB buffer max
-                            maxBufferLength: 30, // 30 seconds max buffer ahead
+                            maxBufferSize: 40 * 1024 * 1024, // 40MB buffer max
+                            maxBufferLength: 60, // 60 seconds max buffer ahead (1 minute)
                             enableSubtitle: false
                         });
                         hls.loadSource(proxyStreamUrl);
@@ -9636,7 +9701,10 @@ document.addEventListener("DOMContentLoaded", () => {
         { id: "voiceover-voice-select", event: "change" },
         { id: "voiceover-rate-slider", event: "input" },
         { id: "voiceover-pitch-slider", event: "input" },
-        { id: "cloud-sync-select", event: "change" }
+        { id: "cloud-sync-select", event: "change" },
+        { id: "enhance-beautify-checkbox", event: "change" },
+        { id: "enhance-sharpen-slider", event: "input" },
+        { id: "enhance-upscale-select", event: "change" }
     ];
 
     settingsControls.forEach(ctrl => {

@@ -384,6 +384,147 @@ body.modal-open {
   opacity: 0.9;
 }
 
+.global-settings-group {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-top: 4px;
+}
+.global-settings-row {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  text-align: left;
+}
+.global-settings-row.border-top {
+  border-top: 1px solid rgba(255, 255, 255, 0.05);
+  padding-top: 12px;
+}
+.global-settings-label {
+  font-size: 0.85rem;
+  font-weight: 500;
+  color: var(--text);
+}
+.global-settings-help-text {
+  font-size: 0.72rem;
+  color: var(--text-dim);
+  margin-left: 44px;
+  margin-top: -2px;
+  line-height: 1.35;
+}
+.global-settings-title-label {
+  font-size: 0.85rem;
+  font-weight: 500;
+  color: var(--text-dim);
+  margin-bottom: 2px;
+}
+.global-settings-select {
+  width: 100%;
+  padding: 8px 12px;
+  background: rgba(0, 0, 0, 0.3);
+  border: 1px solid var(--glass-border);
+  border-radius: 8px;
+  color: var(--text);
+  font-family: var(--font);
+  font-size: 0.85rem;
+  outline: none;
+  cursor: pointer;
+  transition: all 0.25s ease;
+}
+.global-settings-select:hover, .global-settings-select:focus {
+  border-color: rgba(var(--cyan-rgb), 0.4);
+  box-shadow: 0 0 10px rgba(var(--cyan-rgb), 0.15);
+  background: rgba(0, 0, 0, 0.4);
+}
+.global-settings-input-group {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.global-settings-input {
+  width: 100%;
+  padding: 8px 12px;
+  background: rgba(0, 0, 0, 0.3);
+  border: 1px solid var(--glass-border);
+  border-radius: 8px;
+  color: var(--text);
+  font-family: var(--font);
+  font-size: 0.82rem;
+  outline: none;
+  transition: all 0.25s ease;
+}
+.global-settings-input:hover, .global-settings-input:focus {
+  border-color: rgba(var(--cyan-rgb), 0.4);
+  box-shadow: 0 0 10px rgba(var(--cyan-rgb), 0.15);
+  background: rgba(0, 0, 0, 0.4);
+}
+.active-cookies-content {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.global-settings-actions.border-top {
+  border-top: 1px solid rgba(255, 255, 255, 0.05);
+  padding-top: 12px;
+}
+.btn-danger-outline {
+  width: 100%;
+  padding: 8px 16px;
+  background: rgba(239, 68, 68, 0.08);
+  border: 1px solid rgba(239, 68, 68, 0.25);
+  border-radius: 8px;
+  color: #ef4444;
+  font-family: var(--font-display);
+  font-weight: 600;
+  font-size: 0.8rem;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+  box-shadow: 0 2px 6px rgba(239, 68, 68, 0.05);
+}
+.btn-danger-outline:hover {
+  background: rgba(239, 68, 68, 0.18);
+  border-color: rgba(239, 68, 68, 0.5);
+  color: #ff5555;
+  transform: translateY(-1.5px);
+  box-shadow: 0 0 12px rgba(239, 68, 68, 0.25);
+}
+.btn-danger-outline:active {
+  transform: translateY(0);
+}
+
+/* Light theme support */
+.light-theme .global-settings-select,
+.light-theme .global-settings-input {
+  background: rgba(255, 255, 255, 0.6);
+  border-color: rgba(0, 0, 0, 0.1);
+  color: var(--text);
+}
+.light-theme .global-settings-select:hover,
+.light-theme .global-settings-select:focus,
+.light-theme .global-settings-input:hover,
+.light-theme .global-settings-input:focus {
+  border-color: rgba(var(--cyan-rgb), 0.5);
+  background: rgba(255, 255, 255, 0.8);
+}
+.light-theme .global-settings-row.border-top,
+.light-theme .global-settings-actions.border-top {
+  border-color: rgba(0, 0, 0, 0.06);
+}
+.light-theme .btn-danger-outline {
+  background: rgba(229, 62, 62, 0.06);
+  border-color: rgba(229, 62, 62, 0.2);
+  color: #e53e3e;
+}
+.light-theme .btn-danger-outline:hover {
+  background: rgba(229, 62, 62, 0.12);
+  border-color: rgba(229, 62, 62, 0.4);
+  color: #c53030;
+}
+
 /* === LIGHT THEME OVERRIDES === */
 :root.light-theme {
   --bg: #f5f7fb;
@@ -1900,7 +2041,7 @@ body[class*="theme-"] .card {
   align-items: center;
   margin-top: -6px;
   margin-bottom: 6px;
-  gap: 12px;
+  gap: 8px;
 }
 .btn-toggle-cookies {
   background: rgba(var(--cyan-rgb), 0.06);
@@ -1913,7 +2054,8 @@ body[class*="theme-"] .card {
   display: flex;
   align-items: center;
   gap: 6px;
-  padding: 6px 14px;
+  padding: 6px 10px;
+  white-space: nowrap;
   border-radius: var(--radius-xs);
   margin-left: auto;
   transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
@@ -1950,7 +2092,8 @@ body[class*="theme-"] .card {
   display: flex;
   align-items: center;
   gap: 6px;
-  padding: 6px 14px;
+  padding: 6px 10px;
+  white-space: nowrap;
   border-radius: var(--radius-xs);
   transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);

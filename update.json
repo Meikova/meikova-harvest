@@ -1,11 +1,11 @@
 {
-    "version": "1.1.5",
-    "url": "https://github.com/m3iK18dp/EveryThingDownloader/releases/download/v1.1.5/EveryThingDownloader-Setup-1.1.5.exe",
+    "version": "1.1.6",
+    "url": "https://github.com/m3iK18dp/EveryThingDownloader/releases/download/v1.1.6/EveryThingDownloader-Setup-1.1.6.exe",
     "platforms": {
-        "win32": "https://github.com/m3iK18dp/EveryThingDownloader/releases/download/v1.1.5/EveryThingDownloader-Setup-1.1.5.exe",
-        "darwin_arm64": "https://github.com/m3iK18dp/EveryThingDownloader/releases/download/v1.1.5/EveryThingDownloader-1.1.5-arm64.dmg",
-        "darwin_x64": "https://github.com/m3iK18dp/EveryThingDownloader/releases/download/v1.1.5/EveryThingDownloader-1.1.5-x64.dmg",
-        "linux_x64": "https://github.com/m3iK18dp/EveryThingDownloader/releases/download/v1.1.5/EveryThingDownloader-1.1.5-x64.AppImage"
+        "win32": "https://github.com/m3iK18dp/EveryThingDownloader/releases/download/v1.1.6/EveryThingDownloader-Setup-1.1.6.exe",
+        "darwin_arm64": "https://github.com/m3iK18dp/EveryThingDownloader/releases/download/v1.1.6/EveryThingDownloader-1.1.6-arm64.dmg",
+        "darwin_x64": "https://github.com/m3iK18dp/EveryThingDownloader/releases/download/v1.1.6/EveryThingDownloader-1.1.6-x64.dmg",
+        "linux_x64": "https://github.com/m3iK18dp/EveryThingDownloader/releases/download/v1.1.6/EveryThingDownloader-1.1.6-x64.AppImage"
     },
-    "changelog": "- [UI/UX] Added immediate, zero-network-overhead local video/audio playback preview to the Format Converter tab before processing.\n- [UI/UX] Integrated premium, glassmorphic custom confirmation dialogs for \"Clear Temp Cache\" and \"Reset UI Settings\" actions.\n- [UI/UX] Added an elegant close/dismiss button to the Authentication (Cookies) Upload panel with automatic settings toggle synchronization.\n- [UI/UX] Removed redundant Reset UI button from Global Settings to keep the settings menu clean.\n- [Bug Fix] Enforced full-width layout for the Media Library empty state message to prevent awkward text wrapping inside the history grid."
+    "changelog": "Enhance media buffers, improve settings UI, and optimize streaming:\n- Add buffered content visualization to audio/video seek sliders with progress event listeners\n- Redesign global settings panel with improved layout and styling using new CSS classes\n- Increase HLS buffer from 30MB to 40MB and buffer length from 30s to 60s\n- Fix accent color restoration when disabling customizer\n- Add enhance settings controls to persistent settings array\n- Adjust UI spacing and add light theme support for new settings components"
 }

@@ -63,7 +63,7 @@
       rel="stylesheet"
       href="https://cdnjs.cloudflare.com/ajax/libs/noUiSlider/15.7.1/nouislider.min.css"
     />
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}?v=20.4">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}?v=20.6">
     <script src="https://cdn.jsdelivr.net/npm/hls.js@1.5.8/dist/hls.min.js"></script>
     <script>
       (function () {
@@ -217,7 +217,7 @@
           </button>
 
           <!-- Settings Dropdown Panel -->
-          <div id="settings-dropdown" class="settings-dropdown hidden" style="width: 320px; padding: 18px;">
+          <div id="settings-dropdown" class="settings-dropdown hidden" style="width: 360px;">
             <div class="settings-dropdown-header" style="margin-bottom: 15px;">
               <svg
                 viewBox="0 0 24 24"
@@ -235,186 +235,117 @@
               <span>Global Settings</span>
             </div>
 
-            <!-- Clipboard Auto-Detect -->
-            <div style="margin-bottom: 15px;">
-              <label class="advanced-label" style="display: flex; align-items: center; gap: 10px; cursor: pointer;">
-                <input type="checkbox" id="clipboard-detect-checkbox" checked />
-                <span class="custom-checkbox"></span>
-                <span style="font-size: 0.85rem; font-weight: 500;">Clipboard Auto-Detect</span>
-              </label>
-              <div style="font-size: 0.72rem; color: var(--text-muted); margin-left: 28px; margin-top: 4px;">
-                Automatically monitor clipboard and parse video/audio URLs.
-              </div>
-            </div>
-
-            <!-- Default Download Quality -->
-            <div style="margin-bottom: 15px; border-top: 1px solid rgba(255, 255, 255, 0.05); padding-top: 15px;">
-              <label class="advanced-label" style="display: block; margin-bottom: 5px;">
-                <span style="font-size: 0.85rem; font-weight: 500;">Default Quality:</span>
-              </label>
-              <select
-                id="global-default-quality"
-                style="
-                  width: 100%;
-                  padding: 8px 12px;
-                  background: rgba(0, 0, 0, 0.3);
-                  border: 1px solid var(--glass-border);
-                  border-radius: 8px;
-                  color: var(--text);
-                  font-family: var(--font);
-                  outline: none;
-                  cursor: pointer;
-                "
-              >
-                <option value="best">Best Quality</option>
-                <option value="1080p">1080p Full HD</option>
-                <option value="720p">720p HD</option>
-                <option value="480p">480p SD</option>
-                <option value="audio">Audio Only (MP3)</option>
-              </select>
-            </div>
-
-            <!-- Telegram Bot Config (Global) -->
-            <div style="margin-bottom: 15px; border-top: 1px solid rgba(255, 255, 255, 0.05); padding-top: 15px;">
-              <label class="advanced-label" style="display: block; margin-bottom: 5px;">
-                <span style="font-size: 0.85rem; font-weight: 500;">Telegram Cloud Sync:</span>
-              </label>
-              <div style="display: flex; flex-direction: column; gap: 8px; margin-top: 5px;">
-                <input
-                  type="text"
-                  id="tg-bot-token"
-                  placeholder="Telegram Bot Token"
-                  style="
-                    width: 100%;
-                    padding: 8px 12px;
-                    background: rgba(0, 0, 0, 0.3);
-                    border: 1px solid var(--glass-border);
-                    border-radius: 8px;
-                    color: var(--text);
-                    font-family: var(--font);
-                    font-size: 0.82rem;
-                  "
-                />
-                <input
-                  type="text"
-                  id="tg-chat-id"
-                  placeholder="Telegram Chat/Group ID"
-                  style="
-                    width: 100%;
-                    padding: 8px 12px;
-                    background: rgba(0, 0, 0, 0.3);
-                    border: 1px solid var(--glass-border);
-                    border-radius: 8px;
-                    color: var(--text);
-                    font-family: var(--font);
-                    font-size: 0.82rem;
-                  "
-                />
-              </div>
-            </div>
-
-            <!-- Cookies & Engine (Global Settings) -->
-            <div style="margin-bottom: 15px; border-top: 1px solid rgba(255, 255, 255, 0.05); padding-top: 15px;">
-              <div
-                id="active-cookies-badge"
-                class="active-cookies-badge hidden"
-                style="margin: 0 0 10px 0; width: 100%; display: flex; justify-content: space-between; align-items: center;"
-              >
-                <div style="display: flex; align-items: center; gap: 6px;">
-                  <span class="pulse-dot"></span>
-                  <span style="font-size: 0.78rem;">Active session cookies loaded</span>
+            <!-- Settings Content Group -->
+            <div class="global-settings-group">
+              <!-- Clipboard Auto-Detect -->
+              <div class="global-settings-row">
+                <label class="toggle-switch-container">
+                  <input type="checkbox" id="clipboard-detect-checkbox" checked />
+                  <span class="toggle-switch-slider"></span>
+                  <span class="global-settings-label">Clipboard Auto-Detect</span>
+                </label>
+                <div class="global-settings-help-text">
+                  Automatically monitor clipboard and parse video/audio URLs.
                 </div>
-                <button
-                  id="clear-cookies-btn"
-                  class="btn-clear-cookies"
-                  title="Clear cookies"
-                  style="
-                    background: none;
-                    border: none;
-                    color: rgba(255, 255, 255, 0.5);
-                    font-size: 0.78rem;
-                    font-weight: 600;
-                    cursor: pointer;
-                    text-decoration: underline;
-                    padding: 0;
-                    margin-left: 4px;
-                    transition: color 0.15s ease;
-                  "
-                >
-                  Clear
-                </button>
               </div>
-              <div class="cookies-status-row" style="margin: 0; gap: 8px;">
-                <button
-                  id="toggle-cookies-btn"
-                  class="btn-toggle-cookies"
-                  title="Upload or Manage Cookies"
-                  style="margin: 0; flex: 1; justify-content: center; height: 34px;"
-                >
-                  <svg
-                    class="cookie-btn-icon"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    stroke-width="1.5"
-                    stroke-linecap="round"
-                    stroke-linejoin="round"
-                  >
-                    <path
-                      d="M12 2a10 10 0 1 0 10 10c0-1.66-1.34-3-3-3s-3 1.34-3 3-1.34 3-3 3-3-1.34-3-3 1.34-3 3-3 3 1.34 3 3a3 3 0 1 1-6 0c0-3.31 2.69-6 6-6Z"
-                    />
-                  </svg>
-                  <span>Manage Cookies</span>
-                </button>
-                <button
-                  id="update-engine-btn"
-                  class="btn-update-engine"
-                  title="Update Downloader Engine (yt-dlp)"
-                  style="margin: 0; flex: 1; justify-content: center; height: 34px;"
-                >
-                  <svg
-                    class="engine-btn-icon"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    stroke-width="1.5"
-                    stroke-linecap="round"
-                    stroke-linejoin="round"
-                    style="width: 14px; height: 14px;"
-                  >
-                    <path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.57-8.38l5.67-5.67" />
-                  </svg>
-                  <span>Update Engine</span>
-                </button>
-              </div>
-            </div>
 
-            <!-- Clear Cache & Reset -->
-            <div style="border-top: 1px solid rgba(255, 255, 255, 0.05); padding-top: 15px; display: flex; flex-direction: column; gap: 8px;">
-              <button
-                type="button"
-                id="btn-clear-temp-cache"
-                style="
-                  width: 100%;
-                  padding: 8px;
-                  background: rgba(239, 68, 68, 0.1);
-                  border: 1px solid rgba(239, 68, 68, 0.2);
-                  border-radius: 8px;
-                  color: #ef4444;
-                  font-family: var(--font);
-                  font-weight: 600;
-                  font-size: 0.8rem;
-                  cursor: pointer;
-                  display: flex;
-                  align-items: center;
-                  justify-content: center;
-                  gap: 6px;
-                  transition: all 0.2s;
-                "
-              >
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
-                Clear Temp Cache
-              </button>
+              <!-- Default Download Quality -->
+              <div class="global-settings-row border-top">
+                <label class="global-settings-title-label" for="global-default-quality">Default Quality:</label>
+                <select id="global-default-quality" class="global-settings-select">
+                  <option value="best">Best Quality</option>
+                  <option value="1080p">1080p Full HD</option>
+                  <option value="720p">720p HD</option>
+                  <option value="480p">480p SD</option>
+                  <option value="audio">Audio Only (MP3)</option>
+                </select>
+              </div>
+
+              <!-- Telegram Bot Config (Global) -->
+              <div class="global-settings-row border-top">
+                <label class="global-settings-title-label">Telegram Cloud Sync:</label>
+                <div class="global-settings-input-group">
+                  <input
+                    type="text"
+                    id="tg-bot-token"
+                    class="global-settings-input"
+                    placeholder="Telegram Bot Token"
+                  />
+                  <input
+                    type="text"
+                    id="tg-chat-id"
+                    class="global-settings-input"
+                    placeholder="Telegram Chat/Group ID"
+                  />
+                </div>
+              </div>
+
+              <!-- Cookies & Engine (Global Settings) -->
+              <div class="global-settings-row border-top">
+                <div id="active-cookies-badge" class="active-cookies-badge hidden" style="margin: 0 0 10px 0; width: 100%; display: flex; justify-content: space-between; align-items: center;">
+                  <div class="active-cookies-content">
+                    <span class="pulse-dot"></span>
+                    <span style="font-size: 0.78rem;">Active session cookies loaded</span>
+                  </div>
+                  <button id="clear-cookies-btn" class="btn-clear-cookies" title="Clear cookies">
+                    Clear
+                  </button>
+                </div>
+                <div class="cookies-status-row" style="margin: 0; gap: 8px;">
+                  <button
+                    id="toggle-cookies-btn"
+                    class="btn-toggle-cookies"
+                    title="Upload or Manage Cookies"
+                    style="margin: 0; flex: 1; justify-content: center; height: 34px;"
+                  >
+                    <svg
+                      class="cookie-btn-icon"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      stroke-width="1.5"
+                      stroke-linecap="round"
+                      stroke-linejoin="round"
+                    >
+                      <path
+                        d="M12 2a10 10 0 1 0 10 10c0-1.66-1.34-3-3-3s-3 1.34-3 3-1.34 3-3 3-3-1.34-3-3 1.34-3 3-3 3 1.34 3 3a3 3 0 1 1-6 0c0-3.31 2.69-6 6-6Z"
+                      />
+                    </svg>
+                    <span>Manage Cookies</span>
+                  </button>
+                  <button
+                    id="update-engine-btn"
+                    class="btn-update-engine"
+                    title="Update Downloader Engine (yt-dlp)"
+                    style="margin: 0; flex: 1; justify-content: center; height: 34px;"
+                  >
+                    <svg
+                      class="engine-btn-icon"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      stroke-width="1.5"
+                      stroke-linecap="round"
+                      stroke-linejoin="round"
+                      style="width: 14px; height: 14px;"
+                    >
+                      <path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.57-8.38l5.67-5.67" />
+                    </svg>
+                    <span>Update Engine</span>
+                  </button>
+                </div>
+              </div>
+
+              <!-- Action Buttons -->
+              <div class="global-settings-actions border-top">
+                <button type="button" id="btn-clear-temp-cache" class="btn-danger-outline">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14">
+                    <polyline points="3 6 5 6 21 6" />
+                    <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
+                  </svg>
+                  <span>Clear Temp Cache</span>
+                </button>
+              </div>
             </div>
 
             <!-- Hidden inputs for legacy download synchronization (populated via preview settings) -->
@@ -2963,6 +2894,6 @@
     <div id="preview-align-h" class="preview-align-line hidden"></div>
 
     <script src="https://cdnjs.cloudflare.com/ajax/libs/noUiSlider/15.7.1/nouislider.min.js"></script>
-    <script src="{{ url_for('static', filename='js/main.js') }}?v=21.3"></script>
+    <script src="{{ url_for('static', filename='js/main.js') }}?v=22.1"></script>
   </body>
 </html>
