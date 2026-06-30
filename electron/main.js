@@ -248,6 +248,12 @@ function createMainWindow() {
     title: APP_NAME,
   });
 
+  // Clear cache in dev mode to guarantee fresh assets are loaded
+  if (isDev) {
+    const { session } = require('electron');
+    session.defaultSession.clearCache().catch(err => log.error('Failed to clear cache:', err));
+  }
+
   mainWindow.loadURL(`http://127.0.0.1:${serverPort}/`);
 
   mainWindow.webContents.on('did-finish-load', () => {
@@ -658,7 +664,8 @@ function startAutoUpdate(url, version) {
             const child = spawn(cmd, args, {
               detached: true,
               stdio: 'ignore',
-              shell: true
+              shell: true,
+              windowsHide: true
             });
             child.unref();
             log.info('Quitting app for update installation...');

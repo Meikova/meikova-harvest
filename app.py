@@ -35,6 +35,7 @@ except Exception as e:
 
 # Initialize Flask app
 app = Flask(__name__, static_folder="static", template_folder="templates")
+app.config['TEMPLATES_AUTO_RELOAD'] = True
 CORS(app)
 
 # Clean up any leftover temporary folders from previous runs on startup

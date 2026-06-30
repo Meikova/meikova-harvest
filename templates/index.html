@@ -63,7 +63,7 @@
       rel="stylesheet"
       href="https://cdnjs.cloudflare.com/ajax/libs/noUiSlider/15.7.1/nouislider.min.css"
     />
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}?v=19.2">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}?v=20.1">
     <script src="https://cdn.jsdelivr.net/npm/hls.js@1.5.8/dist/hls.min.js"></script>
     <script>
       (function () {
@@ -756,6 +756,20 @@
                   <button type="button" class="customizer-preset-btn active" data-type="sparkle-shape" data-value="star" title="4-pointed Star (Default)">Star</button>
                   <button type="button" class="customizer-preset-btn" data-type="sparkle-shape" data-value="circle" title="Circle">Circle</button>
                   <button type="button" class="customizer-preset-btn" data-type="sparkle-shape" data-value="diamond" title="Diamond">Diamond</button>
+                </div>
+              </div>
+
+              <!-- App Shell Height Option -->
+              <div>
+                <label class="advanced-label" style="font-size: 0.85rem; font-weight: 500; margin-bottom: 5px; display: block;">
+                  <span>App Window Height:</span>
+                </label>
+                <div class="customizer-presets-container">
+                  <button type="button" class="customizer-preset-btn active" data-type="app-height" data-value="100%" title="Full Height (100%)">100%</button>
+                  <button type="button" class="customizer-preset-btn" data-type="app-height" data-value="95vh" title="Tall (95vh)">95vh</button>
+                  <button type="button" class="customizer-preset-btn" data-type="app-height" data-value="90vh" title="Medium (90vh)">90vh</button>
+                  <button type="button" class="customizer-preset-btn" data-type="app-height" data-value="85vh" title="Compact (85vh)">85vh</button>
+                  <button type="button" class="customizer-preset-btn" data-type="app-height" data-value="80vh" title="Very Compact (80vh)">80vh</button>
                 </div>
               </div>
 
@@ -2887,6 +2901,6 @@
     <div id="preview-align-h" class="preview-align-line hidden"></div>
 
     <script src="https://cdnjs.cloudflare.com/ajax/libs/noUiSlider/15.7.1/nouislider.min.js"></script>
-    <script src="{{ url_for('static', filename='js/main.js') }}?v=20.3"></script>
+    <script src="{{ url_for('static', filename='js/main.js') }}?v=20.5"></script>
   </body>
 </html>

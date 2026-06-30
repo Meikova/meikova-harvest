@@ -421,6 +421,20 @@ document.addEventListener("DOMContentLoaded", () => {
         localStorage.setItem("customizer-fontfamily", fontVal);
     }
 
+    function applyAppHeight(heightVal) {
+        document.documentElement.style.setProperty("--app-shell-height", heightVal);
+
+        // Update active class on app-height preset buttons
+        document.querySelectorAll('.customizer-preset-btn[data-type="app-height"]').forEach(btn => {
+            if (btn.getAttribute('data-value') === heightVal) {
+                btn.classList.add('active');
+            } else {
+                btn.classList.remove('active');
+            }
+        });
+        localStorage.setItem("customizer-app-height", heightVal);
+    }
+
     function updateCanvasOption(key, value) {
         window.canvasSettings[key] = value;
         localStorage.setItem("customizer-" + key, value);
@@ -535,6 +549,8 @@ document.addEventListener("DOMContentLoaded", () => {
                 applyGravityMode(val);
             } else if (type === 'sparkle-shape') {
                 applySparkleShape(val);
+            } else if (type === 'app-height') {
+                applyAppHeight(val);
             }
         });
     });
@@ -700,6 +716,7 @@ document.addEventListener("DOMContentLoaded", () => {
             applyBlur(24);
             applyFontSize("medium");
             applyFontFamily("outfit");
+            applyAppHeight("100%");
             applyGravityMode("pull");
             applySparkleShape("star");
             applySpacing(54, true);
@@ -762,6 +779,9 @@ document.addEventListener("DOMContentLoaded", () => {
 
     const savedFontFamily = localStorage.getItem("customizer-fontfamily") || "outfit";
     applyFontFamily(savedFontFamily);
+
+    const savedAppHeight = localStorage.getItem("customizer-app-height") || "100%";
+    applyAppHeight(savedAppHeight);
 
     const savedGrid = localStorage.getItem("customizer-gridEnabled") !== null ? localStorage.getItem("customizer-gridEnabled") === "true" : true;
     const savedGravityMode = localStorage.getItem("customizer-gravityMode") || "pull";
@@ -6731,7 +6751,7 @@ document.addEventListener("DOMContentLoaded", () => {
         // Reset UI States
         setPlatformTheme(null);
         errorCard.classList.add("hidden");
-        resultSection.classList.add("hidden");
+        showWelcomeDashboard();
         cookiesSection.classList.add("hidden");
 
         // Reset stale metadata from previous analysis
