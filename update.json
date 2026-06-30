@@ -1,11 +1,11 @@
 {
-    "version": "1.1.2",
-    "url": "https://github.com/m3iK18dp/EveryThingDownloader/releases/download/v1.1.2/EveryThingDownloader-Setup-1.1.2.exe",
+    "version": "1.1.3",
+    "url": "https://github.com/m3iK18dp/EveryThingDownloader/releases/download/v1.1.3/EveryThingDownloader-Setup-1.1.3.exe",
     "platforms": {
-        "win32": "https://github.com/m3iK18dp/EveryThingDownloader/releases/download/v1.1.2/EveryThingDownloader-Setup-1.1.2.exe",
-        "darwin_arm64": "https://github.com/m3iK18dp/EveryThingDownloader/releases/download/v1.1.2/EveryThingDownloader-1.1.2-arm64.dmg",
-        "darwin_x64": "https://github.com/m3iK18dp/EveryThingDownloader/releases/download/v1.1.2/EveryThingDownloader-1.1.2-x64.dmg",
-        "linux_x64": "https://github.com/m3iK18dp/EveryThingDownloader/releases/download/v1.1.2/EveryThingDownloader-1.1.2-x64.AppImage"
+        "win32": "https://github.com/m3iK18dp/EveryThingDownloader/releases/download/v1.1.3/EveryThingDownloader-Setup-1.1.3.exe",
+        "darwin_arm64": "https://github.com/m3iK18dp/EveryThingDownloader/releases/download/v1.1.3/EveryThingDownloader-1.1.3-arm64.dmg",
+        "darwin_x64": "https://github.com/m3iK18dp/EveryThingDownloader/releases/download/v1.1.3/EveryThingDownloader-1.1.3-x64.dmg",
+        "linux_x64": "https://github.com/m3iK18dp/EveryThingDownloader/releases/download/v1.1.3/EveryThingDownloader-1.1.3-x64.AppImage"
     },
-    "changelog": "Add local file support and video enhancements. Major feature additions:\n\n- Local file/folder support: Can now process local files and directories with automatic type detection (video, audio, image, text, subtitle)\n- Video enhancements: Add beautify, sharpen, and resolution upscale filters with real-time preview\n- Seek thumbnail preview: YouTube-style hover preview on video seek bar\n- UI improvements: Window positioning presets, alignment snapping, image search/filtering\n- HEIC/HEIF support: Auto-convert HEIC images to JPEG via pillow-heif\n- Enhanced playback: Episode navigation buttons, autoplay next episode, improved format grouping\n- Local file proxying: Serve local files through Flask endpoints with proper MIME types"
+    "changelog": "- [Feature] Added Advanced Format Converter: Support local audio/video file drag-and-drop, conversion to MP3, WAV, FLAC, M4A, MP4, MKV, WebM, GIF with customizable audio bitrate and video resolution options.\n- [Feature] High-Quality GIF Generator: Implemented a 2-step FFmpeg palettegen/paletteuse process to produce sharp, grain-free animated GIFs.\n- [Feature] Integrated Subtitle Editor: Allow editing cue texts and timestamps (expanded inputs preventing millisecond truncation) in preview modal, synced directly to backend FFmpeg for softsub/hardsub export.\n- [UI/UX] Added a sleek Tab navigation bar (Downloader / Format Converter) with real-time XHR upload progress indicators.\n- [UI/UX] Refined GIF conversion progress reporting: Split into Phase 1 (Palettegen - 5%) and Phase 2 (Paletteuse - 15%+) to eliminate 0% progress freezes on large videos.\n- [UI/UX] Fixed subtitle header wrapping by shortening buttons to \"Edit Mode\"/\"View Mode\" and enforcing nowrap styling.\n- [Bug Fix] Resolved server startup cleanup race condition deleting the uploads cache folder by introducing on-upload lazy creation checks.\n- [Bug Fix] Corrected FFmpeg unsharp filter parameter typos (luma_msize_x/y) to restore video sharpening and enhancement features during download."
 }
