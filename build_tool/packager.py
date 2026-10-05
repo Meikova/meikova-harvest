@@ -11,6 +11,7 @@ from __future__ import annotations
 import json
 import os
 import platform
+import re
 import shutil
 import subprocess
 import sys
@@ -121,10 +122,31 @@ VSVersionInfo(
 '''
 
 
+def sanitize_version(version: str | None) -> str:
+    """Sanitize version string into clean semver format (e.g. '.1.2.0' -> '1.2.0', 'v1.2.0' -> '1.2.0')."""
+    if not version:
+        return '1.0.0'
+    val = str(version).strip()
+    val = re.sub(r'^[^\d]+', '', val)
+    if not val:
+        return '1.0.0'
+    parts = val.split('.')
+    clean_parts = []
+    for p in parts:
+        p_clean = p.strip()
+        if p_clean:
+            clean_parts.append(p_clean)
+    if not clean_parts:
+        return '1.0.0'
+    while len(clean_parts) < 3:
+        clean_parts.append('0')
+    return '.'.join(clean_parts[:3])
+
+
 class BuildConfig:
     def __init__(self):
         self.app_name:    str  = 'EveryThingDownloader'
-        self.version:     str  = '1.0.0'
+        self._version:    str  = '1.0.0'
         self.company:     str  = 'EveryThingDownloader'
         self.description: str  = 'EveryThingDownloader'
         self.copyright:   str  = f'© 2026 EveryThingDownloader'
@@ -135,8 +157,18 @@ class BuildConfig:
         # Protected source directory (set by Obfuscator)
         self.protected_src: Path | None = None
 
+    @property
+    def version(self) -> str:
+        return self._version
+
+    @version.setter
+    def version(self, val: str):
+        self._version = sanitize_version(val)
+
     def to_dict(self) -> dict:
         d = self.__dict__.copy()
+        if '_version' in d:
+            d['version'] = d.pop('_version')
         if isinstance(d.get('protected_src'), Path):
             d['protected_src'] = str(d['protected_src'])
         return d
@@ -155,6 +187,7 @@ class Packager:
 
     def __init__(self, config: BuildConfig):
         self.cfg = config
+        self.cfg.version = sanitize_version(self.cfg.version)
 
     # ── Helpers ──────────────────────────────────────────────────────────────
 
@@ -171,10 +204,11 @@ class Packager:
                 except Exception:
                     print(msg.encode('ascii', errors='replace').decode('ascii'))
 
-    def _version_tuple(self):
-        parts = self.cfg.version.split('.')
-        parts += ['0'] * (3 - len(parts))
-        return tuple(int(x) for x in parts[:3])
+    def _version_tuple(self) -> tuple[int, int, int]:
+        numbers = re.findall(r'\d+', str(self.cfg.version or ''))
+        while len(numbers) < 3:
+            numbers.append('0')
+        return (int(numbers[0]), int(numbers[1]), int(numbers[2]))
 
     def _write_version_info(self, build_dir: Path) -> Path:
         major, minor, patch = self._version_tuple()

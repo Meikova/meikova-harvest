@@ -1,11 +1,11 @@
 {
     "version": "1.2.0",
-    "url": "https://github.com/m3iK18dp/EveryThingDownloader/releases/download/v.1.2.0/EveryThingDownloader-Setup-1.2.0.exe",
+    "url": "https://github.com/m3iK18dp/EveryThingDownloader/releases/download/v1.2.0/EveryThingDownloader-Setup-1.2.0.exe",
     "platforms": {
-        "win32": "https://github.com/m3iK18dp/EveryThingDownloader/releases/download/v.1.2.0/EveryThingDownloader-Setup-1.2.0.exe",
-        "darwin_arm64": "https://github.com/m3iK18dp/EveryThingDownloader/releases/download/v.1.2.0/EveryThingDownloader-1.2.0-arm64.dmg",
-        "darwin_x64": "https://github.com/m3iK18dp/EveryThingDownloader/releases/download/v.1.2.0/EveryThingDownloader-1.2.0-x64.dmg",
-        "linux_x64": "https://github.com/m3iK18dp/EveryThingDownloader/releases/download/v.1.2.0/EveryThingDownloader-1.2.0-x64.AppImage"
+        "win32": "https://github.com/m3iK18dp/EveryThingDownloader/releases/download/v1.2.0/EveryThingDownloader-Setup-1.2.0.exe",
+        "darwin_arm64": "https://github.com/m3iK18dp/EveryThingDownloader/releases/download/v1.2.0/EveryThingDownloader-1.2.0-arm64.dmg",
+        "darwin_x64": "https://github.com/m3iK18dp/EveryThingDownloader/releases/download/v1.2.0/EveryThingDownloader-1.2.0-x64.dmg",
+        "linux_x64": "https://github.com/m3iK18dp/EveryThingDownloader/releases/download/v1.2.0/EveryThingDownloader-1.2.0-x64.AppImage"
     },
     "changelog": "UPDATE EVERYTHONG DOWNLOADER TOOLS VERSION 1.2.0:\n- Added native Windows Save File Dialog to choose destination folders directly without browser redirection.\n- Added \"Show in Folder\" button to reveal completed downloads and conversions in Windows Explorer.\n- Added Image Transcoding Studio supporting JPG, PNG, WebP, ICO, BMP, and TIFF with live image preview.\n- Fixed infinite FFmpeg loop and 99% progress freeze when converting static images to video (MOV, MP4, MKV).\n- Fixed FFmpeg crashes on silent videos with automatic stream detection and audio stripping (`-an`).\n- Added Zero-Copy local file conversion to process large files instantly without HTTP upload overhead.\n- Added 1-click Quick Conversion Presets and synchronized timeline Trimming controls.\n- Replaced iframe with isolated Electron `<webview>` player for seamless embedded stream preview.\n- Implemented 4-tier ad blocker eliminating pause popups, betting ads, and DevTools warnings.\n- Fixed initial preview black screen and eliminated background audio leaking upon closing preview modal.\n- Enforced 100% inline SVG vector icon standard, completely removing all legacy emojis and icon fonts.\n- Styled native Windows scrollbars with custom theme and fixed horizontal preset button overflow.\n- Upgraded `yt-dlp` with EJS challenge solver and improved TikTok cookie and captcha handling.\n- Audited core dependencies in `requirements.txt` and resolved CLI builder static analysis warnings."
 }

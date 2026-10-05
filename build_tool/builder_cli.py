@@ -28,7 +28,7 @@ if sys.stdout.encoding and sys.stdout.encoding.lower() not in ('utf-8', 'utf8'):
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from build_tool.obfuscator import ObfuscationConfig, Obfuscator, get_current_machine_id
-from build_tool.packager import BuildConfig, Packager
+from build_tool.packager import BuildConfig, Packager, sanitize_version
 
 ROOT_DIR = Path(__file__).resolve().parent.parent
 
