@@ -24,6 +24,12 @@ contextBridge.exposeInMainWorld('electronAPI', {
   // Download folder
   openDownloadsFolder: () => ipcRenderer.send('open-downloads-folder'),
 
+  // File & Folder selection dialogs
+  selectFile: () => ipcRenderer.invoke('select-file'),
+  selectFolder: () => ipcRenderer.invoke('select-folder'),
+  saveFile: (options) => ipcRenderer.invoke('save-file', options),
+  showItemInFolder: (path) => ipcRenderer.send('show-item-in-folder', path),
+
   // Clipboard events
   onClipboardLink: (callback) => {
     const subscription = (_, link) => callback(link);
@@ -31,6 +37,9 @@ contextBridge.exposeInMainWorld('electronAPI', {
     return () => ipcRenderer.removeListener('clipboard-link', subscription);
   },
   resetClipboardCache: () => ipcRenderer.send('reset-clipboard-cache'),
+
+  // Stream referer for CDN bypass
+  setStreamReferer: (referer) => ipcRenderer.send('set-stream-referer', referer),
   
   // Platform
   platform: process.platform,

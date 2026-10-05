@@ -28,7 +28,9 @@ from extractors import (
     extract_facebook_story,
     resolve_facebook_sizes,
     generic_html_link_harvester,
-    resolve_hls_size
+    resolve_hls_size,
+    extract_torrent_info,
+    is_torrent_input
 )
 
 info_bp = Blueprint("info", __name__)
@@ -86,6 +88,7 @@ def should_bypass_ytdl(url):
     import urllib.parse
     import sqlite3
     try:
+        url_lower = url.lower()
         parsed = urllib.parse.urlparse(url)
         domain = parsed.netloc.lower()
         if ":" in domain:
@@ -95,7 +98,26 @@ def should_bypass_ytdl(url):
             
         domain_clean = domain.lstrip("www.")
         
-        # Query database
+        # 1. Fast heuristic: Known movie/streaming site domains and url patterns
+        STREAMING_DOMAINS = [
+            "rophim", "luphim", "guphim", "animevietsub", "animehay", "vuighe", 
+            "motphim", "bilutv", "phimmoi", "subnhanh", "ophim", "kkphim", 
+            "phimmoichill", "dongphym", "tvhay", "fullphim", "coiphim"
+        ]
+        KNOWN_SOCIAL_PLATFORMS = [
+            "youtube.com", "youtu.be", "facebook.com", "fb.watch", "fb.com",
+            "tiktok.com", "instagram.com", "instagr.am", "twitter.com", "x.com",
+            "vimeo.com", "dailymotion.com", "bilibili.com", "bilibili.tv",
+            "reddit.com", "pinterest.com", "soundcloud.com", "twitch.tv",
+            "threads.net", "douyin.com", "kuaishou.com", "threads.com"
+        ]
+        
+        is_known_platform = any(soc in domain_clean for soc in KNOWN_SOCIAL_PLATFORMS)
+        if not is_known_platform:
+            if any(sd in domain_clean for sd in STREAMING_DOMAINS) or "/xem-phim/" in url_lower or "/phim/" in url_lower:
+                return True
+        
+        # 2. Query database for dynamically learned bypass domains
         from config import DB_PATH
         conn = sqlite3.connect(DB_PATH, timeout=5.0)
         cursor = conn.cursor()
@@ -110,17 +132,53 @@ def should_bypass_ytdl(url):
     return False
 
 
-def generic_html_link_harvester(url, client_id):
+def generic_html_link_harvester(url, client_id, html=None):
     from extractors.generic import generic_html_link_harvester as _harvester
-    return _harvester(url, client_id)
+    return _harvester(url, client_id, html=html)
 
 @info_bp.route("/api/info", methods=["POST"])
 def get_info():
-    data = request.get_json() or {}
-    url = data.get("url", "").strip()
+    if request.is_json:
+        data = request.get_json() or {}
+        url = data.get("url", "").strip()
+        client_id = data.get("client_id")
+        html_content = data.get("html")
+    else:
+        # Check if file was uploaded from file picker
+        file = request.files.get("file")
+        if file and file.filename:
+            temp_upload_dir = os.path.join(TEMP_DOWNLOAD_DIR, "uploads")
+            os.makedirs(temp_upload_dir, exist_ok=True)
+            upload_path = os.path.join(temp_upload_dir, file.filename)
+            file.save(upload_path)
+            url = upload_path
+            client_id = request.form.get("client_id")
+            html_content = None
+        else:
+            data = request.form or {}
+            url = data.get("url", "").strip()
+            client_id = data.get("client_id")
+            html_content = data.get("html")
+
+    # Strip surrounding quotes from paths copied as path (e.g. "C:\path\to\file")
+    url = re.sub(r'^[\'"]+|[\'"]+$', '', url).strip()
+    
+    # Auto-normalize old/blocked AnimeVietSub domains to the latest working one
+    if "animevietsub." in url.lower():
+        url = re.sub(r'animevietsub\.[a-z]+', 'animevietsub.meme', url, flags=re.IGNORECASE)
+        
     if "tiktok.com" in url.lower() and "/photo/" in url.lower():
         url = re.sub(r'/photo/', '/video/', url, flags=re.IGNORECASE)
-    client_id = data.get("client_id")
+
+    # --- BitTorrent / Magnet / uTorrent support ---
+    if is_torrent_input(url):
+        try:
+            logger.info(f"BitTorrent input detected: {url[:60]}")
+            torrent_info = extract_torrent_info(url, client_id=client_id)
+            return jsonify(torrent_info)
+        except Exception as te:
+            logger.error(f"Error parsing BitTorrent/Magnet input: {te}")
+            return jsonify({"status": "error", "message": f"Could not parse BitTorrent/Magnet link: {str(te)}"}), 400
 
     # --- Local file / folder support ---
     if (os.path.isabs(url) or (len(url) >= 2 and url[1] == ':')) and os.path.exists(url):
@@ -348,8 +406,9 @@ def get_info():
                 resolve_headers = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"}
                 cookies_dict = {}
                 if client_id:
-                    client_cookies = os.path.join(TEMP_DOWNLOAD_DIR, "cookies", f"cookies_{client_id}.txt")
-                    if os.path.exists(client_cookies):
+                    from utils.cookies import get_cookie_file_path
+                    client_cookies = get_cookie_file_path(client_id)
+                    if client_cookies and os.path.exists(client_cookies):
                         try:
                             with open(client_cookies, 'r', encoding='utf-8', errors='ignore') as f:
                                 for line in f:
@@ -510,7 +569,7 @@ def get_info():
     # Direct bypass for movie/streaming sites to avoid slow yt-dlp timeout delays
     if should_bypass_ytdl(url):
         logger.info(f"Movie/streaming site detected via bypass rule: {url}. Bypassing yt-dlp and routing directly to generic harvester.")
-        harvester_info = generic_html_link_harvester(url, client_id)
+        harvester_info = generic_html_link_harvester(url, client_id, html=html_content)
         if harvester_info:
             video_opts = harvester_info.get("video_options", [])
             has_streams = any(opt.get("format_id") != "generic_fallback" for opt in video_opts)
@@ -541,6 +600,12 @@ def get_info():
                 }), 400
 
     is_youtube = any(domain in url.lower() for domain in ["youtube.com", "youtu.be"])
+    if is_youtube and "watch?v=" in url:
+        if "&list=RD" in url:
+            url = re.sub(r'&list=RD[^&]*', '', url)
+        if "&start_radio=1" in url:
+            url = re.sub(r'&start_radio=1', '', url)
+
     is_playlist = is_playlist_url(url)
     ydl_opts = {
         "verbose": is_youtube,
@@ -549,13 +614,13 @@ def get_info():
         "nocheckcertificate": True,
         "noplaylist": not is_instagram if not is_playlist else False,
         "extract_flat": True if is_playlist else False,
-        "js_runtimes": {"deno": {}, "node": {}, "bun": {}, "quickjs": {}},
+        "js_runtimes": {"node": {}, "deno": {}, "bun": {}, "quickjs": {}},
         "cookiesfrombrowser": "auto",
         "ignoreerrors": False,
         "compat_opts": {"prefer-legacy-http-handler"},
         "extractor_args": {
             "youtube": {
-                "player_client": ["ios", "android", "web_creator", "mweb", "default"],
+                "player_client": ["web_embedded", "android", "web"],
             },
             "generic": {
                 "impersonate": [""]
@@ -727,6 +792,10 @@ def get_info():
 
                 is_tiktok = "tiktok" in url.lower()
                 if is_tiktok:
+                    from utils.cookies import get_cookie_file_path
+                    user_cookies = get_cookie_file_path(client_id)
+                    has_user_cookies = bool(user_cookies and os.path.exists(user_cookies))
+
                     tiktok_auth_keywords = [
                         "confirm you're not a bot",
                         "confirm you are not a bot",
@@ -737,17 +806,17 @@ def get_info():
                         "sign in",
                         "private",
                         "permission",
-                        "cookies",
                         "cookies-from-browser",
-                        "not available",
-                         "unexpected response",
-                        "unable to extract",
                         "rehydration"
                     ]
                     if any(keyword in err_str for keyword in tiktok_auth_keywords):
+                        if has_user_cookies:
+                            msg = "TikTok phát hiện bot/captcha hoặc IP bị chặn. Cookie hiện tại có thể đã hết hạn hoặc TikTok yêu cầu xác minh Captcha trên trình duyệt. Vui lòng mở TikTok trên trình duyệt, xác minh Captcha rồi xuất và tải lại cookie mới."
+                        else:
+                            msg = "This TikTok Video or Slideshow requires account cookies or the system IP is blocked (captcha encountered). Please log in to TikTok in your browser, export and upload a J2TEAM cookie file (Netscape or JSON format) to continue."
                         return jsonify({
                             "status": "error",
-                            "message": "This TikTok Video or Slideshow requires account cookies or the system IP is blocked (captcha encountered). Please log in to TikTok in your browser, export and upload a J2TEAM cookie file (Netscape or JSON format) to continue."
+                            "message": msg
                         }), 400
 
                 is_reddit = "reddit.com" in url.lower() or "redd.it" in url.lower()
@@ -1118,7 +1187,11 @@ def get_info():
                 if likes_label == "Unknown" or likes_label == "0" or views_label == "Unknown" or views_label == "0":
                     video_id = info.get("id")
                     if video_id:
-                        client_cookies = os.path.join(TEMP_DOWNLOAD_DIR, "cookies", f"cookies_{client_id}.txt") if client_id else None
+                        if client_id:
+                            from utils.cookies import get_cookie_file_path
+                            client_cookies = get_cookie_file_path(client_id)
+                        else:
+                            client_cookies = None
                         if client_cookies and os.path.exists(client_cookies):
                             try:
                                 curl_url = f"https://m.facebook.com/watch/?v={video_id}"
@@ -1216,7 +1289,11 @@ def get_info():
             subs_to_resolve = [sub for sub in subtitles if sub.get("size") == "Unknown Size" or not sub.get("size")]
             if subs_to_resolve:
                 from concurrent.futures import ThreadPoolExecutor
-                client_cookies = os.path.join(TEMP_DOWNLOAD_DIR, "cookies", f"cookies_{client_id}.txt") if client_id else None
+                if client_id:
+                    from utils.cookies import get_cookie_file_path
+                    client_cookies = get_cookie_file_path(client_id)
+                else:
+                    client_cookies = None
                 
                 def resolve_sub_size(opt):
                     url_to_check = opt.get("url")
@@ -1324,7 +1401,11 @@ def get_info():
 
                 if video_options:
                     from concurrent.futures import ThreadPoolExecutor
-                    client_cookies = os.path.join(TEMP_DOWNLOAD_DIR, "cookies", f"cookies_{client_id}.txt") if client_id else None
+                    if client_id:
+                        from utils.cookies import get_cookie_file_path
+                        client_cookies = get_cookie_file_path(client_id)
+                    else:
+                        client_cookies = None
                     
                     def resolve_ytdl_slide_size(opt):
                         if opt.get("size") == "Unknown Size" or not opt.get("size"):
@@ -1546,7 +1627,11 @@ def get_info():
                         
                         if video_options and (is_twitter or is_tiktok or is_instagram or is_reddit):
                             from concurrent.futures import ThreadPoolExecutor
-                            client_cookies = os.path.join(TEMP_DOWNLOAD_DIR, "cookies", f"cookies_{client_id}.txt") if client_id else None
+                            if client_id:
+                                from utils.cookies import get_cookie_file_path
+                                client_cookies = get_cookie_file_path(client_id)
+                            else:
+                                client_cookies = None
                             
                             def resolve_single_format_size(opt):
                                 if opt.get("size") == "Unknown Size" or not opt.get("size"):
@@ -1794,7 +1879,11 @@ def get_info():
             # Resolve sizes of TikTok video_options in parallel
             if is_tiktok and video_options:
                 from concurrent.futures import ThreadPoolExecutor
-                client_cookies = os.path.join(TEMP_DOWNLOAD_DIR, "cookies", f"cookies_{client_id}.txt") if client_id else None
+                if client_id:
+                    from utils.cookies import get_cookie_file_path
+                    client_cookies = get_cookie_file_path(client_id)
+                else:
+                    client_cookies = None
                 
                 def resolve_tiktok_size(opt):
                     if opt.get("size") == "Unknown Size" or not opt.get("size"):
@@ -1849,6 +1938,8 @@ def get_info():
 
             return jsonify({
                 "status": "success",
+                "id": info.get("id"),
+                "webpage_url": info.get("webpage_url") or url,
                 "title": title,
                 "uploader": uploader,
                 "duration": duration,

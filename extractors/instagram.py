@@ -22,8 +22,9 @@ def extract_instagram_via_gallery_dl(url, client_id):
     
     # Check if a client-specific cookies file exists
     if client_id:
-        client_cookies = os.path.join(TEMP_DOWNLOAD_DIR, "cookies", f"cookies_{client_id}.txt")
-        if os.path.exists(client_cookies):
+        from utils.cookies import get_cookie_file_path
+        client_cookies = get_cookie_file_path(client_id)
+        if client_cookies and os.path.exists(client_cookies):
             command.extend(["--cookies", client_cookies])
             logger.info(f"gallery-dl: Using client cookies file: {client_cookies}")
             
@@ -265,7 +266,8 @@ def extract_instagram_via_gallery_dl(url, client_id):
                     })
 
         # Resolve sizes of video_options in parallel using ThreadPoolExecutor
-        client_cookies = os.path.join(TEMP_DOWNLOAD_DIR, "cookies", f"cookies_{client_id}.txt") if client_id else None
+        from utils.cookies import get_cookie_file_path
+        client_cookies = get_cookie_file_path(client_id) if client_id else None
         
         def resolve_size(opt):
             url_to_check = opt.get("url")

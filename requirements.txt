@@ -1,13 +1,28 @@
+# EveryThingDownloader Core & Web Server
 flask==3.0.3
-yt-dlp>=2026.3.17
 flask-cors==4.0.1
-static-ffmpeg==2.5
+requests>=2.32.0
+curl-cffi>=0.15.0
+brotli>=1.1.0
+
+# Media Extraction Engines & Runtimes
+yt-dlp>=2026.8.19
 yt-dlp-ejs>=0.8.0
-gallery-dl
-curl-cffi
-edge-tts
-quickjs
-requests
-pyinstaller
-pyarmor
-pillow-heif==1.4.0
+gallery-dl>=1.32.0
+static-ffmpeg>=2.5
+quickjs>=1.19.0
+pycryptodomex>=3.20.0
+mutagen>=1.47.0
+
+# Text-To-Speech (TTS) & Async Networking
+edge-tts>=7.2.0
+websockets>=13.0
+aiohttp>=3.9.0
+
+# Image & Media Transcoding
+pillow>=11.1.0
+pillow-heif>=1.4.0
+
+# Build, Packaging & Protection
+pyinstaller>=6.20.0
+pyarmor>=9.2.0

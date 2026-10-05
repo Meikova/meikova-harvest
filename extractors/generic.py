@@ -1,3 +1,4 @@
+import os
 import re
 import logging
 import base64
@@ -193,6 +194,8 @@ try:
                     domain = domain.split(":")[0]
                     
                 if domain:
+                    if "animevietsub" in domain.lower():
+                        return original_setopt(self, opt, value)
                     if domain in DOH_IP_MAP:
                         # Direct static IP override for DoH providers to prevent infinite recursion and bypass hijacking
                         resolve_list = [
@@ -228,6 +231,8 @@ except Exception as e:
 original_getaddrinfo = socket.getaddrinfo
 
 def custom_getaddrinfo(host, port, family=0, type=0, proto=0, flags=0):
+    if host and "animevietsub" in host.lower():
+        return original_getaddrinfo(host, port, family, type, proto, flags)
     if host and host not in ['localhost', '127.0.0.1', '::1'] and not host.replace('.', '').isdigit():
         try:
             real_ips = resolve_doh_helper(host)
@@ -428,7 +433,125 @@ def resolve_hls_size(m3u8_url, referer=None):
     return None
 
 
-def generic_html_link_harvester(url, client_id):
+def unpack_dean_edwards(packed_str: str) -> str:
+    """
+    Unpacks Dean Edwards packed JavaScript:
+    eval(function(p,a,c,k,e,d){...}('payload', base, count, 'k1|k2|...'.split('|'), ...))
+    """
+    # ponytail: regex-based Dean Edwards unpacker without external JS engine
+    pattern = r"eval\(function\(p,a,c,k,e,[rd]\)\{.*?\}\s*\(\s*(['\"][^'\"]*['\"]|.*?)\s*,\s*(\d+)\s*,\s*(\d+)\s*,\s*(['\"][^'\"]*['\"])\.split\(['\"]([^'\"]+)['\"]\)"
+    match = re.search(pattern, packed_str, re.DOTALL)
+    if not match:
+        return packed_str
+
+    payload = match.group(1).strip()
+    if (payload.startswith("'") and payload.endswith("'")) or (payload.startswith('"') and payload.endswith('"')):
+        payload = payload[1:-1]
+    
+    radix = int(match.group(2))
+    count = int(match.group(3))
+    symtab = match.group(4).strip()[1:-1].split(match.group(5))
+
+    def baseN(num, b):
+        digits = "0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ"
+        if num == 0:
+            return digits[0]
+        res = []
+        while num > 0:
+            res.append(digits[num % b])
+            num //= b
+        return "".join(reversed(res))
+
+    lookup = {}
+    for i in range(count):
+        key = baseN(i, radix)
+        val = symtab[i] if i < len(symtab) and symtab[i] else key
+        lookup[key] = val
+
+    def replace_word(m):
+        w = m.group(0)
+        return lookup.get(w, w)
+
+    unpacked = re.sub(r"\b\w+\b", replace_word, payload)
+    if "eval(function(p,a,c,k,e," in unpacked:
+        return unpack_dean_edwards(unpacked)
+    return unpacked
+
+
+def deobfuscate_script(script_text: str) -> str:
+    """
+    Unpacks Dean Edwards, decodes hex/unicode escapes, and expands obfuscated strings.
+    """
+    if not script_text:
+        return ""
+    out = script_text
+    # 1. Unpack Dean Edwards
+    if "eval(function(p,a,c,k,e," in out:
+        try:
+            out = unpack_dean_edwards(out)
+        except Exception:
+            pass
+
+    # 2. Decode hex escapes (\x68\x74\x74\x70...)
+    if r"\x" in out:
+        try:
+            out = re.sub(r'\\x([0-9a-fA-F]{2})', lambda m: chr(int(m.group(1), 16)), out)
+        except Exception:
+            pass
+
+    # 3. Decode unicode escapes (\u002f...)
+    if r"\u" in out:
+        try:
+            out = re.sub(r'\\u([0-9a-fA-F]{4})', lambda m: chr(int(m.group(1), 16)), out)
+        except Exception:
+            pass
+
+    # 4. Normalize escaped slashes
+    out = out.replace(r"\/", "/")
+    return out
+
+
+def scan_text_for_media_urls(text: str, base_url: str = "") -> list:
+    """
+    Deep scan text/script for any media URLs (.m3u8, .mpd, .mp4, etc.)
+    """
+    if not text:
+        return []
+    candidates = []
+    # 1. Direct URLs with extension
+    pattern = r'(https?:\\?/\\?/[^\s"\'<>#]+?\.(?:m3u8|mpd|mp4|webm|mkv|ts)(?:[^\s"\'<>#]*))'
+    for m in re.findall(pattern, text, re.IGNORECASE):
+        clean_url = m.replace(r"\/", "/").rstrip('\\').rstrip('"').rstrip("'")
+        candidates.append(clean_url)
+
+    # 2. Object keys: file, source, src, stream_url
+    kv_pattern = r'(?:file|source|src|stream|url|video_url)\s*[:=]\s*["\'](https?:\\?/\\?/[^"\']+)["\']'
+    for m in re.findall(kv_pattern, text, re.IGNORECASE):
+        clean_url = m.replace(r"\/", "/").rstrip('\\').rstrip('"').rstrip("'")
+        candidates.append(clean_url)
+
+    # 3. Base64 strings that decode to media URLs or JSON with media URLs
+    b64_pattern = r'["\'](aHR0c[A-Za-z0-9+/=]{20,})["\']'
+    for m in re.findall(b64_pattern, text):
+        try:
+            decoded = base64.b64decode(m).decode('utf-8', errors='ignore')
+            if "http" in decoded and any(ext in decoded.lower() for ext in (".m3u8", ".mp4", ".mpd")):
+                sub_candidates = scan_text_for_media_urls(decoded, base_url)
+                candidates.extend(sub_candidates)
+        except Exception:
+            pass
+
+    # Deduplicate preserving order
+    seen = set()
+    result = []
+    for c in candidates:
+        if c not in seen and not any(bad in c.lower() for bad in ['beacon', 'analytics', 'pixel', 'advert', 'tracker']):
+            seen.add(c)
+            result.append(c)
+    return result
+
+
+def generic_html_link_harvester(url, client_id, html=None):
     parsed_url = urlparse(url)
     domain = parsed_url.netloc
     
@@ -439,48 +562,89 @@ def generic_html_link_harvester(url, client_id):
     path_segments = [seg for seg in parsed_url.path.split('/') if seg]
     last_segment = path_segments[-1] if path_segments else ""
 
+    html_from_client = html
     html = ""
     fetch_error_msg = ""
-    
-    # Load client cookies if available
+    final_url = None
     cookies_dict = {}
-    if client_id:
-        from config import TEMP_DOWNLOAD_DIR
-        import os
-        client_cookies = os.path.join(TEMP_DOWNLOAD_DIR, "cookies", f"cookies_{client_id}.txt")
-        if os.path.exists(client_cookies):
-            try:
-                with open(client_cookies, "r", encoding="utf-8", errors="ignore") as f:
-                    lines = f.read().splitlines()
-                for line in lines:
-                    line = line.strip()
-                    if not line or line.startswith("#"):
-                        continue
-                    parts = line.split("\t")
-                    if len(parts) >= 7:
-                        cookie_domain = parts[0].lower().lstrip('.')
-                        if cookie_domain in url.lower():
-                            cookies_dict[parts[5]] = parts[6]
-            except Exception as e:
-                logger.warning(f"Failed to read client cookies in generic harvester: {e}")
+    
+    if html_from_client:
+        logger.info("Using pre-fetched HTML content from client.")
+        html = html_from_client
+        final_url = url
+    else:
+        # Load client cookies if available
+        if client_id:
+            from utils.cookies import get_cookie_file_path
+            client_cookies = get_cookie_file_path(client_id)
+            if client_cookies and os.path.exists(client_cookies):
+                try:
+                    with open(client_cookies, "r", encoding="utf-8", errors="ignore") as f:
+                        lines = f.read().splitlines()
+                    for line in lines:
+                        line = line.strip()
+                        if not line or line.startswith("#"):
+                            continue
+                        parts = line.split("\t")
+                        if len(parts) >= 7:
+                            cookie_domain = parts[0].lower().lstrip('.')
+                            if cookie_domain in url.lower():
+                                cookies_dict[parts[5]] = parts[6]
+                except Exception as e:
+                    logger.warning(f"Failed to read client cookies in generic harvester: {e}")
 
-    try:
-        headers = {
-            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
-        }
-        # Fetch raw HTML and resolve the final redirected URL
-        html, final_url = fetch_html_with_redirect(url, headers, cookies=cookies_dict)
-        if final_url:
-            url = final_url
-            parsed_url = urlparse(url)
-            domain = parsed_url.netloc
-            path_segments = [seg for seg in parsed_url.path.split('/') if seg]
-            last_segment = path_segments[-1] if path_segments else ""
+        try:
+            headers = {
+                "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
+            }
+            # Fetch raw HTML and resolve the final redirected URL
+            if "animevietsub" in url.lower():
+                try:
+                    from curl_cffi import requests as curl_requests
+                    s = curl_requests.Session()
+                    if cookies_dict:
+                        s.cookies.update(cookies_dict)
+                    base_url = f"{parsed_url.scheme}://{domain}"
+                    avs_headers = {
+                        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+                        "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8",
+                        "Accept-Language": "vi-VN,vi;q=0.9,en-US;q=0.8,en;q=0.7",
+                        "Referer": base_url + "/",
+                    }
+                    # Step 1: Initial request to get security challenge cookies
+                    s.get(base_url + "/", headers=avs_headers, impersonate="chrome", verify=False, timeout=15)
+                    # Step 2: Request the actual target page with cookies
+                    avs_resp = s.get(url, headers=avs_headers, impersonate="chrome", verify=False, timeout=15)
+                    resp_text = avs_resp.text
+                    is_cloudflare_challenge = "Đang Kiểm Tra" in resp_text or "_cf_chl_opt" in resp_text or "challenge-platform" in resp_text
+                    
+                    if is_cloudflare_challenge:
+                        logger.warning(f"AnimeVietSub: Cloudflare challenge detected (cookies expired or missing). Status: {avs_resp.status_code}")
+                        html = ""
+                        fetch_error_msg = "Cloudflare security challenge detected. Browser cookies need to be synced via the companion extension."
+                    elif avs_resp.status_code == 200 or "PLAYER_DATA" in resp_text:
+                        html = resp_text
+                        final_url = url
+                    else:
+                        logger.warning(f"AnimeVietSub initial session fetch returned HTTP {avs_resp.status_code} and missing indicators")
+                        html, final_url = fetch_html_with_redirect(url, headers, cookies=cookies_dict)
+                except Exception as e_avs:
+                    logger.warning(f"AnimeVietSub initial session fetch failed: {e_avs}. Falling back...")
+                    html, final_url = fetch_html_with_redirect(url, headers, cookies=cookies_dict)
+            else:
+                html, final_url = fetch_html_with_redirect(url, headers, cookies=cookies_dict)
             
-        if not html:
-            fetch_error_msg = "Failed to fetch HTML content (Connection error or Cloudflare protection)"
-    except Exception as e:
-        fetch_error_msg = str(e)
+            if final_url:
+                url = final_url
+                parsed_url = urlparse(url)
+                domain = parsed_url.netloc
+                path_segments = [seg for seg in parsed_url.path.split('/') if seg]
+                last_segment = path_segments[-1] if path_segments else ""
+                
+            if not html:
+                fetch_error_msg = "Failed to fetch HTML content (Connection error or Cloudflare protection)"
+        except Exception as e:
+            fetch_error_msg = str(e)
 
     if not html:
         # Construct fallback info even without HTML access
@@ -544,7 +708,10 @@ def generic_html_link_harvester(url, client_id):
                       "class='play-video' data-link=" in clean_html or
                       "player_option" in clean_html or
                       "embed_player" in clean_html or
-                      ("/xem-phim" in url.lower() and ("guphim" in domain.lower() or "luphim" in domain.lower())))
+                      "embed-player" in clean_html or
+                      "rophim" in domain.lower() or
+                      ("/xem-phim" in url.lower() and ("guphim" in domain.lower() or "luphim" in domain.lower() or "rophim" in domain.lower())) or
+                      any(ind in clean_html for ind in ["player-wrapper", "video-player", "jwplayer", "plyr", "videojs", "artplayer", "dplayer", "id=\"player\"", "class=\"player\"", "__NEXT_DATA__", "self.__next_f"]))
                       
         if not has_player:
             # Try to find the first episode link or a watch movie link
@@ -586,12 +753,13 @@ def generic_html_link_harvester(url, client_id):
             # Custom LuPhim.com Extractor
             if "luphim" in page_domain.lower():
                 try:
-                    # Extract iframe id="iframeStream" or any src with "moviking"
+                    import html as html_lib
+                    from curl_cffi import requests as curl_requests
+                    
                     iframe_match = re.search(r'<iframe[^>]+id="iframeStream"[^>]+src="([^"]+)"', page_html)
                     if not iframe_match:
                         iframe_match = re.search(r'<iframe[^>]+src="([^"]+moviking[^"]+)"', page_html)
                     if iframe_match:
-                        import html as html_lib
                         raw_src = iframe_match.group(1)
                         unescaped_src = html_lib.unescape(raw_src)
                         iframe_url = urljoin(page_url, unescaped_src)
@@ -603,25 +771,59 @@ def generic_html_link_harvester(url, client_id):
                         }
                         iframe_html = fetch_html(iframe_url, headers=iframe_headers, cookies=cookies_dict)
                         if iframe_html:
+                            # 1. New Moviking layout: embeds cdn.codexa.fun/streaming3rd or similar player iframe
+                            inner_iframe_m = re.search(r'<iframe[^>]+src=["\']([^"\']+)["\']', iframe_html)
+                            if inner_iframe_m:
+                                inner_src = html_lib.unescape(inner_iframe_m.group(1))
+                                inner_url = urljoin(iframe_url, inner_src)
+                                logger.info(f"[LuPhim Extractor] Found nested player iframe URL: {inner_url}")
+                                
+                                player_headers = {
+                                    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+                                    "Referer": iframe_url
+                                }
+                                player_html = fetch_html(inner_url, headers=player_headers, cookies=cookies_dict)
+                                if player_html:
+                                    # Extract var url = 'https://...m3u8'
+                                    stream_m = re.search(r"var\s+url\s*=\s*['\"]([^'\"]+\.m3u8[^'\"]*)['\"]", player_html)
+                                    if not stream_m:
+                                        stream_m = re.search(r"file:\s*['\"]([^'\"]+\.m3u8[^'\"]*)['\"]", player_html)
+                                    if not stream_m:
+                                        m3u8_links = re.findall(r'https?://[^\s"\'\\<>#]+\.m3u8[^\s"\'\\<>#]*', player_html)
+                                        if m3u8_links:
+                                            stream_m = re.search(r'(.*)', m3u8_links[0])
+                                            
+                                    if stream_m:
+                                        direct_stream_url = stream_m.group(1)
+                                        opts.append({
+                                            "format_id": "",
+                                            "resolution": "Auto Stream",
+                                            "ext": "mp4",
+                                            "type": "video",
+                                            "size": "Unknown Size",
+                                            "label": "Server: LuPhim [M3U8 Direct]",
+                                            "episode": "Full",
+                                            "server": "Server: LuPhim",
+                                            "url": direct_stream_url,
+                                            "referer": iframe_url
+                                        })
+                                        return opts
+
+                            # 2. Legacy Moviking API layout (fallback)
                             videoId_m = re.search(r"var videoId\s*=\s*['\"]([^'\"]*)['\"]", iframe_html)
                             videoId = videoId_m.group(1) if videoId_m else None
-                            
                             cdn_m = re.search(r"var cdn\s*=\s*['\"]([^'\"]*)['\"]", iframe_html)
                             cdn = cdn_m.group(1) if cdn_m else "https://cdn3.codexa.fun"
-                            
                             web_m = re.search(r"var web\s*=\s*['\"]([^'\"]*)['\"]", iframe_html)
                             web = web_m.group(1) if web_m else "luphim.com"
-                            
                             lang_m = re.search(r"var lang\s*=\s*['\"]([^'\"]*)['\"]", iframe_html)
                             lang = lang_m.group(1) if lang_m else "vi"
-                            
                             domain_m = re.search(r"var domain\s*=\s*['\"]([^'\"]*)['\"]", iframe_html)
                             domain = domain_m.group(1) if domain_m else "https://luphim.com/"
                             
                             if videoId:
                                 import random
                                 visitor_id = "".join(random.choices("0123456789abcdef", k=32))
-                                
                                 api_url = "https://moviking.neuronix.sbs/geturl"
                                 api_headers = {
                                     "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
@@ -635,8 +837,6 @@ def generic_html_link_harvester(url, client_id):
                                     "videoId": videoId,
                                     "domain": domain
                                 }
-                                
-                                from curl_cffi import requests as curl_requests
                                 api_resp = curl_requests.post(
                                     api_url,
                                     headers=api_headers,
@@ -648,11 +848,7 @@ def generic_html_link_harvester(url, client_id):
                                 )
                                 if api_resp.status_code == 200:
                                     api_response = api_resp.text
-                                    
-                                    # Fetch player streaming page
                                     player_url = f"{cdn}/streaming?id={videoId}&subId=&web={web}&{api_response}&cdn={cdn}&lang={lang}"
-                                    logger.info(f"[LuPhim Extractor] Fetching player URL: {player_url}")
-                                    
                                     player_headers = {
                                         "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
                                         "Referer": "https://moviking.neuronix.sbs/"
@@ -662,30 +858,10 @@ def generic_html_link_harvester(url, client_id):
                                         stream_match = re.search(r"var url\s*=\s*['\"]([^'\"]*)['\"]\s*\+\s*videoId\s*\+\s*['\"]([^'\"]*)['\"]", player_html)
                                         if stream_match:
                                             stream_url = f"{stream_match.group(1)}{videoId}{stream_match.group(2)}"
-                                            
-                                            # Parse subtitles if any
-                                            sub_list = []
-                                            tracks_match = re.search(r"tracks:\s*(\[.*?\])", player_html)
-                                            if tracks_match:
-                                                try:
-                                                    import json
-                                                    tracks = json.loads(tracks_match.group(1))
-                                                    for track in tracks:
-                                                        if track.get("kind") == "captions" and track.get("file"):
-                                                            sub_list.append({
-                                                                "url": track.get("file"),
-                                                                "ext": "vtt",
-                                                                "name": track.get("label", "Sub")
-                                                            })
-                                                except Exception:
-                                                    pass
-                                                    
-                                            if stream_url:
-                                                if "?" in stream_url:
-                                                    stream_url += "&ext=.m3u8"
-                                                else:
-                                                    stream_url += "?ext=.m3u8"
-                                                    
+                                            if "?" in stream_url:
+                                                stream_url += "&ext=.m3u8"
+                                            else:
+                                                stream_url += "?ext=.m3u8"
                                             opts.append({
                                                 "format_id": "",
                                                 "resolution": "Auto Stream",
@@ -696,12 +872,89 @@ def generic_html_link_harvester(url, client_id):
                                                 "episode": "Full",
                                                 "server": "Server: Moviking",
                                                 "url": stream_url,
-                                                "referer": "https://moviking.neuronix.sbs/",
-                                                "subtitles": sub_list
+                                                "referer": "https://moviking.neuronix.sbs/"
                                             })
                                             return opts
                 except Exception as ex:
                     logger.warning(f"LuPhim Extractor failed: {ex}")
+
+            # Custom RoPhim.soy Extractor
+            if "rophim" in page_domain.lower():
+                try:
+                    from curl_cffi import requests as curl_requests
+                    slug_match = re.search(r'/xem-phim/([^.?]+)', page_url)
+                    if slug_match:
+                        full_slug = slug_match.group(1)
+                        movie_id = full_slug.split('.')[-1] if '.' in full_slug else full_slug
+                        
+                        api_headers = {
+                            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+                            "Referer": page_url,
+                            "Origin": f"https://{page_domain}"
+                        }
+                        
+                        parsed_purl = urlparse(page_url)
+                        p_qs = parse_qs(parsed_purl.query)
+                        ver_param = p_qs.get("ver", ["1"])[0]
+                        
+                        getlink_url = f"https://api.rophim.stream/api/v1/player/getLink?movie_id={movie_id}"
+                        getlink_resp = curl_requests.get(getlink_url, headers=api_headers, impersonate="chrome", verify=False, timeout=10)
+                        
+                        embed_base = ""
+                        if getlink_resp.status_code == 200:
+                            gl_data = getlink_resp.json()
+                            if gl_data.get("status") and gl_data.get("result"):
+                                embed_base = gl_data["result"]
+                                
+                        if not embed_base:
+                            embed_base = f"https://api.rophim.stream/player/embed?id={movie_id}"
+                            
+                        # Fetch seasons for episodes
+                        seasons_url = f"https://api.rophim.stream/api/v1/movie/seasons?mId={movie_id}"
+                        seasons_resp = curl_requests.get(seasons_url, headers=api_headers, impersonate="chrome", verify=False, timeout=10)
+                        
+                        if seasons_resp.status_code == 200:
+                            s_data = seasons_resp.json()
+                            if s_data.get("status") and s_data.get("result"):
+                                for season in s_data["result"]:
+                                    s_num = season.get("season_number", 1)
+                                    s_name = season.get("name", f"Season {s_num}")
+                                    for ep in season.get("episodes", []):
+                                        ep_num = ep.get("episode_number", 1)
+                                        ep_name = (ep.get("name") or "").strip() or f"Tập {ep_num:02d}"
+                                        ep_url = f"{embed_base}&version={ver_param}&season={s_num}&episode={ep_num}"
+                                        
+                                        opts.append({
+                                            "format_id": "",
+                                            "resolution": "Stream Player",
+                                            "ext": "mp4",
+                                            "type": "video",
+                                            "size": "Unknown Size",
+                                            "label": f"Server: RoPhim [Player] ({s_name} - {ep_name})",
+                                            "episode": f"{ep_num}",
+                                            "server": f"Server: RoPhim ({s_name})",
+                                            "url": ep_url,
+                                            "referer": page_url
+                                        })
+                                        
+                        if not opts:
+                            opts.append({
+                                "format_id": "",
+                                "resolution": "Stream Player",
+                                "ext": "mp4",
+                                "type": "video",
+                                "size": "Unknown Size",
+                                "label": "Server: RoPhim [Player] (Full Movie)",
+                                "episode": "Full",
+                                "server": "Server: RoPhim",
+                                "url": f"{embed_base}&version={ver_param}",
+                                "referer": page_url
+                            })
+                            
+                        if opts:
+                            return opts
+                except Exception as ex:
+                    logger.warning(f"RoPhim Extractor failed: {ex}")
 
             # Custom GuPhim.com Extractor
             if "guphim" in page_domain.lower():
@@ -795,6 +1048,220 @@ def generic_html_link_harvester(url, client_id):
                                 return opts
                 except Exception as ex:
                     logger.warning(f"GuPhim Extractor failed: {ex}")
+
+            # Custom AnimeVietSub Extractor
+            if "animevietsub" in page_domain.lower():
+                try:
+                    import json as _json
+                    from curl_cffi import requests as curl_requests
+
+                    logger.info(f"[AnimeVietSub Extractor] Detected domain: {page_domain}")
+
+                    # AnimeVietSub requires a curl_cffi session to bypass Cloudflare.
+                    # The page_html passed in may have been fetched without session cookies
+                    # (resulting in a 403 redirect page). We re-fetch with a proper session.
+                    avs_session = curl_requests.Session()
+                    if cookies_dict:
+                        avs_session.cookies.update(cookies_dict)
+                    avs_headers = {
+                        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+                        "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8",
+                        "Accept-Language": "vi-VN,vi;q=0.9,en-US;q=0.8,en;q=0.7",
+                        "Referer": f"https://{page_domain}/",
+                    }
+
+                    # Step 1: Visit homepage to get Cloudflare cookies
+                    base_url = f"https://{page_domain}"
+                    avs_session.get(base_url + "/", impersonate="chrome", verify=False, timeout=15, headers=avs_headers)
+
+                    # Step 2: Determine the correct page to fetch
+                    # If this is the overview page (/xem-phim.html), the inline PLAYER_DATA
+                    # is for the default (first) episode. We fetch this page for the episode list.
+                    avs_resp = avs_session.get(page_url, impersonate="chrome", verify=False, timeout=15, headers=avs_headers)
+                    if avs_resp.status_code not in (200, 520, 403) and "PLAYER_DATA" not in avs_resp.text:
+                        logger.warning(f"[AnimeVietSub Extractor] Page fetch failed: HTTP {avs_resp.status_code}")
+                        raise Exception(f"HTTP {avs_resp.status_code}")
+                    avs_html = avs_resp.text
+
+                    # Check if Next.js layout (animevietsub.my)
+                    is_nextjs = "_next/static" in avs_html or "animevietsub.my" in page_domain.lower()
+                    if is_nextjs:
+                        logger.info(f"[AnimeVietSub Extractor] Parsing Next.js site: {page_url}")
+                        
+                        # Step 1: Parse Title
+                        avs_title_m = re.search(r'<title>(.*?)</title>', avs_html, re.IGNORECASE)
+                        avs_title = avs_title_m.group(1).strip() if avs_title_m else "AnimeVietSub Video"
+                        avs_title = re.sub(r'^Xem\s+', '', avs_title, flags=re.IGNORECASE)
+                        avs_title = re.sub(r'\s+Vietsub\s*-\s*AnimeVietsub$', '', avs_title, flags=re.IGNORECASE)
+                        
+                        # Step 2: Parse all episode links
+                        raw_links = re.findall(r'href=["\'](/xem-phim/[^"\']+/tap-\d+/vietsub[^"\']*)["\']', avs_html)
+                        
+                        seen_eps = set()
+                        clean_links = []
+                        for ep in raw_links:
+                            base_path = ep.split('?')[0]
+                            ep_num_match = re.search(r'tap-(\d+)', base_path)
+                            if ep_num_match:
+                                ep_num = ep_num_match.group(1)
+                                if ep_num not in seen_eps:
+                                    seen_eps.add(ep_num)
+                                    clean_links.append((ep_num, base_path))
+                                    
+                        clean_links.sort(key=lambda x: int(x[0]))
+                        
+                        if not clean_links:
+                            play_match = re.search(r'href=["\'](/xem-phim/[^"\']+)["\']', avs_html)
+                            if play_match:
+                                play_url = urljoin(page_url, play_match.group(1))
+                                play_resp = avs_session.get(play_url, impersonate="chrome", verify=False, timeout=15, headers=avs_headers)
+                                if play_resp.status_code == 200:
+                                    avs_html = play_resp.text
+                                    raw_links = re.findall(r'href=["\'](/xem-phim/[^"\']+/tap-\d+/vietsub[^"\']*)["\']', avs_html)
+                                    for ep in raw_links:
+                                        base_path = ep.split('?')[0]
+                                        ep_num_match = re.search(r'tap-(\d+)', base_path)
+                                        if ep_num_match:
+                                            ep_num = ep_num_match.group(1)
+                                            if ep_num not in seen_eps:
+                                                seen_eps.add(ep_num)
+                                                clean_links.append((ep_num, base_path))
+                                    clean_links.sort(key=lambda x: int(x[0]))
+                                    
+                        opts = []
+                        if clean_links:
+                            logger.info(f"[AnimeVietSub Extractor] Found {len(clean_links)} Next.js episodes")
+                            for ep_num, base_path in clean_links:
+                                ep_url = urljoin(page_url, base_path)
+                                if base_path in page_url:
+                                    ep_html = avs_html
+                                else:
+                                    try:
+                                        ep_resp = avs_session.get(ep_url, impersonate="chrome", verify=False, timeout=10, headers=avs_headers)
+                                        ep_html = ep_resp.text if ep_resp.status_code == 200 else ""
+                                    except Exception:
+                                        ep_html = ""
+                                    
+                                if ep_html:
+                                    m3u8_links = re.findall(r'https?://[^\s"\'\\<>#]+\.m3u8[^\s"\'\\<>#]*', ep_html)
+                                    if m3u8_links:
+                                        stream_url = m3u8_links[0]
+                                        opts.append({
+                                            "format_id": "",
+                                            "resolution": "Auto Stream",
+                                            "ext": "mp4",
+                                            "type": "video",
+                                            "size": "Unknown Size",
+                                            "label": f"Server: VIP Stream (Tập {ep_num})",
+                                            "episode": ep_num,
+                                            "server": "VIP Stream [M3U8]",
+                                            "url": stream_url
+                                        })
+                            return opts
+
+                    # Step 3: Parse anime title and metadata
+                    avs_title_m = re.search(r'<h1[^>]*class="Title"[^>]*>(.*?)</h1>', avs_html, re.IGNORECASE | re.DOTALL)
+                    avs_title = avs_title_m.group(1).strip() if avs_title_m else ""
+                    if not avs_title:
+                        avs_title_m = re.search(r'<title>(.*?)</title>', avs_html, re.IGNORECASE)
+                        avs_title = avs_title_m.group(1).strip() if avs_title_m else "AnimeVietSub Video"
+
+                    # Step 4: Parse the episode list from HTML
+                    # Each episode: <a data-id="112740" title="Tập 01" href="...tap-01-112740.html" data-hash="...">01</a>
+                    ep_pattern = re.compile(
+                        r'<a\s+[^>]*data-id="(\d+)"[^>]*title="([^"]*)"[^>]*'
+                        r'class="[^"]*btn-episode[^"]*"[^>]*href="([^"]*)"[^>]*'
+                        r'data-hash="([^"]*)"[^>]*>([^<]*)</a>',
+                        re.IGNORECASE | re.DOTALL
+                    )
+                    episodes = ep_pattern.findall(avs_html)
+
+                    if not episodes:
+                        # Try a more relaxed pattern
+                        ep_pattern2 = re.compile(
+                            r'<a\s+[^>]*data-id="(\d+)"[^>]*title="([^"]*)"[^>]*'
+                            r'href="([^"]*)"[^>]*data-hash="([^"]*)"[^>]*>([^<]*)</a>',
+                            re.IGNORECASE | re.DOTALL
+                        )
+                        episodes = ep_pattern2.findall(avs_html)
+
+                    logger.info(f"[AnimeVietSub Extractor] Found {len(episodes)} episodes for '{avs_title}'")
+
+                    # Step 5: Parse PLAYER_DATA from the current page (inline JS)
+                    pd_match = re.search(r'window\.PLAYER_DATA\s*=\s*(\{.*?\});', avs_html)
+                    current_pd = None
+                    if pd_match:
+                        try:
+                            current_pd = _json.loads(pd_match.group(1))
+                        except Exception:
+                            pass
+
+                    current_ep_id = None
+                    if current_pd:
+                        current_ep_id = str(current_pd.get("episode_id", ""))
+
+                    # Step 6: Build video options for each episode
+                    for ep_data_id, ep_title_attr, ep_href, ep_hash, ep_text in episodes:
+                        ep_num = ep_text.strip() or ep_title_attr.replace("Tập ", "").strip()
+                        ep_label = ep_title_attr.strip() or f"Tập {ep_num}"
+
+                        iframe_link = None
+
+                        # Check if this episode matches the current page's PLAYER_DATA
+                        if current_pd and str(ep_data_id) == current_ep_id:
+                            link_val = current_pd.get("link", "")
+                            if isinstance(link_val, str) and link_val.startswith("http"):
+                                iframe_link = link_val
+                        
+                        # If not the current episode, fetch its individual page
+                        if not iframe_link and ep_href:
+                            try:
+                                ep_full_url = ep_href if ep_href.startswith("http") else base_url + ep_href
+                                ep_resp = avs_session.get(ep_full_url, impersonate="chrome", verify=False, timeout=15, headers=avs_headers)
+                                if ep_resp.status_code in (200, 520, 403) or "PLAYER_DATA" in ep_resp.text:
+                                    ep_pd_match = re.search(r'window\.PLAYER_DATA\s*=\s*(\{.*?\});', ep_resp.text)
+                                    if ep_pd_match:
+                                        try:
+                                            ep_pd = _json.loads(ep_pd_match.group(1))
+                                            link_val = ep_pd.get("link", "")
+                                            if isinstance(link_val, str) and link_val.startswith("http"):
+                                                iframe_link = link_val
+                                        except Exception:
+                                            pass
+                            except Exception as ep_ex:
+                                logger.warning(f"[AnimeVietSub Extractor] Failed to fetch episode {ep_num}: {ep_ex}")
+
+                        if iframe_link:
+                            # Preserve essential query params like isFinal=1, strip only tracking nextName/nextUrl
+                            from urllib.parse import urlparse as _urlparse, parse_qs as _parse_qs, urlencode as _urlencode, urlunparse as _urlunparse
+                            parsed_iframe = _urlparse(iframe_link)
+                            if parsed_iframe.query:
+                                iframe_qs = _parse_qs(parsed_iframe.query, keep_blank_values=True)
+                                iframe_qs.pop("nextName", None)
+                                iframe_qs.pop("nextUrl", None)
+                                new_query = _urlencode(iframe_qs, doseq=True)
+                                clean_iframe = _urlunparse(parsed_iframe._replace(query=new_query))
+                            else:
+                                clean_iframe = iframe_link
+                            opts.append({
+                                "format_id": f"avs_ep_{ep_data_id}",
+                                "resolution": "Web Stream (MSE)",
+                                "ext": "mp4",
+                                "type": "video",
+                                "size": "Stream (MSE / HD)",
+                                "label": f"Server: AnimeVsub [STREAM] ({ep_label})",
+                                "episode": ep_num,
+                                "server": "Server: AnimeVsub",
+                                "url": clean_iframe,
+                                "referer": f"https://{page_domain}/"
+                            })
+                            logger.info(f"[AnimeVietSub Extractor] Added {ep_label}: {clean_iframe[:80]}...")
+
+                    if opts:
+                        return opts
+
+                except Exception as ex:
+                    logger.warning(f"AnimeVietSub Extractor failed: {ex}")
             
             # Determine title for current page
             t_match = re.search(r'<title>(.*?)</title>', page_html, re.IGNORECASE)
@@ -915,6 +1382,13 @@ def generic_html_link_harvester(url, client_id):
                                                     pass
                                                     
                                             if not resolved:
+                                                deobf_embed = deobfuscate_script(embed_html)
+                                                scanned_streams = scan_text_for_media_urls(deobf_embed, embed_url)
+                                                if scanned_streams:
+                                                    stream_url = scanned_streams[0]
+                                                    resolved = True
+
+                                            if not resolved:
                                                 url_match = re.search(r'const\s+url\s*=\s*["\']([^"\']+)["\']', embed_html)
                                                 if url_match:
                                                     stream_url = urljoin(embed_url, url_match.group(1))
@@ -1004,6 +1478,13 @@ def generic_html_link_harvester(url, client_id):
                                     except Exception:
                                         pass
                                         
+                                if not resolved:
+                                    deobf_embed = deobfuscate_script(embed_html)
+                                    scanned_streams = scan_text_for_media_urls(deobf_embed, embed_url)
+                                    if scanned_streams:
+                                        stream_url = scanned_streams[0]
+                                        resolved = True
+
                                 if not resolved:
                                     url_match = re.search(r'const\s+url\s*=\s*["\']([^"\']+)["\']', embed_html)
                                     if url_match:
@@ -1133,10 +1614,24 @@ def generic_html_link_harvester(url, client_id):
                             "url": src_url
                         })
                         
-            # 8. Raw links
+            # 8. Raw links & script-embedded stream definitions
             if not opts:
-                raw_m3u8_links = re.findall(r'https?://[^\s"\'\\<>#]+\.(?:m3u8|mp4)[^\s"\'\\<>#]*', page_html)
-                for link in raw_m3u8_links:
+                script_blocks = re.findall(r'<script[^>]*>(.*?)</script>', page_html, re.IGNORECASE | re.DOTALL)
+                scanned_links = []
+                for s_block in script_blocks:
+                    if s_block.strip():
+                        deobf = deobfuscate_script(s_block)
+                        found = scan_text_for_media_urls(deobf, page_url)
+                        scanned_links.extend(found)
+                
+                deobf_page = deobfuscate_script(page_html)
+                scanned_links.extend(scan_text_for_media_urls(deobf_page, page_url))
+                
+                raw_m3u8_links = re.findall(r'https?://[^\s"\'\\<>#]+\.(?:m3u8|mpd|mp4)[^\s"\'\\<>#]*', page_html)
+                # Also search for js variables like var url = '...', file: '...', source: '...'
+                js_stream_links = re.findall(r'(?:file|source|url|src|stream)\s*[:=]\s*["\'](https?://[^\s"\'\\<>#]+\.(?:m3u8|mpd|mp4)[^\s"\'\\<>#]*)["\']', page_html, re.IGNORECASE)
+                all_raw_candidates = list(dict.fromkeys(scanned_links + raw_m3u8_links + js_stream_links))
+                for link in all_raw_candidates:
                     link = link.rstrip('\\').rstrip('"').rstrip("'")
                     if link not in seen:
                         seen.add(link)
@@ -1154,9 +1649,11 @@ def generic_html_link_harvester(url, client_id):
                         
             # 9. Recursive iframe harvesting
             if depth < 3:
+                import html as html_lib
                 iframe_srcs = re.findall(r'<iframe[^>]+(?:src|data-src|data-lazy-src)=["\']([^"\']+)["\']', page_html, re.IGNORECASE)
                 for src in iframe_srcs:
                     try:
+                        src = html_lib.unescape(src)
                         iframe_url = urljoin(page_url, src)
                         if not iframe_url.startswith("http"):
                             continue
@@ -1168,13 +1665,54 @@ def generic_html_link_harvester(url, client_id):
                         iframe_domain = parsed_iframe.netloc.lower()
                         if not iframe_domain or any(ad in iframe_url.lower() for ad in AD_OR_TRACKING_DOMAINS):
                             continue
+
+                        # Check query parameters for media stream URLs
+                        if parsed_iframe.query:
+                            iq_params = parse_qs(parsed_iframe.query)
+                            for q_param in ("url", "source", "file", "v", "src", "link"):
+                                for q_val in iq_params.get(q_param, []):
+                                    if q_val.startswith("http") and any(ext_kw in q_val.lower() for ext_kw in (".m3u8", ".mpd", ".mp4")):
+                                        if q_val not in seen:
+                                            seen.add(q_val)
+                                            opts.append({
+                                                "format_id": "",
+                                                "resolution": "Auto Stream",
+                                                "ext": "mp4",
+                                                "type": "video",
+                                                "size": "Unknown Size",
+                                                "label": f"Iframe Stream #{len(opts)+1} (Episode {ep_name})",
+                                                "episode": ep_name,
+                                                "server": f"Embed ({iframe_domain})",
+                                                "url": q_val
+                                            })
                             
                         logger.info(f"[Iframe Harvester] Fetching nested iframe at depth {depth+1}: {iframe_url}")
                         iframe_headers = {
-                            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
+                            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+                            "Referer": page_url
                         }
                         iframe_html = fetch_html(iframe_url, iframe_headers, cookies=cookies_dict)
                         if iframe_html:
+                            # Scan all script tags in iframe_html using deobfuscator
+                            iframe_scripts = re.findall(r'<script[^>]*>(.*?)</script>', iframe_html, re.IGNORECASE | re.DOTALL)
+                            for iscript in iframe_scripts:
+                                if iscript.strip():
+                                    deobf_is = deobfuscate_script(iscript)
+                                    for is_url in scan_text_for_media_urls(deobf_is, iframe_url):
+                                        if is_url not in seen:
+                                            seen.add(is_url)
+                                            opts.append({
+                                                "format_id": "",
+                                                "resolution": "Auto Stream",
+                                                "ext": "mp4",
+                                                "type": "video",
+                                                "size": "Unknown Size",
+                                                "label": f"Iframe Stream #{len(opts)+1} (Episode {ep_name})",
+                                                "episode": ep_name,
+                                                "server": f"Embed ({iframe_domain})",
+                                                "url": is_url
+                                            })
+
                             clean_iframe_html = iframe_html.replace('\\/', '/').replace('\\', '')
                             iframe_path_segs = [seg for seg in parsed_iframe.path.split('/') if seg]
                             iframe_last = iframe_path_segs[-1] if iframe_path_segs else ""
@@ -1190,6 +1728,8 @@ def generic_html_link_harvester(url, client_id):
                             for opt in iframe_opts:
                                 if not opt.get("server") or opt["server"] == "Direct Link":
                                     opt["server"] = f"Embed ({iframe_domain})"
+                                opt["ext"] = "mp4"
+                                opt["type"] = "video"
                                 if opt["url"] not in seen:
                                     seen.add(opt["url"])
                                     opts.append(opt)
@@ -1246,7 +1786,7 @@ def generic_html_link_harvester(url, client_id):
         video_options = []
         seen_urls = set()
 
-        if len(all_ep_urls) > 1:
+        if len(all_ep_urls) > 1 and "animevietsub" not in domain.lower():
             logger.info(f"Overview or multi-episode page detected. Found {len(all_ep_urls)} episodes. Fetching in parallel...")
             
             # Limit to at most 48 episodes
@@ -1336,6 +1876,21 @@ def generic_html_link_harvester(url, client_id):
                         
                     if size_bytes and size_bytes >= 1024 * 1024:  # Ignore sizes < 1MB
                         opt["size"] = format_size(size_bytes)
+                    elif not opt.get("size") or opt.get("size") == "Unknown Size":
+                        is_stream_opt = (
+                            is_hls or is_dash or
+                            "player" in str(opt.get("url", "")).lower() or
+                            "stream" in str(opt.get("resolution", "")).lower() or
+                            "stream" in str(opt.get("server", "")).lower() or
+                            str(opt.get("format_id", "")).startswith("avs_")
+                        )
+                        if is_stream_opt:
+                            dur = opt.get("duration")
+                            if dur and isinstance(dur, (int, float)) and dur > 0:
+                                est_bytes = int(dur * 275000)
+                                opt["size"] = f"~{format_size(est_bytes)} (HD Stream)"
+                            else:
+                                opt["size"] = "Stream (MSE / HD)"
                         
                     if is_hls or is_dash:
                         referer_to_use = opt.get("referer") or get_referer_by_url(actual_url) or url

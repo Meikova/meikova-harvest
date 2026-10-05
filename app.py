@@ -14,6 +14,14 @@ if sys.platform.startswith("win"):
             super().__init__(*args, **kwargs)
     subprocess.Popen = PopenNoWindow
 
+# Ensure local virtual environment site-packages take precedence over global python
+_base_dir = os.path.dirname(os.path.abspath(__file__))
+_venv_dir = os.path.join(_base_dir, "venv")
+if os.path.isdir(_venv_dir):
+    _site_pkgs = os.path.join(_venv_dir, "Lib", "site-packages") if sys.platform.startswith("win") else os.path.join(_venv_dir, f"lib/python{sys.version_info.major}.{sys.version_info.minor}/site-packages")
+    if os.path.isdir(_site_pkgs) and _site_pkgs not in sys.path:
+        sys.path.insert(0, _site_pkgs)
+
 from flask import Flask, jsonify
 from flask_cors import CORS
 import static_ffmpeg
@@ -24,6 +32,10 @@ from routes import pages_bp, cookies_bp, info_bp, download_bp, build_bp, extensi
 # Setup logging
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
 logger = logging.getLogger(__name__)
+
+# Install DNS bypass to handle ISP-blocked domains (common with Vietnamese ISPs)
+from utils.dns_bypass import install_dns_bypass
+install_dns_bypass()
 
 # Initialize static-ffmpeg to add portable binaries to PATH
 logger.info("Initializing static-ffmpeg...")
@@ -63,6 +75,74 @@ app.register_blueprint(build_bp)
 app.register_blueprint(extension_bp)
 app.register_blueprint(convert_bp)
 
+# Catch-all 404 handler: proxy unmatched requests from AVS player iframe to CDN
+@app.errorhandler(404)
+def handle_avs_proxy_fallback(e):
+    from flask import request as flask_request, make_response
+    referer = flask_request.headers.get("Referer", "")
+    # Only proxy if the request comes from our proxy-sub iframe (player page)
+    if "proxy-sub" in referer and "googleapiscdn.com" in referer:
+        path = flask_request.path
+        
+        # Intercept and neutralize anti-devtools/anti-tamper shield script only
+        if "avs-shield" in path:
+            logger.info(f"Neutralizing anti-devtools shield script: {path}")
+            r = make_response("console.log('AVS Shield neutralized.');", 200)
+            r.headers["Content-Type"] = "application/javascript; charset=utf-8"
+            r.headers["Access-Control-Allow-Origin"] = "*"
+            return r
+            
+        import requests as req_lib
+        from urllib.parse import parse_qs, urlparse
+        parsed_ref = urlparse(referer)
+        ref_qs = parse_qs(parsed_ref.query)
+        target_domain = "storage.googleapiscdn.com"
+        if "url" in ref_qs and ref_qs["url"]:
+            target_domain = urlparse(ref_qs["url"][0]).netloc or "storage.googleapiscdn.com"
+            
+        qs = flask_request.query_string.decode("utf-8")
+        target_url = f"https://{target_domain}{path}"
+        if qs:
+            target_url += f"?{qs}"
+        headers = {
+            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/128.0.0.0 Safari/537.36",
+            "Referer": f"https://{target_domain}/"
+        }
+        try:
+            resp = req_lib.request(
+                flask_request.method, target_url,
+                headers=headers, verify=False, timeout=10,
+                data=flask_request.get_data() if flask_request.method == "POST" else None
+            )
+            content = resp.content
+            # Patch init.min.js to suppress browser upgrade notice and force player initialization
+            if "init.min.js" in path:
+                try:
+                    js_text = content.decode("utf-8")
+                    js_text = js_text.replace("function _avsShowBrowserUpgradeNotice(){", "function _avsShowBrowserUpgradeNotice(){return;")
+                    js_text = js_text.replace("function _runCompatBootstrap(){", "function _runCompatBootstrap(){try{if(typeof startPlayer==='function')startPlayer();}catch(e){};return;")
+                    content = js_text.encode("utf-8")
+                except Exception as patch_err:
+                    logger.warning(f"Failed to patch init.min.js: {patch_err}")
+
+            r = make_response(content, resp.status_code)
+            if "Content-Type" in resp.headers:
+                r.headers["Content-Type"] = resp.headers["Content-Type"]
+            r.headers["Access-Control-Allow-Origin"] = "*"
+            return r
+        except Exception:
+            pass
+    # Default Flask 404
+    return e
+
+@app.route("/devtools-warning")
+def devtools_warning_stub():
+    from flask import make_response
+    logger.info("Devtools warning redirect intercepted. Returning stub page.")
+    r = make_response("<html><body><script>console.warn('Devtools warning bypassed.');</script></body></html>", 200)
+    r.headers["Content-Type"] = "text/html; charset=utf-8"
+    return r
+
 @app.route("/api/clear-temp", methods=["POST"])
 def clear_temporary_files():
     try:
@@ -90,7 +170,7 @@ if __name__ == "__main__":
     parser.add_argument("--port", type=int, default=int(os.environ.get("FLASK_PORT", 18650)))
     args = parser.parse_known_args()[0]
 
-    # Disable debug mode in production or frozen binaries to avoid Werkzeug reloader spawn loops
+    # Disable reloader so file changes in downloads/ or db do not restart the server mid-download
     is_prod = os.environ.get("FLASK_ENV") == "production" or getattr(sys, "frozen", False)
     logger.info(f"Starting server on port {args.port} (debug={not is_prod})")
-    app.run(host="0.0.0.0", port=args.port, debug=not is_prod)
+    app.run(host="0.0.0.0", port=args.port, debug=not is_prod, use_reloader=False, threaded=True)

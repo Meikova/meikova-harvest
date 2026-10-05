@@ -6,3 +6,4 @@ from .pinterest import extract_pinterest_via_gallery_dl
 from .facebook import scrape_fb_post, extract_facebook_story, resolve_facebook_sizes
 from .threads import parse_threads_page, extract_shortcode
 from .generic import generic_html_link_harvester, resolve_hls_size
+from .torrent import extract_torrent_info, is_torrent_input

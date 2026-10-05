@@ -1,6 +1,7 @@
 import os
 import sys
 import logging
+import shutil
 import yt_dlp
 from config import TEMP_DOWNLOAD_DIR
 
@@ -59,6 +60,30 @@ def create_ydl_instance(ydl_opts, url=None, client_id=None):
     """
     logger.info(f"create_ydl_instance: client_id='{client_id}', url='{url}'")
     
+    # Ensure Node JS runtime is available for solving YouTube signature / n-token challenges
+    node_bin = shutil.which("node")
+    if "js_runtimes" not in ydl_opts or not ydl_opts["js_runtimes"]:
+        ydl_opts["js_runtimes"] = {
+            "node": {"path": node_bin} if node_bin else {},
+            "deno": {},
+            "bun": {},
+            "quickjs": {}
+        }
+    elif node_bin and "node" in ydl_opts.get("js_runtimes", {}) and not ydl_opts["js_runtimes"]["node"]:
+        ydl_opts["js_runtimes"]["node"] = {"path": node_bin}
+
+    # Ensure YouTube player_client prioritizes web_embedded to avoid HTTP 403 Forbidden without PO Token
+    if "extractor_args" not in ydl_opts:
+        ydl_opts["extractor_args"] = {}
+    if "youtube" not in ydl_opts["extractor_args"]:
+        ydl_opts["extractor_args"]["youtube"] = {
+            "player_client": ["web_embedded", "android", "web"]
+        }
+    elif "player_client" in ydl_opts["extractor_args"]["youtube"]:
+        clients = ydl_opts["extractor_args"]["youtube"]["player_client"]
+        if isinstance(clients, list) and (len(clients) == 0 or clients[0] in ("ios", "mweb")):
+            ydl_opts["extractor_args"]["youtube"]["player_client"] = ["web_embedded", "android", "web"]
+
     # Force legacy HTTP handler (urllib) to avoid curl-cffi TLS / OpenSSL DLL conflict on Windows
     if "compat_opts" not in ydl_opts:
         ydl_opts["compat_opts"] = set()
@@ -78,10 +103,10 @@ def create_ydl_instance(ydl_opts, url=None, client_id=None):
             
     # Check if a client-specific cookies file exists
     if client_id:
-        client_cookies = os.path.join(TEMP_DOWNLOAD_DIR, "cookies", f"cookies_{client_id}.txt")
-        logger.info(f"Checking client-specific cookies at: {client_cookies} (exists={os.path.exists(client_cookies)})")
-        if os.path.exists(client_cookies):
-            logger.info(f"Using client-specific cookies for client: {client_id}")
+        from utils.cookies import get_cookie_file_path
+        client_cookies = get_cookie_file_path(client_id)
+        if client_cookies and os.path.exists(client_cookies):
+            logger.info(f"Using client-specific cookies for client '{client_id}': {client_cookies}")
             opts = ydl_opts.copy()
             opts["cookiefile"] = client_cookies
             opts.pop("cookiesfrombrowser", None)
@@ -193,17 +218,18 @@ def create_ydl_instance(ydl_opts, url=None, client_id=None):
             except Exception:
                 pass
 
-    # Step 2: Fallback to the first browser that loads successfully (regardless of domain cookies)
-    for browser in browsers:
-        opts = ydl_opts.copy()
-        opts["cookiesfrombrowser"] = (browser,)
-        try:
-            ydl = yt_dlp.YoutubeDL(opts)
-            _ = ydl.cookiejar
-            logger.info(f"Fallback to cookies from browser: {browser}")
-            return ydl
-        except Exception as e:
-            logger.warning(f"Failed to load cookies from browser '{browser}': {e}")
+    # Step 2: Fallback to the first browser that loads successfully (regardless of domain cookies, skip for YouTube)
+    if target_domain != "youtube":
+        for browser in browsers:
+            opts = ydl_opts.copy()
+            opts["cookiesfrombrowser"] = (browser,)
+            try:
+                ydl = yt_dlp.YoutubeDL(opts)
+                _ = ydl.cookiejar
+                logger.info(f"Fallback to cookies from browser: {browser}")
+                return ydl
+            except Exception as e:
+                logger.warning(f"Failed to load cookies from browser '{browser}': {e}")
             
     # Step 3: Fallback to no cookies if all failed
     opts = ydl_opts.copy()

@@ -20,6 +20,7 @@ const {
   nativeImage,
   globalShortcut,
   clipboard,
+  session,
 } = require('electron');
 
 const path  = require('path');
@@ -37,6 +38,7 @@ const isDev = process.argv.includes('--dev') || !app.isPackaged;
 
 // Suppress internal Chromium/DevTools protocol warnings (like Autofill.enable failed)
 app.commandLine.appendSwitch('log-level', '3');
+app.commandLine.appendSwitch('autoplay-policy', 'no-user-gesture-required');
 
 // ─── Global state ─────────────────────────────────────────────────────────────
 let mainWindow   = null;
@@ -116,6 +118,21 @@ function resolvePythonPath() {
 // ─── Flask server launch ──────────────────────────────────────────────────────
 
 async function startFlaskServer() {
+  if (isDev && process.platform === 'win32') {
+    try {
+      const netstatOut = execSync(`netstat -ano | findstr :${DEFAULT_PORT}`).toString();
+      const lines = netstatOut.split('\n').filter(l => l.includes('LISTENING'));
+      for (const line of lines) {
+        const parts = line.trim().split(/\s+/);
+        const pid = parts[parts.length - 1];
+        if (pid && pid !== '0' && pid !== String(process.pid)) {
+          log.info(`Cleaning up orphan process ${pid} on port ${DEFAULT_PORT}`);
+          try { execSync(`taskkill /pid ${pid} /f /t`); } catch (_) {}
+        }
+      }
+    } catch (_) {}
+  }
+
   serverPort = await findFreePort(DEFAULT_PORT);
   log.info(`Starting Flask on port ${serverPort}`);
 
@@ -125,6 +142,17 @@ async function startFlaskServer() {
     FLASK_ENV:  isDev ? 'development' : 'production',
     PYTHONUNBUFFERED: '1',
   };
+
+  if (isDev) {
+    const venvDir = path.join(__dirname, '..', 'venv');
+    const venvScripts = process.platform === 'win32'
+      ? path.join(venvDir, 'Scripts')
+      : path.join(venvDir, 'bin');
+    if (fs.existsSync(venvDir)) {
+      env.VIRTUAL_ENV = venvDir;
+      env.PATH = `${venvScripts}${path.delimiter}${process.env.PATH || ''}`;
+    }
+  }
 
   const serverExe = resolveServerPath();
 
@@ -205,6 +233,196 @@ function killFlaskServer() {
   }
 }
 
+// ─── Network Interception & Ad-blocking Guards ─────────────────────────────
+let activeStreamReferer = 'https://animevietsub.nl/';
+
+function setupNetworkGuards() {
+  ipcMain.on('set-stream-referer', (_, referer) => {
+    if (referer && typeof referer === 'string') {
+      try {
+        const u = new URL(referer);
+        activeStreamReferer = u.origin + '/';
+      } catch (_) {
+        activeStreamReferer = referer;
+      }
+      log.info(`[Stream] Active stream referer set to: ${activeStreamReferer}`);
+    }
+  });
+
+  // Intercept and block ad / tracking requests at network level across all sessions
+  session.defaultSession.webRequest.onBeforeRequest((details, callback) => {
+    // 1. Intercept ads/active to return empty ad configuration, killing pause ads before creation
+    if (details.url.includes('/admin/api/ads/active') || details.url.includes('ads/active')) {
+      const emptyAds = JSON.stringify({ pauseAd: null, ads: [] });
+      return callback({ redirectURL: 'data:application/json;charset=utf-8,' + encodeURIComponent(emptyAds) });
+    }
+    // 2. Block betting ads, doubleclick, syndication, ad tracking
+    if (/bom88|adqc\.net|pagead2|doubleclick|googlesyndication|adservice|popads/i.test(details.url)) {
+      return callback({ cancel: true });
+    }
+    callback({});
+  });
+
+  // Rewrite headers for Google CDN requests from player iframe (matches origin token)
+  session.defaultSession.webRequest.onBeforeSendHeaders((details, callback) => {
+    const currentRef = details.referrer || details.requestHeaders['Referer'] || '';
+    if (currentRef && !currentRef.includes('127.0.0.1') && !currentRef.includes('localhost') && !currentRef.includes('googleapiscdn')) {
+      try {
+        activeStreamReferer = new URL(currentRef).origin + '/';
+      } catch (_) {}
+    }
+
+    if (details.url.includes('googleapiscdn.com')) {
+      let ref = activeStreamReferer || 'https://animevietsub.nl/';
+      if (currentRef && !currentRef.includes('127.0.0.1') && !currentRef.includes('localhost') && !currentRef.includes('googleapiscdn')) {
+        try {
+          ref = new URL(currentRef).origin + '/';
+        } catch (_) {}
+      }
+      details.requestHeaders['Referer'] = ref;
+      details.requestHeaders['Origin'] = 'https://storage.googleapiscdn.com';
+    }
+    callback({ requestHeaders: details.requestHeaders });
+  });
+}
+
+// ─── Web contents initialization & Ad blocking guards ───────────────────────
+
+app.on('web-contents-created', (_, contents) => {
+  if (contents.getType() === 'webview') {
+    // For guest webviews: completely deny external popups and ad redirects
+    contents.setWindowOpenHandler(({ url }) => {
+      log.info(`[Webview] Blocked popup window: ${url}`);
+      return { action: 'deny' };
+    });
+
+    contents.on('will-navigate', (event, url) => {
+      // Prevent webview from navigating to ad/warning pages
+      if (url.includes('devtools-warning') || url.includes('adblock-warning') || /ads|bet|bom88|casino|affiliate/i.test(url)) {
+        event.preventDefault();
+        log.info(`[Webview] Blocked navigation: ${url}`);
+      }
+    });
+
+    const injectWebviewGuards = () => {
+      contents.insertCSS(`
+        #avs-pause-ad, .avs-pause-ad, [id*="pause-ad"], [class*="pause-ad"],
+        [id*="avs-pause"], [class*="avs-pause"],
+        .avs-pause-ad-box, .avs-pause-ad-link, .avs-pause-ad-img, .avs-pause-ad-label,
+        .avs-pause-ad-actions, .avs-pause-ad-dismiss, .avs-pause-ad-resume,
+        #avs-resume-overlay, #avs-resume-box, .avs-resume-box, [id*="avs-resume"], [class*="avs-resume"],
+        #avs-compat-fallback, .avs-warning, .browser-warning, [id*="compat-fallback"],
+        .quality-notice, [class*="ads"], [id*="ads"], [class*="banner"], [id*="banner"],
+        [id*="devtools"], [class*="devtools"], [id*="adblock"], [class*="adblock"],
+        .avs-ads, #avs-ads, .vast-skip-button, .jw-ad-container, [class*="jw-ad"], [id*="jw-ad"],
+        iframe[src*="ad"], iframe[src*="bet"], a[href*="bom88"], a[href*="bet"],
+        div[style*="z-index: 9999"], div[style*="z-index: 2147483647"] {
+          display: none !important;
+          visibility: hidden !important;
+          opacity: 0 !important;
+          pointer-events: none !important;
+          height: 0 !important;
+          width: 0 !important;
+          max-height: 0 !important;
+          max-width: 0 !important;
+          overflow: hidden !important;
+        }
+      `).catch(() => {});
+
+      contents.executeJavaScript(`
+        (function() {
+          // 1. Intercept XHR & fetch for ads/active
+          try {
+            const origOpen = XMLHttpRequest.prototype.open;
+            XMLHttpRequest.prototype.open = function(method, url) {
+              if (typeof url === 'string' && (url.includes('ads/active') || url.includes('admin/api/ads'))) {
+                this._isAdReq = true;
+              }
+              return origOpen.apply(this, arguments);
+            };
+            const origSend = XMLHttpRequest.prototype.send;
+            XMLHttpRequest.prototype.send = function() {
+              if (this._isAdReq) {
+                Object.defineProperty(this, 'readyState', { value: 4 });
+                Object.defineProperty(this, 'status', { value: 200 });
+                Object.defineProperty(this, 'statusText', { value: 'OK' });
+                Object.defineProperty(this, 'responseText', { value: '{"pauseAd":null,"ads":[]}' });
+                Object.defineProperty(this, 'response', { value: '{"pauseAd":null,"ads":[]}' });
+                if (typeof this.onreadystatechange === 'function') this.onreadystatechange();
+                if (typeof this.onload === 'function') this.onload();
+                return;
+              }
+              return origSend.apply(this, arguments);
+            };
+          } catch(_) {}
+
+          // 2. DOM Scrubber
+          const scrub = () => {
+            const pad = document.getElementById('avs-pause-ad');
+            if (pad) pad.remove();
+            const res = document.getElementById('avs-resume-overlay');
+            if (res) res.remove();
+            const bads = document.querySelectorAll('.avs-pause-ad-box, [id*="pause-ad"], [class*="pause-ad"]');
+            bads.forEach(b => b.remove());
+          };
+          try {
+            const obs = new MutationObserver(scrub);
+            obs.observe(document.body || document.documentElement, { childList: true, subtree: true });
+          } catch(_) {}
+          scrub();
+          if (typeof jwplayer === 'function') {
+            const p = jwplayer('player');
+            if (p && p.on) {
+              p.on('pause', () => {
+                setTimeout(scrub, 10);
+                setTimeout(scrub, 60);
+              });
+            }
+          }
+          return true;
+        })()
+      `).catch(() => {});
+    };
+
+    contents.on('dom-ready', injectWebviewGuards);
+    contents.on('did-finish-load', injectWebviewGuards);
+    return;
+  }
+
+  contents.setWindowOpenHandler(({ url }) => {
+    const isAd = /ads|bet|bom88|casino|affiliate|popads|doubleclick|tracker|game/i.test(url);
+    if (isAd) {
+      log.info(`[AdBlock] Denied popup window: ${url}`);
+      return { action: 'deny' };
+    }
+    // Block internal download URLs from opening external web browser
+    if (url.includes('/api/download/file/')) {
+      log.info(`[Download] Prevented external browser navigation for internal URL: ${url}`);
+      return { action: 'deny' };
+    }
+    shell.openExternal(url);
+    return { action: 'deny' };
+  });
+
+  contents.on('will-navigate', (event, url) => {
+    // Prevent any frame from navigating to warning pages
+    if (url.includes('devtools-warning') || url.includes('adblock-warning')) {
+      event.preventDefault();
+      log.info(`[WarningBypass] Blocked frame navigation to warning page: ${url}`);
+      return;
+    }
+
+    const isMainFrame = (event.frame === contents.mainFrame) || (event.isMainFrame !== false && !event.frame);
+    if (isMainFrame) {
+      const isLocal = url.startsWith(`http://127.0.0.1:${serverPort}`) || url.startsWith(`http://localhost:${serverPort}`);
+      if (!isLocal) {
+        event.preventDefault();
+        shell.openExternal(url);
+      }
+    }
+  });
+});
+
 // ─── Window creation ──────────────────────────────────────────────────────────
 
 function createSplashWindow() {
@@ -234,7 +452,7 @@ function createMainWindow() {
     height: 900,
     minWidth:  1024,
     minHeight: 720,
-    show: false,
+    show: true,
     frame: false,            // Frameless — custom SVG controls injected via JS
     titleBarStyle: 'hidden',
     backgroundColor: '#0a0a0f',
@@ -242,21 +460,71 @@ function createMainWindow() {
       preload:          path.join(__dirname, 'preload.js'),
       contextIsolation: true,
       nodeIntegration:  false,
+      webviewTag:       true,
       webSecurity:      false,
     },
     icon:  getAppIcon(),
     title: APP_NAME,
   });
 
+  mainWindow.center();
+
   // Clear cache in dev mode to guarantee fresh assets are loaded
   if (isDev) {
-    const { session } = require('electron');
     session.defaultSession.clearCache().catch(err => log.error('Failed to clear cache:', err));
   }
 
-  mainWindow.loadURL(`http://127.0.0.1:${serverPort}/`);
+
+
+
+  // Automatically save files triggered via blob/webview downloads to downloads directory
+  session.defaultSession.on('will-download', (event, item, webContents) => {
+    const downloadsDir = app.isPackaged
+      ? path.join(process.resourcesPath, 'downloads')
+      : path.join(__dirname, '..', 'downloads');
+    if (!fs.existsSync(downloadsDir)) {
+      try { fs.mkdirSync(downloadsDir, { recursive: true }); } catch (_) {}
+    }
+    const savePath = path.join(downloadsDir, item.getFilename());
+    item.setSavePath(savePath);
+    log.info(`[Download] Starting file download to: ${savePath}`);
+    item.once('done', (e, state) => {
+      if (state === 'completed') {
+        log.info(`[Download] File successfully saved: ${savePath}`);
+      } else {
+        log.warn(`[Download] Download ended with state: ${state}`);
+      }
+    });
+  });
+
+  mainWindow.once('ready-to-show', () => {
+    log.info('mainWindow ready-to-show triggered');
+    showMainWindow();
+  });
+
+  setTimeout(() => {
+    if (mainWindow && !mainWindow.isVisible()) {
+      log.info('Safety timeout: forcing mainWindow.show()');
+      showMainWindow();
+    }
+  }, 2500);
+
+  mainWindow.loadURL(`http://localhost:${serverPort}/`);
+
+  // Global F12 and DevTools shortcut handler: open detached and prevent event from reaching web pages
+  mainWindow.webContents.on('before-input-event', (event, input) => {
+    if (input.type === 'keyDown' && (input.key === 'F12' || (input.control && input.shift && input.key.toLowerCase() === 'i'))) {
+      if (mainWindow.webContents.isDevToolsOpened()) {
+        mainWindow.webContents.closeDevTools();
+      } else {
+        mainWindow.webContents.openDevTools({ mode: 'detach' });
+      }
+      event.preventDefault();
+    }
+  });
 
   mainWindow.webContents.on('did-finish-load', () => {
+    log.info('mainWindow did-finish-load triggered');
     // ── Inject drag-region CSS ──
     mainWindow.webContents.insertCSS(`
       /* ── Global: no text selection except inputs ── */
@@ -390,6 +658,11 @@ function createMainWindow() {
   });
 
   mainWindow.on('close', (e) => {
+    if (isDev) {
+      app.isQuitting = true;
+      app.quit();
+      return;
+    }
     if (!app.isQuitting) {
       e.preventDefault();
       mainWindow.hide();
@@ -408,20 +681,28 @@ function createMainWindow() {
     globalShortcut.unregisterAll();
   });
 
-  // Open DevTools in dev mode
+  // Open DevTools in dev mode (detached window prevents anti-devtools detection)
   if (isDev) {
     mainWindow.webContents.openDevTools({ mode: 'detach' });
   }
 }
 
 function showMainWindow() {
+  log.info('showMainWindow executed');
   if (splashWindow && !splashWindow.isDestroyed()) {
-    splashWindow.destroy();
+    try {
+      splashWindow.close();
+      splashWindow.destroy();
+    } catch (e) {}
     splashWindow = null;
   }
-  if (mainWindow) {
+  if (mainWindow && !mainWindow.isDestroyed()) {
+    if (mainWindow.isMinimized()) mainWindow.restore();
     mainWindow.show();
+    mainWindow.setAlwaysOnTop(true);
     mainWindow.focus();
+    mainWindow.setAlwaysOnTop(false);
+    log.info('mainWindow is now visible and brought to front');
   }
 }
 
@@ -919,6 +1200,96 @@ ipcMain.on('open-downloads-folder', () => {
   shell.openPath(downloadsDir);
 });
 
+ipcMain.handle('select-file', async () => {
+  if (!mainWindow) return null;
+  const result = await dialog.showOpenDialog(mainWindow, {
+    title: 'Select File to Analyze',
+    properties: ['openFile'],
+    filters: [
+      { name: 'All Supported Files', extensions: ['torrent', 'mp4', 'mkv', 'webm', 'avi', 'mp3', 'wav', 'flac', 'm4a', 'jpg', 'png', 'webp'] },
+      { name: 'BitTorrent Files (*.torrent)', extensions: ['torrent'] },
+      { name: 'Video Files', extensions: ['mp4', 'mkv', 'webm', 'avi', 'mov', 'flv', 'ts', 'wmv'] },
+      { name: 'Audio Files', extensions: ['mp3', 'wav', 'flac', 'm4a', 'aac', 'ogg', 'opus'] },
+      { name: 'All Files (*.*)', extensions: ['*'] }
+    ]
+  });
+  if (result.canceled || !result.filePaths.length) return null;
+  return result.filePaths[0];
+});
+
+ipcMain.handle('select-folder', async () => {
+  if (!mainWindow) return null;
+  const result = await dialog.showOpenDialog(mainWindow, {
+    title: 'Select Folder to Analyze',
+    properties: ['openDirectory']
+  });
+  if (result.canceled || !result.filePaths.length) return null;
+  return result.filePaths[0];
+});
+
+ipcMain.handle('save-file', async (event, { downloadId, defaultFilename }) => {
+  if (!mainWindow) return { canceled: true };
+
+  const defaultDir = app.getPath('downloads');
+  const result = await dialog.showSaveDialog(mainWindow, {
+    title: 'Save File',
+    defaultPath: path.join(defaultDir, defaultFilename || 'download'),
+    properties: ['showOverwriteConfirmation']
+  });
+
+  if (result.canceled || !result.filePath) {
+    return { canceled: true };
+  }
+
+  const targetPath = result.filePath;
+  try {
+    const postData = JSON.stringify({ download_id: downloadId, target_path: targetPath });
+    const options = {
+      hostname: '127.0.0.1',
+      port: serverPort,
+      path: '/api/download/save-to-disk',
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Content-Length': Buffer.byteLength(postData)
+      }
+    };
+
+    const resp = await new Promise((resolve, reject) => {
+      const req = http.request(options, (res) => {
+        let raw = '';
+        res.on('data', chunk => raw += chunk);
+        res.on('end', () => {
+          try {
+            resolve(JSON.parse(raw));
+          } catch (e) {
+            resolve({ status: 'error', message: raw });
+          }
+        });
+      });
+      req.on('error', reject);
+      req.write(postData);
+      req.end();
+    });
+
+    if (resp.status === 'success') {
+      log.info(`[Save] File saved successfully to: ${targetPath}`);
+      return { success: true, filePath: targetPath };
+    } else {
+      throw new Error(resp.message || 'Server failed to save file');
+    }
+  } catch (err) {
+    log.error('[Save] Save to disk error:', err);
+    return { success: false, error: err.message };
+  }
+});
+
+ipcMain.on('show-item-in-folder', (event, filePath) => {
+  if (filePath && fs.existsSync(filePath)) {
+    shell.showItemInFolder(filePath);
+  }
+});
+
 // ─── Remove native menu bar + register keyboard shortcuts ────────────────────
 // Native menus clash with the dark web UI and don't support SVG.
 // All actions remain accessible via tray right-click and shortcuts below.
@@ -962,11 +1333,15 @@ function setupKeyboardShortcuts() {
     mainWindow?.webContents.setZoomLevel(0)
   );
 
-  // DevTools (dev mode only)
+  // DevTools (dev mode only — detached window prevents anti-devtools detection)
   if (isDev) {
-    globalShortcut.register('F12', () =>
-      mainWindow?.webContents.toggleDevTools()
-    );
+    globalShortcut.register('F12', () => {
+      if (mainWindow?.webContents.isDevToolsOpened()) {
+        mainWindow.webContents.closeDevTools();
+      } else {
+        mainWindow?.webContents.openDevTools({ mode: 'detach' });
+      }
+    });
   }
 }
 
@@ -1023,6 +1398,9 @@ app.whenReady().then(async () => {
     return;
   }
 
+  // Set up network-level ad blocking and CDN referer header rewriting early
+  setupNetworkGuards();
+
   // Remove native menu bar
   buildAppMenu();
 
@@ -1034,8 +1412,10 @@ app.whenReady().then(async () => {
     }
   });
 
-  // Show splash immediately
-  setTimeout(createSplashWindow, SPLASH_WAIT);
+  // Show splash immediately (only in production)
+  if (!isDev) {
+    setTimeout(createSplashWindow, SPLASH_WAIT);
+  }
 
   try {
     await startFlaskServer();
@@ -1049,7 +1429,7 @@ app.whenReady().then(async () => {
     startClipboardMonitoring();
 
     // If main window already loaded before server was marked ready
-    if (mainWindow?.webContents.getURL().includes('127.0.0.1')) {
+    if (mainWindow?.webContents.getURL().includes('localhost') || mainWindow?.webContents.getURL().includes('127.0.0.1')) {
       showMainWindow();
     }
   } catch (err) {
@@ -1077,14 +1457,4 @@ app.on('before-quit', () => {
 app.on('will-quit', () => {
   globalShortcut.unregisterAll();
   killFlaskServer();
-});
-
-// Disable navigation to external URLs in the main window
-app.on('web-contents-created', (_, contents) => {
-  contents.on('will-navigate', (event, url) => {
-    if (!url.startsWith(`http://127.0.0.1:${serverPort}`)) {
-      event.preventDefault();
-      shell.openExternal(url);
-    }
-  });
 });

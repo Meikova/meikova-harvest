@@ -39,7 +39,9 @@ document.addEventListener("DOMContentLoaded", async () => {
     video: { hex: "#8b5cf6", rgb: "139, 92, 246" },
     audio: { hex: "#00e5ff", rgb: "0, 229, 255" },
     subtitle: { hex: "#f59e0b", rgb: "245, 158, 11" },
-    image: { hex: "#10b981", rgb: "16, 185, 129" }
+    image: { hex: "#10b981", rgb: "16, 185, 129" },
+    webpage: { hex: "#f43f5e", rgb: "244, 63, 94" },
+    document: { hex: "#3b82f6", rgb: "59, 130, 246" }
   };
 
   const SVGIcons = {
@@ -47,6 +49,8 @@ document.addEventListener("DOMContentLoaded", async () => {
     audio: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" width="13" height="13"><path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/></svg>`,
     subtitle: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" width="13" height="13"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>`,
     image: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" width="13" height="13"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>`,
+    webpage: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" width="13" height="13"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>`,
+    document: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" width="13" height="13"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>`,
     download: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" width="11" height="11"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>`
   };
 
@@ -86,6 +90,7 @@ document.addEventListener("DOMContentLoaded", async () => {
             targetServerUrl = `http://127.0.0.1:${port}`;
             serverUrlInput.value = targetServerUrl;
             localStorage.setItem("etd_server_url", targetServerUrl);
+            chrome.storage.local.set({ etd_server_url: targetServerUrl });
             break;
           } catch (e) {
             // port not responding, skip
@@ -115,13 +120,54 @@ document.addEventListener("DOMContentLoaded", async () => {
     showSection(loaderSection);
     loaderText.textContent = "Đang phân tích liên kết...";
 
+    // Retrieve active tab session cookies and upload them to the backend before analysis starts
+    try {
+      const mainDomain = new URL(currentTab.url).hostname.replace(/^www\./, "");
+      const mainCookies = await chrome.cookies.getAll({ domain: mainDomain });
+      const cdnCookies = await chrome.cookies.getAll({ domain: "googleapiscdn.com" });
+      const cookies = [...mainCookies, ...cdnCookies];
+      
+      if (cookies && cookies.length > 0) {
+        console.log(`Auto-syncing ${cookies.length} active tab cookies (main + CDN) to local server.`);
+        const pasteUrl = `${targetServerUrl.replace(/\/$/, "")}/api/cookies/paste`;
+        await fetch(pasteUrl, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            client_id: "chrome-extension",
+            content: JSON.stringify(cookies)
+          })
+        });
+      }
+    } catch (cookieErr) {
+      console.warn("Active tab cookie auto-sync failed:", cookieErr);
+    }
+
+    // Retrieve active tab page HTML to pass to the backend (bypasses ISP name/SNI DPI blocks)
+    let pageHtml = "";
+    try {
+      const results = await chrome.scripting.executeScript({
+        target: { tabId: currentTab.id },
+        func: () => document.documentElement.outerHTML
+      });
+      if (results && results[0]) {
+        pageHtml = results[0].result;
+      }
+    } catch (htmlErr) {
+      console.warn("Failed to extract active tab HTML:", htmlErr);
+    }
+
     const infoUrl = `${targetServerUrl.replace(/\/$/, "")}/api/info`;
 
     try {
       const response = await fetch(infoUrl, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ url: currentTab.url, client_id: "chrome-extension" })
+        body: JSON.stringify({
+          url: currentTab.url,
+          client_id: "chrome-extension",
+          html: pageHtml
+        })
       });
       
       let data;
@@ -209,6 +255,20 @@ document.addEventListener("DOMContentLoaded", async () => {
       return imageExts.includes(ext);
     });
 
+    // 5. Webpage Options (HTML pages, iframes)
+    const webpages = (data.video_options || []).filter(opt => {
+      if (opt.type) return opt.type === "webpage";
+      const ext = (opt.ext || "").toLowerCase();
+      return htmlExts.includes(ext);
+    });
+
+    // 6. Document Options (PDF, txt, docs)
+    const documents = (data.video_options || []).filter(opt => {
+      if (opt.type) return opt.type === "document";
+      const ext = (opt.ext || "").toLowerCase();
+      return docExts.includes(ext);
+    });
+
     let renderedCount = 0;
 
     // Render Video
@@ -265,6 +325,28 @@ document.addEventListener("DOMContentLoaded", async () => {
         }, "image"));
       });
       const groupEl = createFormatGroup("Image Options", SVGIcons.image, rowEls, "image");
+      if (groupEl) formatsContainer.appendChild(groupEl);
+      renderedCount++;
+    }
+
+    // Render Webpages (HTML/Iframe/Episodes)
+    if (webpages.length > 0) {
+      const rowEls = [];
+      webpages.forEach(opt => {
+        rowEls.push(createFormatRow(opt, "webpage"));
+      });
+      const groupEl = createFormatGroup("Webpage Options", SVGIcons.webpage, rowEls, "webpage");
+      if (groupEl) formatsContainer.appendChild(groupEl);
+      renderedCount++;
+    }
+
+    // Render Documents (PDF, text files)
+    if (documents.length > 0) {
+      const rowEls = [];
+      documents.forEach(opt => {
+        rowEls.push(createFormatRow(opt, "document"));
+      });
+      const groupEl = createFormatGroup("Document Options", SVGIcons.document, rowEls, "document");
       if (groupEl) formatsContainer.appendChild(groupEl);
       renderedCount++;
     }
@@ -531,6 +613,7 @@ document.addEventListener("DOMContentLoaded", async () => {
       targetServerUrl = val;
       serverUrlInput.value = val;
       localStorage.setItem("etd_server_url", val);
+      chrome.storage.local.set({ etd_server_url: val });
 
       // Clear localStorage cache entries on server switch
       clearAllCache();

@@ -54,8 +54,10 @@ def get_referer_by_url(url):
         return "https://www.tiktok.com/"
     elif "twitter" in url_lower or "x.com" in url_lower or "twimg" in url_lower:
         return "https://x.com/"
-    elif "instagram" in url_lower:
+    elif "instagram" in url_lower or "cdninstagram" in url_lower:
         return "https://www.instagram.com/"
+    elif "fbcdn" in url_lower or "facebook" in url_lower or "fbsbx" in url_lower:
+        return "https://www.facebook.com/"
     elif "threads" in url_lower:
         return "https://www.threads.net/"
     elif "reddit" in url_lower or "redd.it" in url_lower:
@@ -70,6 +72,8 @@ def get_referer_by_url(url):
         return "https://www.youtube.com/"
     elif "codexa.fun" in url_lower:
         return "https://moviking.neuronix.sbs/"
+    elif "googleapiscdn.com" in url_lower:
+        return "https://animevietsub.love/"
         
         
     try:

@@ -98,7 +98,18 @@ class PersistentDownloadStatus(dict):
                 ("luphim.com", "luphim"),
                 ("luphim.co", "luphim"),
                 ("luphim.net", "luphim"),
-                ("luphim.org", "luphim")
+                ("luphim.org", "luphim"),
+                ("animevietsub.love", "animevietsub"),
+                ("animevietsub.fan", "animevietsub"),
+                ("animevietsub.lol", "animevietsub"),
+                ("animevietsub.in", "animevietsub"),
+                ("animevietsub.tv", "animevietsub"),
+                ("animevietsub.site", "animevietsub"),
+                ("animevietsub.id", "animevietsub"),
+                ("animevietsub.pl", "animevietsub"),
+                ("animevietsub.by", "animevietsub"),
+                ("animevietsub.ru", "animevietsub"),
+                ("animevietsub.my", "animevietsub")
             ]
             for dom, reason in pre_seeded:
                 cursor.execute(
@@ -187,6 +198,7 @@ class PersistentDownloadStatus(dict):
 
     def get_history(self, limit=50):
         history_list = []
+        rows = []
         with self.lock:
             try:
                 conn = sqlite3.connect(self.db_path, timeout=5.0)
@@ -195,22 +207,30 @@ class PersistentDownloadStatus(dict):
                 cursor.execute("SELECT download_id, data FROM downloads ORDER BY timestamp DESC LIMIT ?", (limit,))
                 rows = cursor.fetchall()
                 conn.close()
-                for download_id, data_str in rows:
-                    try:
-                        data = json.loads(data_str)
-                        data["download_id"] = download_id
-                        filepath = data.get("filepath")
-                        if filepath and os.path.exists(filepath):
-                            data["file_exists"] = True
-                            data["file_size"] = os.path.getsize(filepath)
-                        else:
-                            data["file_exists"] = False
-                            data["file_size"] = 0
-                        history_list.append(data)
-                    except Exception:
-                        pass
             except Exception as e:
                 print(f"Error fetching history: {e}")
+                return []
+
+        # Process outside of self.lock to avoid holding thread lock during disk I/O
+        for download_id, data_str in rows:
+            try:
+                data = json.loads(data_str)
+                data["download_id"] = download_id
+                filepath = data.get("filepath")
+                file_exists = False
+                file_size = 0
+                if filepath:
+                    try:
+                        if os.path.exists(filepath):
+                            file_exists = True
+                            file_size = os.path.getsize(filepath)
+                    except Exception:
+                        pass
+                data["file_exists"] = file_exists
+                data["file_size"] = file_size
+                history_list.append(data)
+            except Exception:
+                pass
         return history_list
 
     def delete_task(self, download_id):

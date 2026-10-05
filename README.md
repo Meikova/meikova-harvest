@@ -41,7 +41,8 @@ Bên cạnh khả năng giải mã và tải xuống từ hàng loạt nền t�
 ## ✨ Tính năng nổi bật
 
 ### 📥 1. Bộ Công Cụ Tải Xuống Đa Nguồn (Media Downloader)
-* 🌐 **Mạng xã hội phổ biến**: 
+
+* 🌐 **Mạng xã hội phổ biến**:
   * **Facebook**: Tải video chất lượng HD/SD, Reels, Stories, Video từ các group công khai/riêng tư.
   * **TikTok**: Tự động bóc tách và tải video không logo (No Watermark), tải file nhạc nền riêng biệt, hỗ trợ slideshow ảnh.
   * **Instagram**: Hỗ trợ Reels, Stories, IGTV, bài viết carousel hình ảnh chất lượng gốc.
@@ -60,6 +61,7 @@ Bên cạnh khả năng giải mã và tải xuống từ hàng loạt nền t�
   * **Làm sạch & Tối ưu hóa**: Luôn tự động xử lý làm sạch tệp phụ đề để xóa bỏ toàn bộ mã XML/HTML rác, bao gồm các thẻ mốc thời gian ẩn từng từ của YouTube (word-level timestamps); tự động gộp phụ đề dạng cuộn (rolling duplicate captions) tránh hiện tượng chữ bị lặp đè lên nhau, và ngắt dòng tối đa 10 từ/câu để bảo đảm tính dễ đọc.
 
 ### 🎧 2. Xử Lý Âm Thanh & Video Nâng Cao (Post-Processing)
+
 * 🎨 **Bộ lọc màu Cinematic**: Áp dụng hiệu ứng màu sắc chuyên nghiệp lên video trước khi tải: Cyberpunk, Vintage, Noir, Enhance.
 * 🎞️ **Xuất GIF & Shorts**: Chuyển đổi đoạn video thành ảnh GIF động chất lượng cao (palettegen), hoặc chuyển đổi video ngang thành dọc 9:16 (Shorts) với nền mờ tự động.
 * 🎛️ **Cân bằng âm thanh (4-band EQ)**: Chỉnh Bass (60Hz), Low-Mid (500Hz), High-Mid (2kHz), Treble (10kHz) với các preset sẵn: Flat, Bass Boost, Vocal, Acoustic, Electronic, Lo-Fi.
@@ -69,10 +71,12 @@ Bên cạnh khả năng giải mã và tải xuống từ hàng loạt nền t�
 * ✂️ **Cắt Video/Audio trước khi tải (Trimmer)**: Chọn điểm đầu/cuối trực tiếp trên thanh timeline bằng phím tắt `[` và `]`, chỉ tải đúng đoạn cần thiết.
 
 ### ☁️ 3. Tích Hợp Đám Mây & Lưu Trữ
+
 * 📤 **Gửi file lên Telegram**: Tự động gửi file tải về trực tiếp đến Telegram Chat/Group/Channel thông qua Bot API (hỗ trợ sendVideo, sendAnimation, sendDocument).
 * 📊 **Lịch sử tải xuống**: Lưu trữ toàn bộ lịch sử tải xuống vào SQLite database, hỗ trợ xem lại, tải lại hoặc xóa từng mục.
 
 ### 🛡️ 4. Hệ Thống Bảo Vệ Bản Quyền & Chống Dịch Ngược (Build Tool)
+
 * 🧩 **AST Code Scrambling**: Tự động phân tích cây cú pháp trừu tượng (AST) của Python để xáo trộn tên biến, tên hàm, mã hóa chuỗi ký tự cục bộ, phá hỏng khả năng đọc hiểu của các công cụ dịch ngược (decompiler).
 * 🔒 **PyArmor Binary Security**: Mã hóa nhị phân tệp thực thi Flask để bảo vệ tối đa thuật toán cốt lõi (3 cấp độ bảo vệ).
 * 🎫 **Ràng buộc bản quyền (Licensing)**:
@@ -82,6 +86,7 @@ Bên cạnh khả năng giải mã và tải xuống từ hàng loạt nền t�
 * 🚀 **Xuất bản GitHub Release**: Tự động tạo tag, commit và push trực tiếp từ giao diện Build GUI, kích hoạt CI/CD pipeline.
 
 ### 💻 5. Electron Desktop UX/UI Cao Cấp
+
 * 🎨 **Giao diện Glassmorphic**: Cửa sổ không viền (Frameless) hiện đại, bo góc Windows 11, hệ màu Dark/Light Mode với chuyển đổi mượt mà (View Transitions API).
 * 🎭 **Tùy biến giao diện (UI Customizer)**: 10+ bảng màu accent (Emerald, Orchid, Amber, Purple, Rose...), tùy chỉnh bo góc, độ mờ kính (Glass Blur), font chữ, kích thước, hiệu ứng nền tương tác (Star Grid, Ripples, Sparkles, Sound Reactive Grid).
 * 📥 **Khay hệ thống (System Tray)**: Thu nhỏ chạy nền, khởi động cùng Windows, menu chuột phải đa năng (Restart Backend, mở thư mục tải, mở trên trình duyệt).
@@ -91,6 +96,7 @@ Bên cạnh khả năng giải mã và tải xuống từ hàng loạt nền t�
 * ⌨️ **Phím tắt toàn diện**: 20+ phím tắt cho Video Player (Space, M, ←→, ↑↓, F, [, ], 0-9, < >, D), Audio Player, Image Viewer (R, +/-, 0), Text/Subtitle Viewer.
 
 ### 🖥️ 6. Trình Xem Trước Đa Phương Tiện (Previewer)
+
 * 🎬 **Video Player tùy chỉnh**: Trình phát video với DASH Adaptive Streaming proxy (ghép video-only + audio-only trực tiếp), thanh điều khiển tùy chỉnh, Picture-in-Picture, A-B Loop, hiệu ứng Ambient Glow.
 * 🎵 **Audio Player**: Hiệu ứng sóng nhạc trực quan (Waveform Visualizer) bằng Web Audio API, đĩa than Vinyl xoay động, bảng điều khiển EQ/Speed/Voice FX.
 * 🖼️ **Image Viewer**: Phóng to (0.5x → 5x), xoay 90°, kéo pan khi zoom, điều hướng ảnh ←→.
@@ -111,7 +117,7 @@ graph TD
     B --> F["Edge-TTS - Lồng tiếng AI tự động"]
     B --> G["Telegram Bot API - Gửi file lên đám mây"]
     B --> H["Gallery-DL - Tải ảnh/gallery"]
-    
+  
     style A fill:#477280,stroke:#333,stroke-width:2px,color:#fff
     style B fill:#306998,stroke:#333,stroke-width:2px,color:#fff
     style C fill:#f39c12,stroke:#333,stroke-width:1px,color:#fff
@@ -140,6 +146,7 @@ graph TD
 ## 🚀 Hướng Dẫn Phát Triển (Development)
 
 ### Yêu cầu hệ thống
+
 * **Python**: `3.12.x` trở lên
 * **Node.js**: `20.x` hoặc `22.x`
 * **FFmpeg**: Được tự động cài đặt qua thư viện `static-ffmpeg` (không cần cài đặt thủ công).
@@ -147,6 +154,7 @@ graph TD
 ### Thiết lập môi trường chạy thử (Dev Mode)
 
 1. **Khởi chạy Python Backend**:
+
    ```bash
    # Tạo và kích hoạt môi trường ảo
    python -m venv venv
@@ -160,8 +168,8 @@ graph TD
    # Khởi chạy Flask Server (chế độ dev)
    python app.py
    ```
-
 2. **Khởi chạy Electron Frontend**:
+
    ```bash
    cd electron
    npm install
@@ -188,6 +196,7 @@ docker-compose up
 EveryThingDownloader tích hợp bộ công cụ đóng gói thông minh hỗ trợ cả giao diện đồ họa Web GUI trực quan lẫn dòng lệnh CLI mạnh mẽ, và menu tương tác (Interactive CLI Dashboard).
 
 ### Cách 1: Sử dụng Web Build GUI (Khuyên dùng)
+
 1. Khởi chạy máy chủ Build GUI:
    ```bash
    python build_tool/builder_cli.py --gui
@@ -199,6 +208,7 @@ EveryThingDownloader tích hợp bộ công cụ đóng gói thông minh hỗ tr
 4. Bấm **Start Build** để tiến hành đóng gói tự động.
 
 ### Cách 2: Sử dụng dòng lệnh CLI
+
 ```bash
 # Chỉ build bản chạy trên trình duyệt Web (Web Target) có xáo trộn code
 python build_tool/builder_cli.py --target web --obfuscate
@@ -211,11 +221,14 @@ python build_tool/builder_cli.py --target both --obfuscate
 ```
 
 ### Cách 3: Sử dụng Interactive CLI Menu Dashboard
+
 ```bash
 # Khởi chạy menu tương tác không cần tham số
 python build_tool/builder_cli.py
 ```
+
 Hiển thị bảng điều khiển color-coded cho phép:
+
 - Chọn mục tiêu build (Web / Desktop / Both)
 - Cấu hình Code Protection (PyArmor, AST Scrambling, Dead Code, Anti-Debug...)
 - Thiết lập Licensing (IP Lock, Expiry Date, Machine ID Lock)
@@ -248,5 +261,5 @@ Dự án sử dụng **GitHub Actions** để tự động hóa hoàn toàn quy 
 
 ## 📝 Giấy Phép & Bản Quyền
 
-Dự án được phát hành theo giấy phép **MIT License**. 
+Dự án được phát hành theo giấy phép **MIT License**.
 Bản quyền thuộc về **EveryThingDownloader Team © 2026**.

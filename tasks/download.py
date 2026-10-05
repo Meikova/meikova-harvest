@@ -1,4 +1,5 @@
 import os
+import sys
 import shutil
 import logging
 import threading
@@ -95,15 +96,19 @@ def upload_to_telegram(filepath, bot_token, chat_id):
 
 def bg_download_task(download_id, url, format_id, ext, quality="192", title="media", client_id=None, trim_start=None, trim_end=None, translate_subs=None, **kwargs):
     """Background thread task to download media via yt-dlp."""
+    if url:
+        url = re.sub(r'^[\'"]+|[\'"]+$', '', str(url).strip()).strip()
     # Extract real stream URL from embed player URL if present
     if "embed" in url.lower() or "player" in url.lower() or "/embed/" in url.lower():
         from urllib.parse import urlparse, parse_qs
         try:
             parsed_embed = urlparse(url)
             query_params = parse_qs(parsed_embed.query)
-            url_val = query_params.get("url", [None])[0]
-            if url_val:
-                url = url_val
+            for q_key in ("url", "source", "file", "v", "src", "link"):
+                url_val = query_params.get(q_key, [None])[0]
+                if url_val and url_val.startswith("http"):
+                    url = url_val
+                    break
         except Exception as e:
             logger.warning(f"Failed to parse embed url: {e}")
 
@@ -111,8 +116,92 @@ def bg_download_task(download_id, url, format_id, ext, quality="192", title="med
     os.makedirs(temp_dir, exist_ok=True)
     logger.info(f"Task {download_id}: Start download {url} (format={format_id}, ext={ext}, quality={quality})")
 
+    # --- Resolve stream from player/embed pages ---
+    is_avs = str(format_id).startswith("avs_ep_") or "googleapiscdn.com/player/" in url
+    is_player_or_embed = (
+        is_avs or
+        "embed" in url.lower() or
+        "player" in url.lower() or
+        "/embed/" in url.lower() or
+        "/player/" in url.lower() or
+        "storage.googleapiscdn.com" in url.lower()
+    )
+    has_direct_media_ext = any(x in url.lower() for x in [".m3u8", ".mpd", ".mp4", ".webm", ".mkv", "/player/master/"])
+    if is_player_or_embed and not has_direct_media_ext:
+        with downloads_status_lock:
+            if download_id in downloads_status:
+                downloads_status[download_id].update({
+                    "status": "downloading",
+                    "progress": 10,
+                    "message": "Resolving stream from player page..."
+                })
+
+        player_headers = {
+            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+        }
+        player_referer = get_referer_by_url(url)
+        if is_avs:
+            player_referer = "https://animevietsub.love/"
+        if player_referer:
+            player_headers["Referer"] = player_referer
+
+        cookies_dict = {}
+        if client_id:
+            from utils.cookies import get_cookie_file_path
+            client_cookies = get_cookie_file_path(client_id)
+            if client_cookies and os.path.exists(client_cookies):
+                try:
+                    with open(client_cookies, 'r', encoding='utf-8', errors='ignore') as f:
+                        for line in f:
+                            line = line.strip()
+                            if not line or line.startswith('#'):
+                                continue
+                            parts = line.split('\t')
+                            if len(parts) >= 7:
+                                cookies_dict[parts[5]] = parts[6]
+                except Exception:
+                    pass
+
+        from extractors.generic import fetch_html, deobfuscate_script, scan_text_for_media_urls
+        player_html = fetch_html(url, headers=player_headers, cookies=cookies_dict)
+
+        resolved_stream = None
+        if player_html:
+            deobf_player = deobfuscate_script(player_html)
+            scanned_streams = scan_text_for_media_urls(deobf_player, base_url=url)
+            if scanned_streams:
+                resolved_stream = scanned_streams[0]
+
+        if resolved_stream:
+            logger.info(f"Task {download_id}: Resolved player URL {url} -> {resolved_stream}")
+            url = resolved_stream
+            if ext == "html":
+                ext = "mp4"
+        else:
+            is_mse_stream = (
+                is_avs or
+                "googleapiscdn.com/player/" in url or
+                (player_html and any(k in player_html for k in ["MediaSource", "window.MediaSource", "crypto.subtle", "createObjectURL", "_runCompatBootstrap", "PLAYER_DATA"]))
+            )
+            if is_mse_stream:
+                err_msg = "Luồng phát được mã hóa WebCrypto/MSE trong RAM trình duyệt. Vui lòng mở 'Xem trước' (Preview) và bấm 'Lưu Video (.mp4)' để thu trực tiếp!"
+                logger.warning(f"Task {download_id}: {err_msg}")
+                try:
+                    shutil.rmtree(temp_dir)
+                except Exception:
+                    pass
+                with downloads_status_lock:
+                    if download_id in downloads_status:
+                        downloads_status[download_id].update({
+                            "status": "error",
+                            "progress": 0,
+                            "message": err_msg,
+                            "error": err_msg,
+                        })
+                return
+
     # Check for generic fallback webpage download
-    if format_id == "generic_fallback":
+    if format_id == "generic_fallback" and ext == "html":
         try:
             with downloads_status_lock:
                 if download_id in downloads_status:
@@ -129,8 +218,9 @@ def bg_download_task(download_id, url, format_id, ext, quality="192", title="med
             # Load user cookies if client_id is available
             cookies_dict = {}
             if client_id:
-                client_cookies = os.path.join(TEMP_DOWNLOAD_DIR, "cookies", f"cookies_{client_id}.txt")
-                if os.path.exists(client_cookies):
+                from utils.cookies import get_cookie_file_path
+                client_cookies = get_cookie_file_path(client_id)
+                if client_cookies and os.path.exists(client_cookies):
                     try:
                         with open(client_cookies, 'r', encoding='utf-8', errors='ignore') as f:
                             for line in f:
@@ -150,8 +240,10 @@ def bg_download_task(download_id, url, format_id, ext, quality="192", title="med
                 response = requests.get(url, headers=headers, cookies=cookies_dict, verify=False, timeout=15)
                 response.raise_for_status()
                 html_text = response.text
-                
-            user_filename = generate_smart_filename(title, ext="html")
+            
+            episode_val = kwargs.get("episode")
+            server_val = kwargs.get("server")
+            user_filename = generate_smart_filename(title, episode=episode_val, server=server_val, ext="html")
             filepath = os.path.join(temp_dir, user_filename)
             
             with open(filepath, 'w', encoding='utf-8', errors='ignore') as f:
@@ -219,8 +311,86 @@ def bg_download_task(download_id, url, format_id, ext, quality="192", title="med
                     })
             return
 
+    # --- BitTorrent / Magnet Handoff & Dispatch ---
+    is_torrent_package_task = (
+        url.startswith("magnet:") or
+        (format_id in ("torrent_magnet_open", "torrent_magnet_save", "torrent_file_download")) or
+        (format_id and str(format_id).startswith("torrent_") and not str(format_id).startswith("torrent_content_")) or
+        url.lower().endswith(".torrent") or
+        (".torrent?" in url.lower())
+    )
+    if is_torrent_package_task:
+        try:
+            with downloads_status_lock:
+                if download_id in downloads_status:
+                    downloads_status[download_id].update({
+                        "status": "downloading",
+                        "progress": 30,
+                        "message": "Preparing BitTorrent handoff & metadata file..."
+                    })
+
+            clean_title = re.sub(r'[\\/*?:"<>|]', '_', title or "torrent_package").strip()
+            if not clean_title:
+                clean_title = "torrent_package"
+
+            if url.startswith("magnet:"):
+                user_filename = f"{clean_title}.magnet"
+                filepath = os.path.join(temp_dir, user_filename)
+                with open(filepath, "w", encoding="utf-8") as f:
+                    f.write(url + "\n")
+                if sys.platform == "win32" and hasattr(os, "startfile"):
+                    try:
+                        os.startfile(url)
+                    except Exception as le:
+                        logger.warning(f"Could not invoke desktop BitTorrent client: {le}")
+                done_msg = "Opened in default BitTorrent/uTorrent client & saved .magnet file"
+            else:
+                user_filename = f"{clean_title}.torrent"
+                filepath = os.path.join(temp_dir, user_filename)
+                if os.path.isfile(url):
+                    shutil.copy2(url, filepath)
+                else:
+                    import requests
+                    r = requests.get(url, timeout=30, headers={"User-Agent": "Mozilla/5.0"})
+                    r.raise_for_status()
+                    with open(filepath, "wb") as f:
+                        f.write(r.content)
+                if sys.platform == "win32" and hasattr(os, "startfile"):
+                    try:
+                        os.startfile(filepath)
+                    except Exception as le:
+                        logger.warning(f"Could not invoke desktop BitTorrent client: {le}")
+                done_msg = "Downloaded .torrent file & dispatched to BitTorrent client"
+
+            with downloads_status_lock:
+                if download_id in downloads_status:
+                    downloads_status[download_id].update({
+                        "status": "complete",
+                        "progress": 100,
+                        "message": done_msg,
+                        "filepath": filepath,
+                        "temp_dir": temp_dir,
+                        "filename": user_filename,
+                    })
+            return
+        except Exception as te:
+            logger.error(f"Error handling BitTorrent download: {te}")
+            with downloads_status_lock:
+                if download_id in downloads_status:
+                    downloads_status[download_id].update({
+                        "status": "error",
+                        "progress": 0,
+                        "message": f"Torrent dispatch failed: {str(te)}",
+                        "error": str(te),
+                    })
+            return
+
+    # If this is a torrent enclosed file without local path or direct webseed URL
+    if str(format_id).startswith("torrent_content_") and not url:
+        raise ValueError("Tệp này nằm trong swarm BitTorrent P2P và chưa có WebSeed tải trực tiếp. Vui lòng tải toàn bộ gói Torrent (.torrent/magnet) để BitTorrent tải về.")
+
     # Local file copy-to-sandbox for post-processing
-    is_local_download = format_id in ("local_file", "direct_audio_local", "direct_video_local") or (format_id == "image_download" and os.path.isfile(url))
+    is_local_download = format_id in ("local_file", "direct_audio_local", "direct_video_local") or (format_id == "image_download" and os.path.isfile(url)) or (str(format_id).startswith("torrent_content_") and os.path.isfile(url))
     if is_local_download and os.path.isfile(url):
         try:
             with downloads_status_lock:
@@ -323,7 +493,12 @@ def bg_download_task(download_id, url, format_id, ext, quality="192", title="med
             return
 
     # Direct CDN stream download bypass (excluding manifest streams)
-    if (format_id.startswith("direct_video") or format_id.startswith("direct_photo") or format_id.startswith("direct_audio")) and not any(x in url.lower() for x in [".m3u8", ".mpd", "/player/master/"]):
+    is_direct_stream_download = (
+        (format_id.startswith("direct_video") or format_id.startswith("direct_photo") or format_id.startswith("direct_audio") or str(format_id).startswith("torrent_content_"))
+        and not any(x in url.lower() for x in [".m3u8", ".mpd", "/player/master/"])
+        and (url.startswith("http://") or url.startswith("https://"))
+    )
+    if is_direct_stream_download:
         try:
             with downloads_status_lock:
                 if download_id in downloads_status:
@@ -440,44 +615,49 @@ def bg_download_task(download_id, url, format_id, ext, quality="192", title="med
                             "message": message
                         })
 
-            try:
-                filepath = apply_post_processing(
-                    filepath, temp_dir,
-                    trim_start=trim_start, trim_end=trim_end,
-                    export_type=kwargs.get("export_type", "default"),
-                    color_filter=kwargs.get("color_filter", "none"),
-                    voiceover_active=kwargs.get("voiceover_active", False),
-                    voiceover_voice=kwargs.get("voiceover_voice"),
-                    subtitles_path=subtitles_path,
-                    translate_subs=translate_subs,
-                    progress_callback=progress_cb,
-                    voiceover_rate=kwargs.get("voiceover_rate"),
-                    voiceover_pitch=kwargs.get("voiceover_pitch"),
-                    audio_eq_bass=kwargs.get("audio_eq_bass", 0),
-                    audio_eq_lowmid=kwargs.get("audio_eq_lowmid", 0),
-                    audio_eq_highmid=kwargs.get("audio_eq_highmid", 0),
-                    audio_eq_treble=kwargs.get("audio_eq_treble", 0),
-                    audio_speed=kwargs.get("audio_speed", 1.0),
-                    audio_voice_preset=kwargs.get("audio_voice_preset", "normal"),
-                    sub_font=kwargs.get("sub_font", "Arial"),
-                    sub_size=kwargs.get("sub_size", 1.4),
-                    sub_color=kwargs.get("sub_color", "#ffffff"),
-                    sub_bg_color=kwargs.get("sub_bg_color", "#000000"),
-                    sub_bg_opacity=kwargs.get("sub_bg_opacity", 50),
-                    sub_outline=kwargs.get("sub_outline", 2),
-                    sub_outline_color=kwargs.get("sub_outline_color", "#000000"),
-                    sub_pos=kwargs.get("sub_pos", "bottom"),
-                    enhance_beautify=kwargs.get("enhance_beautify", False),
-                    enhance_sharpen=kwargs.get("enhance_sharpen", 0),
-                    enhance_upscale=kwargs.get("enhance_upscale", "none")
-                )
-                ext = filepath.rsplit(".", 1)[-1].lower()
-            except Exception as pp_err:
-                logger.error(f"Post-processing failed: {pp_err}")
-            
-            episode_val = kwargs.get("episode")
-            server_val = kwargs.get("server")
-            user_filename = generate_smart_filename(title, episode=episode_val, server=server_val, ext=ext)
+            media_exts = {'mp4', 'mkv', 'avi', 'mov', 'webm', 'flv', 'ts', 'mp3', 'm4a', 'wav', 'flac', 'ogg', 'aac', 'opus', 'm4v'}
+            if (download_ext in media_exts) or (ext in media_exts):
+                try:
+                    filepath = apply_post_processing(
+                        filepath, temp_dir,
+                        trim_start=trim_start, trim_end=trim_end,
+                        export_type=kwargs.get("export_type", "default"),
+                        color_filter=kwargs.get("color_filter", "none"),
+                        voiceover_active=kwargs.get("voiceover_active", False),
+                        voiceover_voice=kwargs.get("voiceover_voice"),
+                        subtitles_path=subtitles_path,
+                        translate_subs=translate_subs,
+                        progress_callback=progress_cb,
+                        voiceover_rate=kwargs.get("voiceover_rate"),
+                        voiceover_pitch=kwargs.get("voiceover_pitch"),
+                        audio_eq_bass=kwargs.get("audio_eq_bass", 0),
+                        audio_eq_lowmid=kwargs.get("audio_eq_lowmid", 0),
+                        audio_eq_highmid=kwargs.get("audio_eq_highmid", 0),
+                        audio_eq_treble=kwargs.get("audio_eq_treble", 0),
+                        audio_speed=kwargs.get("audio_speed", 1.0),
+                        audio_voice_preset=kwargs.get("audio_voice_preset", "normal"),
+                        sub_font=kwargs.get("sub_font", "Arial"),
+                        sub_size=kwargs.get("sub_size", 1.4),
+                        sub_color=kwargs.get("sub_color", "#ffffff"),
+                        sub_bg_color=kwargs.get("sub_bg_color", "#000000"),
+                        sub_bg_opacity=kwargs.get("sub_bg_opacity", 50),
+                        sub_outline=kwargs.get("sub_outline", 2),
+                        sub_outline_color=kwargs.get("sub_outline_color", "#000000"),
+                        sub_pos=kwargs.get("sub_pos", "bottom"),
+                        enhance_beautify=kwargs.get("enhance_beautify", False),
+                        enhance_sharpen=kwargs.get("enhance_sharpen", 0),
+                        enhance_upscale=kwargs.get("enhance_upscale", "none")
+                    )
+                    ext = filepath.rsplit(".", 1)[-1].lower()
+                except Exception as pp_err:
+                    logger.error(f"Post-processing failed: {pp_err}")
+
+                episode_val = kwargs.get("episode")
+                server_val = kwargs.get("server")
+                user_filename = generate_smart_filename(title, episode=episode_val, server=server_val, ext=ext)
+            else:
+                clean_title = re.sub(r'[\\/*?:"<>|]', '_', title or "downloaded_file").strip()
+                user_filename = f"{clean_title}.{download_ext}" if not clean_title.endswith(f".{download_ext}") else clean_title
 
             cloud_destination = kwargs.get("cloud_destination", "local")
             tg_bot_token = kwargs.get("tg_bot_token")
@@ -545,243 +725,257 @@ def bg_download_task(download_id, url, format_id, ext, quality="192", title="med
                     })
             return
 
-    # Track how many times 'finished' fires
-    finished_count = [0]
-
-    def progress_hook(d):
-        with downloads_status_lock:
-            status_info = downloads_status.get(download_id)
-            if status_info and status_info.get("status") == "cancelled":
-                raise Exception("Download cancelled by user.")
-
-        if d["status"] == "downloading":
-            total = d.get("total_bytes") or d.get("total_bytes_estimate") or 0
-            downloaded = d.get("downloaded_bytes") or 0
-            pct = int((downloaded / total) * 100) if total > 0 else 0
-
-            info = d.get("info_dict") or {}
-            vcodec = info.get("vcodec")
-            acodec = info.get("acodec")
-
-            if ext in ["mp3", "m4a"]:
-                # Audio-only: single stream, 0-90%
-                progress_val = int(pct * 0.90)
-                msg = f"Downloading audio stream: {pct}%"
-            elif ext == "vtt":
-                # Subtitle-only: single stream, 0-90%
-                progress_val = int(pct * 0.90)
-                msg = f"Downloading subtitles: {pct}%"
-            else:
-                is_video_only = (vcodec and vcodec != "none") and (not acodec or acodec == "none")
-                is_audio_only = (not vcodec or vcodec == "none") and (acodec and acodec != "none")
-
-                if is_video_only:
-                    # Video stream (part 1/2): 0-70%
-                    progress_val = int(pct * 0.70)
-                    msg = f"Downloading video stream (1/2): {pct}%"
-                elif is_audio_only:
-                    # Audio stream (part 2/2): 70-90%
-                    progress_val = 70 + int(pct * 0.20)
-                    msg = f"Downloading audio stream (2/2): {pct}%"
-                else:
-                    # Combined/muxed stream: 0-90%
-                    progress_val = int(pct * 0.90)
-                    msg = f"Downloading: {pct}%"
-
-            speed_bytes = d.get("speed")
-            speed_str = ""
-            if speed_bytes is not None:
-                if speed_bytes > 1024 * 1024:
-                    speed_str = f"{speed_bytes / (1024 * 1024):.1f} MB/s"
-                elif speed_bytes > 1024:
-                    speed_str = f"{speed_bytes / 1024:.1f} KB/s"
-                else:
-                    speed_str = f"{speed_bytes:.0f} B/s"
-
-            eta_seconds = d.get("eta")
-            eta_str = ""
-            if eta_seconds is not None:
-                if eta_seconds > 60:
-                    m = int(eta_seconds // 60)
-                    s = int(eta_seconds % 60)
-                    eta_str = f"{m}m {s}s"
-                else:
-                    eta_str = f"{int(eta_seconds)}s"
-
-            with downloads_status_lock:
-                if download_id in downloads_status:
-                    cur = downloads_status[download_id].get("progress", 0)
-                    downloads_status[download_id].update({
-                        "status": "downloading",
-                        "progress": max(cur, progress_val),
-                        "message": msg,
-                        "speed": speed_str,
-                        "eta": eta_str,
-                    })
-
-        elif d["status"] == "finished":
-            finished_count[0] += 1
-            with downloads_status_lock:
-                if download_id in downloads_status:
-                    if ext == "mp3":
-                        # Audio: single stream done → encoding to MP3
-                        downloads_status[download_id].update({
-                            "status": "processing",
-                            "progress": 95,
-                            "message": "Converting to MP3...",
-                        })
-                    elif ext == "m4a":
-                        # M4A: single stream done → finalizing (no conversion)
-                        downloads_status[download_id].update({
-                            "status": "processing",
-                            "progress": 98,
-                            "message": "Finalizing...",
-                        })
-                    elif ext == "vtt":
-                        # Subtitles: single stream done → finalizing
-                        downloads_status[download_id].update({
-                            "status": "processing",
-                            "progress": 98,
-                            "message": "Finalizing subtitles...",
-                        })
-                    else:
-                        if finished_count[0] == 1:
-                            # First stream (video) done, audio coming next
-                            info = d.get("info_dict") or {}
-                            vcodec = info.get("vcodec")
-                            acodec = info.get("acodec")
-                            is_combined = (vcodec and vcodec != "none") and (acodec and acodec != "none")
-                            if is_combined:
-                                # Combined stream — no merge needed
-                                downloads_status[download_id].update({
-                                    "status": "processing",
-                                    "progress": 98,
-                                    "message": "Finalizing...",
-                                })
-                            else:
-                                # Video-only stream done → audio download starting
-                                downloads_status[download_id].update({
-                                    "status": "downloading",
-                                    "progress": 70,
-                                    "message": "Video stream complete. Downloading audio...",
-                                })
-                        else:
-                            # Second stream (audio) done → merging
-                            downloads_status[download_id].update({
-                                "status": "merging",
-                                "progress": 95,
-                                "message": "Merging video and audio streams...",
-                            })
-
-    is_youtube = any(domain in url.lower() for domain in ["youtube.com", "youtu.be"])
-    referer = get_referer_by_url(url)
-    headers = {
-        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
-    }
-    if referer:
-        headers["Referer"] = referer
-        
-    ydl_opts = {
-        "outtmpl": os.path.join(temp_dir, "media.%(ext)s"),
-        "http_headers": headers,
-        "nocheckcertificate": True,
-        "verbose": is_youtube,
-        "quiet": False,
-        "no_warnings": False,
-        "noplaylist": True,
-        "progress_hooks": [progress_hook],
-        "js_runtimes": {"deno": {}, "node": {}, "bun": {}, "quickjs": {}},
-        "cookiesfrombrowser": "auto",
-        "ignoreerrors": True,
-        "compat_opts": {"prefer-legacy-http-handler"},
-        "external_downloader_args": {
-            "ffmpeg": ["-protocol_whitelist", "file,http,https,tcp,tls,crypto,data"]
-        },
-        "extractor_args": {
-            "youtube": {
-                "player_client": ["ios", "android", "web_creator", "mweb", "default"],
-            },
-            "generic": {
-                "impersonate": [""]
-            }
-        },
-    }
-    if should_use_impersonate():
-        try:
-            ydl_opts["impersonate"] = ImpersonateTarget.from_str("chrome")
-        except Exception as e:
-            logger.warning(f"Could not set impersonate option in bg_download_task: {e}")
-
-    if ext in ["mp3", "m4a"]:
-        ydl_opts["writethumbnail"] = True
-
-    if ext == "mp3":
-        ydl_opts.update({
-            "format": "bestaudio/best",
-            "postprocessors": [
-                {
-                    "key": "FFmpegExtractAudio",
-                    "preferredcodec": "mp3",
-                    "preferredquality": quality,
-                },
-                {
-                    "key": "EmbedThumbnail",
-                },
-                {
-                    "key": "FFmpegMetadata",
-                }
-            ],
-            "postprocessor_args": {
-                "extractaudio": ["-compression_level", "9", "-threads", "0"]
-            }
-        })
-    elif ext == "m4a":
-        ydl_opts.update({
-            "format": "bestaudio[ext=m4a]/bestaudio",
-            "postprocessors": [
-                {
-                    "key": "EmbedThumbnail",
-                },
-                {
-                    "key": "FFmpegMetadata",
-                }
-            ]
-        })
-    elif ext == "vtt":
-        # We always download the selected subtitle language (format_id) first,
-        # then we will translate it if translate_subs == "vi"
-        ydl_opts.update({
-            "skip_download": True,
-            "writesubtitles": True,
-            "writeautomaticsub": True,
-            "subtitleslangs": [format_id],
-        })
-    else:
-        # For direct HLS/DASH stream manifests, tell yt-dlp to download the best available muxed stream
-        is_direct_stream = format_id.startswith("direct_") or ".m3u8" in url.lower() or ".mp4" in url.lower()
-        target_format = "best" if is_direct_stream else format_id
-        ydl_opts.update({
-            "format": target_format,
-            "merge_output_format": "mp4",
-        })
-        
-        subtitle_lang = kwargs.get("subtitle_lang")
-        subtitle_url = kwargs.get("subtitle_url")
-        if not (subtitle_url and subtitle_url.startswith("http") and subtitle_url != "none"):
-            if subtitle_lang and subtitle_lang != "none":
-                ydl_opts.update({
-                    "writesubtitles": True,
-                    "writeautomaticsub": True,
-                    "subtitleslangs": [subtitle_lang],
-                })
-            elif kwargs.get("voiceover_active") or translate_subs:
-                ydl_opts.update({
-                    "writesubtitles": True,
-                    "writeautomaticsub": True,
-                    "subtitleslangs": ["vi", "en"],
-                })
+    with downloads_status_lock:
+        if download_id in downloads_status:
+            downloads_status[download_id].update({
+                "status": "downloading",
+                "progress": 5,
+                "message": "Resolving stream and preparing download..."
+            })
 
     try:
+        # Track how many times 'finished' fires
+        finished_count = [0]
+
+        def progress_hook(d):
+            with downloads_status_lock:
+                status_info = downloads_status.get(download_id)
+                if status_info and status_info.get("status") == "cancelled":
+                    raise Exception("Download cancelled by user.")
+
+            if d["status"] == "downloading":
+                total = d.get("total_bytes") or d.get("total_bytes_estimate") or 0
+                downloaded = d.get("downloaded_bytes") or 0
+                pct = int((downloaded / total) * 100) if total > 0 else 0
+
+                info = d.get("info_dict") or {}
+                vcodec = info.get("vcodec")
+                acodec = info.get("acodec")
+
+                if ext in ["mp3", "m4a"]:
+                    # Audio-only: single stream, 0-90%
+                    progress_val = int(pct * 0.90)
+                    msg = f"Downloading audio stream: {pct}%"
+                elif ext == "vtt":
+                    # Subtitle-only: single stream, 0-90%
+                    progress_val = int(pct * 0.90)
+                    msg = f"Downloading subtitles: {pct}%"
+                else:
+                    is_video_only = (vcodec and vcodec != "none") and (not acodec or acodec == "none")
+                    is_audio_only = (not vcodec or vcodec == "none") and (acodec and acodec != "none")
+
+                    if is_video_only:
+                        # Video stream (part 1/2): 0-70%
+                        progress_val = int(pct * 0.70)
+                        msg = f"Downloading video stream (1/2): {pct}%"
+                    elif is_audio_only:
+                        # Audio stream (part 2/2): 70-90%
+                        progress_val = 70 + int(pct * 0.20)
+                        msg = f"Downloading audio stream (2/2): {pct}%"
+                    else:
+                        # Combined/muxed stream: 0-90%
+                        progress_val = int(pct * 0.90)
+                        msg = f"Downloading: {pct}%"
+
+                speed_bytes = d.get("speed")
+                speed_str = ""
+                if speed_bytes is not None:
+                    if speed_bytes > 1024 * 1024:
+                        speed_str = f"{speed_bytes / (1024 * 1024):.1f} MB/s"
+                    elif speed_bytes > 1024:
+                        speed_str = f"{speed_bytes / 1024:.1f} KB/s"
+                    else:
+                        speed_str = f"{speed_bytes:.0f} B/s"
+
+                eta_seconds = d.get("eta")
+                eta_str = ""
+                if eta_seconds is not None:
+                    if eta_seconds > 60:
+                        m = int(eta_seconds // 60)
+                        s = int(eta_seconds % 60)
+                        eta_str = f"{m}m {s}s"
+                    else:
+                        eta_str = f"{int(eta_seconds)}s"
+
+                with downloads_status_lock:
+                    if download_id in downloads_status:
+                        cur = downloads_status[download_id].get("progress", 0)
+                        downloads_status[download_id].update({
+                            "status": "downloading",
+                            "progress": max(cur, progress_val),
+                            "message": msg,
+                            "speed": speed_str,
+                            "eta": eta_str,
+                        })
+
+            elif d["status"] == "finished":
+                finished_count[0] += 1
+                with downloads_status_lock:
+                    if download_id in downloads_status:
+                        if ext == "mp3":
+                            # Audio: single stream done → encoding to MP3
+                            downloads_status[download_id].update({
+                                "status": "processing",
+                                "progress": 95,
+                                "message": "Converting to MP3...",
+                            })
+                        elif ext == "m4a":
+                            # M4A: single stream done → finalizing (no conversion)
+                            downloads_status[download_id].update({
+                                "status": "processing",
+                                "progress": 98,
+                                "message": "Finalizing...",
+                            })
+                        elif ext == "vtt":
+                            # Subtitles: single stream done → finalizing
+                            downloads_status[download_id].update({
+                                "status": "processing",
+                                "progress": 98,
+                                "message": "Finalizing subtitles...",
+                            })
+                        else:
+                            if finished_count[0] == 1:
+                                # First stream (video) done, audio coming next
+                                info = d.get("info_dict") or {}
+                                vcodec = info.get("vcodec")
+                                acodec = info.get("acodec")
+                                is_combined = (vcodec and vcodec != "none") and (acodec and acodec != "none")
+                                if is_combined:
+                                    # Combined stream — no merge needed
+                                    downloads_status[download_id].update({
+                                        "status": "processing",
+                                        "progress": 98,
+                                        "message": "Finalizing...",
+                                    })
+                                else:
+                                    # Video-only stream done → audio download starting
+                                    downloads_status[download_id].update({
+                                        "status": "downloading",
+                                        "progress": 70,
+                                        "message": "Video stream complete. Downloading audio...",
+                                    })
+                            else:
+                                # Second stream (audio) done → merging
+                                downloads_status[download_id].update({
+                                    "status": "merging",
+                                    "progress": 95,
+                                    "message": "Merging video and audio streams...",
+                                })
+
+        is_youtube = any(domain in url.lower() for domain in ["youtube.com", "youtu.be"])
+        if is_youtube and "watch?v=" in url:
+            if "&list=RD" in url:
+                url = re.sub(r'&list=RD[^&]*', '', url)
+            if "&start_radio=1" in url:
+                url = re.sub(r'&start_radio=1', '', url)
+                
+        referer = get_referer_by_url(url)
+        headers = {
+            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
+        }
+        if referer:
+            headers["Referer"] = referer
+            
+        ydl_opts = {
+            "outtmpl": os.path.join(temp_dir, "media.%(ext)s"),
+            "http_headers": headers,
+            "nocheckcertificate": True,
+            "verbose": is_youtube,
+            "quiet": False,
+            "no_warnings": False,
+            "noplaylist": True,
+            "progress_hooks": [progress_hook],
+            "js_runtimes": {"node": {}, "deno": {}, "bun": {}, "quickjs": {}},
+            "cookiesfrombrowser": None if is_youtube else "auto",
+            "ignoreerrors": True,
+            "compat_opts": {"prefer-legacy-http-handler"},
+            "external_downloader_args": {
+                "ffmpeg": ["-protocol_whitelist", "file,http,https,tcp,tls,crypto,data"]
+            },
+            "extractor_args": {
+                "youtube": {
+                    "player_client": ["web_embedded", "android", "web"],
+                },
+                "generic": {
+                    "impersonate": [""]
+                }
+            },
+        }
+        if should_use_impersonate():
+            try:
+                ydl_opts["impersonate"] = ImpersonateTarget.from_str("chrome")
+            except Exception as e:
+                logger.warning(f"Could not set impersonate option in bg_download_task: {e}")
+
+        if ext in ["mp3", "m4a"]:
+            ydl_opts["writethumbnail"] = True
+
+        if ext == "mp3":
+            ydl_opts.update({
+                "format": "bestaudio/best",
+                "postprocessors": [
+                    {
+                        "key": "FFmpegExtractAudio",
+                        "preferredcodec": "mp3",
+                        "preferredquality": quality,
+                    },
+                    {
+                        "key": "EmbedThumbnail",
+                    },
+                    {
+                        "key": "FFmpegMetadata",
+                    }
+                ],
+                "postprocessor_args": {
+                    "extractaudio": ["-compression_level", "9", "-threads", "0"]
+                }
+            })
+        elif ext == "m4a":
+            ydl_opts.update({
+                "format": "bestaudio[ext=m4a]/bestaudio",
+                "postprocessors": [
+                    {
+                        "key": "EmbedThumbnail",
+                    },
+                    {
+                        "key": "FFmpegMetadata",
+                    }
+                ]
+            })
+        elif ext == "vtt":
+            # We always download the selected subtitle language (format_id) first,
+            # then we will translate it if translate_subs == "vi"
+            ydl_opts.update({
+                "skip_download": True,
+                "writesubtitles": True,
+                "writeautomaticsub": True,
+                "subtitleslangs": [format_id],
+            })
+        else:
+            # For direct HLS/DASH stream manifests, tell yt-dlp to download the best available muxed stream
+            is_direct_stream = format_id.startswith("direct_") or ".m3u8" in url.lower() or ".mp4" in url.lower()
+            target_format = "best" if is_direct_stream else format_id
+            ydl_opts.update({
+                "format": target_format,
+                "merge_output_format": "mp4",
+            })
+            
+            subtitle_lang = kwargs.get("subtitle_lang")
+            subtitle_url = kwargs.get("subtitle_url")
+            if not (subtitle_url and subtitle_url.startswith("http") and subtitle_url != "none"):
+                if subtitle_lang and subtitle_lang != "none":
+                    ydl_opts.update({
+                        "writesubtitles": True,
+                        "writeautomaticsub": True,
+                        "subtitleslangs": [subtitle_lang],
+                    })
+                elif kwargs.get("voiceover_active") or translate_subs:
+                    ydl_opts.update({
+                        "writesubtitles": True,
+                        "writeautomaticsub": True,
+                        "subtitleslangs": ["vi", "en"],
+                    })
+
         is_youtube_watch = any(domain in url.lower() for domain in ["youtube.com/watch", "youtu.be/"]) or ("youtube.com" in url.lower() and "timedtext" not in url.lower())
         
         image_exts = ["jpg", "jpeg", "png", "webp", "gif", "bmp", "heic", "heif", "tiff", "tif", "svg", "ico", "avif"]
@@ -849,10 +1043,13 @@ def bg_download_task(download_id, url, format_id, ext, quality="192", title="med
                 ydl_opts_no_cookies = ydl_opts.copy()
                 ydl_opts_no_cookies.pop("cookiefile", None)
                 ydl_opts_no_cookies.pop("cookiesfrombrowser", None)
+                # Ensure web_embedded client is preserved in fallback
+                if "extractor_args" in ydl_opts_no_cookies and "youtube" in ydl_opts_no_cookies["extractor_args"]:
+                    ydl_opts_no_cookies["extractor_args"]["youtube"]["player_client"] = ["web_embedded", "android", "web"]
                 with yt_dlp.YoutubeDL(ydl_opts_no_cookies) as ydl_nocookies:
                     ret_nocookies = ydl_nocookies.download([url])
                     if ret_nocookies != 0:
-                        raise Exception(f"Fallback download also failed with code {ret_nocookies}")
+                        raise Exception(f"Fallback download failed (code {ret_nocookies}): {e}")
 
             downloaded_files = os.listdir(temp_dir)
             if not downloaded_files:
@@ -906,7 +1103,6 @@ def bg_download_task(download_id, url, format_id, ext, quality="192", title="med
                 try:
                     if "youtube.com/api/timedtext" in subtitle_url:
                         if "fmt=" in subtitle_url:
-                            import re
                             subtitle_url = re.sub(r'fmt=[^&]+', 'fmt=vtt', subtitle_url)
                         else:
                             subtitle_url += ("&" if "?" in subtitle_url else "?") + "fmt=vtt"

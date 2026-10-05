@@ -12,8 +12,8 @@ from utils.helpers import get_url_content_length, format_size
 logger = logging.getLogger(__name__)
 
 def scrape_fb_post(url, client_id=None):
-    cookies_dir = os.path.join(TEMP_DOWNLOAD_DIR, "cookies")
-    cookie_file = os.path.join(cookies_dir, f"cookies_{client_id}.txt") if client_id else None
+    from utils.cookies import get_cookie_file_path
+    cookie_file = get_cookie_file_path(client_id) if client_id else None
     
     def fetch_facebook_html(use_cookies):
         command = [
@@ -710,7 +710,8 @@ def scrape_fb_post(url, client_id=None):
 
 
 def extract_facebook_story(url, client_id=None):
-    client_cookies = os.path.join(TEMP_DOWNLOAD_DIR, "cookies", f"cookies_{client_id}.txt") if client_id else None
+    from utils.cookies import get_cookie_file_path
+    client_cookies = get_cookie_file_path(client_id) if client_id else None
     if not client_cookies or not os.path.exists(client_cookies):
         raise ValueError("Cookies are required to download Facebook Stories. Please export and upload your cookies first.")
         
@@ -1013,8 +1014,8 @@ def extract_facebook_story(url, client_id=None):
 def resolve_facebook_sizes(video_options, client_id=None):
     from concurrent.futures import ThreadPoolExecutor
     
-    cookies_dir = os.path.join(TEMP_DOWNLOAD_DIR, "cookies")
-    cookie_file = os.path.join(cookies_dir, f"cookies_{client_id}.txt") if client_id else None
+    from utils.cookies import get_cookie_file_path
+    cookie_file = get_cookie_file_path(client_id) if client_id else None
     
     def resolve_fb_size(opt):
         url_to_check = opt.get("url")

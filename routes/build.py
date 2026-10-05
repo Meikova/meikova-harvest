@@ -88,6 +88,18 @@ def get_python_executable() -> str:
 
 
 # ─────────────────────────────────────────────────────────────────────────────
+# Builder Web GUI Page
+# ─────────────────────────────────────────────────────────────────────────────
+
+@build_bp.route('/builder', methods=['GET'])
+def builder_gui_page():
+    gui_path = ROOT_DIR / 'build_tool' / 'builder_gui.html'
+    if gui_path.exists():
+        return gui_path.read_text(encoding='utf-8')
+    return "Builder GUI file not found.", 404
+
+
+# ─────────────────────────────────────────────────────────────────────────────
 # Machine ID
 # ─────────────────────────────────────────────────────────────────────────────
 
@@ -483,6 +495,11 @@ def proxy_subtitle_endpoint():
     url = request.args.get("url")
     if not url:
         return "Missing url parameter", 400
+        
+    # Auto-normalize old/blocked AnimeVietSub domains to the latest working one
+    if url and "animevietsub." in url.lower():
+        import re
+        url = re.sub(r'animevietsub\.[a-z]+', 'animevietsub.meme', url, flags=re.IGNORECASE)
     # Serve local subtitle/text file directly
     import os
     if os.path.isabs(url) and os.path.isfile(url):
@@ -534,13 +551,19 @@ def proxy_subtitle_endpoint():
                     text = sf.read()
             else:
                 return "Local file not found", 404
+        elif os.path.isabs(url) and os.path.isfile(url):
+            with open(url, "r", encoding="utf-8", errors="ignore") as sf:
+                text = sf.read()
         else:
             # External URL proxying
+            if "googleapiscdn.com/player/" in url and "isFinal=" not in url:
+                url += ("&" if "?" in url else "?") + "isFinal=1"
             # Get user cookies if available
             cookies_dict = {}
             if client_id:
-                client_cookies = os.path.join(TEMP_DOWNLOAD_DIR, "cookies", f"cookies_{client_id}.txt")
-                if os.path.exists(client_cookies):
+                from utils.cookies import get_cookie_file_path
+                client_cookies = get_cookie_file_path(client_id)
+                if client_cookies and os.path.exists(client_cookies):
                     try:
                         with open(client_cookies, 'r', encoding='utf-8', errors='ignore') as f:
                             for line in f:
@@ -559,8 +582,15 @@ def proxy_subtitle_endpoint():
                 "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
             }
             from utils.helpers import get_referer_by_url
-            referer = get_referer_by_url(url)
-            if referer:
+            custom_referer = request.args.get("referer")
+            referer = custom_referer or get_referer_by_url(url)
+            if "googleapiscdn.com" in url:
+                if referer and ("animevietsub" in referer or referer.startswith("http")):
+                    headers["Referer"] = referer if referer.endswith("/") else referer + "/"
+                else:
+                    headers["Referer"] = "https://animevietsub.nl/"
+                headers["Origin"] = "https://storage.googleapiscdn.com"
+            elif referer:
                 headers["Referer"] = referer
             html_content = fetch_html(url, headers=headers, cookies=cookies_dict)
             if html_content:
@@ -576,6 +606,277 @@ def proxy_subtitle_endpoint():
             content_type = "text/vtt; charset=utf-8"
         elif mode == "html":
             content_type = "text/html; charset=utf-8"
+            # Inject overrides for AVS and RoPhim player pages to prevent devtools redirect and environment blockage
+            if (("googleapiscdn.com" in url or "_avsExpV" in text) or ("rophim.stream" in url or "data-cfg" in text) or ("createShield" in text)):
+                import re
+                # 1. Base href for googleapiscdn to resolve relative assets cleanly
+                if "googleapiscdn.com" in url and "<base" not in text.lower():
+                    text = text.replace("<head>", '<head><base href="https://storage.googleapiscdn.com/">', 1)
+
+                # 3. Disable showFallback banner call
+                text = text.replace("function showFallback", "function showFallback_disabled")
+
+                # 4. Remove ALL references to devtools-warning from the HTML
+                text = text.replace('devtools-warning', 'devtools-blocked-noop')
+                # 5. Remove Cloudflare challenge script that creates hidden iframes
+                text = re.sub(
+                    r'<script>\(function\(\)\{function c\(\).*?challenge-platform.*?</script>',
+                    '', text, flags=re.DOTALL
+                )
+                # 6. Remove the Cloudflare beacon script
+                text = re.sub(
+                    r'<script defer src="https://static\.cloudflareinsights\.com/beacon\.min\.js.*?</script>',
+                    '', text, flags=re.DOTALL
+                )
+                # 4. Inject script to neutralize devtools detection methods and hook MSE
+                inject_script = """<script data-cfasync="false">
+(function(){
+    var _realParent = (typeof window !== 'undefined' && window.parent && window.parent !== window) ? window.parent : null;
+    const noop = function() {};
+    const methods = [
+        'log', 'warn', 'error', 'info', 'debug', 'clear', 'table', 'dir', 'dirxml',
+        'trace', 'group', 'groupCollapsed', 'groupEnd', 'time', 'timeEnd', 'timeLog',
+        'count', 'countReset', 'assert', 'profile', 'profileEnd'
+    ];
+    methods.forEach(function(method) {
+        try {
+            console[method] = noop;
+        } catch(e) {}
+    });
+
+    // 2. Override top, parent, outerWidth and outerHeight to match innerWidth and innerHeight
+    // This neutralizes iframe embedding anti-tamper checks and window-size difference devtools detection
+    try {
+        Object.defineProperty(window, 'top', {
+            get: function() { return window; },
+            configurable: true
+        });
+        Object.defineProperty(window, 'parent', {
+            get: function() { return window; },
+            configurable: true
+        });
+    } catch(e) {}
+
+    [window].forEach(function(w) {
+        try {
+            if (w) {
+                Object.defineProperty(w, 'outerWidth', {
+                    get: function() { return window.innerWidth; },
+                    configurable: true
+                });
+                Object.defineProperty(w, 'outerHeight', {
+                    get: function() { return window.innerHeight; },
+                    configurable: true
+                });
+            }
+        } catch(e) {}
+    });
+
+    // 1. Spoof Navigator User-Agent and AppVersion to avoid Electron incompatibility detection
+    try {
+        Object.defineProperty(navigator, 'userAgent', {
+            get: function() { return 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/128.0.0.0 Safari/537.36'; },
+            configurable: true
+        });
+        Object.defineProperty(navigator, 'appVersion', {
+            get: function() { return '5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/128.0.0.0 Safari/537.36'; },
+            configurable: true
+        });
+    } catch(e) {}
+
+    // Neutralize F12 and inspection key events inside iframe
+    try {
+        window.addEventListener('keydown', function(e) {
+            if (e.keyCode === 123 || (e.ctrlKey && e.shiftKey && (e.keyCode === 73 || e.keyCode === 74 || e.keyCode === 67)) || (e.ctrlKey && e.keyCode === 85)) {
+                e.stopImmediatePropagation();
+                e.preventDefault();
+            }
+        }, true);
+    } catch(e) {}
+
+    // Neutralize anti-iframe blackout CSS rules dynamically, hide fallback banners, and eradicate ads via pure CSS
+    try {
+        const injectUnblockCss = function() {
+            if (!document.getElementById('avs-unblock-style')) {
+                const style = document.createElement('style');
+                style.id = 'avs-unblock-style';
+                style.textContent = 'html, body { visibility: visible !important; opacity: 1 !important; display: block !important; } body::before, body::after { display: none !important; content: none !important; visibility: hidden !important; } #avs-pause-ad, .avs-pause-ad, [id*="pause-ad"], [class*="pause-ad"], [id*="avs-pause"], [class*="avs-pause"], .avs-pause-ad-box, .avs-pause-ad-link, .avs-pause-ad-img, .avs-pause-ad-label, .avs-pause-ad-actions, .avs-pause-ad-dismiss, .avs-pause-ad-resume, #avs-resume-overlay, #avs-resume-box, .avs-resume-box, [id*="avs-resume"], [class*="avs-resume"], #avs-compat-fallback, .avs-warning, .browser-warning, [id*="compat-fallback"], .quality-notice, [class*="ads"], [id*="ads"], [class*="banner"], [id*="banner"], [id*="devtools"], [class*="devtools"], [id*="adblock"], [class*="adblock"], .avs-ads, #avs-ads, .vast-skip-button, .jw-ad-container, iframe[src*="ad"], iframe[src*="bet"], a[href*="bom88"], a[href*="bet"] { display: none !important; visibility: hidden !important; opacity: 0 !important; pointer-events: none !important; height: 0 !important; width: 0 !important; max-height: 0 !important; max-width: 0 !important; overflow: hidden !important; }';
+                (document.head || document.documentElement).appendChild(style);
+            }
+        };
+        injectUnblockCss();
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', injectUnblockCss);
+        }
+    } catch(e) {}
+
+    // 3. Override Location prototype to intercept devtools-warning redirect and reload loops
+    try {
+        Location.prototype.reload = function() {};
+        const origReplace = Location.prototype.replace;
+        Location.prototype.replace = function(url) {
+            if (typeof url === 'string' && (url.includes('devtools') || url.includes('warning') || url.includes('blocked'))) {
+                return;
+            }
+            return;
+        };
+        const origAssign = Location.prototype.assign;
+        Location.prototype.assign = function(url) {
+            if (typeof url === 'string' && (url.includes('devtools') || url.includes('warning') || url.includes('blocked'))) {
+                return;
+            }
+            return;
+        };
+        const desc = Object.getOwnPropertyDescriptor(Location.prototype, 'href');
+        if (desc && desc.set) {
+            Object.defineProperty(Location.prototype, 'href', {
+                set: function(url) {
+                    if (typeof url === 'string' && (url.includes('devtools') || url.includes('warning') || url.includes('blocked'))) {
+                        return;
+                    }
+                    return;
+                },
+                configurable: true
+            });
+        }
+    } catch(e) {}
+
+    // 4. Neutralize debugger-based devtools detection (both interval and timeout)
+    var _origSetInterval = window.setInterval;
+    window.setInterval = function(fn, delay) {
+        var fnStr = (typeof fn === 'function') ? fn.toString() : String(fn);
+        if (fnStr.indexOf('debugger') !== -1) {
+            return _origSetInterval(function(){}, 99999);
+        }
+        return _origSetInterval.apply(this, arguments);
+    };
+    var _origSetTimeout = window.setTimeout;
+    window.setTimeout = function(fn, delay) {
+        var fnStr = (typeof fn === 'function') ? fn.toString() : String(fn);
+        if (fnStr.indexOf('debugger') !== -1) {
+            return _origSetTimeout(function(){}, 99999);
+        }
+        return _origSetTimeout.apply(this, arguments);
+    };
+    var _origEval = window.eval;
+    window.eval = function(code) {
+        if (typeof code === 'string' && code.indexOf('debugger') !== -1) {
+            return undefined;
+        }
+        return _origEval.apply(this, arguments);
+    };
+    var _origFunction = window.Function;
+    var FunctionHandler = function(...args) {
+        if (args.length > 0) {
+            var body = args[args.length - 1];
+            if (typeof body === 'string' && body.indexOf('debugger') !== -1) {
+                args[args.length - 1] = body.replace(/debugger/g, '');
+            }
+        }
+        if (new.target) {
+            return Reflect.construct(_origFunction, args, new.target);
+        }
+        return _origFunction.apply(this, args);
+    };
+    FunctionHandler.prototype = _origFunction.prototype;
+    window.Function = FunctionHandler;
+
+    // 5. Mock service worker registration with valid registration object to satisfy callbacks
+    if (navigator.serviceWorker) {
+        navigator.serviceWorker.register = function() {
+            return Promise.resolve({
+                active: { postMessage: function() {}, state: 'activated' },
+                installing: null,
+                waiting: null,
+                scope: '/',
+                addEventListener: function() {},
+                removeEventListener: function() {}
+            });
+        };
+    }
+
+    // 6. JWPlayer auto-play trigger
+    var _playTriggerTimer = setInterval(function() {
+        try {
+            if (typeof jwplayer === 'function') {
+                var p = jwplayer('player');
+                if (p && typeof p.play === 'function') {
+                    var s = p.getState ? p.getState() : '';
+                    if (s === 'idle' || s === 'paused') {
+                        p.play();
+                    }
+                }
+            }
+        } catch(e) {}
+    }, 1000);
+    setTimeout(function() { clearInterval(_playTriggerTimer); }, 15000);
+
+    // 7. Hook MSE SourceBuffer.prototype.appendBuffer to capture streaming media chunks
+    try {
+        if (typeof window.SourceBuffer !== 'undefined' && !window._mseAppendHooked) {
+            window._mseAppendHooked = true;
+            window._capturedMediaChunks = [];
+            var origAppend = SourceBuffer.prototype.appendBuffer;
+            SourceBuffer.prototype.appendBuffer = function(buf) {
+                try {
+                    if (buf) {
+                        var chunk = buf.slice ? buf.slice(0) : new Uint8Array(buf).buffer;
+                        window._capturedMediaChunks.push(chunk);
+                        var targetParent = (_realParent && _realParent !== window) ? _realParent : ((window.parent && window.parent !== window) ? window.parent : null);
+                        if (targetParent) {
+                            targetParent.postMessage({
+                                type: 'MSE_CHUNK_CAPTURED',
+                                totalChunks: window._capturedMediaChunks.length,
+                                totalBytes: window._capturedMediaChunks.reduce(function(a, b){ return a + b.byteLength; }, 0)
+                            }, '*');
+                        }
+                    }
+                } catch(err) {}
+                return origAppend.apply(this, arguments);
+            };
+            window.getCapturedStreamBlob = function(mimeType) {
+                return new Blob(window._capturedMediaChunks, { type: mimeType || 'video/mp4' });
+            };
+        }
+    } catch(e) {}
+
+    // 8. Auto-stream fast buffer acceleration
+    if (window.location.search.indexOf('auto_stream=1') !== -1) {
+        var _fastBufferTimer = setInterval(function() {
+            try {
+                if (typeof jwplayer === 'function') {
+                    var p = jwplayer('player');
+                    if (p) {
+                        if (typeof p.setMute === 'function') p.setMute(true);
+                        var s = p.getState ? p.getState() : '';
+                        if (s === 'idle' || s === 'paused') p.play();
+                    }
+                }
+                var v = document.querySelector('video');
+                if (v) {
+                    v.muted = true;
+                    v.playbackRate = 16.0;
+                    if (v.paused) v.play().catch(function(){});
+                }
+            } catch(e) {}
+        }, 500);
+        setTimeout(function() { clearInterval(_fastBufferTimer); }, 180000);
+    }
+
+    try {
+        document.addEventListener('ended', function() {
+            var targetParent = (_realParent && _realParent !== window) ? _realParent : ((window.parent && window.parent !== window) ? window.parent : null);
+            if (targetParent) {
+                targetParent.postMessage({ type: 'MSE_STREAM_COMPLETE' }, '*');
+            }
+        }, true);
+    } catch(e) {}
+})();
+</script>"""
+                text = text.replace('<head>', '<head>' + inject_script, 1)
+                text = text.replace("window._avsDomains = [", "window._avsDomains = [[49,50,55,46,48,46,48,46,49],")
+                text = text.replace("function _avsShowBrowserUpgradeNotice(){", "function _avsShowBrowserUpgradeNotice(){return;")
+                text = text.replace("function _runCompatBootstrap(){", "function _runCompatBootstrap(){try{if(typeof startPlayer==='function')startPlayer();}catch(e){};return;")
         else:
             content_type = "text/plain; charset=utf-8"
             
@@ -703,4 +1004,220 @@ def _run_publish(build_id: str, version: str, app_name: str, tag: str | None, co
         push(f'[ERROR] Error: {e}', 'error', done=True, success=False)
 
 
+# Anti-devtools redirect: return blank page so iframe is not navigated away
+@build_bp.route('/devtools-warning', methods=['GET'])
+def devtools_warning_stub():
+    from flask import make_response
+    r = make_response('<html><body></body></html>', 200)
+    r.headers['Content-Type'] = 'text/html; charset=utf-8'
+    return r
 
+# Service worker stub: player requests /sw.js, return empty JS
+@build_bp.route('/sw.js', methods=['GET'])
+def sw_js_stub():
+    from flask import make_response
+    r = make_response('// no-op service worker', 200)
+    r.headers['Content-Type'] = 'application/javascript; charset=utf-8'
+    return r
+
+# Transparent Reverse Proxy for Google CDN static assets
+@build_bp.route('/static/jwplayer/<path:filename>', methods=['GET', 'HEAD'])
+def proxy_jwplayer_static(filename):
+    import requests
+    target_url = f"https://storage.googleapiscdn.com/static/jwplayer/{filename}"
+    if request.query_string:
+        target_url += f"?{request.query_string.decode('utf-8')}"
+    headers = {
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+        "Referer": "https://animevietsub.love/"
+    }
+    try:
+        resp = requests.get(target_url, headers=headers, verify=False, timeout=10)
+        from flask import make_response
+        r = make_response(resp.content, resp.status_code)
+        if "Content-Type" in resp.headers:
+            r.headers["Content-Type"] = resp.headers["Content-Type"]
+        r.headers["Access-Control-Allow-Origin"] = "*"
+        return r
+    except Exception as e:
+        return str(e), 500
+
+
+@build_bp.route('/static/wp-player/<path:filename>', methods=['GET', 'HEAD'])
+def proxy_wpplayer_static(filename):
+    import requests
+    target_url = f"https://storage.googleapiscdn.com/static/wp-player/{filename}"
+    if request.query_string:
+        target_url += f"?{request.query_string.decode('utf-8')}"
+    headers = {
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+        "Referer": "https://animevietsub.love/"
+    }
+    try:
+        resp = requests.get(target_url, headers=headers, verify=False, timeout=10)
+        from flask import make_response
+        r = make_response(resp.content, resp.status_code)
+        if "Content-Type" in resp.headers:
+            r.headers["Content-Type"] = resp.headers["Content-Type"]
+        r.headers["Access-Control-Allow-Origin"] = "*"
+        return r
+    except Exception as e:
+        return str(e), 500
+
+
+@build_bp.route('/static/<filename>', methods=['GET', 'HEAD'])
+def proxy_avs_main_static(filename):
+    avs_files = [
+        "avs-shield.min.js",
+        "avs-loader.min.js",
+        "avs-fingerprint.min.js",
+        "init.min.js",
+        "pako.min.js",
+        "jquery-3.7.1.min.js",
+        "style.css"
+    ]
+    if filename in avs_files:
+        import requests
+        target_url = f"https://storage.googleapiscdn.com/static/{filename}"
+        if request.query_string:
+            target_url += f"?{request.query_string.decode('utf-8')}"
+        headers = {
+            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+            "Referer": "https://animevietsub.love/"
+        }
+        try:
+            resp = requests.get(target_url, headers=headers, verify=False, timeout=10)
+            content = resp.content
+            if filename.endswith(".js"):
+                try:
+                    text_content = content.decode("utf-8", errors="ignore")
+                    text_content = text_content.replace("devtools-warning", "devtools-blocked-noop")
+                    # Neutralize static debugger statements completely
+                    text_content = text_content.replace("debugger", "/* debugger neutralized */")
+                    if filename == "init.min.js":
+                        text_content = text_content.replace("function _avsShowBrowserUpgradeNotice(){", "function _avsShowBrowserUpgradeNotice(){return;")
+                        text_content = text_content.replace("function _runCompatBootstrap(){", "function _runCompatBootstrap(){try{if(typeof startPlayer==='function')startPlayer();}catch(e){};return;")
+                    content = text_content.encode("utf-8")
+                except Exception:
+                    pass
+            from flask import make_response
+            r = make_response(content, resp.status_code)
+            if "Content-Type" in resp.headers:
+                r.headers["Content-Type"] = resp.headers["Content-Type"]
+            r.headers["Access-Control-Allow-Origin"] = "*"
+            return r
+        except Exception as e:
+            return str(e), 500
+            
+    # Serve local files
+    from flask import send_from_directory
+    import os
+    static_dir = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "static")
+    return send_from_directory(static_dir, filename)
+
+
+@build_bp.route('/playlist/<path:filename>', methods=['GET'])
+def proxy_playlist(filename):
+    import requests
+    target_url = f"https://storage.googleapiscdn.com/playlist/{filename}"
+    if request.query_string:
+        target_url += f"?{request.query_string.decode('utf-8')}"
+    headers = {
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+        "Referer": "https://animevietsub.love/"
+    }
+    try:
+        resp = requests.get(target_url, headers=headers, verify=False, timeout=10)
+        content = resp.content
+        # Do not rewrite chunk or seg-key URLs - Electron has webSecurity: false and fetches directly from CDN with valid TLS fingerprint
+        from flask import make_response
+        r = make_response(content, resp.status_code)
+        for k, v in resp.headers.items():
+            if k.lower() not in ('content-encoding', 'content-length', 'transfer-encoding', 'connection'):
+                r.headers[k] = v
+        r.headers["Access-Control-Allow-Origin"] = "*"
+        r.headers["Access-Control-Expose-Headers"] = "*"
+        return r
+    except Exception as e:
+        return str(e), 500
+
+
+@build_bp.route('/chunks/<path:filename>', methods=['GET'])
+def proxy_chunks(filename):
+    import requests
+    target_url = f"https://storage.googleapiscdn.com/chunks/{filename}"
+    if request.query_string:
+        target_url += f"?{request.query_string.decode('utf-8')}"
+    headers = {
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+        "Referer": "https://storage.googleapiscdn.com/"
+    }
+    try:
+        resp = requests.get(target_url, headers=headers, verify=False, timeout=15)
+        from flask import make_response
+        r = make_response(resp.content, resp.status_code)
+        if "Content-Type" in resp.headers:
+            r.headers["Content-Type"] = resp.headers["Content-Type"]
+        r.headers["Access-Control-Allow-Origin"] = "*"
+        return r
+    except Exception as e:
+        return str(e), 500
+
+
+@build_bp.route('/seg-key/<path:filename>', methods=['GET'])
+def proxy_seg_key(filename):
+    import requests
+    target_url = f"https://storage.googleapiscdn.com/seg-key/{filename}"
+    if request.query_string:
+        target_url += f"?{request.query_string.decode('utf-8')}"
+    headers = {
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+        "Referer": "https://storage.googleapiscdn.com/"
+    }
+    try:
+        resp = requests.get(target_url, headers=headers, verify=False, timeout=10)
+        from flask import make_response
+        r = make_response(resp.content, resp.status_code)
+        if "Content-Type" in resp.headers:
+            r.headers["Content-Type"] = resp.headers["Content-Type"]
+        r.headers["Access-Control-Allow-Origin"] = "*"
+        return r
+    except Exception as e:
+        return str(e), 500
+
+
+@build_bp.route('/status/<path:filename>', methods=['GET'])
+def proxy_status_api(filename):
+    import requests
+    target_url = f"https://storage.googleapiscdn.com/status/{filename}"
+    if request.query_string:
+        target_url += f"?{request.query_string.decode('utf-8')}"
+    headers = {
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+        "Referer": "https://animevietsub.love/"
+    }
+    try:
+        resp = requests.get(target_url, headers=headers, verify=False, timeout=10)
+        from flask import make_response
+        r = make_response(resp.content, resp.status_code)
+        if "Content-Type" in resp.headers:
+            r.headers["Content-Type"] = resp.headers["Content-Type"]
+        r.headers["Access-Control-Allow-Origin"] = "*"
+        return r
+    except Exception as e:
+        return str(e), 500
+
+
+@build_bp.route('/admin/api/ads/active', methods=['GET', 'POST', 'HEAD', 'OPTIONS'])
+@build_bp.route('/ads/active', methods=['GET', 'POST', 'HEAD', 'OPTIONS'])
+def proxy_ads_active_api():
+    from flask import jsonify, make_response
+    if request.method == 'OPTIONS':
+        r = make_response('', 204)
+        r.headers["Access-Control-Allow-Origin"] = "*"
+        r.headers["Access-Control-Allow-Methods"] = "GET, POST, HEAD, OPTIONS"
+        r.headers["Access-Control-Allow-Headers"] = "*"
+        return r
+    resp = jsonify({"pauseAd": None, "ads": []})
+    resp.headers["Access-Control-Allow-Origin"] = "*"
+    return resp

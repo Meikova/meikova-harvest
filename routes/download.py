@@ -14,10 +14,25 @@ from flask import Blueprint, request, jsonify, send_file, Response
 
 from config import TEMP_DOWNLOAD_DIR, downloads_status, downloads_status_lock
 from utils.helpers import get_referer_by_url
+from utils.cookies import get_cookie_file_path
 from tasks import bg_download_task
 
 download_bp = Blueprint("download", __name__)
 logger = logging.getLogger(__name__)
+
+DEFAULT_MEDIA_USER_AGENT = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/147.0.0.0 Safari/537.36"
+
+FALLBACK_IMAGE_PLACEHOLDER_SVG = (
+    '<svg xmlns="http://www.w3.org/2000/svg" width="600" height="400" viewBox="0 0 600 400" fill="#0f172a">'
+    '<rect width="600" height="400" fill="#0f172a" rx="8"/>'
+    '<g transform="translate(268, 140)" fill="none" stroke="#64748b" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">'
+    '<rect x="0" y="0" width="64" height="64" rx="8"/>'
+    '<circle cx="20" cy="20" r="6"/>'
+    '<path d="m64 44-18-18-36 36"/>'
+    '</g>'
+    '<text x="300" y="245" font-family="-apple-system, BlinkMacSystemFont, Segoe UI, Roboto, sans-serif" font-size="14" fill="#94a3b8" text-anchor="middle">Image unavailable or expired</text>'
+    '</svg>'
+)
 
 
 @download_bp.route("/api/download", methods=["POST"])
@@ -222,40 +237,61 @@ def get_download_status(download_id):
         "error": status_info.get("error"),
         "speed": status_info.get("speed", ""),
         "eta": status_info.get("eta", ""),
+        "filename": status_info.get("filename", "")
     })
 
 
 @download_bp.route("/api/download/progress/<download_id>", methods=["GET"])
 def get_download_progress_sse(download_id):
     def event_generator():
-        # Keep track of active state
-        while True:
-            with downloads_status_lock:
-                status_info = downloads_status.get(download_id)
-            
-            if not status_info:
-                err_data = {"status": "error", "message": "Download task not found.", "progress": 0}
-                yield f"data: {json.dumps(err_data)}\n\n"
-                break
-            
-            # Formulate update data
-            data = {
-                "status": status_info["status"],
-                "progress": status_info["progress"],
-                "message": status_info["message"],
-                "ext": status_info.get("ext", ""),
-                "error": status_info.get("error"),
-                "speed": status_info.get("speed", ""),
-                "eta": status_info.get("eta", ""),
-            }
-            
-            yield f"data: {json.dumps(data)}\n\n"
-            
-            # Check for termination conditions
-            if status_info["status"] in ["complete", "error"]:
-                break
+        last_progress = -1
+        last_status = None
+        consecutive_idle = 0
+        try:
+            while True:
+                with downloads_status_lock:
+                    status_info = downloads_status.get(download_id)
                 
-            time.sleep(0.5) # Send updates every 500ms for extra responsiveness
+                if not status_info:
+                    err_data = {"status": "error", "message": "Download task not found.", "progress": 0}
+                    yield f"data: {json.dumps(err_data)}\n\n"
+                    break
+                
+                cur_status = status_info.get("status")
+                cur_progress = status_info.get("progress", 0)
+
+                # Formulate update data
+                data = {
+                    "status": cur_status,
+                    "progress": cur_progress,
+                    "message": status_info.get("message", ""),
+                    "ext": status_info.get("ext", ""),
+                    "error": status_info.get("error"),
+                    "speed": status_info.get("speed", ""),
+                    "eta": status_info.get("eta", ""),
+                }
+                
+                yield f"data: {json.dumps(data)}\n\n"
+                
+                # Check for termination conditions
+                if cur_status in ["complete", "error", "cancelled"]:
+                    break
+
+                # Safety idle cutoff: if task is completely unchanged for 10 minutes (1200 ticks), stop thread
+                if cur_status == last_status and cur_progress == last_progress:
+                    consecutive_idle += 1
+                    if consecutive_idle > 1200:
+                        break
+                else:
+                    consecutive_idle = 0
+                    last_status = cur_status
+                    last_progress = cur_progress
+
+                time.sleep(0.5)
+        except (GeneratorExit, ConnectionResetError, BrokenPipeError):
+            logger.info(f"SSE client disconnected for {download_id}")
+        except Exception as e:
+            logger.warning(f"SSE stream error for {download_id}: {e}")
             
     response = Response(event_generator(), mimetype="text/event-stream")
     response.headers["Cache-Control"] = "no-cache"
@@ -280,6 +316,34 @@ def cancel_download(download_id):
         
     logger.info(f"Task {download_id} marked as cancelled by client.")
     return jsonify({"status": "success", "message": "Cancellation request submitted."})
+
+
+@download_bp.route("/api/download/save-to-disk", methods=["POST"])
+def save_download_to_disk():
+    data = request.get_json() or {}
+    download_id = data.get("download_id")
+    target_path = data.get("target_path")
+    if not download_id or not target_path:
+        return jsonify({"status": "error", "message": "Missing download_id or target_path"}), 400
+
+    with downloads_status_lock:
+        status_info = downloads_status.get(download_id)
+
+    if not status_info or status_info.get("status") != "complete":
+        return jsonify({"status": "error", "message": "File is not ready yet."}), 400
+
+    src_path = status_info.get("filepath")
+    if not src_path or not os.path.exists(src_path):
+        return jsonify({"status": "error", "message": "Source file not found on disk."}), 404
+
+    try:
+        os.makedirs(os.path.dirname(os.path.abspath(target_path)), exist_ok=True)
+        shutil.copy2(src_path, target_path)
+        logger.info(f"Direct disk save complete: {src_path} -> {target_path}")
+        return jsonify({"status": "success", "saved_path": target_path})
+    except Exception as e:
+        logger.error(f"Failed to copy file to disk: {e}")
+        return jsonify({"status": "error", "message": str(e)}), 500
 
 
 @download_bp.route("/api/download/file/<download_id>", methods=["GET"])
@@ -318,18 +382,34 @@ def get_download_file(download_id):
     if not os.path.exists(filepath):
         return jsonify({"status": "error", "message": "File not found on server."}), 404
 
-    if ext == "mp3":
-        content_type = "audio/mpeg"
-    elif ext == "m4a":
-        content_type = "audio/mp4"
-    elif ext == "vtt":
-        content_type = "text/vtt"
-    elif ext in ["html", "htm"]:
-        content_type = "text/html; charset=utf-8"
-    elif ext == "txt":
-        content_type = "text/plain; charset=utf-8"
-    else:
-        content_type = "video/mp4"
+    import mimetypes
+    mime_overrides = {
+        "mp3": "audio/mpeg",
+        "m4a": "audio/mp4",
+        "wav": "audio/wav",
+        "flac": "audio/flac",
+        "ogg": "audio/ogg",
+        "oga": "audio/ogg",
+        "opus": "audio/opus",
+        "mp4": "video/mp4",
+        "mkv": "video/x-matroska",
+        "webm": "video/webm",
+        "mov": "video/quicktime",
+        "avi": "video/x-msvideo",
+        "ts": "video/mp2t",
+        "gif": "image/gif",
+        "webp": "image/webp",
+        "vtt": "text/vtt",
+        "html": "text/html; charset=utf-8",
+        "htm": "text/html; charset=utf-8",
+        "txt": "text/plain; charset=utf-8",
+        "srt": "text/plain; charset=utf-8",
+        "json": "application/json"
+    }
+    content_type = mime_overrides.get(ext.lower())
+    if not content_type:
+        guessed_type, _ = mimetypes.guess_type(filepath)
+        content_type = guessed_type or "application/octet-stream"
 
     preview_mode = request.args.get("preview", "false").lower() == "true"
 
@@ -485,27 +565,24 @@ def download_image():
 
     try:
         headers = {
-            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+            "User-Agent": DEFAULT_MEDIA_USER_AGENT,
             "Referer": get_referer_by_url(url)
         }
         
         cookies_dict = {}
-        if client_id:
-            client_cookies = os.path.join(TEMP_DOWNLOAD_DIR, "cookies", f"cookies_{client_id}.txt")
-            if os.path.exists(client_cookies):
-                try:
-                    with open(client_cookies, 'r', encoding='utf-8', errors='ignore') as f:
-                        for line in f:
-                            line = line.strip()
-                            if not line or line.startswith('#'):
-                                continue
-                            parts = line.split('\t')
-                            if len(parts) >= 7:
-                                name = parts[5]
-                                value = parts[6]
-                                cookies_dict[name] = value
-                except Exception as cookie_err:
-                    logger.warning(f"Failed to parse cookies file {client_cookies}: {cookie_err}")
+        client_cookies = get_cookie_file_path(client_id)
+        if client_cookies and os.path.exists(client_cookies):
+            try:
+                with open(client_cookies, 'r', encoding='utf-8', errors='ignore') as f:
+                    for line in f:
+                        line = line.strip()
+                        if not line or line.startswith('#'):
+                            continue
+                        parts = line.split('\t')
+                        if len(parts) >= 7:
+                            cookies_dict[parts[5]] = parts[6]
+            except Exception as cookie_err:
+                logger.warning(f"Failed to parse cookies file {client_cookies}: {cookie_err}")
 
         resp = requests.get(url, headers=headers, cookies=cookies_dict, stream=True, timeout=15)
         if resp.status_code == 200:
@@ -577,27 +654,24 @@ def proxy_image():
             return f"Error serving local image: {e}", 500
     try:
         headers = {
-            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+            "User-Agent": DEFAULT_MEDIA_USER_AGENT,
             "Referer": get_referer_by_url(url)
         }
         
         cookies_dict = {}
-        if client_id:
-            client_cookies = os.path.join(TEMP_DOWNLOAD_DIR, "cookies", f"cookies_{client_id}.txt")
-            if os.path.exists(client_cookies):
-                try:
-                    with open(client_cookies, 'r', encoding='utf-8', errors='ignore') as f:
-                        for line in f:
-                            line = line.strip()
-                            if not line or line.startswith('#'):
-                                continue
-                            parts = line.split('\t')
-                            if len(parts) >= 7:
-                                name = parts[5]
-                                value = parts[6]
-                                cookies_dict[name] = value
-                except Exception as cookie_err:
-                    logger.warning(f"Failed to parse cookies file {client_cookies}: {cookie_err}")
+        client_cookies = get_cookie_file_path(client_id)
+        if client_cookies and os.path.exists(client_cookies):
+            try:
+                with open(client_cookies, 'r', encoding='utf-8', errors='ignore') as f:
+                    for line in f:
+                        line = line.strip()
+                        if not line or line.startswith('#'):
+                            continue
+                        parts = line.split('\t')
+                        if len(parts) >= 7:
+                            cookies_dict[parts[5]] = parts[6]
+            except Exception as cookie_err:
+                logger.warning(f"Failed to parse cookies file {client_cookies}: {cookie_err}")
 
         resp = requests.get(url, headers=headers, cookies=cookies_dict, timeout=15)
         if resp.status_code == 200:
@@ -605,14 +679,16 @@ def proxy_image():
             # Detect anti-bot block pages: CDN returns HTML instead of image
             if content_type.startswith("text/html") or (resp.content[:50].strip().startswith(b"<") and not content_type.startswith("image/")):
                 logger.warning(f"Proxy image blocked by CDN (HTML response): {url[:120]}")
-                return "CDN blocked the request (anti-bot)", 502
+                return Response(FALLBACK_IMAGE_PLACEHOLDER_SVG, mimetype="image/svg+xml")
             if not content_type.startswith("image/"):
                 content_type = "image/jpeg"
             return Response(resp.content, mimetype=content_type)
         else:
-            return f"Failed to proxy image: HTTP {resp.status_code}", resp.status_code
+            logger.info(f"Upstream image returned HTTP {resp.status_code} ({url[:100]}...). Serving fallback image.")
+            return Response(FALLBACK_IMAGE_PLACEHOLDER_SVG, mimetype="image/svg+xml")
     except Exception as e:
-        return f"Error: {e}", 500
+        logger.info(f"Failed to fetch proxy image {url[:100]}: {e}. Serving fallback image.")
+        return Response(FALLBACK_IMAGE_PLACEHOLDER_SVG, mimetype="image/svg+xml")
 
 
 @download_bp.route("/api/download/images/zip", methods=["POST"])
@@ -625,9 +701,8 @@ def download_images_zip():
         return jsonify({"status": "error", "message": "No urls provided"}), 400
     try:
         cookies_dict = {}
-        if client_id:
-            client_cookies = os.path.join(TEMP_DOWNLOAD_DIR, "cookies", f"cookies_{client_id}.txt")
-            if os.path.exists(client_cookies):
+        client_cookies = get_cookie_file_path(client_id)
+        if client_cookies and os.path.exists(client_cookies):
                 try:
                     with open(client_cookies, 'r', encoding='utf-8', errors='ignore') as f:
                         for line in f:
@@ -702,7 +777,7 @@ def proxy_stream():
     client_id = request.args.get("client_id")
     referer = get_referer_by_url(url)
     headers = {
-        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
+        "User-Agent": DEFAULT_MEDIA_USER_AGENT
     }
     if referer:
         headers["Referer"] = referer
@@ -713,9 +788,8 @@ def proxy_stream():
         headers["Range"] = range_header
         
     cookies_dict = {}
-    if client_id:
-        client_cookies = os.path.join(TEMP_DOWNLOAD_DIR, "cookies", f"cookies_{client_id}.txt")
-        if os.path.exists(client_cookies):
+    client_cookies = get_cookie_file_path(client_id)
+    if client_cookies and os.path.exists(client_cookies):
             try:
                 with open(client_cookies, 'r', encoding='utf-8', errors='ignore') as f:
                     for line in f:
@@ -730,10 +804,20 @@ def proxy_stream():
             except Exception as cookie_err:
                 logger.warning(f"Failed to parse cookies for proxy stream: {cookie_err}")
                 
+    resp = None
     try:
         from curl_cffi import requests as curl_requests
         resp = curl_requests.get(url, headers=headers, cookies=cookies_dict, stream=True, verify=False, impersonate="chrome", timeout=12)
-        
+    except Exception as curl_err:
+        logger.warning(f"curl_cffi proxy stream failed for {url}: {curl_err}. Falling back to standard requests with DoH...")
+        try:
+            import requests as std_requests
+            resp = std_requests.get(url, headers=headers, cookies=cookies_dict, stream=True, verify=False, timeout=12)
+        except Exception as req_err:
+            logger.error(f"Fallback requests also failed for proxy stream: {req_err}")
+            return f"Proxy error: {req_err}", 500
+
+    try:
         content_type = resp.headers.get("Content-Type", "")
         from urllib.parse import urlparse
         parsed_url = urlparse(url)
@@ -759,7 +843,6 @@ def proxy_stream():
                 chunks.append(chunk)
             manifest_text = b"".join(chunks).decode("utf-8", errors="ignore")
             from urllib.parse import urljoin
-            import re
             lines = []
             for line in manifest_text.splitlines():
                 line = line.strip()
@@ -788,6 +871,24 @@ def proxy_stream():
             }
             return "\n".join(lines), 200, resp_headers
             
+        # Determine appropriate Content-Type for binary video/audio streams
+        detected_ct = content_type
+        if not detected_ct or detected_ct in ["application/octet-stream", "text/plain"]:
+            if url_path.endswith(".mp3") or ".mp3" in url_query:
+                detected_ct = "audio/mpeg"
+            elif url_path.endswith(".m4a") or ".m4a" in url_query:
+                detected_ct = "audio/mp4"
+            elif url_path.endswith(".ogg") or url_path.endswith(".opus"):
+                detected_ct = "audio/ogg"
+            elif url_path.endswith(".wav"):
+                detected_ct = "audio/wav"
+            elif url_path.endswith(".flac"):
+                detected_ct = "audio/flac"
+            elif url_path.endswith(".webm") or ".webm" in url_query:
+                detected_ct = "video/webm"
+            else:
+                detected_ct = "video/mp4"
+
         # For HLS segments or binary video streams
         def generate():
             try:
@@ -799,8 +900,9 @@ def proxy_stream():
                 logger.warning(f"Error streaming content: {stream_err}")
                 
         resp_headers = {
-            "Content-Type": resp.headers.get("Content-Type", "video/mp4"),
-            "Access-Control-Allow-Origin": "*"
+            "Content-Type": detected_ct,
+            "Access-Control-Allow-Origin": "*",
+            "Accept-Ranges": "bytes"
         }
         
         # Forward range-request specific headers
@@ -808,7 +910,7 @@ def proxy_stream():
             if h in resp.headers:
                 resp_headers[h] = resp.headers[h]
                 
-        return Response(generate(), status=resp.status_code, headers=resp_headers)
+        return Response(generate(), status=resp.status_code, headers=resp_headers, direct_passthrough=True)
     except Exception as e:
         import traceback
         traceback.print_exc()
@@ -854,9 +956,9 @@ def delete_download_history_item(download_id):
 def proxy_stream_adaptive():
     import subprocess
     video_url = request.args.get("video_url")
-    audio_url = request.args.get("audio_url")
-    if not video_url or not audio_url:
-        return "Missing video_url or audio_url parameters", 400
+    audio_url = request.args.get("audio_url", "")
+    if not video_url:
+        return "Missing video_url parameter", 400
 
     start_time = request.args.get("start_time", "0")
     try:
@@ -879,8 +981,7 @@ def proxy_stream_adaptive():
         mimetype = "video/mp4"
 
     client_id = request.args.get("client_id")
-    user_agent = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
-    headers_arg = f"User-Agent: {user_agent}\r\n"
+    headers_arg = f"User-Agent: {DEFAULT_MEDIA_USER_AGENT}\r\n"
 
     # Forward Referer header if available
     referer = get_referer_by_url(video_url)
@@ -889,9 +990,8 @@ def proxy_stream_adaptive():
 
     # Load and forward client cookies
     cookies_str = ""
-    if client_id:
-        client_cookies = os.path.join(TEMP_DOWNLOAD_DIR, "cookies", f"cookies_{client_id}.txt")
-        if os.path.exists(client_cookies):
+    client_cookies = get_cookie_file_path(client_id)
+    if client_cookies and os.path.exists(client_cookies):
             try:
                 cookies_list = []
                 with open(client_cookies, 'r', encoding='utf-8', errors='ignore') as f:
@@ -923,13 +1023,21 @@ def proxy_stream_adaptive():
         "-ss", start_time_str,
         "-headers", headers_arg,
         "-i", video_url,
-        "-ss", start_time_str,
-        "-headers", headers_arg,
-        "-i", audio_url,
-        "-c:v", "copy",
-        "-c:a", "copy",
-        "-f", fmt_flag
     ]
+    if audio_url:
+        cmd.extend([
+            "-ss", start_time_str,
+            "-headers", headers_arg,
+            "-i", audio_url,
+            "-c:v", "copy",
+            "-c:a", "copy",
+        ])
+    else:
+        cmd.extend([
+            "-c:v", "copy",
+            "-an",
+        ])
+    cmd.extend(["-f", fmt_flag])
     if movflags:
         cmd.extend(movflags)
     cmd.append("pipe:1")

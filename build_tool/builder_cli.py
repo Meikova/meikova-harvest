@@ -106,7 +106,7 @@ def execute_build(obf_cfg: ObfuscationConfig, build_cfg: BuildConfig, target: st
         info('Building Web Binary…')
         try:
             prebuilt_exe = packager.build_web_exe(progress_cb=info)
-            ok(f'Web Binary: {exe if "exe" in locals() else prebuilt_exe}')
+            ok(f'Web Binary: {prebuilt_exe}')
         except Exception as e:
             error(f'Build Web Binary failed: {e}')
             sys.exit(1)

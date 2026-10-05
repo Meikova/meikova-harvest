@@ -22,8 +22,9 @@ def extract_pinterest_via_gallery_dl(url, client_id=None):
     # Check if a client-specific cookies file exists
     client_cookies = None
     if client_id:
-        client_cookies = os.path.join(TEMP_DOWNLOAD_DIR, "cookies", f"cookies_{client_id}.txt")
-        if os.path.exists(client_cookies):
+        from utils.cookies import get_cookie_file_path
+        client_cookies = get_cookie_file_path(client_id)
+        if client_cookies and os.path.exists(client_cookies):
             command.extend(["--cookies", client_cookies])
             logger.info(f"gallery-dl (Pinterest): Using client cookies file: {client_cookies}")
 

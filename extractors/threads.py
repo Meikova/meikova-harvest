@@ -47,8 +47,8 @@ def parse_threads_page(url, client_id=None):
     # If anonymous fetch fails, redirects to login, or status is not 200, attempt with cookies
     if status_code != 200 or "login" in final_url.lower() or "Confirm you're not a bot".lower() in html.lower():
         session = requests.Session() # reset session
-        cookies_dir = os.path.join(TEMP_DOWNLOAD_DIR, "cookies")
-        cookie_file = os.path.join(cookies_dir, f"cookies_{client_id}.txt") if client_id else None
+        from utils.cookies import get_cookie_file_path
+        cookie_file = get_cookie_file_path(client_id) if client_id else None
         
         if cookie_file and os.path.exists(cookie_file):
             cookie_jar = http.cookiejar.MozillaCookieJar()
@@ -300,8 +300,8 @@ def parse_threads_page(url, client_id=None):
                 "url": only_videos[0]["url"]
             })
             
-    # Resolve sizes of video_options in parallel using ThreadPoolExecutor
-    client_cookies = os.path.join(TEMP_DOWNLOAD_DIR, "cookies", f"cookies_{client_id}.txt") if client_id else None
+    from utils.cookies import get_cookie_file_path
+    client_cookies = get_cookie_file_path(client_id) if client_id else None
     
     def resolve_threads_size(opt):
         url_to_check = opt.get("url")
