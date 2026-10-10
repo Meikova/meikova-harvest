@@ -21,8 +21,11 @@ contextBridge.exposeInMainWorld('electronAPI', {
   onServerReady: (callback) => ipcRenderer.on('server-ready', callback),
   onServerError: (callback) => ipcRenderer.on('server-error', (_, msg) => callback(msg)),
 
-  // Download folder
+  // Download folder & files
   openDownloadsFolder: () => ipcRenderer.send('open-downloads-folder'),
+  getDownloadsDir: () => ipcRenderer.invoke('get-downloads-dir'),
+  setDownloadsDir: (dir) => ipcRenderer.invoke('set-downloads-dir', dir),
+  openFile: (filePath) => ipcRenderer.send('open-file', filePath),
 
   // File & Folder selection dialogs
   selectFile: () => ipcRenderer.invoke('select-file'),
@@ -40,7 +43,23 @@ contextBridge.exposeInMainWorld('electronAPI', {
 
   // Stream referer for CDN bypass
   setStreamReferer: (referer) => ipcRenderer.send('set-stream-referer', referer),
-  
+
+  // Application Updates
+  checkForUpdates: () => ipcRenderer.send('check-for-updates'),
+  startAutoUpdate: (payload) => ipcRenderer.send('start-auto-update', payload),
+  installUpdateNow: () => ipcRenderer.send('install-update-now'),
+  installUpdateOnQuit: () => ipcRenderer.send('install-update-on-quit'),
+  onUpdateAvailable: (callback) => {
+    const subscription = (_, data) => callback(data);
+    ipcRenderer.on('update-available', subscription);
+    return () => ipcRenderer.removeListener('update-available', subscription);
+  },
+  onUpdateProgress: (callback) => {
+    const subscription = (_, data) => callback(data);
+    ipcRenderer.on('update-download-progress', subscription);
+    return () => ipcRenderer.removeListener('update-download-progress', subscription);
+  },
+
   // Platform
   platform: process.platform,
   isElectron: true,

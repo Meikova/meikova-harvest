@@ -35,5 +35,40 @@ class TestAnimeVietSubPreview(unittest.TestCase):
             url += ("&" if "?" in url else "?") + "isFinal=1"
         self.assertEqual(url, "https://storage.googleapiscdn.com/player/test123?isFinal=1")
 
+    def test_episode_url_detection(self):
+        import re
+        url = "https://animevietsub.nl/phim/the-gioi-phep-thuat-a474/tap-02-42082.html"
+        url_ep_match = re.search(r'tap-(\d+)', url.lower())
+        self.assertIsNotNone(url_ep_match)
+        self.assertEqual(url_ep_match.group(1), "02")
+        self.assertEqual(url_ep_match.group(1).lstrip("0"), "2")
+
+    def test_episode_is_current_matching(self):
+        import re
+        url = "https://animevietsub.nl/phim/the-gioi-phep-thuat-a474/tap-02-42082.html"
+        url_ep_match = re.search(r'tap-(\d+)', url.lower())
+        url_ep_num = url_ep_match.group(1) if url_ep_match else ""
+
+        episodes = [
+            ("42081", "Tập 01", "/tap-01-42081.html", "1"),
+            ("42082", "Tập 02", "/tap-02-42082.html", "2"),
+            ("42083", "Tập 03", "/tap-03-42083.html", "3"),
+        ]
+
+        results = []
+        for ep_data_id, ep_title_attr, ep_href, ep_num in episodes:
+            is_current = False
+            if ep_href and (ep_href in url or url.endswith(ep_href)):
+                is_current = True
+            elif url_ep_num and (ep_num.lstrip('0') == url_ep_num.lstrip('0')):
+                is_current = True
+            results.append((ep_title_attr, is_current))
+
+        self.assertEqual(results, [
+            ("Tập 01", False),
+            ("Tập 02", True),
+            ("Tập 03", False)
+        ])
+
 if __name__ == "__main__":
     unittest.main()

@@ -147,6 +147,38 @@ class TestProxyAndPreview(unittest.TestCase):
         self.assertIn('.downloads-count-badge', css_content)
         self.assertIn('.light-theme .downloads-manager', css_content)
         self.assertIn('.light-theme .downloads-count-badge', css_content)
+    def test_open_downloads_folder_endpoint(self):
+        """Test that /api/download/open-folder endpoint returns success and folder path"""
+        with patch('os.startfile', create=True) as mock_startfile:
+            resp = self.client.post('/api/download/open-folder')
+            self.assertEqual(resp.status_code, 200)
+            data = resp.get_json()
+            self.assertEqual(data.get('status'), 'success')
+            self.assertIn('folder', data)
+
+    def test_open_download_file_endpoint(self):
+        """Test that /api/download/open-file endpoint handles missing file and opens valid file"""
+        # Test 404 on missing file
+        resp = self.client.post('/api/download/open-file', json={'file_path': 'non_existent_file_123.mp4'})
+        self.assertEqual(resp.status_code, 404)
+
+        # Test success on existing file with mock
+        import tempfile
+        import os
+        with tempfile.NamedTemporaryFile(suffix='.mp4', delete=False) as tmp:
+            tmp.write(b'fake')
+            tmp_path = tmp.name
+
+        try:
+            with patch('os.startfile', create=True) as mock_startfile:
+                resp = self.client.post('/api/download/open-file', json={'file_path': tmp_path})
+                self.assertEqual(resp.status_code, 200)
+                data = resp.get_json()
+                self.assertEqual(data.get('status'), 'success')
+                self.assertEqual(data.get('file'), os.path.abspath(tmp_path))
+        finally:
+            if os.path.exists(tmp_path):
+                os.remove(tmp_path)
 
 if __name__ == '__main__':
     unittest.main()

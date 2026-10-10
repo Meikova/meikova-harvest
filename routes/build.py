@@ -270,7 +270,7 @@ def _run_build(build_id: str, cfg: dict, log_q: queue.Queue, state: dict):
                         continue
                     if d == 'dist':
                         app_name = cfg.get('build', {}).get('app_name', 'EveryThingDownloader')
-                        version = cfg.get('build', {}).get('version', '1.0.0')
+                        version = cfg.get('build', {}).get('version', '2.0.0')
                         expected_prefix = f'{app_name}-Web-{version}'
                         if f.name.startswith(expected_prefix):
                             size_mb = f.stat().st_size / 1024 / 1024
@@ -503,6 +503,10 @@ def proxy_subtitle_endpoint():
     # Serve local subtitle/text file directly
     import os
     if os.path.isabs(url) and os.path.isfile(url):
+        from utils.security import is_safe_local_media_path
+        safe, reason = is_safe_local_media_path(url, allow_user_local_media=True)
+        if not safe:
+            return f"Security restriction: {reason}", 403
         try:
             with open(url, 'r', encoding='utf-8', errors='ignore') as local_f:
                 text = local_f.read()
@@ -556,6 +560,11 @@ def proxy_subtitle_endpoint():
                 text = sf.read()
         else:
             # External URL proxying
+            from utils.security import is_safe_remote_url
+            safe, reason = is_safe_remote_url(url)
+            if not safe:
+                return f"Security restriction: {reason}", 403
+
             if "googleapiscdn.com/player/" in url and "isFinal=" not in url:
                 url += ("&" if "?" in url else "?") + "isFinal=1"
             # Get user cookies if available

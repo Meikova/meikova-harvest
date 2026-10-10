@@ -29,6 +29,8 @@ from extractors import (
     resolve_facebook_sizes,
     generic_html_link_harvester,
     resolve_hls_size,
+    extract_direct_media_info,
+    is_direct_media_url,
     extract_torrent_info,
     is_torrent_input
 )
@@ -349,6 +351,20 @@ def get_info():
                 "images": images_list
             })
     # --- End local file / folder support ---
+
+    # --- Direct media stream fast-path (.m3u8, .mpd, .mp4, .mp3, etc.) ---
+    KNOWN_SOCIAL_DOMAINS = (
+        "youtube.com", "youtu.be", "facebook.com", "fb.watch", "tiktok.com",
+        "instagram.com", "twitter.com", "x.com", "reddit.com", "pinterest.com"
+    )
+    if is_direct_media_url(url) and not any(soc in url.lower() for soc in KNOWN_SOCIAL_DOMAINS):
+        try:
+            logger.info(f"Direct media link detected: {url[:80]}. Extracting instant stream metadata...")
+            direct_data = extract_direct_media_info(url, client_id=client_id)
+            if direct_data and (direct_data.get("video_options") or direct_data.get("audio_options")):
+                return jsonify(direct_data)
+        except Exception as dir_err:
+            logger.warning(f"Direct media extraction failed, falling back to full pipeline: {dir_err}")
 
     original_pexels_url = None
     if "pexels.com" in url.lower():
@@ -889,10 +905,11 @@ def get_info():
                         "message": f"Unable to extract media metadata: {strip_ansi_codes(str(nocookie_e))}"
                     }), 400
 
-                harvester_info = generic_html_link_harvester(url, client_id)
+                harvester_info = generic_html_link_harvester(url, client_id, html=html_content)
                 if harvester_info:
                     video_opts = harvester_info.get("video_options", [])
-                    has_streams = any(opt.get("format_id") != "generic_fallback" for opt in video_opts)
+                    audio_opts = harvester_info.get("audio_options", [])
+                    has_streams = any(opt.get("format_id") != "generic_fallback" for opt in video_opts) or len(audio_opts) > 0
                     if has_streams:
                         try:
                             parsed_h = urllib.parse.urlparse(url)
@@ -900,7 +917,7 @@ def get_info():
                             save_bypass_domain(domain_h, "successful_harvest")
                         except Exception:
                             pass
-                    logger.info(f"Generic HTML link harvester succeeded for {url} (nocookie_e). Found {len(video_opts)} options.")
+                    logger.info(f"Generic HTML link harvester succeeded for {url} (nocookie_e). Found {len(video_opts)} video, {len(audio_opts)} audio options.")
                     return jsonify(harvester_info)
                 return jsonify({
                     "status": "error",

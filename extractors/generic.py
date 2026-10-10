@@ -4,7 +4,7 @@ import logging
 import base64
 import json
 import requests
-from urllib.parse import urlparse, urljoin, parse_qs
+from urllib.parse import urlparse, urljoin, parse_qs, unquote
 from concurrent.futures import ThreadPoolExecutor
 import socket
 
@@ -513,19 +513,19 @@ def deobfuscate_script(script_text: str) -> str:
 
 def scan_text_for_media_urls(text: str, base_url: str = "") -> list:
     """
-    Deep scan text/script for any media URLs (.m3u8, .mpd, .mp4, etc.)
+    Deep scan text/script for any media URLs (.m3u8, .mpd, .mp4, .mp3, audio & video streams)
     """
     if not text:
         return []
     candidates = []
-    # 1. Direct URLs with extension
-    pattern = r'(https?:\\?/\\?/[^\s"\'<>#]+?\.(?:m3u8|mpd|mp4|webm|mkv|ts)(?:[^\s"\'<>#]*))'
+    # 1. Direct URLs with extension (video and audio formats)
+    pattern = r'(https?:\\?/\\?/[^\s"\'<>#]+?\.(?:m3u8|mpd|mp4|webm|mkv|ts|avi|mov|flv|m4v|mp3|m4a|wav|flac|aac|ogg|opus)(?:[^\s"\'<>#]*))'
     for m in re.findall(pattern, text, re.IGNORECASE):
         clean_url = m.replace(r"\/", "/").rstrip('\\').rstrip('"').rstrip("'")
         candidates.append(clean_url)
 
-    # 2. Object keys: file, source, src, stream_url
-    kv_pattern = r'(?:file|source|src|stream|url|video_url)\s*[:=]\s*["\'](https?:\\?/\\?/[^"\']+)["\']'
+    # 2. Object keys: file, source, src, stream_url, audio_url
+    kv_pattern = r'(?:file|source|src|stream|url|video_url|audio_url|stream_url)\s*[:=]\s*["\'](https?:\\?/\\?/[^"\']+)["\']'
     for m in re.findall(kv_pattern, text, re.IGNORECASE):
         clean_url = m.replace(r"\/", "/").rstrip('\\').rstrip('"').rstrip("'")
         candidates.append(clean_url)
@@ -535,7 +535,7 @@ def scan_text_for_media_urls(text: str, base_url: str = "") -> list:
     for m in re.findall(b64_pattern, text):
         try:
             decoded = base64.b64decode(m).decode('utf-8', errors='ignore')
-            if "http" in decoded and any(ext in decoded.lower() for ext in (".m3u8", ".mp4", ".mpd")):
+            if "http" in decoded and any(ext in decoded.lower() for ext in (".m3u8", ".mp4", ".mpd", ".mp3", ".m4a", ".webm")):
                 sub_candidates = scan_text_for_media_urls(decoded, base_url)
                 candidates.extend(sub_candidates)
         except Exception:
@@ -549,6 +549,196 @@ def scan_text_for_media_urls(text: str, base_url: str = "") -> list:
             seen.add(c)
             result.append(c)
     return result
+
+
+DIRECT_MEDIA_EXTENSIONS = (
+    ".m3u8", ".mpd", ".mp4", ".webm", ".mkv", ".avi", ".mov", ".flv", ".ts", ".m4v",
+    ".mp3", ".m4a", ".wav", ".flac", ".aac", ".ogg", ".opus", ".wma"
+)
+
+
+def is_direct_media_url(url: str) -> bool:
+    """Checks if a URL directly points to an audio or video stream/file."""
+    if not url or not isinstance(url, str):
+        return False
+    if url.startswith("data:") or url.startswith("blob:"):
+        return False
+    try:
+        parsed = urlparse(url)
+        if not parsed.scheme or parsed.scheme.lower() not in ("http", "https"):
+            return False
+        path = parsed.path.lower()
+        if any(path.endswith(ext) for ext in DIRECT_MEDIA_EXTENSIONS):
+            return True
+        # Check query string params (e.g., ?file=...m3u8 or ?url=...mp4)
+        if any(f"{ext}?" in url.lower() or f"{ext}&" in url.lower() for ext in DIRECT_MEDIA_EXTENSIONS):
+            return True
+    except Exception:
+        pass
+    return False
+
+
+def extract_direct_media_info(url, client_id=None):
+    """
+    Directly extracts metadata for raw media URLs (.m3u8, .mpd, .mp4, .webm, .mkv, .mp3, etc.)
+    without invoking heavy external tools. Resolves HLS master variants into discrete quality tiers.
+    """
+    try:
+        parsed = urlparse(url)
+        domain = parsed.netloc or "direct"
+        path = unquote(parsed.path)
+
+        filename = path.split("/")[-1] if "/" in path else "media"
+        if not filename or filename == "/":
+            filename = "media_stream"
+
+        base_name, raw_ext = os.path.splitext(filename)
+        ext = raw_ext.lstrip(".").lower()
+        if not ext and "?" in url:
+            for q_ext in DIRECT_MEDIA_EXTENSIONS:
+                if f"{q_ext}?" in url.lower() or f"{q_ext}&" in url.lower():
+                    ext = q_ext.lstrip(".")
+                    break
+        if not ext:
+            ext = "mp4"
+
+        clean_title = re.sub(r'[-_+]', ' ', base_name).strip() or "Direct Stream"
+
+        AUDIO_EXTS = {"mp3", "m4a", "wav", "flac", "aac", "ogg", "opus", "wma"}
+        is_audio = ext in AUDIO_EXTS
+
+        video_options = []
+        audio_options = []
+
+        # If HLS Playlist (.m3u8): attempt variant expansion
+        if ext == "m3u8":
+            headers = {
+                "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+                "Referer": f"{parsed.scheme}://{domain}/"
+            }
+            try:
+                from curl_cffi import requests as curl_requests
+                resp = curl_requests.get(url, headers=headers, impersonate="chrome", verify=False, timeout=8)
+                if resp.status_code == 200 and "#EXTM3U" in resp.text:
+                    content = resp.text
+                    # Check for Master Playlist with Stream Variants
+                    if "#EXT-X-STREAM-INF" in content:
+                        variant_lines = content.splitlines()
+                        var_idx = 1
+                        for i, line in enumerate(variant_lines):
+                            if line.startswith("#EXT-X-STREAM-INF:"):
+                                res_match = re.search(r'RESOLUTION=(\d+)x(\d+)', line)
+                                height = res_match.group(2) if res_match else None
+
+                                sub_url = None
+                                for next_line in variant_lines[i+1:]:
+                                    next_line = next_line.strip()
+                                    if next_line and not next_line.startswith("#"):
+                                        sub_url = urljoin(url, next_line)
+                                        break
+
+                                if sub_url:
+                                    res_label = f"{height}p" if height else "Auto Stream"
+                                    tag_label = "FHD" if height and int(height) >= 1080 else ("HD" if height and int(height) >= 720 else "SD")
+                                    size_str = "Stream (HLS / HD)"
+                                    try:
+                                        est_size = resolve_hls_size(sub_url, referer=url)
+                                        if est_size and est_size > 1024 * 1024:
+                                            size_str = format_size(est_size)
+                                    except Exception:
+                                        pass
+                                    video_options.append({
+                                        "format_id": f"direct_video_{var_idx}",
+                                        "resolution": res_label,
+                                        "ext": "mp4",
+                                        "type": "video",
+                                        "size": size_str,
+                                        "label": f"HLS Stream {res_label} [{tag_label}]",
+                                        "url": sub_url
+                                    })
+                                    var_idx += 1
+            except Exception as hls_err:
+                logger.warning(f"Error fetching/parsing M3U8 master variants: {hls_err}")
+
+            if not video_options:
+                size_str = "Stream (HLS / HD)"
+                try:
+                    est_size = resolve_hls_size(url, referer=url)
+                    if est_size and est_size > 1024 * 1024:
+                        size_str = format_size(est_size)
+                except Exception:
+                    pass
+                video_options.append({
+                    "format_id": "direct_video_1",
+                    "resolution": "HLS Stream",
+                    "ext": "mp4",
+                    "type": "video",
+                    "size": size_str,
+                    "label": f"Direct HLS Stream ({clean_title})",
+                    "url": url
+                })
+
+        elif ext == "mpd":
+            video_options.append({
+                "format_id": "direct_video_1",
+                "resolution": "DASH Stream",
+                "ext": "mp4",
+                "type": "video",
+                "size": "Stream (DASH)",
+                "label": f"Direct DASH Stream ({clean_title})",
+                "url": url
+            })
+
+        elif is_audio:
+            size_val = get_url_content_length(url)
+            size_str = format_size(size_val) if size_val else "Unknown Size"
+            audio_options.append({
+                "format_id": "direct_audio_1",
+                "resolution": "Audio File",
+                "ext": ext,
+                "type": "audio",
+                "size": size_str,
+                "label": f"Direct Audio: {clean_title} (.{ext})",
+                "url": url
+            })
+
+        else:
+            size_val = get_url_content_length(url)
+            size_str = format_size(size_val) if size_val else "Unknown Size"
+            video_options.append({
+                "format_id": "direct_video_1",
+                "resolution": "Direct Video",
+                "ext": ext,
+                "type": "video",
+                "size": size_str,
+                "label": f"Direct Video: {clean_title} (.{ext})",
+                "url": url
+            })
+
+        return {
+            "status": "success",
+            "title": clean_title,
+            "uploader": domain,
+            "duration": "Unknown",
+            "duration_raw": 0,
+            "thumbnail": "",
+            "is_shorts": False,
+            "platform_label": "Direct Media Stream",
+            "platform_class": "direct",
+            "views": "—",
+            "likes": "—",
+            "upload_date": "—",
+            "description": f"Direct media stream parsed from {domain}",
+            "category": "Audio" if is_audio else "Video",
+            "tags": [],
+            "video_options": video_options,
+            "audio_options": audio_options,
+            "subtitles": {},
+            "images": []
+        }
+    except Exception as e:
+        logger.warning(f"Failed to parse direct media info for {url}: {e}")
+        return None
 
 
 def generic_html_link_harvester(url, client_id, html=None):
@@ -1200,10 +1390,21 @@ def generic_html_link_harvester(url, client_id, html=None):
                     if current_pd:
                         current_ep_id = str(current_pd.get("episode_id", ""))
 
+                    url_ep_match = re.search(r'tap-(\d+)', page_url.lower())
+                    url_ep_num = url_ep_match.group(1) if url_ep_match else ""
+
                     # Step 6: Build video options for each episode
                     for ep_data_id, ep_title_attr, ep_href, ep_hash, ep_text in episodes:
                         ep_num = ep_text.strip() or ep_title_attr.replace("Tập ", "").strip()
                         ep_label = ep_title_attr.strip() or f"Tập {ep_num}"
+
+                        is_current = False
+                        if current_ep_id and str(ep_data_id) == str(current_ep_id):
+                            is_current = True
+                        elif ep_href and (ep_href in page_url or page_url.endswith(ep_href)):
+                            is_current = True
+                        elif url_ep_num and (ep_num.lstrip('0') == url_ep_num.lstrip('0')):
+                            is_current = True
 
                         iframe_link = None
 
@@ -1253,9 +1454,10 @@ def generic_html_link_harvester(url, client_id, html=None):
                                 "episode": ep_num,
                                 "server": "Server: AnimeVsub",
                                 "url": clean_iframe,
-                                "referer": f"https://{page_domain}/"
+                                "referer": f"https://{page_domain}/",
+                                "is_current": is_current,
                             })
-                            logger.info(f"[AnimeVietSub Extractor] Added {ep_label}: {clean_iframe[:80]}...")
+                            logger.info(f"[AnimeVietSub Extractor] Added {ep_label} (is_current={is_current}): {clean_iframe[:80]}...")
 
                     if opts:
                         return opts
@@ -1577,77 +1779,160 @@ def generic_html_link_harvester(url, client_id, html=None):
                 except Exception:
                     pass
                     
-            # 7. HTML5 fallback
-            if not opts:
-                video_tags = re.findall(r'<video[^>]*>.*?</video>', page_html, re.IGNORECASE | re.DOTALL)
-                for vtag in video_tags:
-                    srcs = re.findall(r'src=["\']([^"\']+)["\']', vtag, re.IGNORECASE)
-                    for src in srcs:
-                        src_url = urljoin(page_url, src)
-                        if src_url not in seen:
-                            seen.add(src_url)
-                            opts.append({
-                                "format_id": "",
-                                "resolution": "HTML5 Video",
-                                "ext": "mp4",
-                                "type": "video",
-                                "size": "Unknown Size",
-                                "label": f"HTML5 Stream #{len(opts)+1} (Episode {ep_name})",
-                                "episode": ep_name,
-                                "server": "HTML5 Video",
-                                "url": src_url
-                            })
-                source_tags = re.findall(r'<source[^>]+src=["\']([^"\']+)["\']', page_html, re.IGNORECASE)
-                for src in source_tags:
+            # 7. Schema.org JSON-LD VideoObject and AudioObject
+            json_ld_blocks = re.findall(r'<script[^>]+type=["\']application/ld\+json["\'][^>]*>(.*?)</script>', page_html, re.IGNORECASE | re.DOTALL)
+            for j_block in json_ld_blocks:
+                try:
+                    j_data = json.loads(j_block.strip())
+                    items = []
+                    if isinstance(j_data, list):
+                        items = j_data
+                    elif isinstance(j_data, dict):
+                        if "@graph" in j_data and isinstance(j_data["@graph"], list):
+                            items = j_data["@graph"]
+                        else:
+                            items = [j_data]
+                    for it in items:
+                        if not isinstance(it, dict):
+                            continue
+                        it_type = str(it.get("@type", "")).lower()
+                        if any(k in it_type for k in ["video", "audio", "media"]):
+                            content_url = it.get("contentUrl") or it.get("embedUrl")
+                            if content_url and content_url.startswith("http") and content_url not in seen:
+                                seen.add(content_url)
+                                is_aud = "audio" in it_type or any(content_url.lower().endswith("." + a_ext) for a_ext in ["mp3", "m4a", "wav", "flac", "ogg", "aac", "opus", "wma"])
+                                name_val = it.get("name") or it.get("headline") or "Schema Media"
+                                opts.append({
+                                    "format_id": "",
+                                    "resolution": "Audio" if is_aud else "HD Stream",
+                                    "ext": "mp3" if is_aud else "mp4",
+                                    "type": "audio" if is_aud else "video",
+                                    "size": "Unknown Size",
+                                    "label": f"Schema.org: {name_val[:40]}",
+                                    "episode": ep_name,
+                                    "server": "Schema.org Audio" if is_aud else "Schema.org",
+                                    "url": content_url
+                                })
+                except Exception:
+                    pass
+
+            # 8. OpenGraph & Twitter Media Tags
+            og_video_matches = re.findall(r'<meta[^>]+(?:property|name)=["\'](?:og:video|og:video:url|og:video:secure_url|twitter:player:stream)["\'][^>]+content=["\']([^"\']+)["\']', page_html, re.IGNORECASE)
+            for og_url in og_video_matches:
+                og_url = urljoin(page_url, og_url)
+                if og_url.startswith("http") and og_url not in seen:
+                    seen.add(og_url)
+                    opts.append({
+                        "format_id": "",
+                        "resolution": "Social Video",
+                        "ext": "mp4",
+                        "type": "video",
+                        "size": "Unknown Size",
+                        "label": f"OpenGraph Video #{len(opts)+1}",
+                        "episode": ep_name,
+                        "server": "OpenGraph",
+                        "url": og_url
+                    })
+
+            og_audio_matches = re.findall(r'<meta[^>]+(?:property|name)=["\'](?:og:audio|og:audio:url|og:audio:secure_url)["\'][^>]+content=["\']([^"\']+)["\']', page_html, re.IGNORECASE)
+            for og_a_url in og_audio_matches:
+                og_a_url = urljoin(page_url, og_a_url)
+                if og_a_url.startswith("http") and og_a_url not in seen:
+                    seen.add(og_a_url)
+                    opts.append({
+                        "format_id": "",
+                        "resolution": "Audio Stream",
+                        "ext": "mp3",
+                        "type": "audio",
+                        "size": "Unknown Size",
+                        "label": f"OpenGraph Audio #{len(opts)+1}",
+                        "episode": ep_name,
+                        "server": "OpenGraph Audio",
+                        "url": og_a_url
+                    })
+
+            # 9. Modern Framework Payloads (__NEXT_DATA__, __NUXT__, window.__INITIAL_STATE__)
+            next_data_match = re.search(r'<script[^>]+id=["\']__NEXT_DATA__["\'][^>]*>(.*?)</script>', page_html, re.IGNORECASE | re.DOTALL)
+            if next_data_match:
+                found_in_next = scan_text_for_media_urls(next_data_match.group(1), page_url)
+                for n_url in found_in_next:
+                    if n_url not in seen:
+                        seen.add(n_url)
+                        is_aud = any(n_url.lower().endswith("." + a_ext) for a_ext in ["mp3", "m4a", "wav", "flac", "ogg", "aac", "opus", "wma"])
+                        opts.append({
+                            "format_id": "",
+                            "resolution": "Next.js Audio" if is_aud else "Next.js Stream",
+                            "ext": "mp3" if is_aud else "mp4",
+                            "type": "audio" if is_aud else "video",
+                            "size": "Unknown Size",
+                            "label": f"Next.js Media #{len(opts)+1}",
+                            "episode": ep_name,
+                            "server": "Next.js Framework",
+                            "url": n_url
+                        })
+
+            # 10. Universal Embedded Player Objects (JWPlayer, Video.js, Plyr, DPlayer, ArtPlayer)
+            player_configs = re.findall(r'(?:jwplayer|videojs|Plyr|DPlayer|Artplayer)[^;{]*\{([^}]+)\}', page_html, re.IGNORECASE)
+            for p_cfg in player_configs:
+                cfg_streams = scan_text_for_media_urls(p_cfg, page_url)
+                for p_url in cfg_streams:
+                    if p_url not in seen:
+                        seen.add(p_url)
+                        opts.append({
+                            "format_id": "",
+                            "resolution": "Player Stream",
+                            "ext": "mp4",
+                            "type": "video",
+                            "size": "Unknown Size",
+                            "label": f"Embedded Player #{len(opts)+1}",
+                            "episode": ep_name,
+                            "server": "Web Player",
+                            "url": p_url
+                        })
+
+            # 11. HTML5 Media tags (Video and Audio)
+            video_tags = re.findall(r'<video[^>]*>.*?</video>', page_html, re.IGNORECASE | re.DOTALL)
+            for vtag in video_tags:
+                srcs = re.findall(r'src=["\']([^"\']+)["\']', vtag, re.IGNORECASE)
+                for src in srcs:
                     src_url = urljoin(page_url, src)
-                    if src_url not in seen:
+                    if src_url not in seen and src_url.startswith("http"):
                         seen.add(src_url)
                         opts.append({
                             "format_id": "",
-                            "resolution": "HTML5 Source",
+                            "resolution": "HTML5 Video",
                             "ext": "mp4",
                             "type": "video",
                             "size": "Unknown Size",
-                            "label": f"HTML5 Source #{len(opts)+1} (Episode {ep_name})",
+                            "label": f"HTML5 Stream #{len(opts)+1} (Episode {ep_name})",
                             "episode": ep_name,
-                            "server": "HTML5 Source",
+                            "server": "HTML5 Video",
                             "url": src_url
                         })
-                        
-            # 8. Raw links & script-embedded stream definitions
-            if not opts:
-                script_blocks = re.findall(r'<script[^>]*>(.*?)</script>', page_html, re.IGNORECASE | re.DOTALL)
-                scanned_links = []
-                for s_block in script_blocks:
-                    if s_block.strip():
-                        deobf = deobfuscate_script(s_block)
-                        found = scan_text_for_media_urls(deobf, page_url)
-                        scanned_links.extend(found)
-                
-                deobf_page = deobfuscate_script(page_html)
-                scanned_links.extend(scan_text_for_media_urls(deobf_page, page_url))
-                
-                raw_m3u8_links = re.findall(r'https?://[^\s"\'\\<>#]+\.(?:m3u8|mpd|mp4)[^\s"\'\\<>#]*', page_html)
-                # Also search for js variables like var url = '...', file: '...', source: '...'
-                js_stream_links = re.findall(r'(?:file|source|url|src|stream)\s*[:=]\s*["\'](https?://[^\s"\'\\<>#]+\.(?:m3u8|mpd|mp4)[^\s"\'\\<>#]*)["\']', page_html, re.IGNORECASE)
-                all_raw_candidates = list(dict.fromkeys(scanned_links + raw_m3u8_links + js_stream_links))
-                for link in all_raw_candidates:
-                    link = link.rstrip('\\').rstrip('"').rstrip("'")
-                    if link not in seen:
-                        seen.add(link)
+
+            audio_tags = re.findall(r'<audio[^>]*>.*?</audio>', page_html, re.IGNORECASE | re.DOTALL)
+            for atag in audio_tags:
+                srcs = re.findall(r'src=["\']([^"\']+)["\']', atag, re.IGNORECASE)
+                for src in srcs:
+                    src_url = urljoin(page_url, src)
+                    if src_url not in seen and src_url.startswith("http"):
+                        seen.add(src_url)
+                        a_ext = src_url.rsplit(".", 1)[-1].split("?")[0].lower() if "." in src_url else "mp3"
+                        if a_ext not in ["mp3", "m4a", "wav", "flac", "ogg", "aac", "opus", "wma"]:
+                            a_ext = "mp3"
                         opts.append({
                             "format_id": "",
-                            "resolution": "Auto Stream",
-                            "ext": "mp4",
-                            "type": "video",
+                            "resolution": "HTML5 Audio",
+                            "ext": a_ext,
+                            "type": "audio",
                             "size": "Unknown Size",
-                            "label": f"Direct Link #{len(opts)+1} (Episode {ep_name})",
+                            "label": f"HTML5 Audio #{len(opts)+1}",
                             "episode": ep_name,
-                            "server": "Direct Link",
-                            "url": link
+                            "server": "HTML5 Audio",
+                            "url": src_url
                         })
-                        
-            # 9. Recursive iframe harvesting
+
+            # 12. Recursive iframe harvesting
             if depth < 3:
                 import html as html_lib
                 iframe_srcs = re.findall(r'<iframe[^>]+(?:src|data-src|data-lazy-src)=["\']([^"\']+)["\']', page_html, re.IGNORECASE)
@@ -1736,12 +2021,53 @@ def generic_html_link_harvester(url, client_id, html=None):
                     except Exception as ex:
                         logger.warning(f"Failed to fetch/extract iframe {src}: {ex}")
 
+            # 13. Raw links & script-embedded stream definitions (Fallback when needed)
+            if not opts:
+                script_blocks = re.findall(r'<script[^>]*>(.*?)</script>', page_html, re.IGNORECASE | re.DOTALL)
+                scanned_links = []
+                for s_block in script_blocks:
+                    if s_block.strip():
+                        deobf = deobfuscate_script(s_block)
+                        found = scan_text_for_media_urls(deobf, page_url)
+                        scanned_links.extend(found)
+                
+                deobf_page = deobfuscate_script(page_html)
+                scanned_links.extend(scan_text_for_media_urls(deobf_page, page_url))
+                
+                raw_media_links = re.findall(r'https?://[^\s"\'\\<>#]+\.(?:m3u8|mpd|mp4|webm|mkv|mp3|m4a|wav|flac|ogg|aac|opus)[^\s"\'\\<>#]*', page_html, re.IGNORECASE)
+                js_stream_links = re.findall(r'(?:file|source|url|src|stream)\s*[:=]\s*["\'](https?://[^\s"\'\\<>#]+\.(?:m3u8|mpd|mp4|webm|mkv|mp3|m4a|wav|flac|ogg|aac|opus)[^\s"\'\\<>#]*)["\']', page_html, re.IGNORECASE)
+                all_raw_candidates = list(dict.fromkeys(scanned_links + raw_media_links + js_stream_links))
+                for link in all_raw_candidates:
+                    link = link.rstrip('\\').rstrip('"').rstrip("'")
+                    if link not in seen:
+                        seen.add(link)
+                        ext_cand = link.split("?")[0].rsplit(".", 1)[-1].lower() if "." in link else "mp4"
+                        AUDIO_EXTS_LIST = ["mp3", "m4a", "wav", "flac", "ogg", "aac", "opus", "wma"]
+                        is_aud = ext_cand in AUDIO_EXTS_LIST or any(kw in link.lower() for kw in ["/audio/", "/podcast/", "type=audio"])
+                        opts.append({
+                            "format_id": "",
+                            "resolution": "Direct Audio" if is_aud else "Auto Stream",
+                            "ext": ext_cand if is_aud else "mp4",
+                            "type": "audio" if is_aud else "video",
+                            "size": "Unknown Size",
+                            "label": f"Direct {'Audio' if is_aud else 'Link'} #{len(opts)+1} (Episode {ep_name})",
+                            "episode": ep_name,
+                            "server": "Direct Audio" if is_aud else "Direct Link",
+                            "url": link
+                        })
+
             # Filter duplicates for the same (server, episode) to keep only the best working stream
             best_opts = {}
             for opt in opts:
-                server_key = opt["server"]
-                ep_key = opt["episode"]
-                key = (server_key, ep_key)
+                server_key = opt.get("server") or ""
+                ep_key = opt.get("episode") or ""
+                is_generic_server = not server_key.startswith("Server:") or any(
+                    gen_kw in server_key for gen_kw in ["Direct", "HTML5", "Schema", "OpenGraph", "Next.js", "Web Player", "Embed"]
+                )
+                if is_generic_server:
+                    key = (opt.get("type", "video"), server_key, ep_key, opt.get("url", ""))
+                else:
+                    key = (opt.get("type", "video"), server_key, ep_key)
                 
                 if key not in best_opts:
                     best_opts[key] = opt
@@ -1907,7 +2233,13 @@ def generic_html_link_harvester(url, client_id, html=None):
             for opt in video_options:
                 server_key = opt.get("server") or ""
                 ep_key = opt.get("episode") or ""
-                key = (server_key, ep_key)
+                is_generic_server = not server_key.startswith("Server:") or any(
+                    gen_kw in server_key for gen_kw in ["Direct", "HTML5", "Schema", "OpenGraph", "Next.js", "Web Player", "Embed"]
+                )
+                if is_generic_server:
+                    key = (opt.get("type", "video"), server_key, ep_key, opt.get("url", ""))
+                else:
+                    key = (opt.get("type", "video"), server_key, ep_key)
                 
                 if key not in best_opts:
                     best_opts[key] = opt
@@ -1926,11 +2258,27 @@ def generic_html_link_harvester(url, client_id, html=None):
                         if existing_is_streamc and not opt_is_streamc:
                             best_opts[key] = opt
                             
-            video_options = list(best_opts.values())
-            
+            final_video_opts = []
+            final_audio_opts = []
+            for opt in best_opts.values():
+                if opt.get("type") == "audio":
+                    final_audio_opts.append(opt)
+                else:
+                    final_video_opts.append(opt)
+
+            current_format_id = None
             # Re-assign format_ids dynamically after filtering
-            for idx, opt in enumerate(video_options):
+            for idx, opt in enumerate(final_video_opts):
                 opt["format_id"] = f"direct_video_{idx+1}"
+                if opt.get("is_current") and not current_format_id:
+                    current_format_id = opt["format_id"]
+
+            for idx, opt in enumerate(final_audio_opts):
+                opt["format_id"] = f"direct_audio_{idx+1}"
+
+            category = "Web Video"
+            if not final_video_opts and final_audio_opts:
+                category = "Web Audio"
             
         return {
             "status": "success",
@@ -1940,16 +2288,17 @@ def generic_html_link_harvester(url, client_id, html=None):
             "duration_raw": 0,
             "thumbnail": thumbnail,
             "is_shorts": False,
-            "platform_label": domain.capitalize(),
+            "platform_label": domain.capitalize() + (" Audio" if category == "Web Audio" else ""),
             "platform_class": "default",
             "views": "—",
             "likes": "—",
             "upload_date": "—",
             "description": description,
-            "category": "Web Video",
+            "category": category,
             "tags": [],
-            "video_options": video_options,
-            "audio_options": [],
+            "video_options": final_video_opts,
+            "current_format_id": current_format_id or (final_video_opts[0]["format_id"] if final_video_opts else (final_audio_opts[0]["format_id"] if final_audio_opts else None)),
+            "audio_options": final_audio_opts,
             "subtitles": {},
             "images": [{"label": "Thumbnail", "url": thumbnail, "ext": "jpg"}] if thumbnail else [],
         }

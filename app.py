@@ -47,8 +47,17 @@ except Exception as e:
 
 # Initialize Flask app
 app = Flask(__name__, static_folder="static", template_folder="templates")
-app.config['TEMPLATES_AUTO_RELOAD'] = True
-CORS(app)
+# Lockdown CORS to local origins and Electron webviews
+CORS(
+    app,
+    resources={r"/api/*": {"origins": [
+        r"^https?://(localhost|127\.0\.0\.1)(:\d+)?$",
+        r"^file://.*",
+        r"^vscode-webview://.*",
+        r"^app://.*"
+    ]}},
+    supports_credentials=True
+)
 
 # Clean up any leftover temporary folders from previous runs on startup
 logger.info("Cleaning up leftover temporary downloads...")
@@ -163,6 +172,32 @@ def clear_temporary_files():
         return jsonify({"success": True, "message": "Successfully cleared temporary cache folder.", "count": cleaned_count})
     except Exception as e:
         return jsonify({"success": False, "error": str(e)}), 500
+
+@app.route("/api/system/shutdown", methods=["POST"])
+def system_shutdown():
+    from flask import request
+    remote = request.remote_addr or ""
+    if remote not in ["127.0.0.1", "::1", "localhost"]:
+        return jsonify({"success": False, "error": "Forbidden"}), 403
+    logger.info("Received graceful shutdown request from Electron.")
+    
+    def _do_shutdown():
+        import time
+        time.sleep(0.3)
+        try:
+            import sqlite3
+            from config import DB_PATH
+            if os.path.exists(DB_PATH):
+                conn = sqlite3.connect(DB_PATH, timeout=5.0)
+                conn.execute("PRAGMA wal_checkpoint(TRUNCATE)")
+                conn.close()
+        except Exception as e:
+            logger.warning(f"Error during SQLite WAL checkpoint: {e}")
+        os._exit(0)
+
+    import threading
+    threading.Thread(target=_do_shutdown, daemon=True).start()
+    return jsonify({"success": True, "message": "Server shutting down cleanly."})
 
 if __name__ == "__main__":
     import argparse

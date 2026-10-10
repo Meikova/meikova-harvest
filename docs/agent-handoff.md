@@ -6,8 +6,183 @@
 - Standards: Antigravity Titan Standards, Ponytail Philosophy, TDD, Verification-Before-Completion.
 
 ## Last Updated
-- Timestamp: 2026-10-05 14:38:00
-- Exit Code: 0 (Python unit tests passing, Electron & JS syntax clean)
+- Timestamp: 2026-10-10 17:10:00
+- Exit Code: 0 (Ran 75 unit tests, 100% OK; JS syntax verified with node -c)
+
+## Summary of Accomplishments (Sprint v59 - Universal Website Media Analyzer & Direct Fast-Path Harvester)
+1. **Nâng cấp Toàn diện Bộ Phân tích Đa phương tiện cho Mọi Website (`extractors/generic.py`, `extractors/__init__.py`, `routes/info.py`)**:
+   - **Đường tắt Tức thì cho Media Trực tiếp (Direct Media Fast-Path)**:
+     + Xây dựng `is_direct_media_url(url)` và `extract_direct_media_info(url)` trong `extractors/generic.py`.
+     + Phát hiện ngay lập tức các tệp trực tiếp (`.m3u8`, `.mpd`, `.mp4`, `.webm`, `.mkv`, `.avi`, `.mov`, `.flv`, `.ts`, `.mp3`, `.m4a`, `.wav`, `.flac`, `.aac`, `.ogg`, `.opus`, `.wma`) với độ trễ <100ms mà không cần gọi tiến trình yt-dlp nặng nề.
+     + Hỗ trợ mở rộng biến thể phân giải (Resolution Variant Expansion) cho HLS Master Playlist: Tự động tải manifest và trích xuất từng luồng độ phân giải (1080p FHD, 720p HD, 480p SD, 360p) kèm ước lượng kích thước chính xác qua `resolve_hls_size`.
+     + Tích hợp trực tiếp vào đầu hàm `get_video_info` trong `routes/info.py`.
+   - **Tái cấu trúc Thứ tự Trích xuất Ngữ nghĩa (Universal Semantic Extraction Pipeline)**:
+     + Đưa các bộ bóc tách có cấu trúc ngữ nghĩa (Semantic Metadata) lên hàng đầu trước khi dùng quét chuỗi thô (raw regex scanning):
+       1. Schema.org JSON-LD VideoObject & AudioObject (`@type: VideoObject`, `AudioObject`, `@graph`).
+       2. OpenGraph & Twitter Cards (`og:video`, `og:audio`, `twitter:player:stream`).
+       3. Modern Framework Payloads (`__NEXT_DATA__`, `__NUXT__`, `window.__INITIAL_STATE__`).
+       4. Trình phát Web nhúng phổ quát (JWPlayer, Video.js, Plyr, DPlayer, ArtPlayer configs).
+       5. Thẻ HTML5 `<video>` và `<audio>` (bóc tách cả thẻ `<source>` lồng bên trong).
+       6. Thu thập iframe đệ quy (Recursive Iframe Harvesting, tối đa 3 cấp) kèm soi query parameters.
+       7. Quét sâu mã nguồn script & Dean Edwards packer (Fallback).
+   - **Phân loại Chính xác Luồng Âm thanh (Audio vs Video Stream Classification)**:
+     + Chấm dứt tình trạng gán nhãn cứng `type: "video"`, `ext: "mp4"` cho các thẻ `<source>` âm thanh (`.mp3`, `.ogg`, `.wav`) và thẻ meta `og:audio`.
+     + Tách biệt triệt để kết quả vào `video_options` và `audio_options`.
+     + Khi trang chỉ có tệp âm thanh, tự động gán nhãn `category: "Web Audio"` và cập nhật platform label tương ứng.
+   - **Giải quyết Triệt để Xung đột Khóa Trùng lặp (Deduplication Key Collision)**:
+     + Cập nhật khóa gom nhóm: Với các nguồn đa phương tiện chung (`Direct Link`, `HTML5...`, `Schema.org`, `OpenGraph`, `Next.js`, `Web Player`, `Embed`), khóa phân biệt bao gồm cả `(type, server, episode, url)`.
+     + Bảo toàn 100% các luồng video và audio khác nhau trên cùng một trang, không bị ghi đè hoặc loại bỏ nhầm.
+
+2. **Kiểm thử Xác thực Toàn diện (`tests/test_universal_analyzer.py`)**:
+   - Viết 10 bài kiểm thử đơn vị chuyên sâu bao phủ:
+     + Direct MP4 Fast-Path (<100ms)
+     + Direct HLS Master Playlist Variant Expansion (1080p, 720p, 480p)
+     + Direct Audio Extraction (MP3)
+     + Schema.org JSON-LD VideoObject & AudioObject
+     + OpenGraph `og:video` & `og:audio`
+     + HTML5 `<audio>` & `<source>` tags
+     + Next.js `__NEXT_DATA__` embedded payload
+     + Universal Web Player configs
+     + Iframe depth traversal & stream query parameter decoding
+     + Route integration fast-path trong `routes/info.py`.
+   - Kết quả: Toàn bộ 75 tests trong test suite dự án chạy thành công tuyệt đối (`Ran 75 tests in 22.845s, OK`, Exit Code 0).
+   - Kiểm tra cú pháp JavaScript `node -c static/js/main.js` đạt Exit Code 0.
+
+## Summary of Accomplishments (Sprint v58 - Enterprise SRS Specification & Deep Security Hardening)
+1. **Hoàn thiện Tài liệu Đặc tả Yêu cầu Phần mềm Chuẩn Doanh nghiệp (`docs/ENTERPRISE_SRS_SPECIFICATION.md`)**:
+   - Biên soạn tài liệu SRS toàn diện theo tiêu chuẩn IEEE 830-1998 và ISO/IEC/IEEE 29148:2018.
+   - Rà soát chuyên sâu toàn bộ **12 luồng dữ liệu** của EveryThingDownloader: Phân định rõ các luồng đã sẵn sàng cho môi trường doanh nghiệp (Production) và các luồng còn mang tính chất thử nghiệm/ủy thác (Demo/Stub/Partial).
+   - Đánh giá kiến trúc hiện tại, xác định 3 nút thắt cổ chai lớn (Unbounded Concurrency, BitTorrent chỉ parse metadata mà chưa có P2P engine, và Nguy cơ tràn RAM khi thu luồng MSE).
+   - Thiết lập mô hình Kiến trúc Mục tiêu (Enterprise Target Architecture) tích hợp Centralized Queue Manager, dual-engine yt-dlp + Aria2c RPC daemon, và Chunked Disk Spooling.
+   - Đặc tả chi tiết 7 Module tính năng doanh nghiệp mở rộng: Hàng đợi tải tập trung, P2P BitTorrent Native, Giới hạn băng thông (Bandwidth Throttling), Lập lịch tải ngoài giờ cao điểm, Quản lý tải Playlist hàng loạt, Cổng xuất đám mây (Google Drive/Dropbox/S3), và Bộ phân tích kỹ thuật tệp tin chuyên sâu (Deep Media Inspector).
+
+2. **Củng cố Ranh giới An ninh & Khắc phục Lỗ hổng Trọng yếu (`utils/security.py`, `app.py`, `routes/download.py`, `routes/convert.py`, `routes/build.py`)**:
+   - **Phòng ngự SSRF (Server-Side Request Forgery)**:
+     + Xây dựng hàm `is_safe_remote_url(url)` trong `utils/security.py`.
+     + Phân giải DNS và kiểm tra địa chỉ IP đích bằng `ipaddress`: Chặn toàn bộ dải Private IP (10.0.0.0/8, 172.16.0.0/12, 192.168.0.0/16), Loopback (127.0.0.1, localhost, ::1), Link-local (169.254.169.254 AWS/GCP cloud metadata), Multicast và Reserved.
+     + Áp dụng kiểm tra nghiêm ngặt tại `/api/proxy/stream`, `/api/download/image`, và `/api/system/proxy-sub`.
+   - **Phòng ngự Path Traversal & Thực thi mã ngoài ý muốn (Arbitrary File Execution)**:
+     + Xây dựng hàm `is_safe_local_media_path(file_path)` trong `utils/security.py`.
+     + Chặn hoàn toàn danh sách đen phần mở rộng tệp thực thi độc hại: `.exe`, `.bat`, `.cmd`, `.ps1`, `.vbs`, `.js`, `.msi`, `.reg`, `.scr`, `.pif`, `.com`, `.hta`, `.sh`, `.py`, `.dll`, `.sys`, `.cpl`, `.jar`.
+     + Giam giữ đường dẫn trong danh sách thư mục được ủy quyền (`TEMP_DOWNLOAD_DIR`, `USER_DATA_DIR`, `BASE_DIR`, thư mục Downloads/Videos/Music của người dùng).
+     + Chặn truy cập thư mục hệ điều hành nhạy cảm (`C:\Windows`, `/etc`, `/bin`, v.v.).
+     + Áp dụng tại `/api/download/open-file`, `/api/convert/probe`, `/api/convert/preview-stream`, `/api/convert`, và `/api/system/proxy-sub`.
+   - **Khóa chặt Ranh giới CORS (Cross-Origin Resource Sharing)**:
+     + Trong `app.py`, thay thế khai báo mở `CORS(app)` bằng cấu hình origin nghiêm ngặt, chỉ cho phép `localhost`, `127.0.0.1`, và scheme của Electron (`file://`, `vscode-webview://`, `app://`).
+
+3. **Bộ Kiểm thử Bảo mật Toàn diện (`tests/test_security_boundary.py`)**:
+   - Bổ sung 10 bài kiểm thử đơn vị bao phủ: Chặn SSRF trên Private IP / Cloud Metadata / Loopback, Chặn Path Traversal, Chặn tệp thực thi `.exe`, Chặn truy cập tệp Windows System, Cho phép tệp đa phương tiện hợp lệ trong temp/downloads.
+   - Toàn bộ bộ kiểm thử 65 tests chạy thành công tuyệt đối (`Ran 65 tests in 11.051s, OK`, Exit Code 0).
+   - Cú pháp JavaScript của `electron/main.js`, `electron/preload.js`, `static/js/main.js` kiểm chứng đạt Exit Code 0.
+
+## Summary of Accomplishments (Sprint v57 - Direct Media Launch, Custom Downloads Directory, In-App Quick Play & Offline/Online Network Resiliency)
+1. **Khởi chạy trực tiếp tệp tin & Xem trong thư mục cho tác vụ hoàn thành (`electron/main.js`, `electron/preload.js`, `routes/download.py`, `static/js/main.js`, `static/css/styles.css`, `tests/test_proxy_and_preview.py`)**:
+   - **Nút Phát/Mở trực tiếp (Direct Launch `[Play]`) & Mở thư mục (`[Folder]`)**:
+     + Trước đây: Khi tải hoặc chuyển đổi định dạng xong, người dùng chỉ thấy nút "Folder" hoặc "Save". Muốn xem video/nghe nhạc phải mở File Explorer, tìm file rồi nhấp đúp chuột.
+     + Hiện tại: Bổ sung nút **Play** với biểu tượng vector SVG Play trực tiếp trên thẻ tác vụ. Khi bấm, tệp tin được khởi chạy ngay lập tức bằng trình phát mặc định của hệ điều hành (VLC, Windows Media Player, MPC-HC, v.v.) qua IPC `open-file` (`shell.openPath`) hoặc backend endpoint `/api/download/open-file`.
+     + Bổ sung nút **Folder** với biểu tượng vector SVG Folder để mở và đánh dấu tệp tin trong Explorer/Finder.
+   - **Xem trước tức thì trong ứng dụng (`openCompletedTaskPreview()`)**:
+     + Với môi trường trình duyệt web (hoặc trước khi lưu file), thẻ tác vụ cung cấp nút **Play** kích hoạt ngay trình phát preview modal tích hợp sẵn của EveryThingDownloader qua stream `/api/download/file/${downloadId}?preview=true` mà không cần tải lại file.
+   - **Chuẩn hóa 100% SVG Vector icon**:
+     + Toàn bộ các nút hành động tác vụ (`btn-task-open`, `btn-task-folder`, `btn-task-preview`, `btn-task-save`, `btn-task-retry`, `btn-task-clear`) đều sử dụng inline SVG vector chuẩn.
+
+2. **Cấu hình tùy chọn thư mục tải về trong Global Settings (`templates/index.html`, `static/js/main.js`, `electron/main.js`, `electron/preload.js`)**:
+   - Thêm hàng thiết lập **Downloads Location** trong menu Global Settings, hiển thị đường dẫn thư mục lưu trữ hiện tại.
+   - Bổ sung nút **Open** mở ngay thư mục downloads và nút **Change** (trên Electron) cho phép người dùng chọn bất kỳ thư mục nào trên máy tính.
+   - Tự động lưu và đồng bộ thư mục tùy chỉnh vào file `settings.json` trong User Data Directory (`app.getPath('userData')`), không bị mất khi cập nhật phiên bản.
+   - Hộp thoại lưu file (`save-file`) tự động mở đúng thư mục người dùng đã cấu hình thay vì thư mục Downloads mặc định.
+
+3. **Giám sát kết nối mạng Online / Offline tự phục hồi (`static/js/main.js`, `static/css/styles.css`)**:
+   - Bổ sung trình lắng nghe sự kiện mạng toàn cục `window.addEventListener('offline')` và `online`.
+   - Khi mất mạng: Hiển thị thanh thông báo nổi Glassmorphism màu hổ phách cảnh báo kết nối Internet bị gián đoạn.
+   - Khi có mạng trở lại: Hiển thị thanh thông báo nổi Glassmorphism màu xanh lục/cyan xác nhận mạng đã phục hồi, đồng thời hỗ trợ người dùng bấm **Retry** khôi phục ngay các tác vụ bị gián đoạn.
+
+4. **Kiểm chứng xác thực (Verification)**:
+   - Toàn bộ 55 bài kiểm thử unit tests chạy thành công (`Ran 55 tests in 11.933s, OK`, Exit Code 0).
+   - Kiểm tra cú pháp JavaScript `node -c electron/main.js electron/preload.js static/js/main.js` đạt Exit Code 0 sạch lỗi.
+
+## Summary of Accomplishments (Sprint v56 - Download Task Instant Retry & Resilient Error Recovery)
+1. **Cơ chế Thử lại Tải tệp tin (Instant Download Retry) khi gặp sự cố (`static/js/main.js`, `static/css/styles.css`)**:
+   - **Nút Thử lại (Retry) trên thẻ tác vụ thất bại**:
+     + Trước đây: Khi một tác vụ tải về bị lỗi mạng, đứt kết nối SSE hoặc lỗi server, thẻ tác vụ chỉ hiện nút "Clear". Người dùng buộc phải phân tích lại đường link hoặc cuộn tìm lại định dạng để bấm Get từ đầu.
+     + Hiện tại: Tự động lưu thông tin payload tải (`_retryPayload` cho direct download, `_retryStream` cho MSE stream capture) ngay trên thẻ tác vụ. Khi tác vụ chuyển sang trạng thái lỗi (`state-error`), nút **Retry** nổi bật xuất hiện bên cạnh nút **Clear**.
+   - **Tái khởi tạo kết nối thông minh (`retryTask()`)**:
+     + Bấm "Retry" lập tức đặt lại thanh tiến độ về 5% (hiệu ứng sọc neon chuyển động), đổi trạng thái thành "Retrying... -> Re-connecting...", đổi nút thành "Cancel" và phát yêu cầu tải mới lên server mà không cần người dùng thao tác lại URL.
+     + Tái kết nối luồng SSE EventSource và tự động cập nhật tiến độ cho tới khi file tải xong hoàn tất.
+   - **Tái cấu trúc module hóa trình lắng nghe SSE (`setupTaskSSE()`)**:
+     + Đóng gói logic phân tích thông điệp SSE (`pending`, `downloading`, `merging`, `complete`, `error`) thành hàm dùng chung duy nhất, tái sử dụng giữa `triggerDownload` và `retryTask`, loại bỏ hoàn toàn mã trùng lặp.
+   - **Định kiểu CSS chuẩn thiết kế (`static/css/styles.css`)**:
+     + Bổ sung class `.btn-task-retry` với viền phát sáng cyan neon (`rgba(0, 243, 255, 0.25)`), hiệu ứng hover đổi màu mượt mà, hỗ trợ cả dark theme và light theme.
+
+2. **Kiểm chứng xác thực (Verification)**:
+   - Toàn bộ 30 tests trong test suites chạy qua thành công (`Ran 30 tests in 10.296s, OK`, Exit Code 0).
+   - Kiểm tra cú pháp JavaScript `node -c electron/main.js electron/preload.js static/js/main.js` đạt Exit Code 0 sạch lỗi.
+
+## Summary of Accomplishments (Sprint v55 - Unified Downloads Directory, Manager Quick Actions & Pure SVG Standard)
+1. **Thống nhất thư mục Downloads chuẩn người dùng & Tiện ích Downloads Manager (`electron/main.js`, `routes/download.py`, `templates/index.html`, `static/css/styles.css`, `static/js/main.js`, `tests/test_proxy_and_preview.py`)**:
+   - **Thống nhất thư mục lưu trữ tải về (`getAppDownloadsDir()`)**:
+     + Thay thế việc trỏ vào thư mục cài đặt `resourcesPath\downloads` (vốn có nguy cơ thiếu quyền Administrator trong Program Files và bị NSIS dọn khi update).
+     + Trỏ thống nhất toàn bộ các luồng mở thư mục, tải tệp tin của Electron (`will-download`), menu Tray, phím tắt `Ctrl+Shift+D`, và IPC `open-downloads-folder` về thư mục tiêu chuẩn của người dùng: `app.getPath('downloads')/EveryThingDownloader` (hoặc `Downloads` của hệ điều hành).
+   - **Bổ sung API backend mở thư mục lưu trữ (`routes/download.py`)**:
+     + Thêm endpoint `/api/download/open-folder`: Tự động khởi chạy trình quản lý file hệ điều hành (Explorer trên Windows qua `os.startfile`, Finder trên macOS qua `open`, File Manager trên Linux qua `xdg-open`) để mở thư mục lưu trữ khi người dùng truy cập qua trình duyệt ngoài.
+     + Viết unit test tự động trong `tests/test_proxy_and_preview.py` xác minh endpoint phản hồi 200 OK.
+   - **Nâng cấp thanh công cụ Downloads Manager Header (`templates/index.html`, `static/js/main.js`, `static/css/styles.css`)**:
+     + Thêm nút **Mở thư mục Downloads** (`#downloads-open-folder-btn`): Bấm 1 chạm để mở ngay thư mục chứa file đã tải trong Windows Explorer.
+     + Thêm nút **Dọn sạch danh sách hoàn thành** (`#downloads-clear-all-btn`): Cho phép người dùng dọn tất cả tác vụ đã xong/lỗi trong 1 cú click thay vì phải bấm Clear thủ công từng thẻ.
+   - **Triệt tiêu 100% ký tự Unicode và HTML Entity icon còn sót**:
+     + Thay thế `&#9662;` (`▾`) tại nút thu gọn `#downloads-toggle-btn` bằng SVG Chevron mượt mà có hiệu ứng xoay 180 độ.
+     + Thay thế toàn bộ `&times;` (`×`) tại `#close-settings-menu-btn`, `#close-transcript-sidebar-btn`, `#close-toast-btn` bằng SVG Cross vector chuẩn.
+     + Đạt chuẩn 100% SVG Vector trên toàn hệ thống.
+
+2. **Kiểm chứng xác thực (Verification)**:
+   - Toàn bộ 48 tests trong test suites chạy qua thành công (`Ran 48 tests in 8.228s, OK`, Exit Code 0).
+   - Kiểm tra cú pháp JavaScript `node -c electron/main.js electron/preload.js static/js/main.js` đạt Exit Code 0 sạch lỗi.
+
+## Summary of Accomplishments (Sprint v54 - Auto-Update Overhaul, User Data Persistence & Silent Background Upgrades)
+1. **Tối ưu hóa toàn diện cơ chế Cập nhật Phiên bản (Auto-Update Overhaul) (`electron/main.js`, `electron/preload.js`, `config.py`, `app.py`, `utils/cookies.py`, `routes/cookies.py`, `templates/index.html`, `static/css/styles.css`, `static/js/main.js`, `tests/test_user_data_persistence.py`)**:
+   - **Không khóa giao diện khi tải cập nhật (Zero UI Blocking)**:
+     + Loại bỏ hoàn toàn cửa sổ `modal: true` chặn tương tác người dùng trong lúc tải bản cài mới.
+     + Chuyển luồng tải về chế độ ngầm (Background streaming) qua `downloadFile` trong Electron, phát tín hiệu IPC `update-download-progress`.
+     + Bổ sung thẻ thông báo nổi không chiếm màn hình (`#update-progress-toast`) theo phong cách Glassmorphism (Cyan/Violet neon), hiển thị tiến độ tải (%), dung lượng (MB/MB), tốc độ tải (KB/s, MB/s) theo thời gian thực mà không làm gián đoạn bất kỳ thao tác nào của người dùng.
+   - **Triệt tiêu cửa sổ Terminal/CMD đen khi bấm Cài đặt (Zero CMD Flash)**:
+     + Thay thế triệt để lệnh `cmd.exe /c ...` bằng PowerShell ẩn (`powershell.exe -WindowStyle Hidden -NoProfile -NonInteractive -Command "Start-Sleep -Milliseconds 600; Start-Process -FilePath '...'"` kèm `windowsHide: true, stdio: 'ignore'`).
+     + Trình cài đặt NSIS được khởi chạy mượt mà, hoàn toàn không có bất kỳ cửa sổ CMD/terminal màu đen nào chớp nháy trên màn hình.
+   - **Khắc phục lỗi đụng độ cổng 5000 và treo SQLite WAL khi mở lại app**:
+     + Bổ sung endpoint ngắt kết nối an toàn `/api/system/shutdown` trên Flask backend, thực thi `PRAGMA wal_checkpoint(TRUNCATE)` để ghi đồng bộ toàn bộ transaction log của SQLite vào file chính và đóng kết nối sạch sẽ trước khi tắt app.
+     + Trước khi khởi chạy bộ cài hoặc đóng app, Electron gọi shutdown backend và chờ 400ms để nhả hoàn toàn file lock.
+     + Loại bỏ cờ điều kiện `isDev` khi dọn cổng 5000: Đảm bảo cả bản đóng gói production cũng tự động quét và giải phóng các tiến trình `server.exe` mồ côi chiếm cổng 5000 trước khi khởi động.
+   - **Bảo toàn dữ liệu người dùng qua các lần cập nhật (100% Data Persistence)**:
+     + Chuyển thư mục lưu trữ cơ sở dữ liệu `downloads.db` và cookies từ thư mục cài đặt (`resourcesPath` - vốn bị NSIS xóa sạch mỗi lần cài đè) sang thư mục tiêu chuẩn của hệ điều hành (`%APPDATA%\EveryThingDownloader` trên Windows hoặc `app.getPath('userData')`).
+     + Bổ sung cơ chế tự động di chuyển dữ liệu cũ (`migrate_legacy_user_data()`): Tự động phát hiện và sao chép an toàn `downloads.db` cùng các file cookies từ thư mục cũ sang `USER_DATA_DIR` ngay khi khởi động lần đầu.
+     + Viết bộ kiểm thử TDD (`tests/test_user_data_persistence.py`) kiểm chứng đầy đủ 3 kịch bản: nhận diện biến môi trường `EVERYTHING_USER_DATA`, nhận diện APPDATA, và tự động di chuyển database/cookies cũ.
+   - **Giao diện & Tiện ích cập nhật**:
+     + Thêm nút "Check App Update" trực tiếp trong menu Settings dropdown (`templates/index.html`) với icon SVG vector chuẩn.
+     + Thêm lựa chọn: "Cài đặt & Khởi động lại ngay" hoặc "Cài khi thoát ứng dụng" (tự động chạy installer khi tắt app).
+     + 100% icon biểu tượng sử dụng SVG inline, tuân thủ nghiêm ngặt tiêu chuẩn không emoji.
+
+2. **Kiểm chứng xác thực (Verification)**:
+   - Python unit test suite: `tests/test_user_data_persistence.py` chạy qua 3/3 tests (Exit Code 0).
+   - Kiểm tra cú pháp JavaScript: `node -c electron/main.js electron/preload.js static/js/main.js` đạt Exit Code 0 sạch lỗi.
+
+## Summary of Accomplishments (Sprint v53 - Anime & Multi-Episode Stream Navigation Suite)
+1. **Thanh điều hướng tập phim toàn diện cho Stream Player & Trình phát Video (`templates/index.html`, `static/css/styles.css`, `static/js/main.js`, `extractors/generic.py`)**:
+   - **Tập trước / Tập sau & Dropdown chọn tập (`#preview-episode-nav`)**: Tích hợp thanh công cụ chọn tập ngay tại chân trang Preview Modal (`preview-footer-toolbar`), hiển thị đồng bộ cho cả video player và trình phát webview stream (như AnimeVietSub).
+   - **Huy hiệu đếm số tập (`#preview-ep-counter`)**: Hiển thị trực quan tiến độ tập (VD: `Tập 2 / 24`) bằng badge gradient bo tròn, tự động cập nhật khi đổi tập.
+   - **Nút điều hướng nổi trên màn hình (`#preview-stream-floating-prev`, `#preview-stream-floating-next`)**: Xuất hiện mượt mà khi di chuột vào khung phát webview player, hỗ trợ bấm 1 chạm để qua tập trước hoặc tập sau.
+   - **Tự động nhận diện tập từ URL đầu vào (`extractors/generic.py`)**: Khi nhập link tập cụ thể (VD: `tap-02-42082.html`), hệ thống tự động bóc tách số tập, gán cờ `is_current: True` và chọn mặc định đúng tập được yêu cầu thay vì quay về Tập 01.
+   - **Đánh dấu nổi bật tập đang chọn trên danh sách chính (`static/js/main.js`, `static/css/styles.css`)**: Tô viền phát sáng cyan neon `.active-episode-row` và gắn badge `[▶ Đang chọn]` giúp người dùng nhận biết ngay vị trí tập phim.
+   - **Phím tắt chuyển tập tiện lợi**:
+     + `Shift + N` hoặc `PageDown`: Chuyển sang tập sau (Next Episode).
+     + `Shift + P` hoặc `PageUp`: Quay lại tập trước (Previous Episode).
+     + `]` / `[`: Chuyển tập kế tiếp / tập trước tức thì khi đang ở chế độ xem webview player.
+     + Cập nhật bảng hướng dẫn phím tắt trực tiếp trong Shortcuts Help (`H` hoặc `?`).
+   - **Tự động chuyển tập khi hết phim (Autoplay Next Episode)**: Bắt sự kiện kết thúc phát từ cả HTML5 video (`ended`) lẫn player JWPlayer (`complete` -> `__WV_ENDED__`) trong Electron webview để tự động nhảy sang tập kế tiếp nếu bật toggle Autoplay.
+   - **Thông báo Toast trực quan**: Hiển thị toast thông báo mượt mà (`showPlayerToast`) mỗi khi chuyển tập.
+   - **Chuẩn 100% SVG Vector**: Tuyệt đối không dùng emoji, icon fonts hay raster icons.
+
+2. **Kiểm chứng xác thực (Verification)**:
+   - Toàn bộ 50 unit tests trong Python test suite chạy qua thành công (`Ran 50 tests, OK`, Exit Code 0).
+   - Kiểm tra cú pháp JavaScript `node -c static/js/main.js` đạt Exit Code 0 sạch lỗi.
 
 ## Summary of Accomplishments (Sprint v52 - Strict 100% Inline SVG Icons Standard)
 1. **Triệt tiêu hoàn toàn emoji và chuẩn hóa 100% biểu tượng bằng vector SVG inline (`templates/index.html`, `static/css/styles.css`)**:

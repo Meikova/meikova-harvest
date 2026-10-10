@@ -9,12 +9,17 @@ def get_cookie_file_path(client_id=None):
     2. Chrome extension file (cookies_chrome-extension.txt)
     3. Most recently modified cookie file in the cookies directory
     """
-    from config import TEMP_DOWNLOAD_DIR
+    from config import COOKIES_DIR, TEMP_DOWNLOAD_DIR
     import os
     
-    cookies_dir = os.path.join(TEMP_DOWNLOAD_DIR, "cookies")
+    cookies_dir = COOKIES_DIR
     if not os.path.isdir(cookies_dir):
-        return None
+        # Fallback to legacy location if not migrated yet
+        legacy_dir = os.path.join(TEMP_DOWNLOAD_DIR, "cookies")
+        if os.path.isdir(legacy_dir):
+            cookies_dir = legacy_dir
+        else:
+            return None
     
     # Level 1: exact client match if provided
     if client_id:

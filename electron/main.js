@@ -118,7 +118,7 @@ function resolvePythonPath() {
 // ─── Flask server launch ──────────────────────────────────────────────────────
 
 async function startFlaskServer() {
-  if (isDev && process.platform === 'win32') {
+  if (process.platform === 'win32') {
     try {
       const netstatOut = execSync(`netstat -ano | findstr :${DEFAULT_PORT}`).toString();
       const lines = netstatOut.split('\n').filter(l => l.includes('LISTENING'));
@@ -141,6 +141,7 @@ async function startFlaskServer() {
     FLASK_PORT: String(serverPort),
     FLASK_ENV:  isDev ? 'development' : 'production',
     PYTHONUNBUFFERED: '1',
+    EVERYTHING_USER_DATA: app.getPath('userData'),
   };
 
   if (isDev) {
@@ -479,12 +480,7 @@ function createMainWindow() {
 
   // Automatically save files triggered via blob/webview downloads to downloads directory
   session.defaultSession.on('will-download', (event, item, webContents) => {
-    const downloadsDir = app.isPackaged
-      ? path.join(process.resourcesPath, 'downloads')
-      : path.join(__dirname, '..', 'downloads');
-    if (!fs.existsSync(downloadsDir)) {
-      try { fs.mkdirSync(downloadsDir, { recursive: true }); } catch (_) {}
-    }
+    const downloadsDir = getAppDownloadsDir();
     const savePath = path.join(downloadsDir, item.getFilename());
     item.setSavePath(savePath);
     log.info(`[Download] Starting file download to: ${savePath}`);
@@ -706,6 +702,39 @@ function showMainWindow() {
   }
 }
 
+let customDownloadsDir = null;
+
+function loadCustomDownloadsDir() {
+  try {
+    const settingsFile = path.join(app.getPath('userData'), 'settings.json');
+    if (fs.existsSync(settingsFile)) {
+      const data = JSON.parse(fs.readFileSync(settingsFile, 'utf-8'));
+      if (data && data.downloadsDir && typeof data.downloadsDir === 'string' && fs.existsSync(data.downloadsDir)) {
+        customDownloadsDir = data.downloadsDir;
+        log.info(`[Settings] Loaded custom downloads directory: ${customDownloadsDir}`);
+      }
+    }
+  } catch (err) {
+    log.warn('[Settings] Failed to load custom downloads directory:', err);
+  }
+}
+
+function getAppDownloadsDir() {
+  if (customDownloadsDir && fs.existsSync(customDownloadsDir)) {
+    return customDownloadsDir;
+  }
+  const userDownloads = app.getPath('downloads');
+  const targetDir = path.join(userDownloads, 'EveryThingDownloader');
+  try {
+    if (!fs.existsSync(targetDir)) {
+      fs.mkdirSync(targetDir, { recursive: true });
+    }
+    return targetDir;
+  } catch (_) {
+    return userDownloads;
+  }
+}
+
 function getAppIcon() {
   const fs = require('fs');
 
@@ -795,174 +824,168 @@ function downloadFile(url, destPath, onProgress, onComplete, onError) {
   });
 }
 
-function startAutoUpdate(url, version) {
-  log.info('Starting auto update. Downloading from ' + url);
-  
-  const progressWindow = new BrowserWindow({
-    width: 420,
-    height: 160,
-    parent: mainWindow || undefined,
-    modal: true,
-    resizable: false,
-    minimizable: false,
-    maximizable: false,
-    title: 'Downloading Update...',
-    webPreferences: {
-      nodeIntegration: true,
-      contextIsolation: false
+let updateDownloadState = {
+  isDownloading: false,
+  percent: 0,
+  version: '',
+  destPath: '',
+};
+let installOnQuitPath = null;
+
+async function installDownloadedUpdate(destPath) {
+  log.info('Preparing to install update from: ' + destPath);
+  if (!fs.existsSync(destPath)) {
+    log.error('Installer file not found: ' + destPath);
+    dialog.showErrorBox('Installation Failed', 'The downloaded update installer could not be found.\n\nPlease try downloading again.');
+    return;
+  }
+
+  // 1. Send graceful shutdown request to Flask backend
+  try {
+    const shutdownReq = http.request({
+      hostname: '127.0.0.1',
+      port: serverPort,
+      path: '/api/system/shutdown',
+      method: 'POST',
+      timeout: 1500,
+    });
+    shutdownReq.on('error', () => {});
+    shutdownReq.end();
+  } catch (_) {}
+
+  // Wait 400ms for clean SQLite WAL truncate and file handle release
+  await new Promise(r => setTimeout(r, 400));
+  killFlaskServer();
+
+  try {
+    if (process.platform === 'win32') {
+      log.info('Launching installer silently via PowerShell on Windows...');
+      const escapedPath = destPath.replace(/'/g, "''");
+      const psScript = `Start-Sleep -Milliseconds 600; Start-Process -FilePath '${escapedPath}'`;
+      const child = spawn('powershell.exe', [
+        '-WindowStyle', 'Hidden',
+        '-NoProfile',
+        '-NonInteractive',
+        '-Command',
+        psScript
+      ], {
+        detached: true,
+        stdio: 'ignore',
+        windowsHide: true,
+      });
+      child.unref();
+    } else if (process.platform === 'darwin') {
+      shell.openPath(destPath).then((err) => {
+        if (err) {
+          log.error('Failed to open DMG: ' + err);
+          shell.showItemInFolder(destPath);
+        }
+      });
+    } else {
+      // Linux
+      if (destPath.endsWith('.AppImage')) {
+        try { fs.chmodSync(destPath, 0o755); } catch (_) {}
+        const child = spawn('bash', ['-c', `sleep 1 && exec "${destPath}"`], {
+          detached: true,
+          stdio: 'ignore',
+        });
+        child.unref();
+      } else {
+        shell.showItemInFolder(destPath);
+      }
     }
-  });
-  progressWindow.setMenu(null);
-  
-  const htmlContent = 
-    '<!DOCTYPE html>' +
-    '<html>' +
-    '<head>' +
-    '  <meta charset="UTF-8">' +
-    '  <style>' +
-    '    body {' +
-    '      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;' +
-    '      margin: 20px;' +
-    '      background-color: #0f0f15;' +
-    '      color: #ffffff;' +
-    '      overflow: hidden;' +
-    '    }' +
-    '    h3 { margin-top: 0; font-size: 15px; font-weight: 500; color: #ff527b; }' +
-    '    .progress-bar-container {' +
-    '      width: 100%;' +
-    '      background-color: #252530;' +
-    '      border-radius: 6px;' +
-    '      overflow: hidden;' +
-    '      margin-top: 12px;' +
-    '    }' +
-    '    .progress-bar {' +
-    '      width: 0%;' +
-    '      height: 12px;' +
-    '      background: linear-gradient(90deg, #ff527b, #ff7e5f);' +
-    '      border-radius: 6px;' +
-    '      transition: width 0.1s ease-in-out;' +
-    '    }' +
-    '    .status-text {' +
-    '      margin-top: 8px;' +
-    '      font-size: 12px;' +
-    '      color: #a0a0b0;' +
-    '      display: flex;' +
-    '      justify-content: space-between;' +
-    '    }' +
-    '  </style>' +
-    '</head>' +
-    '<body>' +
-    '  <h3>Downloading EveryThingDownloader Setup v' + version + '...</h3>' +
-    '  <div class="progress-bar-container">' +
-    '    <div id="bar" class="progress-bar"></div>' +
-    '  </div>' +
-    '  <div class="status-text">' +
-    '    <span id="pct">Connecting...</span>' +
-    '    <span id="stats">0.0 / 0.0 MB</span>' +
-    '  </div>' +
-    '  <script>' +
-    '    const { ipcRenderer } = require("electron");' +
-    '    ipcRenderer.on("progress", (event, data) => {' +
-    '      document.getElementById("bar").style.width = data.percent + "%";' +
-    '      document.getElementById("pct").innerText = data.percent + "%";' +
-    '      document.getElementById("stats").innerText = data.transferred + " / " + data.total + " MB";' +
-    '    });' +
-    '  </script>' +
-    '</body>' +
-    '</html>';
-  
-  progressWindow.loadURL('data:text/html;charset=utf-8,' + encodeURIComponent(htmlContent));
-  
-  let destName = 'EveryThingDownloader-Setup-' + version + '.exe';
+    app.isQuitting = true;
+    app.quit();
+  } catch (e) {
+    log.error('Failed to launch installer:', e);
+    dialog.showErrorBox('Installation Failed', 'Failed to launch installer: ' + e.message);
+  }
+}
+
+function startAutoUpdate(url, version) {
+  if (updateDownloadState.isDownloading) {
+    log.info('Auto update download already in progress.');
+    return;
+  }
+
+  log.info(`Starting auto update in background for v${version}. URL: ${url}`);
+  updateDownloadState.isDownloading = true;
+  updateDownloadState.percent = 0;
+  updateDownloadState.version = version;
+
+  let destName = `EveryThingDownloader-Setup-${version}.exe`;
   if (process.platform === 'darwin') {
-    destName = 'EveryThingDownloader-' + version + '-' + process.arch + '.dmg';
+    destName = `EveryThingDownloader-${version}-${process.arch}.dmg`;
   } else if (process.platform === 'linux') {
-    destName = 'EveryThingDownloader-' + version + '-' + process.arch + '.AppImage';
+    destName = `EveryThingDownloader-${version}-${process.arch}.AppImage`;
   }
   const destPath = path.join(app.getPath('temp'), destName);
-  
+  updateDownloadState.destPath = destPath;
+
+  // Notify frontend of download start without blocking the app
+  if (mainWindow && !mainWindow.isDestroyed()) {
+    mainWindow.webContents.send('update-download-progress', {
+      status: 'starting',
+      percent: 0,
+      version: version,
+      transferred: '0',
+      total: '0',
+      speed: '0 KB/s'
+    });
+  }
+
   downloadFile(url, destPath, 
     (prog) => {
-      if (!progressWindow.isDestroyed()) {
-        progressWindow.webContents.send('progress', prog);
+      updateDownloadState.percent = prog.percent;
+      if (mainWindow && !mainWindow.isDestroyed()) {
+        mainWindow.webContents.send('update-download-progress', {
+          status: 'downloading',
+          percent: prog.percent,
+          transferred: prog.transferred,
+          total: prog.total,
+          speed: prog.speed || '0 KB/s',
+          version: version,
+        });
       }
     },
     () => {
-      if (!progressWindow.isDestroyed()) {
-        progressWindow.close();
+      updateDownloadState.isDownloading = false;
+      log.info(`Update v${version} successfully downloaded to: ${destPath}`);
+      if (mainWindow && !mainWindow.isDestroyed()) {
+        mainWindow.webContents.send('update-download-progress', {
+          status: 'completed',
+          percent: 100,
+          version: version,
+          destPath: destPath,
+        });
       }
-      
+
       dialog.showMessageBox(mainWindow || undefined, {
         type: 'info',
-        title: 'Ready to Install',
-        message: 'Download complete!',
-        detail: process.platform === 'darwin'
-          ? 'The update has been downloaded. The app will now close and open the installer disk image.'
-          : 'The app will now close to install the update.',
-        buttons: ['Install/Open Now']
-      }).then(() => {
-        log.info('Launching installer: ' + destPath);
-        try {
-          if (process.platform === 'darwin') {
-            shell.openPath(destPath).then((err) => {
-              if (err) {
-                log.error('Failed to open DMG: ' + err);
-                shell.showItemInFolder(destPath);
-              }
-              app.quit();
-            });
-          } else if (process.platform === 'linux') {
-            if (destPath.endsWith('.AppImage')) {
-              try {
-                fs.chmodSync(destPath, 0o755);
-                log.info('Spawning delayed AppImage launcher on Linux...');
-                // Wait 2 seconds (via sleep) to allow graceful exit and avoid port conflicts
-                const child = spawn('bash', ['-c', `sleep 2 && exec "${destPath}"`], {
-                  detached: true,
-                  stdio: 'ignore'
-                });
-                child.unref();
-                app.quit();
-              } catch (chmodErr) {
-                log.error('Failed to make AppImage executable: ' + chmodErr.message);
-                shell.showItemInFolder(destPath);
-                app.quit();
-              }
-            } else {
-              shell.showItemInFolder(destPath);
-              app.quit();
-            }
-          } else {
-            // Windows
-            log.info('Spawning delayed installer launcher on Windows...');
-            const appExeName = path.basename(process.execPath);
-            // Wait 2 seconds (via ping) to allow graceful exit, then kill any lingering processes, then start installer
-            const cmd = 'cmd.exe';
-            const args = [
-              '/c',
-              `ping 127.0.0.1 -n 3 > nul & taskkill /f /im server.exe /t 2>nul & taskkill /f /im "${appExeName}" 2>nul & start "" "${destPath}"`
-            ];
-            const child = spawn(cmd, args, {
-              detached: true,
-              stdio: 'ignore',
-              shell: true,
-              windowsHide: true
-            });
-            child.unref();
-            log.info('Quitting app for update installation...');
-            app.quit();
-          }
-        } catch (e) {
-          log.error('Failed to launch installer: ' + e.message);
-          dialog.showErrorBox('Installation Failed', 'Failed to start the installer: ' + e.message + '\n\nPlease run the installer manually from:\n' + destPath);
+        title: 'Bản cập nhật sẵn sàng',
+        message: `Đã tải xong bản cập nhật v${version}!`,
+        detail: 'Bạn có muốn cài đặt và khởi động lại ngay không?',
+        buttons: ['Cài đặt & Khởi động lại ngay', 'Cài đặt khi đóng ứng dụng', 'Để sau'],
+        defaultId: 0,
+        cancelId: 2,
+      }).then(({ response }) => {
+        if (response === 0) {
+          installDownloadedUpdate(destPath);
+        } else if (response === 1) {
+          installOnQuitPath = destPath;
         }
       });
     },
     (err) => {
-      if (!progressWindow.isDestroyed()) {
-        progressWindow.close();
+      updateDownloadState.isDownloading = false;
+      log.error('Auto update download failed:', err.message);
+      if (mainWindow && !mainWindow.isDestroyed()) {
+        mainWindow.webContents.send('update-download-progress', {
+          status: 'error',
+          error: err.message,
+          version: version,
+        });
       }
-      log.error('Auto update failed: ' + err.message);
       dialog.showErrorBox('Download Failed', 'Could not download the update automatically.\n\nError: ' + err.message + '\n\nPlease try updating manually or check your internet connection.');
     }
   );
@@ -998,6 +1021,21 @@ function checkForUpdates(manual = false) {
         const currentVersion = app.getVersion();
         
         if (isNewerVersion(latestVersion, currentVersion)) {
+          let platformUrl = info.url;
+          if (info.platforms) {
+            const platformKey = process.platform + '_' + process.arch;
+            platformUrl = info.platforms[platformKey] || info.platforms[process.platform] || info.url;
+          }
+
+          if (mainWindow && !mainWindow.isDestroyed()) {
+            mainWindow.webContents.send('update-available', {
+              version: latestVersion,
+              currentVersion: currentVersion,
+              changelog: info.changelog || '',
+              url: platformUrl
+            });
+          }
+
           dialog.showMessageBox(mainWindow, {
             type: 'info',
             title: 'Update Available',
@@ -1007,11 +1045,6 @@ function checkForUpdates(manual = false) {
             defaultId: 0,
             cancelId: 2
           }).then(({ response }) => {
-            let platformUrl = info.url;
-            if (info.platforms) {
-              const platformKey = process.platform + '_' + process.arch;
-              platformUrl = info.platforms[platformKey] || info.platforms[process.platform] || info.url;
-            }
             if (response === 0 && platformUrl) {
               startAutoUpdate(platformUrl, latestVersion);
             } else if (response === 1 && platformUrl) {
@@ -1095,16 +1128,7 @@ function buildTrayMenu() {
     {
       label: '📂 Open Downloads Folder',
       click: () => {
-        const downloadsDir = app.isPackaged
-          ? path.join(process.resourcesPath, 'downloads')
-          : path.join(__dirname, '..', 'downloads');
-        if (!fs.existsSync(downloadsDir)) {
-          try {
-            fs.mkdirSync(downloadsDir, { recursive: true });
-          } catch (e) {
-            log.error('Failed to create downloads folder:', e);
-          }
-        }
+        const downloadsDir = getAppDownloadsDir();
         shell.openPath(downloadsDir);
       },
     },
@@ -1187,16 +1211,7 @@ ipcMain.on('window-close', () => {
 });
 
 ipcMain.on('open-downloads-folder', () => {
-  const downloadsDir = app.isPackaged
-    ? path.join(process.resourcesPath, 'downloads')
-    : path.join(__dirname, '..', 'downloads');
-  if (!fs.existsSync(downloadsDir)) {
-    try {
-      fs.mkdirSync(downloadsDir, { recursive: true });
-    } catch (e) {
-      log.error('Failed to create downloads folder:', e);
-    }
-  }
+  const downloadsDir = getAppDownloadsDir();
   shell.openPath(downloadsDir);
 });
 
@@ -1230,7 +1245,7 @@ ipcMain.handle('select-folder', async () => {
 ipcMain.handle('save-file', async (event, { downloadId, defaultFilename }) => {
   if (!mainWindow) return { canceled: true };
 
-  const defaultDir = app.getPath('downloads');
+  const defaultDir = getAppDownloadsDir();
   const result = await dialog.showSaveDialog(mainWindow, {
     title: 'Save File',
     defaultPath: path.join(defaultDir, defaultFilename || 'download'),
@@ -1284,9 +1299,65 @@ ipcMain.handle('save-file', async (event, { downloadId, defaultFilename }) => {
   }
 });
 
+ipcMain.handle('get-downloads-dir', () => {
+  return getAppDownloadsDir();
+});
+
+ipcMain.handle('set-downloads-dir', (event, newDir) => {
+  if (newDir && typeof newDir === 'string' && fs.existsSync(newDir)) {
+    customDownloadsDir = newDir;
+    try {
+      const settingsFile = path.join(app.getPath('userData'), 'settings.json');
+      let currentSettings = {};
+      if (fs.existsSync(settingsFile)) {
+        currentSettings = JSON.parse(fs.readFileSync(settingsFile, 'utf-8'));
+      }
+      currentSettings.downloadsDir = newDir;
+      fs.writeFileSync(settingsFile, JSON.stringify(currentSettings, null, 2), 'utf-8');
+      log.info(`[Settings] Saved custom downloads directory: ${newDir}`);
+    } catch (err) {
+      log.error('[Settings] Failed to save custom downloads directory:', err);
+    }
+    return { success: true, dir: customDownloadsDir };
+  }
+  return { success: false };
+});
+
 ipcMain.on('show-item-in-folder', (event, filePath) => {
   if (filePath && fs.existsSync(filePath)) {
     shell.showItemInFolder(filePath);
+  }
+});
+
+ipcMain.on('open-file', (event, filePath) => {
+  if (filePath && fs.existsSync(filePath)) {
+    shell.openPath(filePath);
+  }
+});
+
+// ─── Application Update IPC ──────────────────────────────────────────────────
+ipcMain.on('check-for-updates', () => {
+  checkForUpdates(true);
+});
+
+ipcMain.on('start-auto-update', (event, payload) => {
+  const url = (payload && payload.url) || payload;
+  const version = (payload && payload.version) || 'latest';
+  if (url) {
+    startAutoUpdate(url, version);
+  }
+});
+
+ipcMain.on('install-update-now', () => {
+  if (updateDownloadState.destPath) {
+    installDownloadedUpdate(updateDownloadState.destPath);
+  }
+});
+
+ipcMain.on('install-update-on-quit', () => {
+  if (updateDownloadState.destPath) {
+    installOnQuitPath = updateDownloadState.destPath;
+    log.info(`Deferred update registered to install on quit: ${installOnQuitPath}`);
   }
 });
 
@@ -1314,9 +1385,7 @@ function setupKeyboardShortcuts() {
 
   // Open downloads folder
   globalShortcut.register('CmdOrCtrl+Shift+D', () => {
-    const dir = app.isPackaged
-      ? path.join(process.resourcesPath, 'downloads')
-      : path.join(__dirname, '..', 'downloads');
+    const dir = getAppDownloadsDir();
     shell.openPath(dir);
   });
 
@@ -1398,6 +1467,8 @@ app.whenReady().then(async () => {
     return;
   }
 
+  loadCustomDownloadsDir();
+
   // Set up network-level ad blocking and CDN referer header rewriting early
   setupNetworkGuards();
 
@@ -1457,4 +1528,37 @@ app.on('before-quit', () => {
 app.on('will-quit', () => {
   globalShortcut.unregisterAll();
   killFlaskServer();
+
+  if (installOnQuitPath && fs.existsSync(installOnQuitPath)) {
+    log.info('Executing deferred update installer on quit: ' + installOnQuitPath);
+    try {
+      if (process.platform === 'win32') {
+        const escapedPath = installOnQuitPath.replace(/'/g, "''");
+        const psScript = `Start-Sleep -Milliseconds 600; Start-Process -FilePath '${escapedPath}'`;
+        const child = spawn('powershell.exe', [
+          '-WindowStyle', 'Hidden',
+          '-NoProfile',
+          '-NonInteractive',
+          '-Command',
+          psScript
+        ], {
+          detached: true,
+          stdio: 'ignore',
+          windowsHide: true,
+        });
+        child.unref();
+      } else if (process.platform === 'darwin') {
+        shell.openPath(installOnQuitPath);
+      } else if (installOnQuitPath.endsWith('.AppImage')) {
+        try { fs.chmodSync(installOnQuitPath, 0o755); } catch (_) {}
+        const child = spawn('bash', ['-c', `sleep 1 && exec "${installOnQuitPath}"`], {
+          detached: true,
+          stdio: 'ignore',
+        });
+        child.unref();
+      }
+    } catch (err) {
+      log.error('Failed to trigger deferred installer on quit:', err);
+    }
+  }
 });

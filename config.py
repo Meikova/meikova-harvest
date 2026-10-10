@@ -4,10 +4,109 @@ import sqlite3
 import json
 import time
 
+import sys
+import shutil
+
 # Base directory of the project
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 
-# Downloads directory
+def get_user_data_dir():
+    """Returns the persistent User Data directory across OS updates and app reinstalls."""
+    env_user_data = os.environ.get("EVERYTHING_USER_DATA")
+    if env_user_data:
+        try:
+            os.makedirs(env_user_data, exist_ok=True)
+            return env_user_data
+        except Exception:
+            pass
+
+    if "VERCEL" in os.environ:
+        p = "/tmp/EveryThingDownloader"
+        os.makedirs(p, exist_ok=True)
+        return p
+
+    if sys.platform.startswith("win") and "APPDATA" in os.environ:
+        p = os.path.join(os.environ["APPDATA"], "EveryThingDownloader")
+        try:
+            os.makedirs(p, exist_ok=True)
+            return p
+        except Exception:
+            pass
+
+    if sys.platform == "darwin":
+        p = os.path.expanduser("~/Library/Application Support/EveryThingDownloader")
+        try:
+            os.makedirs(p, exist_ok=True)
+            return p
+        except Exception:
+            pass
+
+    if sys.platform.startswith("linux"):
+        xdg = os.environ.get("XDG_CONFIG_HOME", os.path.expanduser("~/.config"))
+        p = os.path.join(xdg, "EveryThingDownloader")
+        try:
+            os.makedirs(p, exist_ok=True)
+            return p
+        except Exception:
+            pass
+
+    p = os.path.join(BASE_DIR, "data")
+    try:
+        os.makedirs(p, exist_ok=True)
+        return p
+    except Exception:
+        import tempfile
+        p = os.path.join(tempfile.gettempdir(), "EveryThingDownloader")
+        os.makedirs(p, exist_ok=True)
+        return p
+
+def migrate_legacy_user_data(legacy_dir, target_user_dir):
+    """Safely migrates legacy downloads.db, cookies, and bypass data to the persistent user data directory."""
+    migrated = False
+    if not os.path.exists(legacy_dir) or not os.path.exists(target_user_dir):
+        return False
+    
+    if os.path.abspath(legacy_dir) == os.path.abspath(target_user_dir):
+        return False
+
+    legacy_db = os.path.join(legacy_dir, "downloads.db")
+    target_db = os.path.join(target_user_dir, "downloads.db")
+    if os.path.exists(legacy_db) and not os.path.exists(target_db):
+        try:
+            shutil.copy2(legacy_db, target_db)
+            for ext in ["-wal", "-shm"]:
+                wal_f = legacy_db + ext
+                if os.path.exists(wal_f):
+                    shutil.copy2(wal_f, target_db + ext)
+            migrated = True
+        except Exception as e:
+            print(f"[Migration] Failed to copy legacy database: {e}")
+
+    legacy_cookies = os.path.join(legacy_dir, "cookies")
+    target_cookies = os.path.join(target_user_dir, "cookies")
+    if os.path.isdir(legacy_cookies):
+        os.makedirs(target_cookies, exist_ok=True)
+        try:
+            for item in os.listdir(legacy_cookies):
+                src_f = os.path.join(legacy_cookies, item)
+                dst_f = os.path.join(target_cookies, item)
+                if os.path.isfile(src_f) and not os.path.exists(dst_f):
+                    shutil.copy2(src_f, dst_f)
+                    migrated = True
+        except Exception as e:
+            print(f"[Migration] Failed to copy legacy cookies: {e}")
+
+    return migrated
+
+# Persistent user data directory
+USER_DATA_DIR = get_user_data_dir()
+COOKIES_DIR = os.path.join(USER_DATA_DIR, "cookies")
+os.makedirs(COOKIES_DIR, exist_ok=True)
+
+# Path to SQLite database in persistent User Data directory
+DB_PATH = os.path.join(USER_DATA_DIR, "downloads.db")
+
+# Downloads directory for temporary staging
 if "VERCEL" in os.environ:
     TEMP_DOWNLOAD_DIR = "/tmp/downloads"
 else:
@@ -20,8 +119,10 @@ except OSError:
     TEMP_DOWNLOAD_DIR = os.path.join(tempfile.gettempdir(), "EveryThingDownloader", "downloads")
     os.makedirs(TEMP_DOWNLOAD_DIR, exist_ok=True)
 
-# Path to SQLite database
-DB_PATH = os.path.join(TEMP_DOWNLOAD_DIR, "downloads.db")
+try:
+    migrate_legacy_user_data(TEMP_DOWNLOAD_DIR, USER_DATA_DIR)
+except Exception:
+    pass
 
 class PersistentTaskDict(dict):
     def __init__(self, download_id, initial_data, db_save_callback):

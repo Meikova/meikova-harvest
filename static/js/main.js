@@ -961,6 +961,55 @@ document.addEventListener("DOMContentLoaded", () => {
         });
     }
 
+    // Downloads Location in Global Settings
+    const globalDownloadsDirInput = document.getElementById("global-downloads-dir");
+    const btnSettingsChangeDir = document.getElementById("btn-settings-change-dir");
+    const btnSettingsOpenDir = document.getElementById("btn-settings-open-dir");
+
+    async function updateDownloadsDirDisplay() {
+        if (!globalDownloadsDirInput) return;
+        if (window.electronAPI && typeof window.electronAPI.getDownloadsDir === "function") {
+            try {
+                const dir = await window.electronAPI.getDownloadsDir();
+                if (dir) globalDownloadsDirInput.value = dir;
+            } catch (_) {}
+            if (btnSettingsChangeDir) btnSettingsChangeDir.style.display = "inline-flex";
+        } else {
+            globalDownloadsDirInput.value = "Downloads / EveryThingDownloader";
+        }
+    }
+    updateDownloadsDirDisplay();
+
+    if (btnSettingsChangeDir) {
+        btnSettingsChangeDir.addEventListener("click", async () => {
+            if (window.electronAPI && typeof window.electronAPI.selectFolder === "function") {
+                const chosen = await window.electronAPI.selectFolder();
+                if (chosen) {
+                    const res = await window.electronAPI.setDownloadsDir(chosen);
+                    if (res && res.success && res.dir) {
+                        globalDownloadsDirInput.value = res.dir;
+                    }
+                }
+            }
+        });
+    }
+
+    if (btnSettingsOpenDir) {
+        btnSettingsOpenDir.addEventListener("click", () => {
+            if (window.electronAPI && typeof window.electronAPI.openDownloadsFolder === "function") {
+                window.electronAPI.openDownloadsFolder();
+            } else {
+                fetch("/api/download/open-folder", { method: "POST" });
+            }
+        });
+    }
+
+    if (globalDownloadsDirInput) {
+        globalDownloadsDirInput.addEventListener("click", () => {
+            if (btnSettingsOpenDir) btnSettingsOpenDir.click();
+        });
+    }
+
     if (cloudSyncSelect && telegramConfigInputs) {
         cloudSyncSelect.addEventListener("change", () => {
             if (cloudSyncSelect.value === "telegram") {
@@ -1311,6 +1360,34 @@ document.addEventListener("DOMContentLoaded", () => {
         });
     }
 
+    const downloadsOpenFolderBtn = document.getElementById("downloads-open-folder-btn");
+    const downloadsClearAllBtn = document.getElementById("downloads-clear-all-btn");
+
+    if (downloadsOpenFolderBtn) {
+        downloadsOpenFolderBtn.addEventListener("click", (e) => {
+            e.stopPropagation();
+            if (window.electronAPI && typeof window.electronAPI.openDownloadsFolder === "function") {
+                window.electronAPI.openDownloadsFolder();
+            } else {
+                fetch("/api/download/open-folder", { method: "POST" })
+                    .catch(() => window.open("/downloads", "_blank"));
+            }
+        });
+    }
+
+    if (downloadsClearAllBtn) {
+        downloadsClearAllBtn.addEventListener("click", (e) => {
+            e.stopPropagation();
+            if (!downloadsTasksList) return;
+            const finishedCards = downloadsTasksList.querySelectorAll(".download-task-card.state-complete, .download-task-card.state-error");
+            finishedCards.forEach(card => card.remove());
+            if (downloadsTasksList.children.length === 0 && downloadsManager) {
+                downloadsManager.classList.add("hidden");
+            }
+            updateDownloadsCount();
+        });
+    }
+
     function updateDownloadsCount() {
         if (!downloadsActiveCount) return;
         const activeCount = Object.values(activeTasks).filter(t => t.sse).length;
@@ -1495,29 +1572,126 @@ document.addEventListener("DOMContentLoaded", () => {
         return { siblings, currentIndex };
     }
 
+    function handleEpisodeStep(direction) {
+        if (!videoFormatSelect) return;
+        const { siblings, currentIndex } = getGroupSiblingsAndIndex();
+        if (currentIndex === -1 || !siblings.length) return;
+        const targetIndex = currentIndex + direction;
+        if (targetIndex >= 0 && targetIndex < siblings.length) {
+            const targetOpt = siblings[targetIndex];
+            videoFormatSelect.value = targetOpt.value;
+            videoFormatSelect.dispatchEvent(new Event("change"));
+            const cleanTitle = (targetOpt.textContent || targetOpt.value || "").trim();
+            if (typeof showPlayerToast === "function") {
+                showPlayerToast(`Đang chuyển: ${cleanTitle}`, 2500);
+            }
+        }
+    }
+
     function updateEpisodeNavigationButtonsState() {
         const nextBtn = document.getElementById("video-next-btn");
         const prevBtn = document.getElementById("video-prev-btn");
-        if (!nextBtn && !prevBtn) return;
+        const footerEpNav = document.getElementById("preview-episode-nav");
+        const footerEpPrevBtn = document.getElementById("preview-ep-prev-btn");
+        const footerEpNextBtn = document.getElementById("preview-ep-next-btn");
+        const footerEpSelect = document.getElementById("preview-ep-select");
+        const footerEpCounter = document.getElementById("preview-ep-counter");
+        const floatPrevBtn = document.getElementById("preview-stream-floating-prev");
+        const floatNextBtn = document.getElementById("preview-stream-floating-next");
+
         if (!videoFormatSelect || videoFormatSelect.style.display === "none") {
             if (nextBtn) nextBtn.classList.add("hidden");
             if (prevBtn) prevBtn.classList.add("hidden");
+            if (footerEpNav) footerEpNav.classList.add("hidden");
+            if (footerEpCounter) footerEpCounter.classList.add("hidden");
+            if (floatPrevBtn) floatPrevBtn.classList.add("hidden");
+            if (floatNextBtn) floatNextBtn.classList.add("hidden");
             return;
         }
-        const { siblings, currentIndex } = getGroupSiblingsAndIndex();
 
+        const { siblings, currentIndex } = getGroupSiblingsAndIndex();
+        const hasMultiple = (siblings && siblings.length > 1);
+
+        // Player custom video controls buttons
         if (nextBtn) {
-            if (currentIndex !== -1 && currentIndex < siblings.length - 1) {
+            if (hasMultiple && currentIndex !== -1 && currentIndex < siblings.length - 1) {
                 nextBtn.classList.remove("hidden");
             } else {
                 nextBtn.classList.add("hidden");
             }
         }
         if (prevBtn) {
-            if (currentIndex > 0) {
+            if (hasMultiple && currentIndex > 0) {
                 prevBtn.classList.remove("hidden");
             } else {
                 prevBtn.classList.add("hidden");
+            }
+        }
+
+        // Footer episode toolbar
+        if (footerEpNav) {
+            if (hasMultiple) {
+                footerEpNav.classList.remove("hidden");
+            } else {
+                footerEpNav.classList.add("hidden");
+            }
+        }
+
+        const canGoPrev = hasMultiple && currentIndex > 0;
+        const canGoNext = hasMultiple && currentIndex !== -1 && currentIndex < siblings.length - 1;
+
+        if (footerEpPrevBtn) {
+            footerEpPrevBtn.disabled = !canGoPrev;
+            footerEpPrevBtn.classList.toggle("disabled", !canGoPrev);
+            if (canGoPrev) {
+                const prevTitle = siblings[currentIndex - 1]?.textContent || "Tập trước";
+                footerEpPrevBtn.title = `Tập trước: ${prevTitle} (Hotkey: [ hoặc Shift+P)`;
+            } else {
+                footerEpPrevBtn.title = "Không có tập trước đó";
+            }
+        }
+
+        if (footerEpNextBtn) {
+            footerEpNextBtn.disabled = !canGoNext;
+            footerEpNextBtn.classList.toggle("disabled", !canGoNext);
+            if (canGoNext) {
+                const nextTitle = siblings[currentIndex + 1]?.textContent || "Tập sau";
+                footerEpNextBtn.title = `Tập sau: ${nextTitle} (Hotkey: ] hoặc Shift+N)`;
+            } else {
+                footerEpNextBtn.title = "Đã là tập mới nhất";
+            }
+        }
+
+        if (footerEpSelect && videoFormatSelect) {
+            if (footerEpSelect.innerHTML !== videoFormatSelect.innerHTML) {
+                footerEpSelect.innerHTML = videoFormatSelect.innerHTML;
+            }
+            footerEpSelect.value = videoFormatSelect.value;
+        }
+
+        if (footerEpCounter) {
+            if (hasMultiple && currentIndex !== -1) {
+                footerEpCounter.textContent = `${currentIndex + 1} / ${siblings.length}`;
+                footerEpCounter.classList.remove("hidden");
+                footerEpCounter.title = `Tập ${currentIndex + 1} trên tổng số ${siblings.length} tập`;
+            } else {
+                footerEpCounter.classList.add("hidden");
+            }
+        }
+
+        // Floating on-screen navigation buttons on stream player
+        if (floatPrevBtn) {
+            floatPrevBtn.classList.toggle("hidden", !canGoPrev);
+            if (canGoPrev) {
+                const prevTitle = siblings[currentIndex - 1]?.textContent || "Tập trước";
+                floatPrevBtn.title = `Tập trước: ${prevTitle} (Hotkey: [ hoặc Shift+P)`;
+            }
+        }
+        if (floatNextBtn) {
+            floatNextBtn.classList.toggle("hidden", !canGoNext);
+            if (canGoNext) {
+                const nextTitle = siblings[currentIndex + 1]?.textContent || "Tập sau";
+                floatNextBtn.title = `Tập sau: ${nextTitle} (Hotkey: ] hoặc Shift+N)`;
             }
         }
     }
@@ -1526,13 +1700,7 @@ document.addEventListener("DOMContentLoaded", () => {
     if (videoNextBtn) {
         videoNextBtn.addEventListener("click", function (e) {
             e.stopPropagation();
-            if (!videoFormatSelect) return;
-            const { siblings, currentIndex } = getGroupSiblingsAndIndex();
-            if (currentIndex !== -1 && currentIndex < siblings.length - 1) {
-                const nextOpt = siblings[currentIndex + 1];
-                videoFormatSelect.value = nextOpt.value;
-                videoFormatSelect.dispatchEvent(new Event("change"));
-            }
+            handleEpisodeStep(1);
         });
     }
 
@@ -1540,13 +1708,49 @@ document.addEventListener("DOMContentLoaded", () => {
     if (videoPrevBtn) {
         videoPrevBtn.addEventListener("click", function (e) {
             e.stopPropagation();
-            if (!videoFormatSelect) return;
-            const { siblings, currentIndex } = getGroupSiblingsAndIndex();
-            if (currentIndex > 0) {
-                const prevOpt = siblings[currentIndex - 1];
-                videoFormatSelect.value = prevOpt.value;
+            handleEpisodeStep(-1);
+        });
+    }
+
+    const footerEpPrevBtn = document.getElementById("preview-ep-prev-btn");
+    if (footerEpPrevBtn) {
+        footerEpPrevBtn.addEventListener("click", function (e) {
+            e.stopPropagation();
+            handleEpisodeStep(-1);
+        });
+    }
+
+    const footerEpNextBtn = document.getElementById("preview-ep-next-btn");
+    if (footerEpNextBtn) {
+        footerEpNextBtn.addEventListener("click", function (e) {
+            e.stopPropagation();
+            handleEpisodeStep(1);
+        });
+    }
+
+    const footerEpSelect = document.getElementById("preview-ep-select");
+    if (footerEpSelect) {
+        footerEpSelect.addEventListener("change", function (e) {
+            if (videoFormatSelect) {
+                videoFormatSelect.value = this.value;
                 videoFormatSelect.dispatchEvent(new Event("change"));
             }
+        });
+    }
+
+    const floatPrevBtn = document.getElementById("preview-stream-floating-prev");
+    if (floatPrevBtn) {
+        floatPrevBtn.addEventListener("click", function (e) {
+            e.stopPropagation();
+            handleEpisodeStep(-1);
+        });
+    }
+
+    const floatNextBtn = document.getElementById("preview-stream-floating-next");
+    if (floatNextBtn) {
+        floatNextBtn.addEventListener("click", function (e) {
+            e.stopPropagation();
+            handleEpisodeStep(1);
         });
     }
 
@@ -5081,7 +5285,8 @@ document.addEventListener("DOMContentLoaded", () => {
             if (activeMetadata && activeMetadata.video_options) {
                 const opt = activeMetadata.video_options.find(o => o.format_id === formatId);
                 if (opt) {
-                    triggerPreview(null, opt.format_id, opt.ext, opt.label, opt.quality, opt.url, "", "", "video");
+                    const epReferer = opt.referer || (activeMetadata && activeMetadata.webpage_url) || activeUrl || "";
+                    triggerPreview(null, opt.format_id, opt.ext, opt.label, opt.quality, opt.url, opt.episode || "", opt.server || "", "video", epReferer);
                 }
             }
             if (typeof updateEpisodeNavigationButtonsState === "function") {
@@ -5290,6 +5495,47 @@ document.addEventListener("DOMContentLoaded", () => {
                     e.preventDefault();
                     toggleLightsOff();
                     return;
+                }
+
+                // Episode navigation shortcuts (global for both video & stream player)
+                const epNavEl = document.getElementById("preview-episode-nav");
+                const hasEpisodeNav = epNavEl && !epNavEl.classList.contains("hidden");
+
+                if (hasEpisodeNav) {
+                    if (e.shiftKey && (e.key === "N" || e.key === "n")) {
+                        e.preventDefault();
+                        handleEpisodeStep(1);
+                        return;
+                    }
+                    if (e.shiftKey && (e.key === "P" || e.key === "p")) {
+                        e.preventDefault();
+                        handleEpisodeStep(-1);
+                        return;
+                    }
+                    if (e.key === "PageDown") {
+                        e.preventDefault();
+                        handleEpisodeStep(1);
+                        return;
+                    }
+                    if (e.key === "PageUp") {
+                        e.preventDefault();
+                        handleEpisodeStep(-1);
+                        return;
+                    }
+                }
+
+                const isWebpageActive = previewWebpageContainer && !previewWebpageContainer.classList.contains("hidden");
+                if (isWebpageActive && hasEpisodeNav) {
+                    if (e.key === "]") {
+                        e.preventDefault();
+                        handleEpisodeStep(1);
+                        return;
+                    }
+                    if (e.key === "[") {
+                        e.preventDefault();
+                        handleEpisodeStep(-1);
+                        return;
+                    }
                 }
 
                 const isVideoActive = !previewVideoContainer.classList.contains("hidden");
@@ -8520,9 +8766,11 @@ document.addEventListener("DOMContentLoaded", () => {
                     const rowEls = [];
                     grouped[server].forEach(option => {
                         const row = document.createElement("div");
-                        row.className = "format-row video-row";
+                        const isCurrentEp = !!(option.is_current || (data && data.current_format_id && option.format_id === data.current_format_id));
+                        row.className = "format-row video-row" + (isCurrentEp ? " active-episode-row current-ep" : "");
                         const optSize = computeDynamicStreamSize(option);
                         const sizeBadge = optSize ? `<span class="format-size">${optSize}</span>` : '';
+                        const currentBadge = isCurrentEp ? `<span class="current-ep-badge" title="Tập hiện tại theo liên kết đã nhập"><svg viewBox="0 0 24 24" fill="currentColor" width="10" height="10" style="margin-right:3px; vertical-align:-1px;"><polygon points="5 3 19 12 5 21 5 3"/></svg>Đang chọn</span>` : '';
 
                         // Formulate the display label using episode, fall back to option.label
                         let displayLabel = option.label;
@@ -8544,6 +8792,7 @@ document.addEventListener("DOMContentLoaded", () => {
                             <div class="format-left">
                                 ${videoSvg}
                                 <span class="format-name" title="${displayLabel}">${truncateMiddle(displayLabel)}</span>
+                                ${currentBadge}
                                 ${sizeBadge}
                                 ${drmBadge}
                             </div>
@@ -9334,6 +9583,78 @@ document.addEventListener("DOMContentLoaded", () => {
         }
     }
 
+    async function openCompletedTaskFile(filePath, downloadId) {
+        if (window.electronAPI && typeof window.electronAPI.openFile === "function") {
+            window.electronAPI.openFile(filePath);
+            return;
+        }
+        try {
+            const resp = await fetch("/api/download/open-file", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ file_path: filePath, download_id: downloadId })
+            });
+            const data = await resp.json();
+            if (!resp.ok || data.status !== "success") {
+                showAlert("Thông báo", data.message || "Không thể mở tệp tin trực tiếp.");
+            }
+        } catch (err) {
+            console.error("Open file error:", err);
+            showAlert("Lỗi", "Không thể khởi chạy trình phát tập tin.");
+        }
+    }
+
+    function openCompletedTaskPreview(downloadId, cleanName) {
+        if (!previewModal) return;
+        const ext = (cleanName || "").split(".").pop().toLowerCase();
+        const isAudio = ["mp3", "wav", "flac", "m4a", "ogg", "opus", "aac", "wma"].includes(ext);
+        const isImage = ["jpg", "jpeg", "png", "webp", "gif", "bmp", "ico", "svg", "avif"].includes(ext);
+
+        stopAllPreviewPlaybacks();
+        if (typeof window._resetPreviewCardPosition === "function") {
+            window._resetPreviewCardPosition();
+        }
+
+        previewModal.classList.remove("hidden");
+        document.body.classList.add("modal-open");
+        document.body.classList.add("preview-active");
+
+        if (previewVideoContainer) previewVideoContainer.classList.add("hidden");
+        if (previewAudioContainer) previewAudioContainer.classList.add("hidden");
+        if (previewImageContainer) previewImageContainer.classList.add("hidden");
+        if (previewSubtitleContainer) previewSubtitleContainer.classList.add("hidden");
+        if (previewWebpageContainer) previewWebpageContainer.classList.add("hidden");
+
+        if (previewTitle) previewTitle.textContent = cleanName || "Completed File";
+        if (previewMetaInfo) previewMetaInfo.textContent = `Completed Task • ${ext.toUpperCase()}`;
+        hidePreviewLoader();
+
+        const streamUrl = `/api/download/file/${downloadId}?preview=true`;
+        previewActiveDownloadId = downloadId;
+        previewActiveUrl = streamUrl;
+
+        if (isAudio) {
+            if (previewAudioPlayer) {
+                previewAudioPlayer.src = streamUrl;
+                previewAudioPlayer.load();
+                if (previewAudioContainer) previewAudioContainer.classList.remove("hidden");
+                previewAudioPlayer.play().catch(() => {});
+            }
+        } else if (isImage) {
+            if (previewImageContainer && previewImage) {
+                previewImage.src = streamUrl;
+                previewImageContainer.classList.remove("hidden");
+            }
+        } else {
+            if (previewVideoPlayer) {
+                previewVideoPlayer.src = streamUrl;
+                previewVideoPlayer.load();
+                if (previewVideoContainer) previewVideoContainer.classList.remove("hidden");
+                previewVideoPlayer.play().catch(() => {});
+            }
+        }
+    }
+
     async function handleSaveTaskFile(downloadId, defaultName, card = null) {
         if (window.electronAPI && typeof window.electronAPI.saveFile === "function") {
             try {
@@ -9345,19 +9666,44 @@ document.addEventListener("DOMContentLoaded", () => {
                         if (msgSpan) {
                             msgSpan.innerHTML = `Saved: <span style="color: var(--cyan); text-decoration: underline; cursor: pointer;" title="Show in folder">${savedBase}</span>`;
                             msgSpan.onclick = () => {
-                                if (window.electronAPI.showItemInFolder) window.electronAPI.showItemInFolder(res.filePath);
+                                if (window.electronAPI && window.electronAPI.showItemInFolder) {
+                                    window.electronAPI.showItemInFolder(res.filePath);
+                                } else {
+                                    fetch("/api/download/open-folder", { method: "POST" });
+                                }
                             };
                         }
                         const actionsDiv = card.querySelector(".download-task-actions");
                         if (actionsDiv) {
                             actionsDiv.innerHTML = `
-                                <button type="button" class="btn-task-action btn-task-folder" title="Show in folder">Folder</button>
-                                <button type="button" class="btn-task-action btn-task-clear" title="Clear">Clear</button>
+                                <button type="button" class="btn-task-action btn-task-open" title="Open / Play file">
+                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="12" height="12"><polygon points="5 3 19 12 5 21 5 3"></polygon></svg>
+                                    <span>Play</span>
+                                </button>
+                                <button type="button" class="btn-task-action btn-task-folder" title="Show in folder">
+                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="12" height="12"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"></path></svg>
+                                    <span>Folder</span>
+                                </button>
+                                <button type="button" class="btn-task-action btn-task-clear" title="Clear">
+                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="12" height="12"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+                                </button>
                             `;
-                            actionsDiv.querySelector(".btn-task-folder")?.addEventListener("click", () => {
-                                if (window.electronAPI.showItemInFolder) window.electronAPI.showItemInFolder(res.filePath);
+                            actionsDiv.querySelector(".btn-task-open")?.addEventListener("click", () => {
+                                openCompletedTaskFile(res.filePath, downloadId);
                             });
-                            actionsDiv.querySelector(".btn-task-clear")?.addEventListener("click", () => card.remove());
+                            actionsDiv.querySelector(".btn-task-folder")?.addEventListener("click", () => {
+                                if (window.electronAPI && window.electronAPI.showItemInFolder) {
+                                    window.electronAPI.showItemInFolder(res.filePath);
+                                } else {
+                                    fetch("/api/download/open-folder", { method: "POST" });
+                                }
+                            });
+                            actionsDiv.querySelector(".btn-task-clear")?.addEventListener("click", () => {
+                                card.remove();
+                                if (downloadsTasksList && downloadsTasksList.children.length === 0) {
+                                    downloadsManager.classList.add("hidden");
+                                }
+                            });
                         }
                     }
                 } else if (res && res.error) {
@@ -9411,9 +9757,23 @@ document.addEventListener("DOMContentLoaded", () => {
                 const actionsDiv = card.querySelector(".download-task-actions");
                 if (actionsDiv) {
                     actionsDiv.innerHTML = `
-                        <button type="button" class="btn-task-action btn-task-save" title="Save file to device">Save</button>
-                        <button type="button" class="btn-task-action btn-task-clear" title="Clear">Clear</button>
+                        <button type="button" class="btn-task-action btn-task-preview" title="Preview / Play inside application">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="12" height="12"><polygon points="5 3 19 12 5 21 5 3"></polygon></svg>
+                            <span>Play</span>
+                        </button>
+                        <button type="button" class="btn-task-action btn-task-save" title="Save file to device">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="12" height="12"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"></path><polyline points="17 21 17 13 7 13 7 21"></polyline><polyline points="7 3 7 8 15 8"></polyline></svg>
+                            <span>Save</span>
+                        </button>
+                        <button type="button" class="btn-task-action btn-task-clear" title="Clear">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="12" height="12"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+                        </button>
                     `;
+                    actionsDiv.querySelector(".btn-task-preview")?.addEventListener("click", (e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        openCompletedTaskPreview(downloadId, cleanName);
+                    });
                     const saveBtn = actionsDiv.querySelector(".btn-task-save");
                     if (saveBtn) {
                         saveBtn.addEventListener("click", (e) => {
@@ -9465,6 +9825,67 @@ document.addEventListener("DOMContentLoaded", () => {
         }
     }
 
+    async function retryTask(downloadId, card) {
+        if (!card || !card._retryPayload) return;
+        const payload = card._retryPayload;
+        const btn = card._retryBtn;
+        const activeRow = card._retryActiveRow;
+
+        card.className = "download-task-card";
+        const pctSpan = card.querySelector(".download-task-pct");
+        if (pctSpan) pctSpan.textContent = "Retrying...";
+        const fillBar = card.querySelector(".download-task-fill");
+        if (fillBar) {
+            fillBar.className = "download-task-fill striped";
+            fillBar.style.width = "5%";
+        }
+        const msgSpan = card.querySelector(".download-task-msg");
+        if (msgSpan) msgSpan.textContent = "Re-connecting...";
+        const actionsDiv = card.querySelector(".download-task-actions");
+        if (actionsDiv) {
+            actionsDiv.innerHTML = `<button type="button" class="btn-task-action btn-task-cancel" title="Cancel Download">Cancel</button>`;
+        }
+
+        if (activeRow) activeRow.classList.add("is-downloading");
+        if (btn) {
+            btn.disabled = true;
+            btn.style.opacity = "0.6";
+        }
+
+        try {
+            const response = await fetch("/api/download", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify(payload)
+            });
+            const data = await response.json();
+            if (!response.ok || data.status !== "success") {
+                throw new Error(data.message || "Failed to retry download.");
+            }
+
+            const newDownloadId = data.download_id;
+            card.id = `task-card-${newDownloadId}`;
+            const cancelBtn = card.querySelector(".btn-task-cancel");
+            if (cancelBtn) {
+                cancelBtn.addEventListener("click", () => cancelTask(newDownloadId));
+            }
+
+            activeTasks[newDownloadId] = {
+                sse: null,
+                btn,
+                activeRow,
+                isCloudUpload: payload.cloud_destination && payload.cloud_destination !== "local"
+            };
+            updateDownloadsCount();
+
+            const sse = new EventSource(`/api/download/progress/${newDownloadId}`);
+            activeTasks[newDownloadId].sse = sse;
+            setupTaskSSE(newDownloadId, sse, activeRow, btn);
+        } catch (err) {
+            handleDownloadFailure(downloadId, err.message, activeRow, btn);
+        }
+    }
+
     function failTask(downloadId, errorMessage) {
         const task = activeTasks[downloadId];
         if (task) {
@@ -9474,42 +9895,6 @@ document.addEventListener("DOMContentLoaded", () => {
                 } catch (e) {}
                 task.sse = null;
             }
-            
-            const card = document.getElementById(`task-card-${downloadId}`);
-            if (card) {
-                card.className = "download-task-card state-error";
-                
-                const pctSpan = card.querySelector(".download-task-pct");
-                if (pctSpan) pctSpan.textContent = "Error";
-                
-                const fillBar = card.querySelector(".download-task-fill");
-                if (fillBar) {
-                    fillBar.classList.remove("striped");
-                    fillBar.style.width = "100%";
-                }
-                
-                const msgSpan = card.querySelector(".download-task-msg");
-                if (msgSpan) {
-                    msgSpan.textContent = errorMessage || "An error occurred.";
-                }
-                
-                const actionsDiv = card.querySelector(".download-task-actions");
-                if (actionsDiv) {
-                    actionsDiv.innerHTML = `
-                        <button class="btn-task-action btn-task-clear" title="Clear">Clear</button>
-                    `;
-                    const clearBtn = actionsDiv.querySelector(".btn-task-clear");
-                    if (clearBtn) {
-                        clearBtn.addEventListener("click", () => {
-                            card.remove();
-                            if (downloadsTasksList && downloadsTasksList.children.length === 0) {
-                                downloadsManager.classList.add("hidden");
-                            }
-                        });
-                    }
-                }
-            }
-            
             if (task.btn) {
                 task.btn.disabled = false;
                 task.btn.style.opacity = "";
@@ -9517,31 +9902,54 @@ document.addEventListener("DOMContentLoaded", () => {
             if (task.activeRow) {
                 task.activeRow.classList.remove("is-downloading");
             }
-            
             delete activeTasks[downloadId];
             updateDownloadsCount();
-        } else {
-            const card = document.getElementById(`task-card-${downloadId}`);
-            if (card) {
-                card.className = "download-task-card state-error";
-                const pctSpan = card.querySelector(".download-task-pct");
-                if (pctSpan) pctSpan.textContent = "Error";
-                const msgSpan = card.querySelector(".download-task-msg");
-                if (msgSpan) msgSpan.textContent = errorMessage || "Failed to start.";
-                const actionsDiv = card.querySelector(".download-task-actions");
-                if (actionsDiv) {
-                    actionsDiv.innerHTML = `
-                        <button class="btn-task-action btn-task-clear" title="Clear">Clear</button>
-                    `;
-                    const clearBtn = actionsDiv.querySelector(".btn-task-clear");
-                    if (clearBtn) {
-                        clearBtn.addEventListener("click", () => {
-                            card.remove();
-                            if (downloadsTasksList && downloadsTasksList.children.length === 0) {
-                                downloadsManager.classList.add("hidden");
+        }
+
+        const card = document.getElementById(`task-card-${downloadId}`);
+        if (card) {
+            card.className = "download-task-card state-error";
+            const pctSpan = card.querySelector(".download-task-pct");
+            if (pctSpan) pctSpan.textContent = "Error";
+            const fillBar = card.querySelector(".download-task-fill");
+            if (fillBar) {
+                fillBar.classList.remove("striped");
+                fillBar.style.width = "100%";
+            }
+            const msgSpan = card.querySelector(".download-task-msg");
+            if (msgSpan) {
+                msgSpan.textContent = errorMessage || "An error occurred.";
+            }
+
+            const actionsDiv = card.querySelector(".download-task-actions");
+            if (actionsDiv) {
+                const hasRetry = !!(card._retryPayload || card._retryStream);
+                actionsDiv.innerHTML = `
+                    ${hasRetry ? '<button type="button" class="btn-task-action btn-task-retry" title="Retry Download"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="12" height="12"><path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.57-8.38l5.67-5.67"/></svg><span>Retry</span></button>' : ''}
+                    <button type="button" class="btn-task-action btn-task-clear" title="Clear"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="12" height="12"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg></button>
+                `;
+                if (hasRetry) {
+                    const retryBtn = actionsDiv.querySelector(".btn-task-retry");
+                    if (retryBtn) {
+                        retryBtn.addEventListener("click", () => {
+                            if (card._retryPayload) {
+                                retryTask(downloadId, card);
+                            } else if (card._retryStream) {
+                                card.remove();
+                                const s = card._retryStream;
+                                triggerStreamDownload(s.btn, s.formatId, s.ext, s.label, s.quality, s.customUrl, s.episode, s.server);
                             }
                         });
                     }
+                }
+                const clearBtn = actionsDiv.querySelector(".btn-task-clear");
+                if (clearBtn) {
+                    clearBtn.addEventListener("click", () => {
+                        card.remove();
+                        if (downloadsTasksList && downloadsTasksList.children.length === 0 && downloadsManager) {
+                            downloadsManager.classList.add("hidden");
+                        }
+                    });
                 }
             }
         }
@@ -9605,6 +10013,9 @@ document.addEventListener("DOMContentLoaded", () => {
         };
 
         const card = createTaskCard(tempId, displayTitle, "MSE STREAM");
+        if (card) {
+            card._retryStream = { btn, formatId, ext, label, quality, customUrl, episode, server };
+        }
         activeTasks[tempId] = { btn, activeRow, isStreamCapture: true };
         updateDownloadsCount();
         showPlayerToast("Đã bắt đầu tải luồng video trực tiếp trong Downloads Manager...");
@@ -9935,6 +10346,75 @@ document.addEventListener("DOMContentLoaded", () => {
         }, 1000);
     }
 
+    function setupTaskSSE(downloadId, sse, activeRow, btn) {
+        sse.onmessage = (event) => {
+            try {
+                const statusData = JSON.parse(event.data);
+                const card = document.getElementById(`task-card-${downloadId}`);
+                if (!card) return;
+
+                const fillBar = card.querySelector(".download-task-fill");
+                const pctSpan = card.querySelector(".download-task-pct");
+                const msgSpan = card.querySelector(".download-task-msg");
+
+                if (statusData.status === "pending") {
+                    if (fillBar) {
+                        fillBar.classList.add("striped");
+                        fillBar.style.width = "5%";
+                    }
+                    if (pctSpan) pctSpan.textContent = "0%";
+                    if (msgSpan) msgSpan.textContent = statusData.message || "Waiting in line...";
+                }
+                else if (statusData.status === "downloading") {
+                    if (fillBar) {
+                        fillBar.classList.remove("striped");
+                        fillBar.style.width = `${statusData.progress}%`;
+                    }
+                    if (pctSpan) pctSpan.textContent = `${statusData.progress}%`;
+
+                    let msg = statusData.message;
+                    if (statusData.speed && statusData.eta) {
+                        msg += ` | Speed: ${statusData.speed} | ETA: ${statusData.eta}`;
+                    } else if (statusData.speed) {
+                        msg += ` | Speed: ${statusData.speed}`;
+                    } else if (statusData.eta) {
+                        msg += ` | ETA: ${statusData.eta}`;
+                    }
+                    if (msgSpan) msgSpan.textContent = msg;
+                }
+                else if (statusData.status === "merging" || statusData.status === "processing") {
+                    if (fillBar) {
+                        fillBar.classList.add("striped");
+                        fillBar.style.width = `${statusData.progress}%`;
+                    }
+                    if (pctSpan) pctSpan.textContent = `${statusData.progress}%`;
+                    if (msgSpan) {
+                        const stepText = statusData.status === "merging" ? "Merging streams" : "Processing audio";
+                        msgSpan.textContent = `${stepText}: ${statusData.message}`;
+                    }
+                }
+                else if (statusData.status === "complete") {
+                    completeTask(downloadId);
+                }
+                else if (statusData.status === "error") {
+                    throw new Error(statusData.error || statusData.message || "An error occurred on the downloader backend.");
+                }
+            } catch (pollErr) {
+                if (sse) {
+                    sse.close();
+                }
+                handleDownloadFailure(downloadId, pollErr.message, activeRow, btn);
+            }
+        };
+
+        sse.onerror = (err) => {
+            if (sse) {
+                sse.close();
+            }
+            handleDownloadFailure(downloadId, "Loss of SSE connection to server progress handler.", activeRow, btn);
+        };
+    }
+
     async function triggerDownload(btn, formatId, ext, label, quality, customUrl, episode = "", server = "", forceRaw = false, capturedAudioSettings = null, capturedSubtitleSettings = null, customThumbnail = "") {
         const title = videoTitle.textContent;
         const tempId = "temp-" + Date.now();
@@ -10146,6 +10626,9 @@ document.addEventListener("DOMContentLoaded", () => {
             const cardEl = document.getElementById(`task-card-${tempId}`);
             if (cardEl) {
                 cardEl.id = `task-card-${downloadId}`;
+                cardEl._retryPayload = requestBody;
+                cardEl._retryBtn = btn;
+                cardEl._retryActiveRow = activeRow;
                 const cancelBtn = cardEl.querySelector(".btn-task-cancel");
                 if (cancelBtn) {
                     const newCancelBtn = cancelBtn.cloneNode(true);
@@ -10167,73 +10650,7 @@ document.addEventListener("DOMContentLoaded", () => {
             const sse = new EventSource(`/api/download/progress/${downloadId}`);
             activeTasks[downloadId].sse = sse;
             updateDownloadsCount();
-
-            sse.onmessage = (event) => {
-                try {
-                    const statusData = JSON.parse(event.data);
-                    const card = document.getElementById(`task-card-${downloadId}`);
-                    if (!card) return;
-
-                    const fillBar = card.querySelector(".download-task-fill");
-                    const pctSpan = card.querySelector(".download-task-pct");
-                    const msgSpan = card.querySelector(".download-task-msg");
-
-                    if (statusData.status === "pending") {
-                        if (fillBar) {
-                            fillBar.classList.add("striped");
-                            fillBar.style.width = "5%";
-                        }
-                        if (pctSpan) pctSpan.textContent = "0%";
-                        if (msgSpan) msgSpan.textContent = statusData.message || "Waiting in line...";
-                    }
-                    else if (statusData.status === "downloading") {
-                        if (fillBar) {
-                            fillBar.classList.remove("striped");
-                            fillBar.style.width = `${statusData.progress}%`;
-                        }
-                        if (pctSpan) pctSpan.textContent = `${statusData.progress}%`;
-
-                        let msg = statusData.message;
-                        if (statusData.speed && statusData.eta) {
-                            msg += ` | Speed: ${statusData.speed} | ETA: ${statusData.eta}`;
-                        } else if (statusData.speed) {
-                            msg += ` | Speed: ${statusData.speed}`;
-                        } else if (statusData.eta) {
-                            msg += ` | ETA: ${statusData.eta}`;
-                        }
-                        if (msgSpan) msgSpan.textContent = msg;
-                    }
-                    else if (statusData.status === "merging" || statusData.status === "processing") {
-                        if (fillBar) {
-                            fillBar.classList.add("striped");
-                            fillBar.style.width = `${statusData.progress}%`;
-                        }
-                        if (pctSpan) pctSpan.textContent = `${statusData.progress}%`;
-                        if (msgSpan) {
-                            const stepText = statusData.status === "merging" ? "Merging streams" : "Processing audio";
-                            msgSpan.textContent = `${stepText}: ${statusData.message}`;
-                        }
-                    }
-                    else if (statusData.status === "complete") {
-                        completeTask(downloadId);
-                    }
-                    else if (statusData.status === "error") {
-                        throw new Error(statusData.error || statusData.message || "An error occurred on the downloader backend.");
-                    }
-                } catch (pollErr) {
-                    if (sse) {
-                        sse.close();
-                    }
-                    handleDownloadFailure(downloadId, pollErr.message, activeRow, btn);
-                }
-            };
-
-            sse.onerror = (err) => {
-                if (sse) {
-                    sse.close();
-                }
-                handleDownloadFailure(downloadId, "Loss of SSE connection to server progress handler.", activeRow, btn);
-            };
+            setupTaskSSE(downloadId, sse, activeRow, btn);
 
         } catch (err) {
             handleDownloadFailure(tempId, err.message, activeRow, btn);
@@ -10407,12 +10824,14 @@ document.addEventListener("DOMContentLoaded", () => {
                         }
                     });
 
+                    const targetFormatId = formatId || (activeMetadata && activeMetadata.current_format_id) || "";
+
                     // Append ungrouped options first
                     ungrouped.forEach(item => {
                         const optionEl = document.createElement("option");
                         optionEl.value = item.opt.format_id;
                         optionEl.textContent = item.text;
-                        if (item.opt.format_id === formatId) {
+                        if (item.opt.format_id === targetFormatId || (!targetFormatId && item.opt.is_current)) {
                             optionEl.selected = true;
                         }
                         videoFormatSelect.appendChild(optionEl);
@@ -10427,7 +10846,7 @@ document.addEventListener("DOMContentLoaded", () => {
                             const optionEl = document.createElement("option");
                             optionEl.value = item.opt.format_id;
                             optionEl.textContent = item.text;
-                            if (item.opt.format_id === formatId) {
+                            if (item.opt.format_id === targetFormatId || (!targetFormatId && item.opt.is_current)) {
                                 optionEl.selected = true;
                             }
                             optgroupEl.appendChild(optionEl);
@@ -10641,6 +11060,11 @@ document.addEventListener("DOMContentLoaded", () => {
                                 if (previewWebpagePauseIndicator) previewWebpagePauseIndicator.classList.remove("hidden");
                             } else if (e.message === '__WV_PLAYING__') {
                                 if (previewWebpagePauseIndicator) previewWebpagePauseIndicator.classList.add("hidden");
+                            } else if (e.message === '__WV_ENDED__') {
+                                const toggleAutoplayNext = document.getElementById("toggle-autoplay-next");
+                                if (toggleAutoplayNext && toggleAutoplayNext.checked) {
+                                    handleEpisodeStep(1);
+                                }
                             }
                         });
                     }
@@ -10762,6 +11186,9 @@ document.addEventListener("DOMContentLoaded", () => {
                                                     scrub();
                                                     console.log('__WV_PLAYING__');
                                                 });
+                                                p.on('complete', () => {
+                                                    console.log('__WV_ENDED__');
+                                                });
                                                 clearInterval(hookPlayer);
                                             }
                                         }
@@ -10780,6 +11207,9 @@ document.addEventListener("DOMContentLoaded", () => {
                                             v.addEventListener('play', () => {
                                                 scrub();
                                                 console.log('__WV_PLAYING__');
+                                            });
+                                            v.addEventListener('ended', () => {
+                                                console.log('__WV_ENDED__');
                                             });
                                         }
                                     };
@@ -15975,4 +16405,161 @@ document.addEventListener("DOMContentLoaded", () => {
             hideClipboardToast();
         });
     }
+
+    // --- Application Auto-Update Floating Card & Controls ---
+    const updateProgressToast = document.getElementById("update-progress-toast");
+    const updateToastTitle = document.getElementById("update-toast-title");
+    const updateToastCloseBtn = document.getElementById("update-toast-close-btn");
+    const updateStatusText = document.getElementById("update-status-text");
+    const updatePercentText = document.getElementById("update-percent-text");
+    const updateProgressBarFill = document.getElementById("update-progress-bar-fill");
+    const updateBytesText = document.getElementById("update-bytes-text");
+    const updateSpeedText = document.getElementById("update-speed-text");
+    const updateActionsContainer = document.getElementById("update-actions-container");
+    const btnUpdateInstallNow = document.getElementById("btn-update-install-now");
+    const btnUpdateInstallQuit = document.getElementById("btn-update-install-quit");
+    const btnCheckAppUpdate = document.getElementById("btn-check-app-update");
+
+    function showUpdateToast(title = "Cập nhật ứng dụng") {
+        if (!updateProgressToast) return;
+        if (updateToastTitle) updateToastTitle.textContent = title;
+        updateProgressToast.classList.remove("hidden");
+        updateProgressToast.classList.add("show");
+    }
+
+    function hideUpdateToast() {
+        if (!updateProgressToast) return;
+        updateProgressToast.classList.remove("show");
+        updateProgressToast.classList.add("hidden");
+    }
+
+    if (updateToastCloseBtn) {
+        updateToastCloseBtn.addEventListener("click", () => {
+            hideUpdateToast();
+        });
+    }
+
+    if (btnCheckAppUpdate) {
+        btnCheckAppUpdate.addEventListener("click", () => {
+            if (window.electronAPI && window.electronAPI.checkForUpdates) {
+                window.electronAPI.checkForUpdates();
+                if (typeof showAlert === "function") {
+                    showAlert("Kiểm tra cập nhật", "Đang gửi yêu cầu kiểm tra bản cập nhật mới nhất...");
+                }
+            } else {
+                if (typeof showAlert === "function") {
+                    showAlert("Thông báo", "Tính năng tự động cập nhật chỉ khả dụng trên ứng dụng Desktop.");
+                } else {
+                    alert("Tính năng tự động cập nhật chỉ khả dụng trên ứng dụng Desktop.");
+                }
+            }
+        });
+    }
+
+    if (btnUpdateInstallNow) {
+        btnUpdateInstallNow.addEventListener("click", () => {
+            if (window.electronAPI && window.electronAPI.installUpdateNow) {
+                if (updateStatusText) updateStatusText.textContent = "Đang khởi động trình cài đặt...";
+                window.electronAPI.installUpdateNow();
+            }
+        });
+    }
+
+    if (btnUpdateInstallQuit) {
+        btnUpdateInstallQuit.addEventListener("click", () => {
+            if (window.electronAPI && window.electronAPI.installUpdateOnQuit) {
+                window.electronAPI.installUpdateOnQuit();
+                hideUpdateToast();
+                if (typeof showAlert === "function") {
+                    showAlert("Đã lưu thiết lập", "Bản cập nhật mới sẽ được tự động cài đặt khi bạn đóng ứng dụng.");
+                }
+            }
+        });
+    }
+
+    if (window.electronAPI && window.electronAPI.onUpdateProgress) {
+        window.electronAPI.onUpdateProgress((prog) => {
+            if (!updateProgressToast) return;
+            showUpdateToast(`Cập nhật v${prog.version || ""}`);
+
+            const pct = Math.max(0, Math.min(100, Math.round(prog.percent || 0)));
+            if (updateProgressBarFill) updateProgressBarFill.style.width = `${pct}%`;
+            if (updatePercentText) updatePercentText.textContent = `${pct}%`;
+
+            if (prog.status === "starting") {
+                if (updateStatusText) updateStatusText.textContent = "Bắt đầu tải bản cập nhật...";
+                if (updateActionsContainer) updateActionsContainer.classList.add("hidden");
+            } else if (prog.status === "downloading") {
+                if (updateStatusText) updateStatusText.textContent = "Đang tải bản cập nhật ngầm...";
+                if (updateBytesText) {
+                    const trans = prog.transferred ? `${prog.transferred} MB` : "";
+                    const tot = prog.total ? `${prog.total} MB` : "";
+                    updateBytesText.textContent = trans && tot ? `${trans} / ${tot}` : "";
+                }
+                if (updateSpeedText) updateSpeedText.textContent = prog.speed || "";
+                if (updateActionsContainer) updateActionsContainer.classList.add("hidden");
+            } else if (prog.status === "completed") {
+                if (updateStatusText) updateStatusText.textContent = "Đã tải xong bản cập nhật!";
+                if (updateBytesText) updateBytesText.textContent = "Sẵn sàng nâng cấp";
+                if (updateSpeedText) updateSpeedText.textContent = "";
+                if (updateProgressBarFill) updateProgressBarFill.style.width = "100%";
+                if (updatePercentText) updatePercentText.textContent = "100%";
+                if (updateActionsContainer) updateActionsContainer.classList.remove("hidden");
+            } else if (prog.status === "error") {
+                if (updateStatusText) updateStatusText.textContent = `Lỗi tải: ${prog.error || "Không xác định"}`;
+                if (updateProgressBarFill) updateProgressBarFill.style.backgroundColor = "#ef4444";
+            }
+        });
+    }
+
+    // --- Network Offline / Online Monitor ---
+    let networkToastTimer = null;
+    function showNetworkToast(isOnline) {
+        let toast = document.getElementById("network-status-toast");
+        if (!toast) {
+            toast = document.createElement("div");
+            toast.id = "network-status-toast";
+            toast.className = "network-status-toast";
+            document.body.appendChild(toast);
+        }
+        clearTimeout(networkToastTimer);
+
+        if (isOnline) {
+            toast.className = "network-status-toast online show";
+            toast.innerHTML = `
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16">
+                    <path d="M5 12.55a11 11 0 0 1 14.08 0"></path>
+                    <path d="M1.42 9a16 16 0 0 1 21.16 0"></path>
+                    <path d="M8.53 16.11a6 6 0 0 1 6.95 0"></path>
+                    <line x1="12" y1="20" x2="12.01" y2="20"></line>
+                </svg>
+                <span>Kết nối mạng Internet đã phục hồi</span>
+            `;
+            networkToastTimer = setTimeout(() => {
+                toast.classList.remove("show");
+            }, 4000);
+        } else {
+            toast.className = "network-status-toast offline show";
+            toast.innerHTML = `
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16">
+                    <line x1="1" y1="1" x2="23" y2="23"></line>
+                    <path d="M16.72 11.06A10.94 10.94 0 0 1 19 12.55"></path>
+                    <path d="M5 12.55a10.94 10.94 0 0 1 5.17-2.39"></path>
+                    <path d="M10.71 5.05A16 16 0 0 1 22.58 9"></path>
+                    <path d="M1.42 9a15.91 15.91 0 0 1 4.7-2.88"></path>
+                    <path d="M8.53 16.11a6 6 0 0 1 6.95 0"></path>
+                    <line x1="12" y1="20" x2="12.01" y2="20"></line>
+                </svg>
+                <span>Mất kết nối Internet. Tiến trình tải có thể bị gián đoạn</span>
+            `;
+        }
+    }
+
+    window.addEventListener("offline", () => {
+        showNetworkToast(false);
+    });
+
+    window.addEventListener("online", () => {
+        showNetworkToast(true);
+    });
 });

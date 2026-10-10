@@ -261,6 +261,42 @@
                 </select>
               </div>
 
+              <!-- Download Location -->
+              <div class="global-settings-row border-top">
+                <label class="global-settings-title-label" for="global-downloads-dir">Downloads Location:</label>
+                <div class="downloads-location-picker" style="display: flex; gap: 6px; align-items: center; width: 100%; margin-top: 5px;">
+                  <input
+                    type="text"
+                    id="global-downloads-dir"
+                    class="global-settings-input"
+                    readonly
+                    style="flex: 1; font-size: 0.72rem; cursor: pointer; text-overflow: ellipsis;"
+                    title="Click to open downloads folder"
+                    placeholder="Downloads/EveryThingDownloader"
+                  />
+                  <button
+                    type="button"
+                    id="btn-settings-change-dir"
+                    class="btn-toggle-cookies"
+                    title="Change download folder (Electron)"
+                    style="margin: 0; padding: 4px 8px; height: 32px; font-size: 0.72rem; display: none;"
+                  >
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" width="13" height="13"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path></svg>
+                    <span>Change</span>
+                  </button>
+                  <button
+                    type="button"
+                    id="btn-settings-open-dir"
+                    class="btn-toggle-cookies"
+                    title="Open downloads folder"
+                    style="margin: 0; padding: 4px 8px; height: 32px; font-size: 0.72rem;"
+                  >
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" width="13" height="13"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"></path></svg>
+                    <span>Open</span>
+                  </button>
+                </div>
+              </div>
+
               <!-- Telegram Bot Config (Global) -->
               <div class="global-settings-row border-top">
                 <label class="global-settings-title-label">Telegram Cloud Sync:</label>
@@ -332,6 +368,30 @@
                       <path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.57-8.38l5.67-5.67" />
                     </svg>
                     <span>Update Engine</span>
+                  </button>
+                </div>
+                <div class="settings-row" style="display: flex; gap: 8px; margin-top: 8px;">
+                  <button
+                    type="button"
+                    id="btn-check-app-update"
+                    class="btn-update-engine"
+                    title="Check for Application Updates"
+                    style="margin: 0; flex: 1; justify-content: center; height: 34px;"
+                  >
+                    <svg
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      stroke-width="1.5"
+                      stroke-linecap="round"
+                      stroke-linejoin="round"
+                      style="width: 14px; height: 14px;"
+                    >
+                      <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                      <polyline points="7 10 12 15 17 10" />
+                      <line x1="12" y1="15" x2="12" y2="3" />
+                    </svg>
+                    <span>Check App Update</span>
                   </button>
                 </div>
               </div>
@@ -1723,7 +1783,22 @@
               <span id="downloads-active-count" class="downloads-count-badge">0</span>
             </div>
             <div class="downloads-manager-controls">
-              <button id="downloads-toggle-btn" class="downloads-toggle-btn" title="Minimize/Maximize">&#9662;</button>
+              <button id="downloads-open-folder-btn" class="downloads-action-icon-btn" title="Open Downloads Folder" aria-label="Open Downloads Folder">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="14" height="14">
+                  <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"></path>
+                </svg>
+              </button>
+              <button id="downloads-clear-all-btn" class="downloads-action-icon-btn" title="Clear Completed Tasks" aria-label="Clear Completed Tasks">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="14" height="14">
+                  <polyline points="3 6 5 6 21 6"></polyline>
+                  <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+                </svg>
+              </button>
+              <button id="downloads-toggle-btn" class="downloads-toggle-btn" title="Minimize/Maximize" aria-label="Toggle Downloads Panel">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="14" height="14">
+                  <polyline points="6 9 12 15 18 9"></polyline>
+                </svg>
+              </button>
             </div>
           </div>
           <div class="downloads-manager-body" id="downloads-manager-body">
@@ -2031,7 +2106,12 @@
                   <div id="video-settings-menu" class="video-settings-menu hidden">
                     <div class="settings-menu-header">
                       <span>Video Settings</span>
-                      <button id="close-settings-menu-btn" class="settings-close-btn">&times;</button>
+                      <button id="close-settings-menu-btn" class="settings-close-btn" aria-label="Close Settings">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="14" height="14">
+                          <line x1="18" y1="6" x2="6" y2="18"></line>
+                          <line x1="6" y1="6" x2="18" y2="18"></line>
+                        </svg>
+                      </button>
                     </div>
 
                     <!-- Tabs Header Bar -->
@@ -2555,7 +2635,12 @@
                   </h4>
                   <div style="display: flex; align-items: center; gap: 8px;">
                     <button id="toggle-edit-transcript-btn" class="toggle-edit-btn" title="Toggle edit mode">Edit Mode</button>
-                    <button id="close-transcript-sidebar-btn" class="transcript-close-btn" title="Hide Transcript">&times;</button>
+                    <button id="close-transcript-sidebar-btn" class="transcript-close-btn" title="Hide Transcript" aria-label="Hide Transcript">
+                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="14" height="14">
+                        <line x1="18" y1="6" x2="6" y2="18"></line>
+                        <line x1="6" y1="6" x2="18" y2="18"></line>
+                      </svg>
+                    </button>
                   </div>
                 </div>
                 <input type="text" id="transcript-search" class="transcript-search-input" placeholder="Search transcript...">
@@ -3018,6 +3103,17 @@
             <div id="preview-webpage-pause-indicator" class="hidden" style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); width: 72px; height: 72px; border-radius: 50%; background: rgba(15, 16, 21, 0.75); backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px); display: flex; align-items: center; justify-content: center; pointer-events: none; z-index: 10; box-shadow: 0 4px 24px rgba(0,0,0,0.6); border: 1.5px solid rgba(255,255,255,0.2); transition: opacity 0.2s ease;">
               <svg viewBox="0 0 240 240" fill="currentColor" width="34" height="34" style="color: #ffffff; filter: drop-shadow(0 2px 4px rgba(0,0,0,0.5));"><path d="M100,194.9c0.2,2.6-1.8,4.8-4.4,5c-0.2,0-0.4,0-0.6,0H65c-2.6,0.2-4.8-1.8-5-4.4c0-0.2,0-0.4,0-0.6V45c-0.2-2.6,1.8-4.8,4.4-5c0.2,0,0.4,0,0.6,0h30c2.6-0.2,4.8,1.8,5,4.4c0,0.2,0,0.4,0,0.6V194.9z M180,45.1c0.2-2.6-1.8-4.8-4.4-5c-0.2,0-0.4,0-0.6,0h-30c-2.6-0.2-4.8,1.8-5,4.4c0,0.2,0,0.4,0,0.6V195c-0.2,2.6,1.8,4.8,4.4,5c0.2,0,0.4,0,0.6,0h30c2.6,0.2,4.8-1.8,5-4.4c0-0.2,0-0.4,0-0.6V45.1z"/></svg>
             </div>
+            <!-- Floating On-Screen Episode Controls Overlay for Webview Player -->
+            <button id="preview-stream-floating-prev" class="stream-floating-nav-btn stream-floating-prev hidden" title="Tập trước (Hotkey: [ hoặc Shift+P)" aria-label="Tập trước">
+              <svg viewBox="0 0 24 24" fill="currentColor" width="18" height="18">
+                <path d="M6 6h2v12H6V6zm3.5 6l8.5 6V6l-8.5 6z"/>
+              </svg>
+            </button>
+            <button id="preview-stream-floating-next" class="stream-floating-nav-btn stream-floating-next hidden" title="Tập sau (Hotkey: ] hoặc Shift+N)" aria-label="Tập sau">
+              <svg viewBox="0 0 24 24" fill="currentColor" width="18" height="18">
+                <path d="M6 18l8.5-6L6 6v12zM16 6v12h2V6h-2z"/>
+              </svg>
+            </button>
           </div>
         </div>
 
@@ -3046,6 +3142,7 @@
               <div class="shortcut-row"><span>Toggle Fullscreen</span><span class="shortcut-key">F</span></div>
               <div class="shortcut-row"><span>Playback Speed</span><span class="keys-group"><span class="shortcut-key">&lt;</span><span class="shortcut-sep">/</span><span class="shortcut-key">&gt;</span></span></div>
               <div class="shortcut-row"><span>Trim Points (Start / End)</span><span class="keys-group"><span class="shortcut-key">[</span><span class="shortcut-sep">/</span><span class="shortcut-key">]</span></span></div>
+              <div class="shortcut-row"><span>Next / Prev Episode</span><span class="keys-group"><span class="shortcut-key">Shift+N</span><span class="shortcut-sep">/</span><span class="shortcut-key">Shift+P</span></span></div>
               <div class="shortcut-row"><span>Seek to 0% - 90%</span><span class="keys-group"><span class="shortcut-key">0</span><span class="shortcut-sep">-</span><span class="shortcut-key">9</span></span></div>
               <div class="shortcut-row"><span>Toggle Lights</span><span class="shortcut-key">O</span></div>
             </div>
@@ -3101,6 +3198,7 @@
               </h5>
               <div class="shortcut-row"><span>Export & Download</span><span class="shortcut-key">D</span></div>
               <div class="shortcut-row"><span>Reload Webpage</span><span class="shortcut-key">R</span></div>
+              <div class="shortcut-row"><span>Next / Prev Episode</span><span class="keys-group"><span class="shortcut-key">]</span><span class="shortcut-sep">/</span><span class="shortcut-key">[</span></span></div>
               <div class="shortcut-row"><span>Toggle Shortcuts Guide</span><span class="keys-group"><span class="shortcut-key">H</span><span class="shortcut-sep">/</span><span class="shortcut-key">?</span></span></div>
               <div class="shortcut-row"><span>Close Preview</span><span class="shortcut-key">Esc</span></div>
             </div>
@@ -3111,6 +3209,25 @@
           <span id="preview-meta-info" class="preview-meta"
             >Quality: Unknown | Size: Unknown</span
           >
+          <div id="preview-episode-nav" class="preview-episode-nav hidden">
+            <button id="preview-ep-prev-btn" class="ep-nav-btn" title="Tập trước (Hotkey: [ hoặc Shift+P)" aria-label="Tập trước">
+              <svg viewBox="0 0 24 24" fill="currentColor" width="14" height="14">
+                <path d="M6 6h2v12H6V6zm3.5 6l8.5 6V6l-8.5 6z"/>
+              </svg>
+              <span>Tập trước</span>
+            </button>
+            <div class="ep-select-wrapper">
+              <select id="preview-ep-select" class="custom-select-menu ep-select-dropdown" title="Chọn tập / Server">
+              </select>
+              <span id="preview-ep-counter" class="ep-counter-badge hidden">0 / 0</span>
+            </div>
+            <button id="preview-ep-next-btn" class="ep-nav-btn" title="Tập sau (Hotkey: ] hoặc Shift+N)" aria-label="Tập sau">
+              <span>Tập sau</span>
+              <svg viewBox="0 0 24 24" fill="currentColor" width="14" height="14">
+                <path d="M6 18l8.5-6L6 6v12zM16 6v12h2V6h-2z"/>
+              </svg>
+            </button>
+          </div>
           <button id="preview-download-btn" class="btn-primary">
             <svg
               viewBox="0 0 24 24"
@@ -3198,7 +3315,12 @@
             </svg>
             <span class="toast-title">Link Detected</span>
           </div>
-          <button id="close-toast-btn" class="toast-close-btn" title="Dismiss">&times;</button>
+          <button id="close-toast-btn" class="toast-close-btn" title="Dismiss" aria-label="Dismiss">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="14" height="14">
+              <line x1="18" y1="6" x2="6" y2="18"></line>
+              <line x1="6" y1="6" x2="18" y2="18"></line>
+            </svg>
+          </button>
         </div>
         <div class="toast-body">
           <span id="toast-link-text" class="toast-link"></span>
@@ -3206,6 +3328,54 @@
         <div class="toast-footer">
           <button id="toast-analyze-btn" class="toast-btn toast-btn-primary">Analyze Now</button>
         </div>
+      </div>
+    </div>
+
+    <!-- App Update Progress Floating Card -->
+    <div id="update-progress-toast" class="update-progress-card hidden" role="region" aria-label="Application Update Status">
+      <div class="update-card-header">
+        <div class="update-card-title-group">
+          <svg class="update-card-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="16" height="16">
+            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+            <polyline points="7 10 12 15 17 10"></polyline>
+            <line x1="12" y1="15" x2="12" y2="3"></line>
+          </svg>
+          <span id="update-toast-title" class="update-card-title">Cập nhật ứng dụng</span>
+        </div>
+        <button id="update-toast-close-btn" class="update-card-close-btn" title="Thu nhỏ / Ẩn" aria-label="Close update card">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="14" height="14">
+            <line x1="18" y1="6" x2="6" y2="18"></line>
+            <line x1="6" y1="6" x2="18" y2="18"></line>
+          </svg>
+        </button>
+      </div>
+      <div class="update-card-body">
+        <div class="update-status-row">
+          <span id="update-status-text" class="update-status-text">Đang tải bản cập nhật...</span>
+          <span id="update-percent-text" class="update-percent-text">0%</span>
+        </div>
+        <div class="update-progress-bar-track">
+          <div id="update-progress-bar-fill" class="update-progress-bar-fill" style="width: 0%;"></div>
+        </div>
+        <div class="update-details-row">
+          <span id="update-bytes-text" class="update-meta-text">0 MB / 0 MB</span>
+          <span id="update-speed-text" class="update-meta-text">0 KB/s</span>
+        </div>
+      </div>
+      <div id="update-actions-container" class="update-card-actions hidden">
+        <button type="button" id="btn-update-install-now" class="update-btn update-btn-primary">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="14" height="14">
+            <polyline points="20 6 9 17 4 12"></polyline>
+          </svg>
+          <span>Cài đặt & Khởi động lại</span>
+        </button>
+        <button type="button" id="btn-update-install-quit" class="update-btn update-btn-secondary">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="14" height="14">
+            <circle cx="12" cy="12" r="10"></circle>
+            <polyline points="12 6 12 12 16 14"></polyline>
+          </svg>
+          <span>Cài khi thoát</span>
+        </button>
       </div>
     </div>
 

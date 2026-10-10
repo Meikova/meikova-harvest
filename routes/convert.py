@@ -56,6 +56,11 @@ def probe_file():
     
     if not file_path or not os.path.exists(file_path):
         return jsonify({"status": "error", "message": "File not found on system."}), 404
+
+    from utils.security import is_safe_local_media_path
+    safe, reason = is_safe_local_media_path(file_path, allow_user_local_media=True)
+    if not safe:
+        return jsonify({"status": "error", "message": f"Security restriction: {reason}"}), 403
         
     try:
         probe_info = probe_media_file(file_path)
@@ -77,6 +82,11 @@ def preview_local_stream():
     file_path = request.args.get("file_path", "").strip()
     if not file_path or not os.path.exists(file_path):
         return jsonify({"status": "error", "message": "File not found on system."}), 404
+
+    from utils.security import is_safe_local_media_path
+    safe, reason = is_safe_local_media_path(file_path, allow_user_local_media=True)
+    if not safe:
+        return jsonify({"status": "error", "message": f"Security restriction: {reason}"}), 403
         
     ext = file_path.rsplit(".", 1)[-1].lower() if "." in file_path else ""
     mime_map = {
@@ -106,6 +116,11 @@ def trigger_conversion():
     
     if not file_path or not os.path.exists(file_path):
         return jsonify({"status": "error", "message": "Source file not found on disk."}), 404
+
+    from utils.security import is_safe_local_media_path
+    safe, reason = is_safe_local_media_path(file_path, allow_user_local_media=True)
+    if not safe:
+        return jsonify({"status": "error", "message": f"Security restriction: {reason}"}), 403
         
     if not target_format:
         return jsonify({"status": "error", "message": "Target format is required."}), 400

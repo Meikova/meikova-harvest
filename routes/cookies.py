@@ -1,7 +1,7 @@
 import os
 import logging
 from flask import Blueprint, request, jsonify
-from config import TEMP_DOWNLOAD_DIR
+from config import TEMP_DOWNLOAD_DIR, COOKIES_DIR
 from utils.cookies import parse_cookies_to_dict, serialize_netscape_cookies
 
 cookies_bp = Blueprint("cookies", __name__)
@@ -30,7 +30,7 @@ def upload_cookies():
     if not new_cookies:
         return jsonify({"status": "error", "message": "The uploaded cookie file is invalid or does not contain valid cookies."}), 400
 
-    cookies_dir = os.path.join(TEMP_DOWNLOAD_DIR, "cookies")
+    cookies_dir = COOKIES_DIR
     os.makedirs(cookies_dir, exist_ok=True)
     
     filepath = os.path.join(cookies_dir, f"cookies_{client_id}.txt")
@@ -65,7 +65,9 @@ def get_cookie_status(client_id):
     if not client_id:
         return jsonify({"has_cookies": False})
         
-    client_cookies = os.path.join(TEMP_DOWNLOAD_DIR, "cookies", f"cookies_{client_id}.txt")
+    client_cookies = os.path.join(COOKIES_DIR, f"cookies_{client_id}.txt")
+    if not os.path.exists(client_cookies):
+        client_cookies = os.path.join(TEMP_DOWNLOAD_DIR, "cookies", f"cookies_{client_id}.txt")
     if not os.path.exists(client_cookies):
         return jsonify({"has_cookies": False})
         
@@ -122,7 +124,7 @@ def paste_cookies():
         if not new_cookies:
             return jsonify({"status": "error", "message": "Cookie content is invalid or does not contain valid cookies."}), 400
 
-        cookies_dir = os.path.join(TEMP_DOWNLOAD_DIR, "cookies")
+        cookies_dir = COOKIES_DIR
         os.makedirs(cookies_dir, exist_ok=True)
         
         filepath = os.path.join(cookies_dir, f"cookies_{client_id}.txt")
@@ -157,7 +159,9 @@ def clear_cookies(client_id):
     if not client_id:
         return jsonify({"status": "error", "message": "Client ID is required."}), 400
         
-    client_cookies = os.path.join(TEMP_DOWNLOAD_DIR, "cookies", f"cookies_{client_id}.txt")
+    client_cookies = os.path.join(COOKIES_DIR, f"cookies_{client_id}.txt")
+    if not os.path.exists(client_cookies):
+        client_cookies = os.path.join(TEMP_DOWNLOAD_DIR, "cookies", f"cookies_{client_id}.txt")
     if os.path.exists(client_cookies):
         try:
             os.remove(client_cookies)

@@ -5,5 +5,5 @@ from .reddit import extract_reddit_via_gallery_dl, scrape_reddit_fallback
 from .pinterest import extract_pinterest_via_gallery_dl
 from .facebook import scrape_fb_post, extract_facebook_story, resolve_facebook_sizes
 from .threads import parse_threads_page, extract_shortcode
-from .generic import generic_html_link_harvester, resolve_hls_size
+from .generic import generic_html_link_harvester, resolve_hls_size, extract_direct_media_info, is_direct_media_url
 from .torrent import extract_torrent_info, is_torrent_input

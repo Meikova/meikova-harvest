@@ -1,4 +1,6 @@
 import os
+import sys
+import subprocess
 import uuid
 import logging
 import threading
@@ -346,6 +348,63 @@ def save_download_to_disk():
         return jsonify({"status": "error", "message": str(e)}), 500
 
 
+@download_bp.route("/api/download/open-folder", methods=["GET", "POST"])
+def open_downloads_folder_endpoint():
+    """Opens the local downloads directory on the host system."""
+    try:
+        folder = os.path.abspath(TEMP_DOWNLOAD_DIR)
+        os.makedirs(folder, exist_ok=True)
+        if sys.platform.startswith("win"):
+            os.startfile(folder)
+        elif sys.platform == "darwin":
+            subprocess.Popen(["open", folder])
+        else:
+            subprocess.Popen(["xdg-open", folder])
+        return jsonify({"status": "success", "folder": folder})
+    except Exception as e:
+        logger.error(f"Failed to open downloads folder: {e}")
+        return jsonify({"status": "error", "message": str(e)}), 500
+
+
+@download_bp.route("/api/download/open-file", methods=["POST"])
+def open_download_file_endpoint():
+    """Opens a downloaded or converted file using the system default player/app."""
+    data = request.get_json() or {}
+    download_id = data.get("download_id")
+    file_path = data.get("file_path")
+    target = None
+
+    if file_path and os.path.exists(file_path):
+        target = file_path
+    elif download_id:
+        with downloads_status_lock:
+            status_info = downloads_status.get(download_id)
+        if status_info and status_info.get("filepath") and os.path.exists(status_info.get("filepath")):
+            target = status_info.get("filepath")
+
+    if not target:
+        return jsonify({"status": "error", "message": "File not found on system."}), 404
+
+    from utils.security import is_safe_local_media_path
+    safe, reason = is_safe_local_media_path(target, allow_user_local_media=True)
+    if not safe:
+        logger.warning(f"Blocked open_file attempt for unsafe target '{target}': {reason}")
+        return jsonify({"status": "error", "message": f"Security restriction: {reason}"}), 403
+
+    try:
+        abs_target = os.path.abspath(target)
+        if sys.platform.startswith("win"):
+            os.startfile(abs_target)
+        elif sys.platform == "darwin":
+            subprocess.Popen(["open", abs_target])
+        else:
+            subprocess.Popen(["xdg-open", abs_target])
+        return jsonify({"status": "success", "file": abs_target})
+    except Exception as e:
+        logger.error(f"Failed to open file {target}: {e}")
+        return jsonify({"status": "error", "message": str(e)}), 500
+
+
 @download_bp.route("/api/download/file/<download_id>", methods=["GET"])
 def get_download_file(download_id):
     with downloads_status_lock:
@@ -535,6 +594,12 @@ def download_image():
     client_id = request.args.get("client_id")
     if not url:
         return "Missing url parameter", 400
+
+    from utils.security import is_safe_remote_url
+    safe, reason = is_safe_remote_url(url)
+    if not safe:
+        logger.warning(f"Blocked download_image SSRF attempt for '{url}': {reason}")
+        return f"Security restriction: {reason}", 403
 
     # Parse Image Filter Parameters
     try:
@@ -755,8 +820,14 @@ def proxy_stream():
     url = request.args.get("url")
     if not url:
         return "Missing url parameter", 400
+    from utils.security import is_safe_local_media_path, is_safe_remote_url
+
     # Serve local media file directly
     if os.path.isabs(url) and os.path.isfile(url):
+        safe, reason = is_safe_local_media_path(url, allow_user_local_media=True)
+        if not safe:
+            logger.warning(f"Blocked proxy_stream local access to '{url}': {reason}")
+            return f"Security restriction: {reason}", 403
         try:
             ext = url.rsplit('.', 1)[-1].lower() if '.' in url else ''
             mime_map = {
@@ -773,7 +844,13 @@ def proxy_stream():
             return send_file(url, mimetype=mimetype, conditional=True)
         except Exception as e:
             return f"Error serving local file: {e}", 500
-        
+
+    # Remote URL SSRF defense
+    safe, reason = is_safe_remote_url(url)
+    if not safe:
+        logger.warning(f"Blocked proxy_stream remote SSRF attempt to '{url}': {reason}")
+        return f"Security restriction: {reason}", 403
+
     client_id = request.args.get("client_id")
     referer = get_referer_by_url(url)
     headers = {
