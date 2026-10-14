@@ -6,8 +6,28 @@
 - Standards: Antigravity Titan Standards, Ponytail Philosophy, TDD, Verification-Before-Completion.
 
 ## Last Updated
-- Timestamp: 2026-10-10 17:10:00
-- Exit Code: 0 (Ran 75 unit tests, 100% OK; JS syntax verified with node -c)
+- Timestamp: 2026-10-14 12:50:00
+- Version: v2.0.1
+- Exit Code: 0 (Ran 78 unit tests, 100% OK; node -c electron/main.js OK)
+
+## Summary of Accomplishments (Sprint v60 - Hotfix v2.0.1: Standalone Server Startup Fix & Packaging Pipeline Hardening)
+1. **Khắc phục Triệt để Lỗi Khởi động Server (`Server did not start within 60s`) trên Bản Cài đặt Desktop**:
+   - **Nguyên nhân cốt lõi phát hiện được**:
+     + `build_tool/packager.py`: Danh sách `hiddenimports` của PyInstaller bị thiếu hàng loạt submodule thiết yếu (`routes.build`, `routes.convert`, `routes.extension`, `tasks.*`, `extractors.*`, `utils.*`, `requests`, `mutagen`, `edge_tts`, `quickjs`, `curl_cffi`, v.v.). Khi PyInstaller đóng gói `server.exe`, các module này bị bỏ rơi, dẫn đến `ModuleNotFoundError` ngay khi ứng dụng khởi chạy.
+     + `build_tool/obfuscator.py`: Bộ biến đổi AST tự tạo (`_NameScrambler`, `_inject_dead_code`, `_StringEncoder`) làm hỏng cú pháp Python: `_inject_dead_code` chèn code không lùi dòng vào giữa các hàm gây `IndentationError`; `_NameScrambler` đổi tên biến ngẫu nhiên giữa các file gây `NameError`; PyArmor trial bị lỗi `ERROR out of license` khi kích hoạt `--mix-str`.
+     + License Guard có `import tkinter as _tk` trong khi `packager.py` lại cấu hình `excludes=['tkinter']`.
+     + `electron/main.js`: Lỗi thoát của `flaskProcess` bị nuốt chửng khi `mainWindow` chưa khởi tạo; `waitForServer` bị treo chờ đủ 60 giây mới báo lỗi hết hạn chung chung.
+   - **Giải pháp xử lý (Ponytail standard & Zero-fluff)**:
+     + Mở rộng toàn diện `hiddenimports` trong `build_tool/packager.py` bao phủ 100% các submodule và thư viện động.
+     + Chuẩn hóa an toàn `build_tool/obfuscator.py` và `build_tool/builder_cli.py`: Thiết lập mặc định `False` cho các bộ biến đổi AST phá vỡ cú pháp; sửa `_inject_dead_code` tự căn chỉnh thụt dòng đúng chuẩn; loại bỏ `--mix-str` khỏi PyArmor; thay thế hoàn toàn `tkinter` trong License Guard bằng Windows native API (`ctypes.windll.user32.MessageBoxW`).
+     + Nâng cấp `electron/main.js`: Bổ sung kiểm tra file thực thi `server.exe` trước khi gọi `spawn`; lưu trữ bộ đệm `startupStderr`; bắt ngay sự kiện thoát tiến trình sớm để báo lỗi chi tiết kèm mã thoát và traceback ngay lập tức thay vì bắt người dùng chờ 60 giây.
+     + Cập nhật workflow CI/CD `.github/workflows/build-and-release.yml` sử dụng PyInstaller chuẩn hóa native bytecode.
+     + Đồng bộ toàn bộ phiên bản dự án lên `v2.0.1` (`electron/package.json`, `electron/config.json`, `electron/package-lock.json`, `electron/splash.html`, `build_tool/builder_gui.html`, `build_tool/packager.py`, `update.json`).
+
+2. **Kiểm thử Xác thực Toàn diện**:
+   - Viết bài kiểm thử tự động `tests/test_builder_version.py` kiểm tra: Toàn vẹn `hiddenimports`, tính an toàn của cấu hình Obfuscation mặc định, và tính đồng nhất của phiên bản `v2.0.1` trên toàn bộ hệ thống.
+   - Kết quả: Toàn bộ 78 tests chạy thành công tuyệt đối (`Ran 78 tests in 47.211s, OK`, Exit Code 0).
+   - Kiểm tra cú pháp JavaScript `node -c electron/main.js` đạt Exit Code 0.
 
 ## Summary of Accomplishments (Sprint v59 - Universal Website Media Analyzer & Direct Fast-Path Harvester)
 1. **Nâng cấp Toàn diện Bộ Phân tích Đa phương tiện cho Mọi Website (`extractors/generic.py`, `extractors/__init__.py`, `routes/info.py`)**:

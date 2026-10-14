@@ -45,12 +45,20 @@ a = Analysis(
         ('{root_dir}/config.py', '.'),
     ],
     hiddenimports=[
-        'flask', 'flask_cors', 'yt_dlp', 'gallery_dl',
-        'static_ffmpeg', 'curl_cffi', 'quickjs',
-        'routes', 'routes.pages', 'routes.info',
-        'routes.download', 'routes.cookies',
-        'extractors', 'utils',
-        'engineio', 'socketio',
+        'flask', 'flask_cors', 'requests', 'curl_cffi', 'brotli',
+        'yt_dlp', 'yt_dlp_ejs', 'gallery_dl', 'static_ffmpeg',
+        'quickjs', 'mutagen', 'edge_tts', 'websockets', 'aiohttp',
+        'PIL', 'pillow_heif', 'Cryptodome',
+        'routes', 'routes.pages', 'routes.cookies', 'routes.info',
+        'routes.download', 'routes.build', 'routes.extension', 'routes.convert',
+        'tasks', 'tasks.download', 'tasks.convert',
+        'extractors', 'extractors.instagram', 'extractors.tiktok',
+        'extractors.twitter', 'extractors.reddit', 'extractors.pinterest',
+        'extractors.facebook', 'extractors.threads', 'extractors.generic',
+        'extractors.torrent',
+        'utils', 'utils.security', 'utils.dns_bypass', 'utils.ffmpeg',
+        'utils.helpers', 'utils.ytdl', 'utils.cookies',
+        'engineio', 'socketio', 'urllib3', 'charset_normalizer',
     ],
     hookspath=[],
     hooksconfig={{}},
@@ -146,7 +154,7 @@ def sanitize_version(version: str | None) -> str:
 class BuildConfig:
     def __init__(self):
         self.app_name:    str  = 'EveryThingDownloader'
-        self._version:    str  = '2.0.0'
+        self._version:    str  = '2.0.1'
         self.company:     str  = 'EveryThingDownloader'
         self.description: str  = 'EveryThingDownloader'
         self.copyright:   str  = f'© 2026 EveryThingDownloader'

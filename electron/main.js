@@ -47,6 +47,8 @@ let tray         = null;
 let flaskProcess = null;
 let serverPort   = DEFAULT_PORT;
 let serverReady  = false;
+let serverExitEarly = null;
+let startupStderr = '';
 
 // ─── Logging ──────────────────────────────────────────────────────────────────
 const log = {
@@ -72,15 +74,25 @@ function findFreePort(start = DEFAULT_PORT) {
 /** Poll GET http://127.0.0.1:<port>/ until 200 or timeout. */
 function waitForServer(port, timeoutMs = SERVER_TIMEOUT) {
   return new Promise((resolve, reject) => {
-    const start    = Date.now();
+    const start = Date.now();
+    serverExitEarly = (err) => {
+      clearInterval(interval);
+      serverExitEarly = null;
+      reject(err);
+    };
+
     const interval = setInterval(() => {
       if (Date.now() - start > timeoutMs) {
         clearInterval(interval);
-        return reject(new Error(`Server did not start within ${timeoutMs / 1000}s`));
+        serverExitEarly = null;
+        const diag = startupStderr.trim() ? `\n\nServer Diagnostics / Stderr:\n${startupStderr.slice(-1500)}` : '';
+        return reject(new Error(`Server did not respond within ${timeoutMs / 1000}s.${diag}`));
       }
       const req = http.get(`http://127.0.0.1:${port}/`, (res) => {
         if (res.statusCode < 500) {
           clearInterval(interval);
+          serverExitEarly = null;
+          serverReady = true;
           resolve();
         }
       });
@@ -95,7 +107,16 @@ function resolveServerPath() {
   if (app.isPackaged) {
     const isWindows = process.platform === 'win32';
     const binaryName = isWindows ? 'server.exe' : 'server';
-    return path.join(process.resourcesPath, binaryName);
+    const candidates = [
+      path.join(process.resourcesPath, binaryName),
+      path.join(process.resourcesPath, 'resources', binaryName),
+      path.join(__dirname, 'resources', binaryName),
+      path.join(app.getAppPath(), '..', 'resources', binaryName),
+    ];
+    for (const p of candidates) {
+      if (fs.existsSync(p)) return p;
+    }
+    return candidates[0];
   }
   // In development, run app.py with the active Python / venv
   return null; // signals "use Python"
@@ -158,6 +179,10 @@ async function startFlaskServer() {
   const serverExe = resolveServerPath();
 
   if (serverExe) {
+    if (!fs.existsSync(serverExe)) {
+      throw new Error(`Server executable not found at:\n${serverExe}\n\nPlease reinstall or rebuild the application.`);
+    }
+
     // Read build config if it exists
     let showConsole = false;
     try {
@@ -205,13 +230,32 @@ async function startFlaskServer() {
     });
   }
 
+  startupStderr = '';
   flaskProcess.stdout?.on('data', (d) => log.info('[Flask]', d.toString().trimEnd()));
-  flaskProcess.stderr?.on('data', (d) => log.warn('[Flask]', d.toString().trimEnd()));
-  flaskProcess.on('error', (err) => log.error('Flask process error:', err));
+  flaskProcess.stderr?.on('data', (d) => {
+    const text = d.toString();
+    startupStderr += text;
+    if (startupStderr.length > 8192) {
+      startupStderr = startupStderr.slice(-8192);
+    }
+    log.warn('[Flask]', text.trimEnd());
+  });
+  flaskProcess.on('error', (err) => {
+    log.error('Flask process error:', err);
+    if (!serverReady && typeof serverExitEarly === 'function') {
+      serverExitEarly(err);
+    }
+  });
   flaskProcess.on('exit', (code) => {
     log.info(`Flask exited with code ${code}`);
     flaskProcess = null;
-    if (mainWindow && !app.isQuitting) {
+    if (!serverReady) {
+      const errDetail = startupStderr.trim() || `Process exited with code ${code} without output.`;
+      const err = new Error(`Internal server process terminated prematurely (exit code ${code}).\n\nError details:\n${errDetail}`);
+      if (typeof serverExitEarly === 'function') {
+        serverExitEarly(err);
+      }
+    } else if (mainWindow && !app.isQuitting) {
       dialog.showErrorBox(APP_NAME, 'The internal server stopped unexpectedly.\nPlease restart the application.');
     }
   });

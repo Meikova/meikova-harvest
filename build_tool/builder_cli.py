@@ -648,21 +648,21 @@ Examples:
     obf.add_argument('--no-pyarmor', dest='pyarmor', action='store_false')
     obf.add_argument('--pyarmor-level', type=int, choices=[0, 1, 2], default=1,
                      help='PyArmor obfuscation level (0=off, 1=standard, 2=advanced)')
-    obf.add_argument('--pyarmor-mix-str', action='store_true', default=True,
+    obf.add_argument('--pyarmor-mix-str', action='store_true', default=False,
                      help='Scramble string literals with PyArmor')
     obf.add_argument('--no-pyarmor-mix-str', dest='pyarmor_mix_str', action='store_false')
-    obf.add_argument('--scramble', action='store_true', default=True,
+    obf.add_argument('--scramble', action='store_true', default=False,
                      help='Scramble variable/function names (AST)')
     obf.add_argument('--no-scramble', dest='scramble', action='store_false')
-    obf.add_argument('--encode-strings', action='store_true', default=True,
+    obf.add_argument('--encode-strings', action='store_true', default=False,
                      help='Encode string literals')
     obf.add_argument('--no-encode-strings', dest='encode_strings', action='store_false')
-    obf.add_argument('--dead-code', action='store_true', default=True,
+    obf.add_argument('--dead-code', action='store_true', default=False,
                      help='Inject dead code to confuse analysis')
     obf.add_argument('--no-dead-code', dest='dead_code', action='store_false')
     obf.add_argument('--dead-code-count', type=int, default=15,
                      help='Number of dead code blocks per file')
-    obf.add_argument('--antidebug', action='store_true', default=True,
+    obf.add_argument('--antidebug', action='store_true', default=False,
                      help='Add anti-debug checks')
     obf.add_argument('--no-antidebug', dest='antidebug', action='store_false')
 
@@ -681,7 +681,7 @@ Examples:
     build = parser.add_argument_group('Build Settings')
     build.add_argument('--name', default='EveryThingDownloader',
                        help='Output application name')
-    build.add_argument('--version', default='1.0.0', help='Application version')
+    build.add_argument('--version', default='2.0.1', help='Application version')
     build.add_argument('--icon', help='Path to icon file (.ico on Windows, .png/.icns on macOS)')
     build.add_argument('--upx', action='store_true',
                        help='Use UPX compression (reduces size, slower startup)')

@@ -1,11 +1,11 @@
 {
-    "version": "2.0.0",
-    "url": "https://github.com/m3iK18dp/EveryThingDownloader-Tool/releases/download/v2.0.0/EveryThingDownloader-Setup-2.0.0.exe",
+    "version": "2.0.1",
+    "url": "https://github.com/m3iK18dp/EveryThingDownloader-Tool/releases/download/v2.0.1/EveryThingDownloader-Setup-2.0.1.exe",
     "platforms": {
-        "win32": "https://github.com/m3iK18dp/EveryThingDownloader-Tool/releases/download/v2.0.0/EveryThingDownloader-Setup-2.0.0.exe",
-        "darwin_arm64": "https://github.com/m3iK18dp/EveryThingDownloader-Tool/releases/download/v2.0.0/EveryThingDownloader-2.0.0-arm64.dmg",
-        "darwin_x64": "https://github.com/m3iK18dp/EveryThingDownloader-Tool/releases/download/v2.0.0/EveryThingDownloader-2.0.0-x64.dmg",
-        "linux_x64": "https://github.com/m3iK18dp/EveryThingDownloader-Tool/releases/download/v2.0.0/EveryThingDownloader-2.0.0-x64.AppImage"
+        "win32": "https://github.com/m3iK18dp/EveryThingDownloader-Tool/releases/download/v2.0.1/EveryThingDownloader-Setup-2.0.1.exe",
+        "darwin_arm64": "https://github.com/m3iK18dp/EveryThingDownloader-Tool/releases/download/v2.0.1/EveryThingDownloader-2.0.1-arm64.dmg",
+        "darwin_x64": "https://github.com/m3iK18dp/EveryThingDownloader-Tool/releases/download/v2.0.1/EveryThingDownloader-2.0.1-x64.dmg",
+        "linux_x64": "https://github.com/m3iK18dp/EveryThingDownloader-Tool/releases/download/v2.0.1/EveryThingDownloader-2.0.1-x64.AppImage"
     },
-    "changelog": "EVERYTHING DOWNLOADER ENTERPRISE RELEASE V2.0.0:\n- Universal Website Media Analyzer: Trích xuất tức thì (<100ms) mọi định dạng trực tiếp (.m3u8, .mpd, .mp4, .webm, .mp3, .m4a, v.v.) và tự động bung HLS master variants (1080p, 720p, 480p, 360p).\n- Deep Semantic Media Harvester: Hỗ trợ Schema.org JSON-LD Video/Audio, OpenGraph/Twitter Cards, Next.js/Nuxt payloads, JWPlayer/Plyr/Video.js và thẻ HTML5 video/audio trên mọi trang web.\n- Deep Security Hardening: Chặn hoàn toàn SSRF (chặn Private IP, Link-Local, AWS/GCP Metadata, Loopback) và Path Traversal (chặn tệp thực thi, giam giữ thư mục an toàn), siết chặt CORS.\n- Instant Download Task Retry & Self-Healing: Nút Thử lại trực tiếp trên thẻ lỗi, tự động phục hồi kết nối SSE và tiến độ tải không cần phân tích lại URL.\n- Direct Launch & Show in Folder: Nút phát trực tiếp file hoàn thành bằng trình phát hệ điều hành hoặc preview tích hợp, nút mở thư mục 1 chạm trong Explorer/Finder.\n- Customizable Downloads Location: Cấu hình thư mục tải về tùy chọn trong Global Settings, lưu trữ bền vững tại User Data Directory không bị mất khi cập nhật.\n- Network Resiliency: Giám sát kết nối mạng Online/Offline tự động với thanh cảnh báo glassmorphism nổi và khôi phục tác vụ gián đoạn.\n- Chuẩn hóa 100% Vector SVG: Triệt tiêu hoàn toàn Unicode/emoji icon cũ, thay thế bằng inline SVG chuẩn nét trên toàn giao diện."
+    "changelog": "EVERYTHING DOWNLOADER HOTFIX RELEASE V2.0.1:\n- Fix Standalone Server Startup Failure: Sửa triệt để lỗi không khởi động được server.exe trong bản cài đặt Desktop (.exe/Setup).\n- Expanded Hidden Imports: Bổ sung toàn diện tất cả các submodules (routes.*, tasks.*, extractors.*, utils.*) vào cấu hình đóng gói PyInstaller để tránh ModuleNotFoundError.\n- Safe Obfuscator Defaults: Vô hiệu hóa các bộ biến đổi AST phá vỡ cú pháp Python và loại bỏ xung đột PyArmor trial license.\n- Instant Startup Diagnostics: Báo cáo lỗi chi tiết ngay lập tức nếu server.exe gặp sự cố, loại bỏ hoàn toàn việc chờ 60s vô ích.\n- Native Message Box: Thay thế hoàn toàn phụ thuộc tkinter trong License Guard bằng Windows native API, loại bỏ lỗi thiếu thư viện giao diện khi đóng gói."
 }

@@ -46,7 +46,7 @@ jobs:
 
       - name: Run build tool
         run: |
-          python build_tool/builder_cli.py --target both --name EveryThingDownloader --version ${{ env.VERSION }} --company EveryThingDownloader --description EveryThingDownloader --copyright "© 2026 EveryThingDownloader" --obfuscate --pyarmor-level 2
+          python build_tool/builder_cli.py --target both --name EveryThingDownloader --version ${{ env.VERSION }} --company EveryThingDownloader --description EveryThingDownloader --copyright "© 2026 EveryThingDownloader"
 
       - name: Rename Web Binary for platform identification
         shell: bash

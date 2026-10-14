@@ -118,6 +118,18 @@ def __{fn}_check_license():
     # -- Anti-debug --
     _antidebug = {antidebug!r}
 
+    def _alert_error(title, msg):
+        try:
+            if _platform.system() == 'Windows':
+                import ctypes as _ct
+                _ct.windll.user32.MessageBoxW(0, msg, title, 0x10)
+        except Exception:
+            pass
+        try:
+            _sys.stderr.write(f"[{title}] {msg}\n")
+        except Exception:
+            pass
+
     # ---- anti-debug ----
     if _antidebug:
         try:
@@ -138,16 +150,10 @@ def __{fn}_check_license():
     if _expiry_date:
         _today = _datetime.datetime.utcnow().strftime('%Y-%m-%d')
         if _today > _expiry_date:
-            import tkinter as _tk
-            try:
-                _r = _tk.Tk(); _r.withdraw()
-                _tk.messagebox.showerror(
-                    'License Expired',
-                    f'This version expired on {{_expiry_date}}.'
-                )
-                _r.destroy()
-            except Exception:
-                pass
+            _alert_error(
+                'License Expired',
+                f'This version expired on {_expiry_date}.'
+            )
             _sys.exit(1)
 
     # ---- IP lock ----
@@ -171,16 +177,10 @@ def __{fn}_check_license():
         except Exception:
             pass
         if not _detected_ips.intersection(_allowed_ips):
-            import tkinter as _tk
-            try:
-                _r = _tk.Tk(); _r.withdraw()
-                _tk.messagebox.showerror(
-                    'IP Not Allowed',
-                    'Your IP address is not authorized to run this software.'
-                )
-                _r.destroy()
-            except Exception:
-                pass
+            _alert_error(
+                'IP Not Allowed',
+                'Your IP address is not authorized to run this software.'
+            )
             _sys.exit(1)
 
     # ---- machine ID lock ----
@@ -232,16 +232,10 @@ def __{fn}_check_license():
 
         _mid = _compute_machine_id()
         if _mid not in _allowed_machine_ids:
-            import tkinter as _tk
-            try:
-                _r = _tk.Tk(); _r.withdraw()
-                _tk.messagebox.showerror(
-                    'Device Not Authorized',
-                    'This software is not licensed for this device.'
-                )
-                _r.destroy()
-            except Exception:
-                pass
+            _alert_error(
+                'Device Not Authorized',
+                'This software is not licensed for this device.'
+            )
             _sys.exit(1)
 
 __{fn}_check_license()
@@ -320,11 +314,16 @@ _DEAD_CODE_SNIPPETS = [
 
 def _inject_dead_code(source: str, count: int = 10) -> str:
     lines = source.splitlines(keepends=True)
-    positions = random.sample(range(1, max(2, len(lines))), min(count, len(lines) - 1))
+    if len(lines) < 3 or count <= 0:
+        return source
+    positions = random.sample(range(1, len(lines)), min(count, len(lines) - 1))
     positions.sort(reverse=True)
     for pos in positions:
-        snippet = random.choice(_DEAD_CODE_SNIPPETS)
-        snippet = snippet.replace('{v}', _rand_name())
+        target_line = lines[pos]
+        indent = len(target_line) - len(target_line.lstrip())
+        indent_str = ' ' * indent
+        v = _rand_name()
+        snippet = f"{indent_str}if False:\n{indent_str}    _{v} = None\n"
         lines.insert(pos, snippet)
     return ''.join(lines)
 
@@ -338,7 +337,7 @@ class ObfuscationConfig:
         # PyArmor (free tier)
         self.use_pyarmor: bool         = True
         self.pyarmor_obf_code: int     = 1      # 0 = none, 1 = standard, 2 = advanced
-        self.pyarmor_mix_str: bool     = True
+        self.pyarmor_mix_str: bool     = False
 
         # Self-implemented protections
         self.ip_lock: bool             = False
@@ -350,12 +349,12 @@ class ObfuscationConfig:
         self.machine_id_lock: bool     = False
         self.allowed_machine_ids: list[str] = []
 
-        self.scramble_names: bool      = True
-        self.encode_strings: bool      = True
-        self.inject_dead_code: bool    = True
-        self.dead_code_count: int      = 15
+        self.scramble_names: bool      = False
+        self.encode_strings: bool      = False
+        self.inject_dead_code: bool    = False
+        self.dead_code_count: int      = 0
 
-        self.antidebug: bool           = True
+        self.antidebug: bool           = False
 
     def to_dict(self) -> dict:
         return self.__dict__.copy()
@@ -538,7 +537,17 @@ class Obfuscator:
 
         if self.cfg.use_pyarmor:
             _progress('[SHIELD] Running PyArmor…')
-            self.run_pyarmor(work_dir, output_dir / '_pyarmor_out')
+            pyarmor_out = output_dir / '_pyarmor_out'
+            if self.run_pyarmor(work_dir, pyarmor_out):
+                for item in pyarmor_out.iterdir():
+                    dest = work_dir / item.name
+                    if item.is_dir():
+                        shutil.copytree(item, dest, dirs_exist_ok=True)
+                    else:
+                        shutil.copy2(item, dest)
+                _progress('[SHIELD] PyArmor protection applied.')
+            else:
+                _progress('[WARN] PyArmor skipped or failed, using standard bytecode compilation.')
 
         _progress('[OK] Protection processing complete.')
         return work_dir
