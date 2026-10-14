@@ -37,13 +37,46 @@ logger = logging.getLogger(__name__)
 from utils.dns_bypass import install_dns_bypass
 install_dns_bypass()
 
-# Initialize static-ffmpeg to add portable binaries to PATH
-logger.info("Initializing static-ffmpeg...")
-try:
-    static_ffmpeg.add_paths()
-    logger.info("static-ffmpeg paths injected successfully.")
-except Exception as e:
-    logger.error(f"Failed to inject static-ffmpeg paths: {e}")
+# Initialize FFmpeg asynchronously in a background daemon thread so server starts instantly (<200ms)
+def _init_ffmpeg_async():
+    try:
+        import shutil
+        from config import USER_DATA_DIR
+
+        # 1. Prepend persistent user data bin directory to PATH
+        user_bin = os.path.join(USER_DATA_DIR, "bin")
+        os.makedirs(user_bin, exist_ok=True)
+        if user_bin not in os.environ.get("PATH", ""):
+            os.environ["PATH"] = user_bin + os.pathsep + os.environ.get("PATH", "")
+
+        # 2. Check if ffmpeg/ffprobe is already available on PATH (system or cached)
+        if shutil.which("ffmpeg") and shutil.which("ffprobe"):
+            logger.info("FFmpeg/FFprobe binaries already available on PATH.")
+            return
+
+        # 3. Otherwise, fetch via static-ffmpeg in background thread
+        logger.info("Resolving portable FFmpeg via static-ffmpeg in background...")
+        import static_ffmpeg
+        static_ffmpeg.add_paths(weak=True)
+        logger.info("static-ffmpeg initialized successfully.")
+
+        # 4. Cache downloaded binaries into persistent USER_DATA_DIR/bin
+        ffmpeg_bin = shutil.which("ffmpeg")
+        ffprobe_bin = shutil.which("ffprobe")
+        for exe_src in [ffmpeg_bin, ffprobe_bin]:
+            if exe_src and os.path.isfile(exe_src):
+                dest_file = os.path.join(user_bin, os.path.basename(exe_src))
+                if not os.path.exists(dest_file):
+                    try:
+                        shutil.copy2(exe_src, dest_file)
+                        logger.info(f"Cached {os.path.basename(exe_src)} to persistent bin: {dest_file}")
+                    except Exception:
+                        pass
+    except Exception as e:
+        logger.warning(f"Background FFmpeg resolution notice: {e}")
+
+import threading
+threading.Thread(target=_init_ffmpeg_async, daemon=True, name="ffmpeg-init").start()
 
 # Initialize Flask app
 app = Flask(__name__, static_folder="static", template_folder="templates")

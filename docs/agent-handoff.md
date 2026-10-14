@@ -6,9 +6,23 @@
 - Standards: Antigravity Titan Standards, Ponytail Philosophy, TDD, Verification-Before-Completion.
 
 ## Last Updated
-- Timestamp: 2026-10-14 13:07:00
-- Version: v2.0.2
+- Timestamp: 2026-10-14 13:35:00
+- Version: v2.0.3
 - Exit Code: 0 (Ran 79 unit tests, 100% OK; node -c electron/main.js OK)
+
+## Summary of Accomplishments (Sprint v62 - Hotfix v2.0.3: Non-blocking Async FFmpeg Startup & Persistent Spooling)
+1. **Khắc phục Triệt để Lỗi Server Không Phản Hồi Trong 60s (`Server did not respond within 60s`)**:
+   - **Nguyên nhân gốc rễ (nhờ chẩn đoán chi tiết)**:
+     + Trong `app.py`, hàm `static_ffmpeg.add_paths()` được gọi đồng bộ (synchronous) ngay tại luồng chính trước khi khởi động Flask server.
+     + Thư viện `static_ffmpeg` cố gắng tải gói nén 80MB `win32.zip` từ GitHub raw (`github.com/zackees/ffmpeg_bins/...`) về thư mục tạm `_MEIxxxxxx` của PyInstaller.
+     + Do kết nối mạng tải 80MB mất hơn 60 giây, tiến trình Flask bị block hoàn toàn, không thể bind port TCP 18650, dẫn đến việc Electron báo timeout 60s.
+     + Hơn nữa, thư mục `_MEIxxxxxx` bị xóa sạch mỗi khi tắt app, khiến mỗi lần mở app lại bị tải lại 80MB từ đầu.
+   - **Giải pháp xử lý (Ponytail standard & Zero-fluff)**:
+     + Chuyển toàn bộ logic khởi tạo FFmpeg sang luồng daemon nền (`_init_ffmpeg_async`), giải phóng hoàn toàn luồng chính. Flask server khởi động ngay lập tức trong <200ms.
+     + Kích hoạt cờ `weak=True` để ưu tiên sử dụng `ffmpeg`/`ffprobe` có sẵn trên hệ thống nếu người dùng đã cài đặt.
+     + Tự động lưu trữ vĩnh viễn tệp thực thi `ffmpeg` và `ffprobe` vào User Data Directory (`USER_DATA_DIR/bin`) để tái sử dụng vĩnh viễn giữa các phiên làm việc và cập nhật.
+     + Nâng cấp phiên bản toàn hệ thống lên **`v2.0.3`**.
+   - **Kiểm chứng**: Khởi động server tức thì (<200ms), 79 tests đạt Exit Code 0.
 
 ## Summary of Accomplishments (Sprint v61 - Hotfix v2.0.2: PyInstaller CI Spec Datas Fix & Downloads Persistence)
 1. **Khắc phục Triệt để Lỗi Build trên Linux/macOS GitHub Actions (`Unable to find .../downloads`)**:

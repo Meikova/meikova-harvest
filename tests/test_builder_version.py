@@ -70,10 +70,10 @@ class TestBuilderVersion(unittest.TestCase):
             upd_v = json.load(f)['version']
         cfg_obj = BuildConfig()
 
-        self.assertEqual(pkg_v, '2.0.2')
-        self.assertEqual(cfg_v, '2.0.2')
-        self.assertEqual(upd_v, '2.0.2')
-        self.assertEqual(cfg_obj.version, '2.0.2')
+        self.assertEqual(pkg_v, '2.0.3')
+        self.assertEqual(cfg_v, '2.0.3')
+        self.assertEqual(upd_v, '2.0.3')
+        self.assertEqual(cfg_obj.version, '2.0.3')
 
     def test_packager_datas_excludes_downloads(self):
         from build_tool.packager import PYINSTALLER_SPEC

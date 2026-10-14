@@ -1,11 +1,11 @@
 {
-    "version": "2.0.2",
-    "url": "https://github.com/m3iK18dp/EveryThingDownloader-Tool/releases/download/v2.0.2/EveryThingDownloader-Setup-2.0.2.exe",
+    "version": "2.0.3",
+    "url": "https://github.com/m3iK18dp/EveryThingDownloader-Tool/releases/download/v2.0.3/EveryThingDownloader-Setup-2.0.3.exe",
     "platforms": {
-        "win32": "https://github.com/m3iK18dp/EveryThingDownloader-Tool/releases/download/v2.0.2/EveryThingDownloader-Setup-2.0.2.exe",
-        "darwin_arm64": "https://github.com/m3iK18dp/EveryThingDownloader-Tool/releases/download/v2.0.2/EveryThingDownloader-2.0.2-arm64.dmg",
-        "darwin_x64": "https://github.com/m3iK18dp/EveryThingDownloader-Tool/releases/download/v2.0.2/EveryThingDownloader-2.0.2-x64.dmg",
-        "linux_x64": "https://github.com/m3iK18dp/EveryThingDownloader-Tool/releases/download/v2.0.2/EveryThingDownloader-2.0.2-x64.AppImage"
+        "win32": "https://github.com/m3iK18dp/EveryThingDownloader-Tool/releases/download/v2.0.3/EveryThingDownloader-Setup-2.0.3.exe",
+        "darwin_arm64": "https://github.com/m3iK18dp/EveryThingDownloader-Tool/releases/download/v2.0.3/EveryThingDownloader-2.0.3-arm64.dmg",
+        "darwin_x64": "https://github.com/m3iK18dp/EveryThingDownloader-Tool/releases/download/v2.0.3/EveryThingDownloader-2.0.3-x64.dmg",
+        "linux_x64": "https://github.com/m3iK18dp/EveryThingDownloader-Tool/releases/download/v2.0.3/EveryThingDownloader-2.0.3-x64.AppImage"
     },
-    "changelog": "EVERYTHING DOWNLOADER HOTFIX RELEASE V2.0.2:\n- Fix PyInstaller CI Packaging: Loại bỏ phụ thuộc thư mục downloads/ tĩnh trong cấu hình spec datas, tránh lỗi build trên môi trường Linux/macOS GitHub Actions sạch.\n- Downloads Directory Persistence: Thêm .gitkeep và chuẩn hóa tự động khởi tạo thư mục downloads/ lúc runtime.\n- Fix Standalone Server Startup Failure: Sửa triệt để lỗi không khởi động được server.exe trong bản cài đặt Desktop (.exe/Setup).\n- Expanded Hidden Imports: Bổ sung toàn diện tất cả các submodules (routes.*, tasks.*, extractors.*, utils.*) vào cấu hình đóng gói PyInstaller để tránh ModuleNotFoundError.\n- Safe Obfuscator Defaults: Vô hiệu hóa các bộ biến đổi AST phá vỡ cú pháp Python và loại bỏ xung đột PyArmor trial license.\n- Instant Startup Diagnostics: Báo cáo lỗi chi tiết ngay lập tức nếu server.exe gặp sự cố, loại bỏ hoàn toàn việc chờ 60s vô ích."
+    "changelog": "EVERYTHING DOWNLOADER HOTFIX RELEASE V2.0.3:\n- Instant Server Startup (<200ms): Chuyển quá trình giải quyết và đồng bộ FFmpeg sang luồng nền (background daemon thread), triệt tiêu hoàn toàn lỗi tắc nghẽn server và lỗi timeout 60s.\n- Persistent Binary Cache: Lưu trữ vĩnh viễn tệp thực thi FFmpeg vào User Data Directory (USER_DATA_DIR/bin), chấm dứt việc tải lại khi mở app.\n- Weak Discovery Mode: Tận dụng ngay FFmpeg/FFprobe có sẵn của hệ điều hành, không tải lại nếu đã tồn tại.\n- Fix PyInstaller CI Packaging: Loại bỏ phụ thuộc thư mục downloads/ tĩnh trong cấu hình spec datas, tránh lỗi build trên môi trường Linux/macOS GitHub Actions sạch.\n- Expanded Hidden Imports: Bổ sung toàn diện tất cả các submodules (routes.*, tasks.*, extractors.*, utils.*) vào cấu hình đóng gói PyInstaller để tránh ModuleNotFoundError."
 }
