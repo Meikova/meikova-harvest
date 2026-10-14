@@ -6,9 +6,19 @@
 - Standards: Antigravity Titan Standards, Ponytail Philosophy, TDD, Verification-Before-Completion.
 
 ## Last Updated
-- Timestamp: 2026-10-14 12:50:00
-- Version: v2.0.1
-- Exit Code: 0 (Ran 78 unit tests, 100% OK; node -c electron/main.js OK)
+- Timestamp: 2026-10-14 13:07:00
+- Version: v2.0.2
+- Exit Code: 0 (Ran 79 unit tests, 100% OK; node -c electron/main.js OK)
+
+## Summary of Accomplishments (Sprint v61 - Hotfix v2.0.2: PyInstaller CI Spec Datas Fix & Downloads Persistence)
+1. **Khắc phục Triệt để Lỗi Build trên Linux/macOS GitHub Actions (`Unable to find .../downloads`)**:
+   - **Nguyên nhân cốt lõi**: Trong file `build_tool/packager.py`, `PYINSTALLER_SPEC.datas` chứa `('{root_dir}/downloads', 'downloads')`. Thư mục `downloads/` nằm trong `.gitignore`, không được theo dõi trong git nên trên môi trường runner mới của GitHub Actions, thư mục này không tồn tại khi checkout, khiến PyInstaller lập tức dừng khẩn cấp với mã lỗi 1.
+   - **Giải pháp xử lý**:
+     + Loại bỏ hoàn toàn `('{root_dir}/downloads', 'downloads')` khỏi `datas` trong `build_tool/packager.py`. Thư mục `downloads` là vùng đệm runtime và được `config.py` tự tạo lúc chạy ứng dụng, không phải tài nguyên tĩnh của gói nhị phân.
+     + Bổ sung file `.gitkeep` vào thư mục `downloads/` và cập nhật `.gitignore` (`downloads/*` và `!downloads/.gitkeep`) để bảo đảm git luôn duy trì thư mục trên mọi máy.
+     + Nâng cấp phiên bản toàn hệ thống lên **`v2.0.2`**.
+     + Bổ sung kiểm thử đơn vị `test_packager_datas_excludes_downloads` trong `tests/test_builder_version.py`.
+   - **Kiểm chứng**: Toàn bộ unit tests đạt Exit Code 0 (`Ran 79 tests, OK`).
 
 ## Summary of Accomplishments (Sprint v60 - Hotfix v2.0.1: Standalone Server Startup Fix & Packaging Pipeline Hardening)
 1. **Khắc phục Triệt để Lỗi Khởi động Server (`Server did not start within 60s`) trên Bản Cài đặt Desktop**:

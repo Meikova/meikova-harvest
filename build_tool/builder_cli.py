@@ -681,7 +681,7 @@ Examples:
     build = parser.add_argument_group('Build Settings')
     build.add_argument('--name', default='EveryThingDownloader',
                        help='Output application name')
-    build.add_argument('--version', default='2.0.1', help='Application version')
+    build.add_argument('--version', default='2.0.2', help='Application version')
     build.add_argument('--icon', help='Path to icon file (.ico on Windows, .png/.icns on macOS)')
     build.add_argument('--upx', action='store_true',
                        help='Use UPX compression (reduces size, slower startup)')

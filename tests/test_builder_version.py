@@ -70,10 +70,14 @@ class TestBuilderVersion(unittest.TestCase):
             upd_v = json.load(f)['version']
         cfg_obj = BuildConfig()
 
-        self.assertEqual(pkg_v, '2.0.1')
-        self.assertEqual(cfg_v, '2.0.1')
-        self.assertEqual(upd_v, '2.0.1')
-        self.assertEqual(cfg_obj.version, '2.0.1')
+        self.assertEqual(pkg_v, '2.0.2')
+        self.assertEqual(cfg_v, '2.0.2')
+        self.assertEqual(upd_v, '2.0.2')
+        self.assertEqual(cfg_obj.version, '2.0.2')
+
+    def test_packager_datas_excludes_downloads(self):
+        from build_tool.packager import PYINSTALLER_SPEC
+        self.assertNotIn("downloads', 'downloads'", PYINSTALLER_SPEC, "Static downloads folder must not be in datas")
 
 if __name__ == '__main__':
     unittest.main()

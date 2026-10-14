@@ -41,7 +41,6 @@ a = Analysis(
     datas=[
         ('{root_dir}/static', 'static'),
         ('{root_dir}/templates', 'templates'),
-        ('{root_dir}/downloads', 'downloads'),
         ('{root_dir}/config.py', '.'),
     ],
     hiddenimports=[
@@ -154,7 +153,7 @@ def sanitize_version(version: str | None) -> str:
 class BuildConfig:
     def __init__(self):
         self.app_name:    str  = 'EveryThingDownloader'
-        self._version:    str  = '2.0.1'
+        self._version:    str  = '2.0.2'
         self.company:     str  = 'EveryThingDownloader'
         self.description: str  = 'EveryThingDownloader'
         self.copyright:   str  = f'© 2026 EveryThingDownloader'
