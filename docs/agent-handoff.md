@@ -6,10 +6,39 @@
 - Standards: Antigravity Titan Standards, Ponytail Philosophy, TDD, Verification-Before-Completion.
 
 ## Last Updated
-- Timestamp: 2026-10-20 20:40:00
-- Version: v2.0.4 (Ambient Instrument Single Google Auth, Multi-Platform & Desktop OAuth Isolation)
-- Git Commit: `b6224a9` (Clean working tree, Tag `v2.0.4` pushed)
-- Exit Code: 0 (Node syntax check OK, Python test suite 83/83 PASSED, Electron-builder NSIS/Portable/MSI/win-unpacked fully built)
+- Timestamp: 2026-10-20 21:37:00
+- Version: v2.0.4 (MashLoop Multi-Platform Auth Architecture: State Polling, Mobile Deep Linking, OnResume Sync & Storage Persistence)
+- Git Commit: `09e4fa6` (Working tree modified, clean tests)
+- Exit Code: 0 (Python unit tests 5/5 PASSED, Full discovery test suite 84/84 PASSED, Node check OK, Portable Electron EXE rebuilt)
+
+## Summary of Accomplishments (Sprint v74 - MashLoop Multi-Platform Auth Architecture & Mobile Support)
+1. **Kiến trúc Xác thực Đa Nền tảng Học hỏi từ MashLoop (`routes/auth.py`, `static/js/main.js`)**:
+   - Khảo sát mã nguồn MashLoop (`D:\JOB\DEV\MashLoop\loopbox\auth.py`, `web/js/main.js`, `web/js/api.js`).
+   - Xây dựng hệ thống sinh và theo dõi `state` độc nhất theo phiên, thread-safe: `create_auth_request(mode)`, `fulfill_auth_request(state, result)`, `peek_or_pop_auth_result(state, pop=True)`.
+   - Bổ sung 2 endpoints theo chuẩn MashLoop:
+     * `GET /api/auth/google/start?mode=mobile|desktop|web`: Trả về `auth_url` kèm `state` được mã hóa an toàn.
+     * `GET /api/auth/google/poll?state=<state>`: Polling kiểm tra kết quả xác thực theo từng phiên người dùng độc lập.
+   - Giữ lại `/api/auth/poll-desktop-session` để duy trì tương thích ngược 100%.
+
+2. **Hỗ trợ Toàn diện App Mobile (Native Mobile App, Capacitor/Cordova, PWA, Mobile Web)**:
+   - **Xác thực qua Google Sign-In SDK nguyên bản**: Endpoint `POST /api/auth/google` nhận trực tiếp ID Token từ Google Play Services / iOS SDK.
+   - **Xác thực qua Trình duyệt ngoài / Chrome Custom Tabs**:
+     * Client gọi `/api/auth/google/start?mode=mobile`, mở trình duyệt hệ thống.
+     * Định tuyến callback trả về Custom URL Scheme `everythingdownloader://auth-success?token={token}&email={email}` và giao diện thẻ ambient dark có nút bấm dự phòng "Mở lại EveryThingDownloader" + tự động đóng tab sau 2.5s.
+     * Cơ chế 3 tầng phòng thủ: App Mobile bắt token đồng thời qua (1) Deep link scheme, (2) Bộ polling ngầm 1.5s, và (3) Bộ kiểm tra tức thì khi app mở lại / lấy lại focus (`onResume` / `visibilitychange`).
+     * Hỗ trợ lắng nghe sự kiện `appUrlOpen` từ `@capacitor/app`.
+
+3. **Bền vững Phiên làm việc (Storage & Header Token Persistence)**:
+   - Hàm `onAuthSuccess(data)`: Lưu đồng thời `session_token` vào `localStorage` và `document.cookie` (SameSite=Lax).
+   - `checkCurrentAuth()`: Tự động trích xuất token từ URL (`?token=...` hoặc `#token=...`), lưu vào bộ nhớ, làm sạch URL bằng `replaceState`, và đính kèm `Authorization: Bearer <token>` vào request headers.
+   - `btnLogout`: Xóa sạch token khỏi cả `localStorage` và cookie.
+
+4. **Đóng gói & Kiểm thử Toàn diện**:
+   - Đã biên dịch lại Web Server Binary: `dist\EveryThingDownloader-Web-2.0.4.exe` và copy sang `electron\resources\server.exe`.
+   - Đã đóng gói thành công bản Desktop Portable: `dist_electron\EveryThingDownloader-Portable-2.0.4.exe` (149MB).
+   - Kiểm thử cú pháp JavaScript: `node --check static/js/main.js` (Exit Code 0).
+   - Kiểm thử tự động `tests/test_auth.py`: 5/5 PASSED (Exit Code 0).
+   - Kiểm thử toàn bộ bộ test suite: 84/84 PASSED (Exit Code 0).
 
 ## Summary of Accomplishments (Sprint v73 - MashLoop Ambient Single Google Auth & Multi-Platform Support)
 1. **Tinh chỉnh Modal Đăng nhập Chuẩn MashLoop Ambient Dark Instrument (`templates/index.html`, `static/css/styles.css`)**:

@@ -169,6 +169,47 @@ class TestAuthModule(unittest.TestCase):
             res = client.get("/api/auth/me", headers={"Authorization": f"Bearer {token}"})
             self.assertEqual(res.status_code, 401)
 
+    def test_google_start_and_poll_flow(self):
+        from flask import Flask
+        from routes.auth import auth_bp, fulfill_auth_request
+        from utils.auth import AuthManager
+
+        app = Flask(__name__)
+        app.register_blueprint(auth_bp)
+        client = app.test_client()
+
+        # 1. /api/auth/google/start?mode=mobile
+        res = client.get("/api/auth/google/start?mode=mobile")
+        self.assertEqual(res.status_code, 200)
+        data = res.get_json()
+        self.assertIn("auth_url", data)
+        self.assertIn("state", data)
+        self.assertTrue(data["state"].startswith("mobile_"))
+        state = data["state"]
+
+        # 2. Poll before completion -> pending
+        poll_res = client.get(f"/api/auth/google/poll?state={state}")
+        self.assertEqual(poll_res.status_code, 200)
+        self.assertEqual(poll_res.get_json()["status"], "pending")
+
+        # 3. Fulfill request
+        fulfill_auth_request(state, {
+            "token": "test_mobile_jwt_token",
+            "user": {"id": 99, "email": "mobile@test.com", "display_name": "Mobile Tester"}
+        })
+
+        # 4. Poll after completion -> ok and popped
+        poll_res2 = client.get(f"/api/auth/google/poll?state={state}")
+        self.assertEqual(poll_res2.status_code, 200)
+        p2_data = poll_res2.get_json()
+        self.assertEqual(p2_data["status"], "ok")
+        self.assertEqual(p2_data["token"], "test_mobile_jwt_token")
+        self.assertEqual(p2_data["user"]["email"], "mobile@test.com")
+
+        # 5. Poll again -> pending (since it was popped)
+        poll_res3 = client.get(f"/api/auth/google/poll?state={state}")
+        self.assertEqual(poll_res3.get_json()["status"], "pending")
+
 
 if __name__ == "__main__":
     unittest.main()

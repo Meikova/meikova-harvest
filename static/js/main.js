@@ -16782,9 +16782,33 @@ document.addEventListener("DOMContentLoaded", () => {
         }
     }
 
+    function onAuthSuccess(data) {
+        if (!data) return;
+        if (data.token) {
+            localStorage.setItem("session_token", data.token);
+            document.cookie = `session_token=${data.token}; path=/; max-age=2592000; SameSite=Lax`;
+        }
+        if (data.user) {
+            updateAuthUI(data.user);
+        }
+        if (authModal) authModal.classList.add("hidden");
+        if (typeof loadDownloadHistory === "function") loadDownloadHistory();
+        triggerCloudSync(false);
+    }
+
     async function checkCurrentAuth() {
         try {
-            const res = await fetch("/api/auth/me");
+            const urlParams = new URLSearchParams(window.location.search);
+            const urlToken = urlParams.get("token") || (window.location.hash.includes("token=") ? new URLSearchParams(window.location.hash.substring(1)).get("token") : null);
+            if (urlToken) {
+                localStorage.setItem("session_token", urlToken);
+                document.cookie = `session_token=${urlToken}; path=/; max-age=2592000; SameSite=Lax`;
+                window.history.replaceState({}, document.title, window.location.pathname);
+            }
+
+            const token = localStorage.getItem("session_token");
+            const headers = token ? { "Authorization": `Bearer ${token}` } : {};
+            const res = await fetch("/api/auth/me", { headers });
             const data = await res.json();
             if (data.status === "success" && data.user) {
                 updateAuthUI(data.user);
@@ -16824,10 +16848,7 @@ document.addEventListener("DOMContentLoaded", () => {
             });
             const data = await res.json();
             if (data.status === "success" && data.user) {
-                updateAuthUI(data.user);
-                if (authModal) authModal.classList.add("hidden");
-                if (typeof loadDownloadHistory === "function") loadDownloadHistory();
-                triggerCloudSync(false);
+                onAuthSuccess(data);
             } else {
                 setAuthError(data.message || "Đăng nhập Google thất bại");
             }
@@ -16954,11 +16975,8 @@ document.addEventListener("DOMContentLoaded", () => {
                 });
                 const data = await res.json();
                 if (data.status === "success" && data.user) {
-                    updateAuthUI(data.user);
-                    if (authModal) authModal.classList.add("hidden");
+                    onAuthSuccess(data);
                     if (authForm) authForm.reset();
-                    if (typeof loadDownloadHistory === "function") loadDownloadHistory();
-                    triggerCloudSync(false);
                 } else {
                     setAuthError(data.message || "Thao tác thất bại");
                 }
@@ -16975,8 +16993,12 @@ document.addEventListener("DOMContentLoaded", () => {
     if (btnLogout) {
         btnLogout.addEventListener("click", async () => {
             try {
-                await fetch("/api/auth/logout", { method: "POST" });
+                const token = localStorage.getItem("session_token");
+                const headers = token ? { "Authorization": `Bearer ${token}` } : {};
+                await fetch("/api/auth/logout", { method: "POST", headers });
             } catch (e) {}
+            localStorage.removeItem("session_token");
+            document.cookie = "session_token=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT";
             if (userDropdown) userDropdown.classList.add("hidden");
             updateAuthUI(null);
             if (typeof loadDownloadHistory === "function") loadDownloadHistory();
@@ -17032,36 +17054,125 @@ document.addEventListener("DOMContentLoaded", () => {
             try {
                 const res = await fetch("/api/auth/poll-desktop-session");
                 const data = await res.json();
-                if (data.status === "success" && data.user) {
+                if (data.status === "success" && data.token) {
                     clearInterval(desktopAuthPollTimer);
                     desktopAuthPollTimer = null;
-                    updateAuthUI(data.user);
-                    if (authModal) authModal.classList.add("hidden");
-                    if (typeof loadDownloadHistory === "function") loadDownloadHistory();
-                    triggerCloudSync(false);
+                    onAuthSuccess(data);
                     if (typeof showStatusNotification === "function") {
-                        showStatusNotification(`Đăng nhập Google thành công: ${data.user.display_name || data.user.email}`);
+                        showStatusNotification(`Đăng nhập Google thành công: ${data.user?.display_name || data.user?.email || ""}`);
                     }
                 }
             } catch (_) {}
         }, 1200);
     }
 
-    // 1 Single Google OAuth Button (Multi-platform: Desktop Electron, Desktop PWA, Mobile PWA, Web)
+    // 1 Single Google OAuth Button (Multi-platform: Desktop Electron, Capacitor Native, Mobile PWA, Web)
     const btnGoogle = document.getElementById("btn-ambient-google") || document.getElementById("btn-browser-google-auth");
     if (btnGoogle) {
-        btnGoogle.addEventListener("click", () => {
+        btnGoogle.addEventListener("click", async () => {
             const loginUrl = window.location.origin + "/api/auth/google/login";
             const isElectron = window.electronAPI && typeof window.electronAPI.openExternal === "function";
+            const isCapacitorNative = Boolean(window.Capacitor?.isNativePlatform && window.Capacitor.isNativePlatform());
             const isStandalonePWA = window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone === true;
             const isMobile = /Android|iPhone|iPad|iPod|webOS|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) || (window.innerWidth < 768 && 'ontouchstart' in window);
 
+            if (isCapacitorNative) {
+                // Mobile Native App (Capacitor / Cordova)
+                try {
+                    const start = await fetch("/api/auth/google/start?mode=mobile").then(r => r.json());
+                    if (start && start.auth_url && start.state) {
+                        if (window.Capacitor?.Plugins?.Browser?.open) {
+                            window.Capacitor.Plugins.Browser.open({ url: start.auth_url });
+                        } else {
+                            window.open(start.auth_url, "_system");
+                        }
+
+                        let pollInterval = setInterval(async () => {
+                            try {
+                                const check = await fetch(`/api/auth/google/poll?state=${encodeURIComponent(start.state)}`).then(r => r.json());
+                                if (check && check.status === "ok" && check.token) {
+                                    clearInterval(pollInterval);
+                                    onAuthSuccess(check);
+                                    if (typeof showStatusNotification === "function") {
+                                        showStatusNotification("Đăng nhập Google thành công!");
+                                    }
+                                } else if (check && check.status === "error") {
+                                    clearInterval(pollInterval);
+                                }
+                            } catch (_) {}
+                        }, 1500);
+
+                        setTimeout(() => clearInterval(pollInterval), 180000);
+
+                        const onResume = async () => {
+                            try {
+                                const check = await fetch(`/api/auth/google/poll?state=${encodeURIComponent(start.state)}`).then(r => r.json());
+                                if (check && check.status === "ok" && check.token) {
+                                    clearInterval(pollInterval);
+                                    window.removeEventListener("focus", onResume);
+                                    document.removeEventListener("visibilitychange", onResume);
+                                    onAuthSuccess(check);
+                                    if (typeof showStatusNotification === "function") {
+                                        showStatusNotification("Đăng nhập Google thành công!");
+                                    }
+                                }
+                            } catch (_) {}
+                        };
+                        window.addEventListener("focus", onResume);
+                        document.addEventListener("visibilitychange", onResume);
+                    }
+                } catch (e) {
+                    window.location.href = loginUrl + "?source=mobile";
+                }
+                return;
+            }
+
             if (isElectron) {
-                // Desktop Electron: open default system browser & poll session loopback (isolated from web session)
-                window.electronAPI.openExternal(loginUrl + "?source=desktop");
-                startDesktopAuthPolling();
+                // Desktop Electron: open external browser and poll state
+                try {
+                    const start = await fetch("/api/auth/google/start?mode=desktop").then(r => r.json());
+                    if (start && start.auth_url && start.state) {
+                        window.electronAPI.openExternal(start.auth_url);
+                        let pollInterval = setInterval(async () => {
+                            try {
+                                const check = await fetch(`/api/auth/google/poll?state=${encodeURIComponent(start.state)}`).then(r => r.json());
+                                if (check && check.status === "ok" && check.token) {
+                                    clearInterval(pollInterval);
+                                    onAuthSuccess(check);
+                                    if (typeof showStatusNotification === "function") {
+                                        showStatusNotification("Đăng nhập Google thành công!");
+                                    }
+                                } else if (check && check.status === "error") {
+                                    clearInterval(pollInterval);
+                                }
+                            } catch (_) {}
+                        }, 1200);
+                        setTimeout(() => clearInterval(pollInterval), 180000);
+
+                        const onResume = async () => {
+                            try {
+                                const check = await fetch(`/api/auth/google/poll?state=${encodeURIComponent(start.state)}`).then(r => r.json());
+                                if (check && check.status === "ok" && check.token) {
+                                    clearInterval(pollInterval);
+                                    window.removeEventListener("focus", onResume);
+                                    onAuthSuccess(check);
+                                    if (typeof showStatusNotification === "function") {
+                                        showStatusNotification("Đăng nhập Google thành công!");
+                                    }
+                                }
+                            } catch (_) {}
+                        };
+                        window.addEventListener("focus", onResume);
+                    } else {
+                        window.electronAPI.openExternal(loginUrl + "?source=desktop");
+                        startDesktopAuthPolling();
+                    }
+                } catch (err) {
+                    window.electronAPI.openExternal(loginUrl + "?source=desktop");
+                    startDesktopAuthPolling();
+                }
             } else if (isStandalonePWA || (isMobile && !window.opener)) {
-                // Mobile or Standalone PWA: full window redirection for seamless mobile UX
+                // Mobile Web or Standalone PWA: full window redirection for seamless mobile UX
                 window.location.href = loginUrl + "?source=mobile";
             } else {
                 // Desktop Web / Popup supported
@@ -17075,6 +17186,24 @@ document.addEventListener("DOMContentLoaded", () => {
         });
     }
 
+    // Mobile App URL listener (Capacitor Deep Link)
+    if (window.Capacitor?.Plugins?.App?.addListener) {
+        try {
+            window.Capacitor.Plugins.App.addListener('appUrlOpen', (data) => {
+                if (data && data.url) {
+                    try {
+                        const u = new URL(data.url);
+                        const token = u.searchParams.get("token");
+                        if (token) {
+                            onAuthSuccess({ token: token });
+                            checkCurrentAuth();
+                        }
+                    } catch (e) {}
+                }
+            });
+        } catch (_) {}
+    }
+
     // Auto-detect auth completion when window regains focus, receives storage or postMessage broadcast
     window.addEventListener("focus", () => {
         if (!currentUserState) {
@@ -17082,11 +17211,8 @@ document.addEventListener("DOMContentLoaded", () => {
             fetch("/api/auth/poll-desktop-session")
                 .then(r => r.json())
                 .then(data => {
-                    if (data.status === "success" && data.user) {
-                        updateAuthUI(data.user);
-                        if (authModal) authModal.classList.add("hidden");
-                        if (typeof loadDownloadHistory === "function") loadDownloadHistory();
-                        triggerCloudSync(false);
+                    if (data.status === "success" && data.token) {
+                        onAuthSuccess(data);
                     }
                 })
                 .catch(() => {});

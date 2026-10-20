@@ -4,12 +4,47 @@ import base64
 import time
 import urllib.parse
 import urllib.request
+import threading
+import secrets
 from flask import Blueprint, request, jsonify, make_response, redirect
 from config import auth_manager
 
 auth_bp = Blueprint("auth", __name__)
 
 _pending_desktop_token = None
+
+_pending_auth_events = {}
+_pending_auth_results = {}
+_pending_auth_timestamps = {}
+_pending_auth_lock = threading.Lock()
+
+def create_auth_request(prefix: str = "desktop") -> str:
+    state = f"{prefix}_" + secrets.token_urlsafe(16)
+    with _pending_auth_lock:
+        _pending_auth_events[state] = threading.Event()
+        _pending_auth_timestamps[state] = time.time()
+        now = time.time()
+        expired = [k for k, t in _pending_auth_timestamps.items() if now - t > 600]
+        for k in expired:
+            _pending_auth_events.pop(k, None)
+            _pending_auth_results.pop(k, None)
+            _pending_auth_timestamps.pop(k, None)
+    return state
+
+def fulfill_auth_request(state: str, result: dict):
+    with _pending_auth_lock:
+        _pending_auth_results[state] = result
+        event = _pending_auth_events.get(state)
+        if event:
+            event.set()
+
+def peek_or_pop_auth_result(state: str, pop: bool = True):
+    with _pending_auth_lock:
+        if pop:
+            _pending_auth_events.pop(state, None)
+            _pending_auth_timestamps.pop(state, None)
+            return _pending_auth_results.pop(state, None)
+        return _pending_auth_results.get(state)
 
 # =========================================================================
 # 3-Tier Fallback Google OAuth Credentials (Safe against GitHub bot detection)
@@ -150,12 +185,62 @@ def google_auth_api():
     except Exception as err:
         return jsonify({"status": "error", "message": f"Lỗi xác thực Google: {str(err)}"}), 500
 
+@auth_bp.route("/api/auth/google/start", methods=["GET"])
+def google_auth_start():
+    scheme = "https" if request.is_secure else "http"
+    host = request.host
+    redirect_uri = f"{scheme}://{host}/api/auth/google/callback"
+    mode = request.args.get("mode", "web")
+    state = ""
+    if mode in ("mobile", "desktop"):
+        state = create_auth_request(mode)
+    
+    auth_url = (
+        "https://accounts.google.com/o/oauth2/v2/auth?"
+        f"client_id={GOOGLE_CLIENT_ID}&"
+        f"redirect_uri={urllib.parse.quote(redirect_uri, safe='')}&"
+        "response_type=code&"
+        "scope=openid%20email%20profile&"
+        "access_type=offline&"
+        "prompt=select_account"
+    )
+    if state:
+        auth_url += f"&state={urllib.parse.quote(state, safe='')}"
+    else:
+        auth_url += f"&state={urllib.parse.quote(mode, safe='')}"
+
+    return jsonify({"auth_url": auth_url, "redirect_uri": redirect_uri, "state": state})
+
+@auth_bp.route("/api/auth/google/poll", methods=["GET"])
+def google_auth_poll():
+    state = request.args.get("state", "").strip()
+    if not state:
+        return jsonify({"status": "error", "message": "Thiếu tham số state."}), 400
+    res = peek_or_pop_auth_result(state, pop=True)
+    if not res:
+        return jsonify({"status": "pending"}), 200
+    if "error" in res:
+        return jsonify({"status": "error", "error": res["error"]}), 400
+    return jsonify({
+        "status": "ok",
+        "token": res.get("token"),
+        "user": res.get("user")
+    }), 200
+
 @auth_bp.route("/api/auth/google/login", methods=["GET"])
 def google_oauth_login():
     scheme = "https" if request.is_secure else "http"
     host = request.host
     redirect_uri = f"{scheme}://{host}/api/auth/google/callback"
     source = request.args.get("source", "desktop")
+
+    state = ""
+    if source in ("mobile", "desktop"):
+        state = create_auth_request(source)
+    elif source.startswith("mobile") or source.startswith("desktop"):
+        state = source
+    else:
+        state = source
 
     auth_url = (
         "https://accounts.google.com/o/oauth2/v2/auth?"
@@ -165,7 +250,7 @@ def google_oauth_login():
         "scope=openid%20email%20profile&"
         "access_type=offline&"
         "prompt=select_account&"
-        f"state={urllib.parse.quote(source, safe='')}"
+        f"state={urllib.parse.quote(state, safe='')}"
     )
     return redirect(auth_url)
 
@@ -173,8 +258,14 @@ def google_oauth_login():
 def google_oauth_callback():
     code = request.args.get("code")
     error = request.args.get("error")
+    state = request.args.get("state", "")
+    is_desktop = bool(state and (state.startswith("desktop") or state == "desktop"))
+    is_mobile = bool(state and (state.startswith("mobile") or state == "mobile"))
+
     if error or not code:
         err_msg = error or "Mã xác thực không tồn tại."
+        if (is_desktop or is_mobile) and state:
+            fulfill_auth_request(state, {"error": err_msg})
         return make_response(
             f"<html><body style='background:#080C14;color:#f87171;font-family:sans-serif;padding:40px;text-align:center;'>"
             f"<h3>Đăng nhập Google thất bại: {err_msg}</h3>"
@@ -239,8 +330,91 @@ def google_oauth_callback():
             "timestamp": time.time()
         }
 
-        source = request.args.get("state", "desktop")
-        is_desktop = (source == "desktop")
+        state = request.args.get("state", "desktop")
+        is_desktop = bool(state and (state.startswith("desktop") or state == "desktop"))
+        is_mobile = bool(state and (state.startswith("mobile") or state == "mobile"))
+
+        if (is_desktop or is_mobile) and state:
+            fulfill_auth_request(state, {"token": session_token, "user": auth_res["user"]})
+
+        if is_mobile:
+            app_scheme = "everythingdownloader"
+            if ":" in state:
+                app_scheme = state.split(":", 1)[1]
+            deep_link_url = f"{app_scheme}://auth-success?token={session_token}&email={urllib.parse.quote(email)}"
+            html = f"""<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>EveryThingDownloader // Đã xác thực cho Mobile App</title>
+    <style>
+        body {{
+            background: #080C14;
+            color: #00E5FF;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            height: 100vh;
+            margin: 0;
+            padding: 16px;
+            box-sizing: border-box;
+            text-align: center;
+        }}
+        .card {{
+            background: rgba(13, 17, 24, 0.95);
+            border: 1px solid rgba(0, 229, 255, 0.4);
+            border-radius: 16px;
+            padding: 32px 24px;
+            box-shadow: 0 0 30px rgba(0, 229, 255, 0.2);
+            max-width: 380px;
+            width: 100%;
+        }}
+        h2 {{ margin: 0 0 10px; font-size: 1.1rem; letter-spacing: 0.05em; }}
+        p {{ color: #94a3b8; font-size: 0.875rem; line-height: 1.5; margin: 0 0 20px; }}
+        .actions {{ display: flex; flex-direction: column; gap: 10px; align-items: center; }}
+        .btn {{
+            display: inline-block;
+            background: #00E5FF;
+            color: #080C14;
+            font-weight: 700;
+            font-size: 0.875rem;
+            padding: 12px 28px;
+            border-radius: 9999px;
+            text-decoration: none;
+            box-shadow: 0 0 16px rgba(0, 229, 255, 0.4);
+            border: none;
+            cursor: pointer;
+            width: 80%;
+            box-sizing: border-box;
+        }}
+        .btn-ghost {{
+            background: rgba(255,255,255,0.06);
+            color: #94a3b8;
+            box-shadow: none;
+            border: 1px solid rgba(255,255,255,0.1);
+        }}
+    </style>
+</head>
+<body>
+    <div class="card">
+        <h2>ĐĂNG NHẬP THÀNH CÔNG</h2>
+        <p>Chào mừng <strong>{display_name or email}</strong>.<br>Đã gửi phiên đăng nhập vào EveryThingDownloader Mobile.<br>Bấm nút bên dưới để mở lại app nếu tab không tự đóng.</p>
+        <div class="actions">
+            <a href="{deep_link_url}" class="btn">Mở lại EveryThingDownloader</a>
+            <button class="btn btn-ghost" onclick="window.close()">Đóng tab</button>
+        </div>
+    </div>
+    <script>
+        setTimeout(() => {{ window.location.href = "{deep_link_url}"; }}, 300);
+        setTimeout(() => {{ try {{ window.close(); }} catch(e) {{}} }}, 2500);
+    </script>
+</body>
+</html>"""
+            resp = make_response(html)
+            resp.set_cookie("session_token", session_token, max_age=auth_manager.SESSION_DURATION, httponly=False, samesite="Lax")
+            return resp
 
         if is_desktop:
             # Ponytail: Desktop app retrieves token via poll-desktop-session.
