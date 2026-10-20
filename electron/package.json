@@ -42,7 +42,8 @@
           "server.exe",
           "server",
           "license.txt",
-          "icon.png"
+          "icon.png",
+          "icon.ico"
         ]
       }
     ],

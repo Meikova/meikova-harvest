@@ -1218,7 +1218,10 @@ function buildTrayMenu() {
 }
 
 function createTray() {
-  const icon = getAppIcon();
+  let icon = getAppIcon();
+  if (process.platform === 'win32' && !icon.isEmpty()) {
+    icon = icon.resize({ width: 16, height: 16 });
+  }
   tray = new Tray(icon.isEmpty() ? nativeImage.createEmpty() : icon);
   tray.setToolTip(APP_NAME);
 
@@ -1505,6 +1508,10 @@ ipcMain.on('reset-clipboard-cache', () => {
 // ─── App lifecycle ────────────────────────────────────────────────────────────
 
 app.whenReady().then(async () => {
+  if (process.platform === 'win32') {
+    app.setAppUserModelId('com.everythingdownloader.app');
+  }
+
   // Prevent multiple instances
   if (!app.requestSingleInstanceLock()) {
     app.quit();
