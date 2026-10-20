@@ -53,6 +53,7 @@ let serverPort   = DEFAULT_PORT;
 let serverReady  = false;
 let serverExitEarly = null;
 let startupStderr = '';
+let isRestartingServer = false;
 
 // ─── Logging ──────────────────────────────────────────────────────────────────
 const log = {
@@ -253,6 +254,9 @@ async function startFlaskServer() {
   flaskProcess.on('exit', (code) => {
     log.info(`Flask exited with code ${code}`);
     flaskProcess = null;
+    if (isRestartingServer) {
+      return;
+    }
     if (!serverReady) {
       const errDetail = startupStderr.trim() || `Process exited with code ${code} without output.`;
       const err = new Error(`Internal server process terminated prematurely (exit code ${code}).\n\nError details:\n${errDetail}`);
@@ -260,7 +264,7 @@ async function startFlaskServer() {
         serverExitEarly(err);
       }
     } else if (mainWindow && !app.isQuitting) {
-      dialog.showErrorBox(APP_NAME, 'The internal server stopped unexpectedly.\nPlease restart the application.');
+      sendAppAlert('SYS // ENGINE DISCONNECTED', 'Máy chủ backend đã dừng. Vui lòng đóng và mở lại ứng dụng.', 'error');
     }
   });
 }
@@ -1073,7 +1077,10 @@ function checkForUpdates(manual = false) {
   log.info('Checking for updates...');
   const updateUrl = 'https://raw.githubusercontent.com/m3iK18dp/EveryThingDownloader-Tool/main/update.json'; 
 
-  const req = https.get(updateUrl, { timeout: 10000 }, (res) => {
+  const req = https.get(updateUrl, {
+    timeout: 10000,
+    headers: { 'User-Agent': `EveryThingDownloader/${app.getVersion()}` }
+  }, (res) => {
     let data = '';
     res.on('data', chunk => data += chunk);
     res.on('end', () => {
@@ -1141,13 +1148,16 @@ function checkForUpdates(manual = false) {
 
 function restartBackendServer() {
   log.info('Restarting backend server...');
+  isRestartingServer = true;
   killFlaskServer();
   setTimeout(async () => {
     try {
       await startFlaskServer();
+      isRestartingServer = false;
       log.info('Flask server restarted successfully.');
       sendAppAlert('SYS // ENGINE STATUS', 'Máy chủ Flask backend đã được khởi động lại thành công.', 'success');
     } catch (err) {
+      isRestartingServer = false;
       log.error('Failed to restart Flask server:', err);
       sendAppAlert('SYS // ENGINE ERROR', `Không thể khởi động lại backend server.\n\nChi tiết: ${err.message}`, 'error');
     }

@@ -6,9 +6,18 @@
 - Standards: Antigravity Titan Standards, Ponytail Philosophy, TDD, Verification-Before-Completion.
 
 ## Last Updated
-- Timestamp: 2026-10-20 14:26:00
-- Version: v2.0.3 (Tray Vector Icons, Dynamic Asset Resolution & Modal Update Fixed)
+- Timestamp: 2026-10-20 14:38:00
+- Version: v2.0.3 (Engine Exit Handling & User-Agent Update Check Fixed)
 - Exit Code: 0 (Node syntax checks OK, PyInstaller server build OK, app.asar packed)
+
+## Summary of Accomplishments (Sprint v69 - Server Exit Guard & Update Check Header)
+1. **Khắc phục Triệt để Hộp thoại "The internal server stopped unexpectedly"**:
+   - **Nguyên nhân gốc rễ**: Khi tiến trình `server.exe` bị khởi động lại hoặc tạm ngắt, khối bắt sự kiện `flaskProcess.on('exit')` trong `electron/main.js` kích hoạt hộp thoại Win32 màu trắng `dialog.showErrorBox`.
+   - **Khắc phục**:
+     * Bổ sung cờ điều khiển `isRestartingServer`: Không phát cảnh báo khi đang trong tiến trình chủ động nạp lại máy chủ.
+     * Chuyển đổi cảnh báo sang IPC `sendAppAlert` in-app chuẩn buồng tối ambient, xóa bỏ hoàn toàn `dialog.showErrorBox` Win32.
+     * Bổ sung `User-Agent: EveryThingDownloader/v2.0.3` khi gọi `https.get` kiểm tra cập nhật để ngăn chặn triệt để hiện tượng bị GitHub CDN chặn kết nối.
+     * Đóng gói lại `app.asar` vào thư mục ứng dụng cài đặt.
 
 ## Summary of Accomplishments (Sprint v68 - System Tray Vector Icons & Live Asset Resolution Fix)
 1. **Bổ sung Bộ Vector Icons Phát quang Neon Cho System Tray Context Menu (`electron/main.js`)**:
