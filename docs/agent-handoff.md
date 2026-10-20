@@ -6,9 +6,34 @@
 - Standards: Antigravity Titan Standards, Ponytail Philosophy, TDD, Verification-Before-Completion.
 
 ## Last Updated
-- Timestamp: 2026-10-20 13:45:00
-- Version: v2.0.3 (System Tray Clean Zero-Emoji & Dynamic Ambient UI Standardized)
-- Exit Code: 0 (Python tests passed, Node syntax checks OK, app.asar packed)
+- Timestamp: 2026-10-20 14:10:00
+- Version: v2.0.3 (In-App Dark Modal Alerts & Windows Dark Tray Menu Standardized)
+- Exit Code: 0 (Node syntax checks OK, Python unittest discover OK, app.asar packed)
+
+## Summary of Accomplishments (Sprint v67 - In-App Ambient Alert Modals & Windows Dark Tray Menu)
+1. **Triệt tiêu Hộp thoại Win32 Nền Trắng, Chuẩn hóa In-App Ambient Alert Modal**:
+   - Thay thế toàn bộ các lệnh gọi `dialog.showMessageBox` / `dialog.showErrorBox` trong `electron/main.js` (như thông báo "No Updates", "Restarted", v.v.) bằng hàm điều hướng IPC `sendAppAlert(title, message, type)`.
+   - Preload script `electron/preload.js` bổ sung `onAppAlert` lắng nghe thông điệp hệ thống gửi từ main process.
+   - Renderer `static/js/main.js` bắt sự kiện `onAppAlert` và hiển thị modal `#confirm-modal` chuẩn buồng tối ambient instrument.
+   - Thêm bộ chuyển đổi phong cách động `applyModalTypeStyle(type)`:
+     * `info`: Đèn viền phát quang động `--cyan` neon, icon thông tin vòng tròn sạch (clean vector SVG), nút "Đã hiểu" cyber gradient.
+     * `success`: Đèn viền ngọc lục bảo `#10b981`, icon tích chọn thành công, nút gradient lục bảo.
+     * `warning` / `danger` / `error`: Đèn viền hổ phách/đỏ cảnh báo, icon cảnh báo quang học, nút gradient đỏ nổi bật.
+
+2. **Kích hoạt Dark Theme cho System Tray Context Menu & Native Dialogs (`electron/main.js`)**:
+   - Tích hợp module `nativeTheme` và bật `nativeTheme.themeSource = 'dark'`.
+   - Windows 10/11 tự động render toàn bộ Menu chuột phải khay hệ thống (System Tray context menu) và hộp thoại chọn tệp/thư mục ở chế độ Dark Mode sắc nét (nền đen/xám than, chữ trắng, highlight tối), xóa sổ hoàn toàn hiện tượng menu trắng chói mắt.
+   - Tối ưu các mục trong `buildTrayMenu()`: Tinh gọn ngôn ngữ tiếng Việt trực quan, checkbox trạng thái cho "Khởi động cùng Windows", hỗ trợ click chuột trái để mở/phục hồi cửa sổ chính.
+
+3. **Tối ưu Hóa Luồng Kiểm tra Cập nhật (Update Check Flow)**:
+   - Khi bấm "Check App Update", hiển thị thanh tiến trình nổi không chặn màn hình thay vì bật alert blocking thừa.
+   - Lắng nghe sự kiện `onUpdateAvailable` trong renderer để mở in-app confirm modal hỏi tải cập nhật tự động thay vì bật hộp thoại Win32.
+   - Khi tải xong bản cập nhật ngầm, tự động hiển thị các nút thao tác "Cài đặt ngay" / "Cài đặt khi đóng ứng dụng" ngay trên card nổi in-app.
+
+4. **Kiểm chứng & Đóng gói**:
+   - `node -c electron/main.js; node -c static/js/main.js`: Exit Code 0.
+   - Python unit tests: 79/79 passed in 50.41s.
+   - Đóng gói đè `app.asar` trực tiếp vào thư mục cài đặt `C:\Users\kiemp\AppData\Local\Programs\EveryThingDownloader\resources\app.asar`.
 
 ## Summary of Accomplishments (Sprint v66 - System Tray Zero-Emoji, Dynamic Harmonization & Taskbar Icon Fix)
 1. **Loại bỏ Hoàn toàn 8 Emoji Trong System Tray Context Menu (`electron/main.js`)**:

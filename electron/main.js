@@ -21,6 +21,7 @@ const {
   globalShortcut,
   clipboard,
   session,
+  nativeTheme,
 } = require('electron');
 
 const path  = require('path');
@@ -35,6 +36,9 @@ const DEFAULT_PORT = 18650;
 const SPLASH_WAIT  = 600;   // ms before showing splash
 const SERVER_TIMEOUT = 60000; // ms to wait for Flask (60 s)
 const isDev = process.argv.includes('--dev') || !app.isPackaged;
+
+// Force Windows dark theme for native context menus & common dialogs
+nativeTheme.themeSource = 'dark';
 
 // Suppress internal Chromium/DevTools protocol warnings (like Autofill.enable failed)
 app.commandLine.appendSwitch('log-level', '3');
@@ -882,11 +886,35 @@ let updateDownloadState = {
 };
 let installOnQuitPath = null;
 
+function sendAppAlert(title, message, type = 'info') {
+  if (mainWindow && !mainWindow.isDestroyed()) {
+    if (mainWindow.isMinimized()) {
+      mainWindow.restore();
+    }
+    if (!mainWindow.isVisible()) {
+      mainWindow.show();
+    }
+    mainWindow.focus();
+    mainWindow.webContents.send('app-alert', { title, message, type });
+  } else {
+    if (type === 'error') {
+      dialog.showErrorBox(title, message);
+    } else {
+      dialog.showMessageBox({
+        type: 'info',
+        title,
+        message,
+        buttons: ['OK'],
+      });
+    }
+  }
+}
+
 async function installDownloadedUpdate(destPath) {
   log.info('Preparing to install update from: ' + destPath);
   if (!fs.existsSync(destPath)) {
     log.error('Installer file not found: ' + destPath);
-    dialog.showErrorBox('Installation Failed', 'The downloaded update installer could not be found.\n\nPlease try downloading again.');
+    sendAppAlert('SYS // CÀI ĐẶT THẤT BẠI', 'Không tìm thấy bộ cài đặt cập nhật đã tải về.\n\nVui lòng thử tải lại bản cập nhật.', 'error');
     return;
   }
 
@@ -948,7 +976,7 @@ async function installDownloadedUpdate(destPath) {
     app.quit();
   } catch (e) {
     log.error('Failed to launch installer:', e);
-    dialog.showErrorBox('Installation Failed', 'Failed to launch installer: ' + e.message);
+    sendAppAlert('SYS // CÀI ĐẶT THẤT BẠI', `Không thể khởi chạy bộ cài đặt:\n${e.message}`, 'error');
   }
 }
 
@@ -1002,6 +1030,9 @@ function startAutoUpdate(url, version) {
       updateDownloadState.isDownloading = false;
       log.info(`Update v${version} successfully downloaded to: ${destPath}`);
       if (mainWindow && !mainWindow.isDestroyed()) {
+        if (mainWindow.isMinimized()) mainWindow.restore();
+        mainWindow.show();
+        mainWindow.focus();
         mainWindow.webContents.send('update-download-progress', {
           status: 'completed',
           percent: 100,
@@ -1009,22 +1040,6 @@ function startAutoUpdate(url, version) {
           destPath: destPath,
         });
       }
-
-      dialog.showMessageBox(mainWindow || undefined, {
-        type: 'info',
-        title: 'Bản cập nhật sẵn sàng',
-        message: `Đã tải xong bản cập nhật v${version}!`,
-        detail: 'Bạn có muốn cài đặt và khởi động lại ngay không?',
-        buttons: ['Cài đặt & Khởi động lại ngay', 'Cài đặt khi đóng ứng dụng', 'Để sau'],
-        defaultId: 0,
-        cancelId: 2,
-      }).then(({ response }) => {
-        if (response === 0) {
-          installDownloadedUpdate(destPath);
-        } else if (response === 1) {
-          installOnQuitPath = destPath;
-        }
-      });
     },
     (err) => {
       updateDownloadState.isDownloading = false;
@@ -1036,7 +1051,7 @@ function startAutoUpdate(url, version) {
           version: version,
         });
       }
-      dialog.showErrorBox('Download Failed', 'Could not download the update automatically.\n\nError: ' + err.message + '\n\nPlease try updating manually or check your internet connection.');
+      sendAppAlert('SYS // TẢI BẢN CẬP NHẬT THẤT BẠI', `Không thể tải bản cập nhật tự động.\n\nChi tiết: ${err.message}\n\nVui lòng thử cập nhật thủ công hoặc kiểm tra lại kết nối mạng.`, 'error');
     }
   );
 }
@@ -1078,44 +1093,39 @@ function checkForUpdates(manual = false) {
           }
 
           if (mainWindow && !mainWindow.isDestroyed()) {
+            if (mainWindow.isMinimized()) mainWindow.restore();
+            mainWindow.show();
+            mainWindow.focus();
             mainWindow.webContents.send('update-available', {
               version: latestVersion,
               currentVersion: currentVersion,
               changelog: info.changelog || '',
               url: platformUrl
             });
+          } else {
+            dialog.showMessageBox({
+              type: 'info',
+              title: 'Update Available',
+              message: `A new version (${latestVersion}) is available!`,
+              detail: info.changelog || 'No release notes available.',
+              buttons: ['Download Manually', 'Later'],
+              defaultId: 0,
+              cancelId: 1
+            }).then(({ response }) => {
+              if (response === 0 && platformUrl) {
+                shell.openExternal(platformUrl);
+              }
+            });
           }
-
-          dialog.showMessageBox(mainWindow, {
-            type: 'info',
-            title: 'Update Available',
-            message: `A new version (${latestVersion}) is available!`,
-            detail: info.changelog || 'No release notes available.',
-            buttons: ['Update Automatically (Recommended)', 'Download Manually', 'Later'],
-            defaultId: 0,
-            cancelId: 2
-          }).then(({ response }) => {
-            if (response === 0 && platformUrl) {
-              startAutoUpdate(platformUrl, latestVersion);
-            } else if (response === 1 && platformUrl) {
-              shell.openExternal(platformUrl);
-            }
-          });
         } else {
           if (manual) {
-            dialog.showMessageBox(mainWindow, {
-              type: 'info',
-              title: 'No Updates',
-              message: 'You are running the latest version.',
-              detail: `Current Version: ${currentVersion}`,
-              buttons: ['OK']
-            });
+            sendAppAlert('SYS // PHIÊN BẢN MỚI NHẤT', `Bạn đang sử dụng phiên bản mới nhất (v${currentVersion}).`, 'info');
           }
         }
       } catch (err) {
         log.error('Update check failed parse:', err.message);
         if (manual) {
-          dialog.showErrorBox('Update Check Failed', `Could not check for updates.\n\nError: ${err.message}`);
+          sendAppAlert('SYS // LỖI KIỂM TRA', `Không thể kiểm tra bản cập nhật.\n\nChi tiết: ${err.message}`, 'error');
         }
       }
     });
@@ -1124,7 +1134,7 @@ function checkForUpdates(manual = false) {
   req.on('error', (err) => {
     log.error('Update check request error:', err.message);
     if (manual) {
-      dialog.showErrorBox('Update Check Failed', `Could not check for updates. Please check your network connection.\n\nError: ${err.message}`);
+      sendAppAlert('SYS // LỖI KẾT NỐI', `Không thể kết nối đến máy chủ cập nhật. Vui lòng kiểm tra lại đường truyền mạng.\n\nChi tiết: ${err.message}`, 'error');
     }
   });
 }
@@ -1136,15 +1146,10 @@ function restartBackendServer() {
     try {
       await startFlaskServer();
       log.info('Flask server restarted successfully.');
-      dialog.showMessageBox(mainWindow, {
-        type: 'info',
-        title: 'Server Restarted',
-        message: 'The internal Flask backend server has been restarted.',
-        buttons: ['OK']
-      });
+      sendAppAlert('SYS // ENGINE STATUS', 'Máy chủ Flask backend đã được khởi động lại thành công.', 'success');
     } catch (err) {
       log.error('Failed to restart Flask server:', err);
-      dialog.showErrorBox('Restart Failed', `Failed to restart backend server.\n\nError: ${err.message}`);
+      sendAppAlert('SYS // ENGINE ERROR', `Không thể khởi động lại backend server.\n\nChi tiết: ${err.message}`, 'error');
     }
   }, 1000);
 }
@@ -1156,27 +1161,28 @@ function buildTrayMenu() {
 
   const contextMenu = Menu.buildFromTemplate([
     {
-      label: `${APP_NAME} (v${app.getVersion()})`,
+      label: `${APP_NAME} // v${app.getVersion()}`,
       enabled: false,
     },
     { type: 'separator' },
     {
-      label: 'Open Application',
+      label: 'Mở EveryThingDownloader',
       click: () => {
         if (mainWindow) {
+          if (mainWindow.isMinimized()) mainWindow.restore();
           mainWindow.show();
           mainWindow.focus();
         }
       },
     },
     {
-      label: 'Open in Default Browser',
+      label: 'Mở trên trình duyệt Web',
       click: () => {
         shell.openExternal(`http://127.0.0.1:${serverPort}/`);
       },
     },
     {
-      label: 'Open Downloads Folder',
+      label: 'Mở thư mục tải về',
       click: () => {
         const downloadsDir = getAppDownloadsDir();
         shell.openPath(downloadsDir);
@@ -1184,7 +1190,9 @@ function buildTrayMenu() {
     },
     { type: 'separator' },
     {
-      label: autoStart ? 'Start with Windows (Enabled)' : 'Start with Windows (Disabled)',
+      label: 'Khởi động cùng Windows',
+      type: 'checkbox',
+      checked: autoStart,
       click: () => {
         const currentSettings = app.getLoginItemSettings();
         const nextState = !currentSettings.openAtLogin;
@@ -1196,20 +1204,20 @@ function buildTrayMenu() {
       },
     },
     {
-      label: 'Restart Backend Server',
+      label: 'Khởi động lại Backend Engine',
       click: () => {
         restartBackendServer();
       },
     },
     {
-      label: 'Check for Updates',
+      label: 'Kiểm tra bản cập nhật...',
       click: () => {
         checkForUpdates(true);
       },
     },
     { type: 'separator' },
     {
-      label: 'Quit',
+      label: 'Thoát ứng dụng',
       click: () => {
         app.isQuitting = true;
         app.quit();
@@ -1229,12 +1237,21 @@ function createTray() {
     icon = icon.resize({ width: 16, height: 16 });
   }
   tray = new Tray(icon.isEmpty() ? nativeImage.createEmpty() : icon);
-  tray.setToolTip(APP_NAME);
+  tray.setToolTip(`${APP_NAME} v${app.getVersion()}`);
 
   buildTrayMenu();
 
   tray.on('double-click', () => {
     if (mainWindow) {
+      if (mainWindow.isMinimized()) mainWindow.restore();
+      mainWindow.show();
+      mainWindow.focus();
+    }
+  });
+
+  tray.on('click', () => {
+    if (mainWindow) {
+      if (mainWindow.isMinimized()) mainWindow.restore();
       mainWindow.show();
       mainWindow.focus();
     }

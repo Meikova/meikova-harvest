@@ -60,6 +60,13 @@ contextBridge.exposeInMainWorld('electronAPI', {
     return () => ipcRenderer.removeListener('update-download-progress', subscription);
   },
 
+  // In-app Alerts & Notifications
+  onAppAlert: (callback) => {
+    const subscription = (_, data) => callback(data);
+    ipcRenderer.on('app-alert', subscription);
+    return () => ipcRenderer.removeListener('app-alert', subscription);
+  },
+
   // Platform
   platform: process.platform,
   isElectron: true,

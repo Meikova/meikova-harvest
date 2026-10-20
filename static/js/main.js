@@ -6016,13 +6016,37 @@ document.addEventListener("DOMContentLoaded", () => {
         });
     }
 
+    function applyModalTypeStyle(type = "info") {
+        if (!confirmModal) return;
+        const card = confirmModal.querySelector(".modal-card-confirm");
+        const iconWrap = confirmModal.querySelector(".confirm-icon-wrap");
+        if (card) {
+            card.classList.remove("type-danger", "type-error", "type-warning", "type-success", "type-info");
+            card.classList.add("type-" + type);
+        }
+        if (iconWrap) {
+            if (type === "success") {
+                iconWrap.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><path d="m9 12 2 2 4-4"></path></svg>';
+            } else if (type === "error" || type === "danger") {
+                iconWrap.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="15" y1="9" x2="9" y2="15"></line><line x1="9" y1="9" x2="15" y2="15"></line></svg>';
+            } else if (type === "warning") {
+                iconWrap.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path><line x1="12" y1="9" x2="12" y2="13"></line><line x1="12" y1="17" x2="12.01" y2="17"></line></svg>';
+            } else {
+                // info / default
+                iconWrap.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="16" x2="12" y2="12"></line><line x1="12" y1="8" x2="12.01" y2="8"></line></svg>';
+            }
+        }
+    }
+
     // Confirm Modal Behavior
     function showConfirm(options = {}) {
         if (!confirmModal) return;
-        confirmModalTitle.textContent = options.title || "Confirm";
-        confirmModalMessage.textContent = options.message || "Are you sure?";
-        confirmModalBtnYes.textContent = options.yesText || "Yes";
-        confirmModalBtnNo.textContent = options.noText || "No";
+        applyModalTypeStyle(options.type || "warning");
+
+        confirmModalTitle.textContent = options.title || "Xác nhận";
+        confirmModalMessage.textContent = options.message || "Bạn có chắc chắn muốn thực hiện hành động này?";
+        confirmModalBtnYes.textContent = options.yesText || "Đồng ý";
+        confirmModalBtnNo.textContent = options.noText || "Hủy bỏ";
 
         confirmYesCallback = options.onYes || null;
         confirmNoCallback = options.onNo || null;
@@ -6032,11 +6056,13 @@ document.addEventListener("DOMContentLoaded", () => {
     }
 
     // Alert Modal Helper (uses confirm modal layout)
-    function showAlert(title, message, callback = null) {
+    function showAlert(title, message, callback = null, type = "info") {
         if (!confirmModal) return;
-        confirmModalTitle.textContent = title || "Notification";
+        applyModalTypeStyle(type);
+
+        confirmModalTitle.textContent = title || "Thông báo";
         confirmModalMessage.textContent = message || "";
-        confirmModalBtnYes.textContent = "OK";
+        confirmModalBtnYes.textContent = "Đã hiểu";
         
         if (confirmModalBtnNo) {
             confirmModalBtnNo.classList.add("hidden");
@@ -16445,16 +16471,44 @@ document.addEventListener("DOMContentLoaded", () => {
         btnCheckAppUpdate.addEventListener("click", () => {
             if (window.electronAPI && window.electronAPI.checkForUpdates) {
                 window.electronAPI.checkForUpdates();
-                if (typeof showAlert === "function") {
-                    showAlert("Kiểm tra cập nhật", "Đang gửi yêu cầu kiểm tra bản cập nhật mới nhất...");
-                }
+                showUpdateToast("SYS // KIỂM TRA BẢN MỚI");
+                if (updateStatusText) updateStatusText.textContent = "Đang kết nối máy chủ GitHub...";
+                if (updateProgressBarFill) updateProgressBarFill.style.width = "40%";
+                if (updatePercentText) updatePercentText.textContent = "";
+                if (updateBytesText) updateBytesText.textContent = "";
+                if (updateSpeedText) updateSpeedText.textContent = "";
+                if (updateActionsContainer) updateActionsContainer.classList.add("hidden");
             } else {
-                if (typeof showAlert === "function") {
-                    showAlert("Thông báo", "Tính năng tự động cập nhật chỉ khả dụng trên ứng dụng Desktop.");
-                } else {
-                    alert("Tính năng tự động cập nhật chỉ khả dụng trên ứng dụng Desktop.");
-                }
+                showAlert("Thông báo", "Tính năng tự động cập nhật chỉ khả dụng trên ứng dụng Desktop.", null, "info");
             }
+        });
+    }
+
+    if (window.electronAPI && window.electronAPI.onUpdateAvailable) {
+        window.electronAPI.onUpdateAvailable((info) => {
+            hideUpdateToast();
+            showConfirm({
+                title: "Bản cập nhật mới sẵn sàng",
+                message: 'Đã có phiên bản v' + (info.version || '') + ' (hiện tại v' + (info.currentVersion || '') + ').\n\n' + (info.changelog ? info.changelog.trim() : 'Bạn có muốn tải và cài đặt bản cập nhật tự động không?'),
+                yesText: "Cập nhật tự động",
+                noText: "Để sau",
+                type: "info",
+                onYes: () => {
+                    if (window.electronAPI && window.electronAPI.startAutoUpdate) {
+                        window.electronAPI.startAutoUpdate({
+                            url: info.url,
+                            version: info.version
+                        });
+                    }
+                }
+            });
+        });
+    }
+
+    if (window.electronAPI && window.electronAPI.onAppAlert) {
+        window.electronAPI.onAppAlert(({ title, message, type = "info" }) => {
+            hideUpdateToast();
+            showAlert(title, message, null, type);
         });
     }
 

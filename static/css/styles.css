@@ -6002,34 +6002,49 @@ body.theme-vimeo {
   border-color: var(--cyan);
 }
 
-/* Confirm Modal Custom styles */
+/* Confirm & Alert Modal Ambient Instrument styles */
 .modal-card-confirm {
   max-width: 460px !important;
-  background: rgba(15, 17, 26, 0.75) !important;
-  border: 1px solid rgba(239, 68, 68, 0.2) !important;
+  background: rgba(13, 17, 24, 0.88) !important;
+  border: 1px solid rgba(var(--cyan-rgb, 0, 240, 255), 0.28) !important;
   box-shadow:
-    0 24px 80px rgba(0, 0, 0, 0.6),
-    0 0 30px rgba(239, 68, 68, 0.08),
-    inset 0 1px 1px rgba(255, 255, 255, 0.15) !important;
+    0 24px 80px rgba(0, 0, 0, 0.75),
+    0 0 35px rgba(var(--cyan-rgb, 0, 240, 255), 0.1),
+    inset 0 1px 1px rgba(255, 255, 255, 0.12) !important;
   backdrop-filter: blur(30px) saturate(180%) !important;
   -webkit-backdrop-filter: blur(30px) saturate(180%) !important;
+  border-radius: 14px !important;
+  transition: border-color 0.25s ease, box-shadow 0.25s ease;
 }
 
 .modal-card-confirm .modal-header {
-  padding: 12px 24px !important;
+  padding: 14px 24px !important;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06) !important;
+}
+
+#confirm-modal-title {
+  font-family: var(--font-display);
+  font-size: 0.86rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-bright, #fff);
 }
 
 .light-theme .modal-card-confirm {
-  background: rgba(255, 255, 255, 0.8) !important;
-  border: 1px solid rgba(239, 68, 68, 0.25) !important;
+  background: rgba(255, 255, 255, 0.92) !important;
+  border: 1px solid rgba(var(--cyan-rgb, 0, 240, 255), 0.35) !important;
   box-shadow:
-    0 24px 80px rgba(31, 38, 135, 0.08),
-    0 0 30px rgba(239, 68, 68, 0.05),
+    0 24px 80px rgba(31, 38, 135, 0.12),
+    0 0 30px rgba(var(--cyan-rgb, 0, 240, 255), 0.08),
     inset 0 1px 1px rgba(255, 255, 255, 0.8) !important;
+}
+.light-theme #confirm-modal-title {
+  color: #111827;
 }
 
 .confirm-modal-body {
-  padding: 18px 24px !important;
+  padding: 20px 24px !important;
 }
 .confirm-message-container {
   display: flex;
@@ -6040,30 +6055,38 @@ body.theme-vimeo {
   width: 44px;
   height: 44px;
   border-radius: 50%;
-  background: rgba(239, 68, 68, 0.12);
-  color: #ef4444;
+  background: rgba(var(--cyan-rgb, 0, 240, 255), 0.12);
+  color: var(--cyan);
   display: flex;
   align-items: center;
   justify-content: center;
   flex-shrink: 0;
-  box-shadow: 0 0 16px rgba(239, 68, 68, 0.1);
+  box-shadow: 0 0 16px rgba(var(--cyan-rgb, 0, 240, 255), 0.15);
+  transition: all 0.2s ease;
 }
 .confirm-icon-wrap svg {
   width: 22px;
   height: 22px;
 }
 #confirm-modal-message {
-  font-size: 0.95rem;
+  font-family: var(--font-ui);
+  font-size: 0.92rem;
   font-weight: 400;
-  line-height: 1.5;
-  color: var(--text);
+  line-height: 1.6;
+  color: var(--text-dim, #cbd5e1);
   margin: 0;
+  white-space: pre-wrap;
+  word-break: break-word;
 }
+.light-theme #confirm-modal-message {
+  color: #374151;
+}
+
 .confirm-modal-footer {
   display: flex;
   justify-content: flex-end;
   gap: 12px;
-  padding: 12px 24px;
+  padding: 14px 24px;
   background: rgba(0, 0, 0, 0.25) !important;
   border-top: 1px solid rgba(255, 255, 255, 0.05) !important;
 }
@@ -6072,10 +6095,10 @@ body.theme-vimeo {
   border-top: 1px solid rgba(0, 0, 0, 0.05) !important;
 }
 .confirm-btn {
-  padding: 8px 20px;
+  padding: 8px 22px;
   border-radius: 8px;
   font-size: 0.88rem;
-  font-weight: 500;
+  font-weight: 600;
   cursor: pointer;
   transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
 }
@@ -6099,20 +6122,84 @@ body.theme-vimeo {
   border-color: rgba(0, 0, 0, 0.25);
   transform: translateY(-1px);
 }
+
+/* Default / Info Button (Dynamic Neon Cyan) */
 .confirm-btn-yes {
-  background: linear-gradient(135deg, #ef4444, #dc2626);
-  border: 1px solid rgba(239, 68, 68, 0.5);
-  color: #fff;
-  box-shadow: 0 4px 12px rgba(239, 68, 68, 0.25);
+  background: linear-gradient(135deg, var(--cyan), #00a2ff);
+  border: 1px solid rgba(var(--cyan-rgb, 0, 240, 255), 0.5);
+  color: #040810;
+  box-shadow: 0 4px 14px rgba(var(--cyan-rgb, 0, 240, 255), 0.25);
 }
 .confirm-btn-yes:hover {
-  background: linear-gradient(135deg, #f87171, #ef4444);
-  border-color: rgba(239, 68, 68, 0.6);
+  filter: brightness(1.12);
   transform: translateY(-1px);
-  box-shadow: 0 6px 16px rgba(239, 68, 68, 0.35);
+  box-shadow: 0 6px 20px rgba(var(--cyan-rgb, 0, 240, 255), 0.4);
 }
 .confirm-btn:active {
   transform: translateY(0);
+}
+
+/* Type Modifiers: Danger / Error */
+.modal-card-confirm.type-danger,
+.modal-card-confirm.type-error {
+  border-color: rgba(239, 68, 68, 0.35) !important;
+  box-shadow:
+    0 24px 80px rgba(0, 0, 0, 0.75),
+    0 0 35px rgba(239, 68, 68, 0.15),
+    inset 0 1px 1px rgba(255, 255, 255, 0.1) !important;
+}
+.modal-card-confirm.type-danger .confirm-icon-wrap,
+.modal-card-confirm.type-error .confirm-icon-wrap {
+  background: rgba(239, 68, 68, 0.12);
+  color: #ef4444;
+  box-shadow: 0 0 16px rgba(239, 68, 68, 0.25);
+}
+.modal-card-confirm.type-danger .confirm-btn-yes,
+.modal-card-confirm.type-error .confirm-btn-yes {
+  background: linear-gradient(135deg, #ef4444, #dc2626);
+  border-color: rgba(239, 68, 68, 0.6);
+  color: #fff;
+  box-shadow: 0 4px 14px rgba(239, 68, 68, 0.3);
+}
+
+/* Type Modifier: Success */
+.modal-card-confirm.type-success {
+  border-color: rgba(16, 185, 129, 0.35) !important;
+  box-shadow:
+    0 24px 80px rgba(0, 0, 0, 0.75),
+    0 0 35px rgba(16, 185, 129, 0.15),
+    inset 0 1px 1px rgba(255, 255, 255, 0.1) !important;
+}
+.modal-card-confirm.type-success .confirm-icon-wrap {
+  background: rgba(16, 185, 129, 0.12);
+  color: #10b981;
+  box-shadow: 0 0 16px rgba(16, 185, 129, 0.25);
+}
+.modal-card-confirm.type-success .confirm-btn-yes {
+  background: linear-gradient(135deg, #10b981, #059669);
+  border-color: rgba(16, 185, 129, 0.6);
+  color: #fff;
+  box-shadow: 0 4px 14px rgba(16, 185, 129, 0.3);
+}
+
+/* Type Modifier: Warning */
+.modal-card-confirm.type-warning {
+  border-color: rgba(245, 158, 11, 0.35) !important;
+  box-shadow:
+    0 24px 80px rgba(0, 0, 0, 0.75),
+    0 0 35px rgba(245, 158, 11, 0.15),
+    inset 0 1px 1px rgba(255, 255, 255, 0.1) !important;
+}
+.modal-card-confirm.type-warning .confirm-icon-wrap {
+  background: rgba(245, 158, 11, 0.12);
+  color: #f59e0b;
+  box-shadow: 0 0 16px rgba(245, 158, 11, 0.25);
+}
+.modal-card-confirm.type-warning .confirm-btn-yes {
+  background: linear-gradient(135deg, #f59e0b, #d97706);
+  border-color: rgba(245, 158, 11, 0.6);
+  color: #000;
+  box-shadow: 0 4px 14px rgba(245, 158, 11, 0.3);
 }
 
 /* === CUSTOM NOUI-SLIDER STYLING === */
