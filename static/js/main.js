@@ -17057,19 +17057,19 @@ document.addEventListener("DOMContentLoaded", () => {
             const isMobile = /Android|iPhone|iPad|iPod|webOS|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) || (window.innerWidth < 768 && 'ontouchstart' in window);
 
             if (isElectron) {
-                // Desktop Electron: open default system browser & poll session loopback
-                window.electronAPI.openExternal(loginUrl);
+                // Desktop Electron: open default system browser & poll session loopback (isolated from web session)
+                window.electronAPI.openExternal(loginUrl + "?source=desktop");
                 startDesktopAuthPolling();
             } else if (isStandalonePWA || (isMobile && !window.opener)) {
                 // Mobile or Standalone PWA: full window redirection for seamless mobile UX
-                window.location.href = loginUrl;
+                window.location.href = loginUrl + "?source=mobile";
             } else {
                 // Desktop Web / Popup supported
-                const popup = window.open(loginUrl, "GoogleAuth", "width=520,height=640,menubar=no,toolbar=no,location=no,status=no");
+                const popup = window.open(loginUrl + "?source=web", "GoogleAuth", "width=520,height=640,menubar=no,toolbar=no,location=no,status=no");
                 startDesktopAuthPolling();
                 if (!popup || popup.closed || typeof popup.closed === "undefined") {
                     // Popup blocked fallback
-                    window.location.href = loginUrl;
+                    window.location.href = loginUrl + "?source=web";
                 }
             }
         });

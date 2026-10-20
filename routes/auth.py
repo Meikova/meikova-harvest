@@ -155,6 +155,7 @@ def google_oauth_login():
     scheme = "https" if request.is_secure else "http"
     host = request.host
     redirect_uri = f"{scheme}://{host}/api/auth/google/callback"
+    source = request.args.get("source", "desktop")
 
     auth_url = (
         "https://accounts.google.com/o/oauth2/v2/auth?"
@@ -163,7 +164,8 @@ def google_oauth_login():
         "response_type=code&"
         "scope=openid%20email%20profile&"
         "access_type=offline&"
-        "prompt=select_account"
+        "prompt=select_account&"
+        f"state={urllib.parse.quote(source, safe='')}"
     )
     return redirect(auth_url)
 
@@ -237,6 +239,70 @@ def google_oauth_callback():
             "timestamp": time.time()
         }
 
+        source = request.args.get("state", "desktop")
+        is_desktop = (source == "desktop")
+
+        if is_desktop:
+            # Ponytail: Desktop app retrieves token via poll-desktop-session.
+            # Do NOT set cookie in external browser, and do NOT redirect browser to web app!
+            html = f"""<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <title>Xác thực thành công // EveryThingDownloader Desktop</title>
+    <style>
+        body {{
+            background: #080C14;
+            color: #00E5FF;
+            font-family: 'JetBrains Mono', Consolas, sans-serif;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            height: 100vh;
+            margin: 0;
+            text-align: center;
+        }}
+        .card {{
+            background: rgba(13, 17, 24, 0.95);
+            border: 1px solid rgba(0, 229, 255, 0.4);
+            border-radius: 16px;
+            padding: 36px 40px;
+            box-shadow: 0 0 40px rgba(0, 229, 255, 0.2);
+            max-width: 440px;
+        }}
+        h2 {{ margin: 0 0 12px; font-size: 1.1rem; letter-spacing: 0.08em; }}
+        p {{ color: #94a3b8; font-size: 0.8125rem; line-height: 1.5; margin: 0 0 20px; }}
+        .badge {{ display: inline-block; padding: 4px 12px; border-radius: 9999px; background: rgba(0,229,255,0.1); border: 1px solid rgba(0,229,255,0.3); font-size: 0.75rem; color: #00E5FF; margin-bottom: 14px; }}
+        .btn-close {{
+            display: inline-block;
+            background: #00E5FF;
+            color: #080C14;
+            font-family: inherit;
+            font-weight: 700;
+            font-size: 0.8125rem;
+            padding: 9px 24px;
+            border-radius: 9999px;
+            border: none;
+            cursor: pointer;
+            text-decoration: none;
+        }}
+    </style>
+</head>
+<body>
+    <div class="card">
+        <div class="badge">DESKTOP APP // KẾT NỐI THÀNH CÔNG</div>
+        <h2>ĐÃ ĐĂNG NHẬP GOOGLE</h2>
+        <p>Tài khoản <strong>{email}</strong> đã kết nối với ứng dụng Desktop.<br>Bạn có thể đóng tab này và quay lại EveryThingDownloader.</p>
+        <button type="button" class="btn-close" onclick="window.close()">Đóng tab này</button>
+    </div>
+    <script>
+        setTimeout(() => {{ try {{ window.close(); }} catch(e) {{}} }}, 1500);
+    </script>
+</body>
+</html>"""
+            return make_response(html)
+
+        # Web / PWA flow: Set cookie and redirect or postMessage
         html = f"""<!DOCTYPE html>
 <html>
 <head>
