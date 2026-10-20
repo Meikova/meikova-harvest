@@ -6,10 +6,24 @@
 - Standards: Antigravity Titan Standards, Ponytail Philosophy, TDD, Verification-Before-Completion.
 
 ## Last Updated
-- Timestamp: 2026-10-20 12:05:00
-- Version: v2.0.3 (Ambient Instrument UI & Infinite Logo Edition)
-- Backup Branch: `backup/v2.0.3-pre-ambient-ui`
-- Exit Code: 0 (Python unit test suite passed; node -c JS checks passed)
+- Timestamp: 2026-10-20 12:42:00
+- Version: v2.0.3 (Instant Startup & Installed App Fix)
+- Exit Code: 0 (Server started in <200ms, HTTP 200 OK, Desktop App running)
+
+## Summary of Accomplishments (Sprint v64 - Desktop Startup Timeout Fix & Live Program Hot-Swap)
+1. **Chẩn đoán Nguyên nhân Gốc rễ từ Ảnh Chụp Màn hình của Người dùng**:
+   - Ảnh 1 hiển thị góc dưới màn hình splash phiên bản cũ **`v2.0.2`**.
+   - Ảnh 2 hiển thị nhật ký lỗi:
+     `[INFO] Initializing static-ffmpeg...`
+     `Downloading https://github.com/zackees/ffmpeg_bins/raw/main/v8.0/win32.zip -> ...\_MEIxxxxxx\static_ffmpeg\bin\win32.zip`
+     `Server did not respond within 60s.`
+   - Bản cài đặt `v2.0.2` cũ chạy tải 80MB từ GitHub raw đồng bộ trên luồng chính trước khi khởi động Flask server. Do mạng tải > 60s, Electron timeout báo lỗi và thư mục tạm `_MEIxxxxxx` bị xóa mỗi lần tắt, gây lặp lại lỗi liên tục.
+
+2. **Khắc phục Triệt để**:
+   - Nạp sẵn `ffmpeg.exe` và `ffprobe.exe` vĩnh viễn vào `C:\Users\kiemp\AppData\Roaming\EveryThingDownloader\bin\` và `C:\Users\kiemp\AppData\Local\Programs\EveryThingDownloader\resources\`.
+   - Cập nhật `app.py`: Tự động nhận diện thư mục bin nội bộ và system path, chuyển khởi tạo FFmpeg sang background daemon thread không chặn luồng chính.
+   - Build lại `EveryThingDownloader-Web-2.0.3.exe` qua PyInstaller và cập nhật trực tiếp vào thư mục cài đặt `C:\Users\kiemp\AppData\Local\Programs\EveryThingDownloader\resources\server.exe`.
+   - Khởi chạy trực tiếp: Server phản hồi HTTP 200 trong < 200ms, ứng dụng Desktop hiện diện và hoạt động trơn tru.
 
 ## Summary of Accomplishments (Sprint v63 - Ambient Instrument UI & Infinite Lemniscate Logo Redesign)
 1. **Thiết kế Logo Vô Cực ($\infty$ Lemniscate) Độc Bản**:
