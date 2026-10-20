@@ -1156,12 +1156,12 @@ function buildTrayMenu() {
 
   const contextMenu = Menu.buildFromTemplate([
     {
-      label: `✨ ${APP_NAME} (v${app.getVersion()})`,
+      label: `${APP_NAME} (v${app.getVersion()})`,
       enabled: false,
     },
     { type: 'separator' },
     {
-      label: '📥 Open Application',
+      label: 'Open Application',
       click: () => {
         if (mainWindow) {
           mainWindow.show();
@@ -1170,13 +1170,13 @@ function buildTrayMenu() {
       },
     },
     {
-      label: '🌐 Open in Default Browser',
+      label: 'Open in Default Browser',
       click: () => {
         shell.openExternal(`http://127.0.0.1:${serverPort}/`);
       },
     },
     {
-      label: '📂 Open Downloads Folder',
+      label: 'Open Downloads Folder',
       click: () => {
         const downloadsDir = getAppDownloadsDir();
         shell.openPath(downloadsDir);
@@ -1184,7 +1184,7 @@ function buildTrayMenu() {
     },
     { type: 'separator' },
     {
-      label: autoStart ? '⚙️ Start with Windows (Enabled)' : '⚙️ Start with Windows (Disabled)',
+      label: autoStart ? 'Start with Windows (Enabled)' : 'Start with Windows (Disabled)',
       click: () => {
         const currentSettings = app.getLoginItemSettings();
         const nextState = !currentSettings.openAtLogin;
@@ -1196,20 +1196,20 @@ function buildTrayMenu() {
       },
     },
     {
-      label: '🔄 Restart Backend Server',
+      label: 'Restart Backend Server',
       click: () => {
         restartBackendServer();
       },
     },
     {
-      label: '🔔 Check for Updates',
+      label: 'Check for Updates',
       click: () => {
         checkForUpdates(true);
       },
     },
     { type: 'separator' },
     {
-      label: '🛑 Quit',
+      label: 'Quit',
       click: () => {
         app.isQuitting = true;
         app.quit();

@@ -6,9 +6,33 @@
 - Standards: Antigravity Titan Standards, Ponytail Philosophy, TDD, Verification-Before-Completion.
 
 ## Last Updated
-- Timestamp: 2026-10-20 13:10:00
-- Version: v2.0.3 (Zero-Icon & Ambient Instrument UI Standardized)
-- Exit Code: 0 (Python 79 tests passed, Node syntax checks OK, app.asar packed)
+- Timestamp: 2026-10-20 13:45:00
+- Version: v2.0.3 (System Tray Clean Zero-Emoji & Dynamic Ambient UI Standardized)
+- Exit Code: 0 (Python tests passed, Node syntax checks OK, app.asar packed)
+
+## Summary of Accomplishments (Sprint v66 - System Tray Zero-Emoji, Dynamic Harmonization & Taskbar Icon Fix)
+1. **Loại bỏ Hoàn toàn 8 Emoji Trong System Tray Context Menu (`electron/main.js`)**:
+   - Loại bỏ 100% các ký tự emoji: `✨`, `📥`, `🌐`, `📂`, `⚙️`, `🔄`, `🔔`, `🛑`.
+   - Chuẩn hóa văn bản menu theo phong cách chuyên nghiệp sạch sẽ, tối giản (Less Text, More Signal):
+     * `EveryThingDownloader (v2.0.3)`
+     * `Open Application`
+     * `Open in Default Browser`
+     * `Open Downloads Folder`
+     * `Start with Windows (Enabled / Disabled)`
+     * `Restart Backend Server`
+     * `Check for Updates`
+     * `Quit`
+
+2. **Khắc phục Triệt để Icon Windows Taskbar & Bộ nhớ Đệm Explorer**:
+   - Trỏ shortcut Start Menu `EveryThingDownloader.lnk` trực tiếp vào tệp đa độ phân giải `icon.ico,0`.
+   - Phân tách AppID môi trường dev `isDev ? 'com.everythingdownloader.dev' : 'com.everythingdownloader.app'` để không bị Windows kéo icon cũ từ shortcut production.
+   - Bổ sung `mainWindow.setIcon(getAppIcon())` trực tiếp khi khởi tạo cửa sổ frameless.
+   - Khởi động lại `explorer.exe` làm sạch bộ nhớ đệm Taskbar trong RAM (Taskbar hiện đã hiển thị chuẩn logo vô cực $\infty$).
+
+3. **Đồng bộ Dynamic Lighting Logo & Thiết kế lại Thang cuộn (Scrollbar)**:
+   - Header logo chuyển thành inline vector `<svg class="header-logo-svg">` tự động đổi màu theo `--cyan` / `--accent`.
+   - Thang cuộn toàn hệ thống đưa về chuẩn siêu mỏng `4px`, bo tròn `999px`, nền trong suốt và thumb phát quang động theo `--cyan-rgb`.
+   - Đóng gói đè `app.asar` vào thư mục cài đặt Desktop.
 
 ## Summary of Accomplishments (Sprint v65 - Zero-Icon Mandate & Ambient Instrument UI Alignment)
 1. **Thi hành Triệt để Zero-Icon Mandate (100% Inline Vector SVG)**:
