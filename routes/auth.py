@@ -285,6 +285,26 @@ def google_oauth_callback():
             border: none;
             cursor: pointer;
             text-decoration: none;
+            transition: all 0.2s ease;
+        }}
+        .btn-close:hover {{
+            box-shadow: 0 0 16px rgba(0, 229, 255, 0.6);
+            transform: scale(1.02);
+        }}
+        .tip {{
+            margin-top: 14px;
+            font-size: 0.75rem;
+            color: #64748b;
+            line-height: 1.5;
+        }}
+        kbd {{
+            background: #1e293b;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            padding: 2px 6px;
+            border-radius: 4px;
+            color: #94a3b8;
+            font-family: inherit;
+            font-size: 0.6875rem;
         }}
     </style>
 </head>
@@ -293,10 +313,26 @@ def google_oauth_callback():
         <div class="badge">DESKTOP APP // KẾT NỐI THÀNH CÔNG</div>
         <h2>ĐÃ ĐĂNG NHẬP GOOGLE</h2>
         <p>Tài khoản <strong>{email}</strong> đã kết nối với ứng dụng Desktop.<br>Bạn có thể đóng tab này và quay lại EveryThingDownloader.</p>
-        <button type="button" class="btn-close" onclick="window.close()">Đóng tab này</button>
+        <button type="button" id="close-btn" class="btn-close" onclick="attemptClose()">Đóng tab này</button>
+        <div id="close-tip" class="tip">
+            (Nếu trình duyệt chặn script đóng, hãy bấm <kbd>Ctrl + W</kbd>)
+        </div>
     </div>
     <script>
-        setTimeout(() => {{ try {{ window.close(); }} catch(e) {{}} }}, 1500);
+        function attemptClose() {{
+            try {{ window.open('', '_self', ''); window.close(); }} catch(e) {{}}
+            try {{ window.close(); }} catch(e) {{}}
+            setTimeout(() => {{
+                const btn = document.getElementById("close-btn");
+                if (btn) {{
+                    btn.textContent = "Nhấn Ctrl + W để đóng tab";
+                    btn.style.background = "rgba(0, 229, 255, 0.12)";
+                    btn.style.color = "#00E5FF";
+                    btn.style.border = "1px solid rgba(0, 229, 255, 0.3)";
+                }}
+            }}, 200);
+        }}
+        setTimeout(attemptClose, 1500);
     </script>
 </body>
 </html>"""
