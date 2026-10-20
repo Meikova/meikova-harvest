@@ -98,8 +98,28 @@ def _init_ffmpeg_async():
 import threading
 threading.Thread(target=_init_ffmpeg_async, daemon=True, name="ffmpeg-init").start()
 
-# Initialize Flask app
-app = Flask(__name__, static_folder="static", template_folder="templates")
+# Initialize Flask app with dynamic static and template resolution
+def _resolve_app_asset_dir(subpath):
+    candidates = [
+        os.path.join(r"D:\JOB\DEV\EveryThingDownloader", subpath),
+        os.path.join(os.path.dirname(os.path.abspath(__file__)), subpath),
+        os.path.join(os.getcwd(), subpath),
+    ]
+    if getattr(sys, 'frozen', False):
+        exe_dir = os.path.dirname(sys.executable)
+        candidates.insert(1, os.path.join(exe_dir, subpath))
+        candidates.insert(2, os.path.join(exe_dir, '..', subpath))
+        meipass = getattr(sys, '_MEIPASS', '')
+        if meipass:
+            candidates.append(os.path.join(meipass, subpath))
+    for c in candidates:
+        if c and os.path.isdir(c):
+            return os.path.abspath(c)
+    return subpath
+
+STATIC_DIR = _resolve_app_asset_dir("static")
+TEMPLATES_DIR = _resolve_app_asset_dir("templates")
+app = Flask(__name__, static_folder=STATIC_DIR, template_folder=TEMPLATES_DIR)
 # Lockdown CORS to local origins and Electron webviews
 CORS(
     app,

@@ -6,9 +6,28 @@
 - Standards: Antigravity Titan Standards, Ponytail Philosophy, TDD, Verification-Before-Completion.
 
 ## Last Updated
-- Timestamp: 2026-10-20 14:10:00
-- Version: v2.0.3 (In-App Dark Modal Alerts & Windows Dark Tray Menu Standardized)
-- Exit Code: 0 (Node syntax checks OK, Python unittest discover OK, app.asar packed)
+- Timestamp: 2026-10-20 14:26:00
+- Version: v2.0.3 (Tray Vector Icons, Dynamic Asset Resolution & Modal Update Fixed)
+- Exit Code: 0 (Node syntax checks OK, PyInstaller server build OK, app.asar packed)
+
+## Summary of Accomplishments (Sprint v68 - System Tray Vector Icons & Live Asset Resolution Fix)
+1. **Bổ sung Bộ Vector Icons Phát quang Neon Cho System Tray Context Menu (`electron/main.js`)**:
+   - Khắc phục hiện tượng menu khay hệ thống bị trống bằng cách bổ sung 7 biểu tượng vector sắc nét (16x16 / 32x32 supersampled) vào từng mục menu:
+     * Header `EveryThingDownloader`: Logo vô cực $\infty$ phát quang neon cyan (`logo.png`).
+     * `Mở EveryThingDownloader`: Cửa sổ ứng dụng desktop (`window.png`).
+     * `Mở trên trình duyệt Web`: Địa cầu kết nối web (`browser.png`).
+     * `Mở thư mục tải về`: Thư mục tải về kèm mũi tên (`folder.png`).
+     * `Khởi động lại Backend Engine`: Vòng xoay nạp lại động cơ (`refresh.png`).
+     * `Kiểm tra bản cập nhật...`: Mũi tên tải nâng cấp vào khay (`update.png`).
+     * `Thoát ứng dụng`: Nút nguồn thoát màu đỏ mềm (`quit.png`).
+   - Đóng gói toàn bộ bộ icon vào `electron/resources/tray_icons/` và nạp tự động qua `getTrayIcon(name)`.
+
+2. **Khắc phục Triệt để Lỗi Bấm "Check App Update" Không Phản Hồi**:
+   - **Nguyên nhân gốc rễ**: File `server.exe` cũ đóng gói cố định `static/js/main.js` trong `sys._MEIPASS` không chứa bộ lắng nghe sự kiện `onAppAlert`. Khi `main.js` phát `app-alert` qua IPC, renderer cũ không nhận được nên không mở modal.
+   - **Khắc phục**:
+     * Cập nhật `app.py`: Bổ sung cơ chế `_resolve_app_asset_dir` ưu tiên nạp động `static` và `templates` từ thư mục mã nguồn `D:\JOB\DEV\EveryThingDownloader` và thư mục kế bên `server.exe` trước khi fallback về `sys._MEIPASS`. Nhờ đó mọi thay đổi CSS/JS/HTML đều có hiệu lực ngay lập tức.
+     * Build lại `EveryThingDownloader-Web-2.0.3.exe` bằng PyInstaller và cập nhật đồng bộ vào `resources/server.exe`.
+     * Đóng gói lại `app.asar` chứa đầy đủ mã nguồn Electron mới nhất và bộ icon khay hệ thống.
 
 ## Summary of Accomplishments (Sprint v67 - In-App Ambient Alert Modals & Windows Dark Tray Menu)
 1. **Triệt tiêu Hộp thoại Win32 Nền Trắng, Chuẩn hóa In-App Ambient Alert Modal**:

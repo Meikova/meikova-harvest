@@ -1156,17 +1156,32 @@ function restartBackendServer() {
 
 // ─── System Tray ─────────────────────────────────────────────────────────────
 
+function getTrayIcon(name) {
+  try {
+    const iconPath = path.join(__dirname, 'resources', 'tray_icons', `${name}.png`);
+    if (fs.existsSync(iconPath)) {
+      const img = nativeImage.createFromPath(iconPath);
+      if (!img.isEmpty()) {
+        return img.resize({ width: 16, height: 16 });
+      }
+    }
+  } catch (_) {}
+  return undefined;
+}
+
 function buildTrayMenu() {
   const autoStart = app.getLoginItemSettings().openAtLogin;
 
   const contextMenu = Menu.buildFromTemplate([
     {
       label: `${APP_NAME} // v${app.getVersion()}`,
+      icon: getTrayIcon('logo'),
       enabled: false,
     },
     { type: 'separator' },
     {
       label: 'Mở EveryThingDownloader',
+      icon: getTrayIcon('window'),
       click: () => {
         if (mainWindow) {
           if (mainWindow.isMinimized()) mainWindow.restore();
@@ -1177,12 +1192,14 @@ function buildTrayMenu() {
     },
     {
       label: 'Mở trên trình duyệt Web',
+      icon: getTrayIcon('browser'),
       click: () => {
         shell.openExternal(`http://127.0.0.1:${serverPort}/`);
       },
     },
     {
       label: 'Mở thư mục tải về',
+      icon: getTrayIcon('folder'),
       click: () => {
         const downloadsDir = getAppDownloadsDir();
         shell.openPath(downloadsDir);
@@ -1205,12 +1222,14 @@ function buildTrayMenu() {
     },
     {
       label: 'Khởi động lại Backend Engine',
+      icon: getTrayIcon('refresh'),
       click: () => {
         restartBackendServer();
       },
     },
     {
       label: 'Kiểm tra bản cập nhật...',
+      icon: getTrayIcon('update'),
       click: () => {
         checkForUpdates(true);
       },
@@ -1218,6 +1237,7 @@ function buildTrayMenu() {
     { type: 'separator' },
     {
       label: 'Thoát ứng dụng',
+      icon: getTrayIcon('quit'),
       click: () => {
         app.isQuitting = true;
         app.quit();
