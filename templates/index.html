@@ -49,6 +49,11 @@
     <!-- Favicon -->
     <link
       rel="icon"
+      type="image/svg+xml"
+      href="{{ url_for('static', filename='favicon.svg') }}"
+    />
+    <link
+      rel="icon"
       type="image/png"
       href="{{ url_for('static', filename='favicon.png') }}"
     />
@@ -56,7 +61,7 @@
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link
-      href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Outfit:wght@300;400;500;600;700&family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&family=Space+Grotesk:wght@400;500;600;700&display=swap"
+      href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;600&family=Unbounded:wght@400;500;600;700&family=Outfit:wght@400;500;600;700&family=Inter:wght@400;500;600;700&display=swap"
       rel="stylesheet"
     />
     <link
@@ -132,11 +137,15 @@
       <header class="header">
         <div class="logo">
           <img
-            src="{{ url_for('static', filename='logo.png') }}"
+            src="{{ url_for('static', filename='logo.svg') }}"
             alt="Logo"
             class="logo-img"
           />
-          <h1>Everything<span class="brand-accent">Downloader</span></h1>
+          <h1>EVERYTHING <span class="brand-accent">∞</span> DOWNLOADER</h1>
+        </div>
+        <div class="header-telemetry-pill" title="System Engine Online">
+          <span class="telemetry-dot"></span>
+          <span class="telemetry-text">SYS // READY</span>
         </div>
         <div class="header-actions">
           <button

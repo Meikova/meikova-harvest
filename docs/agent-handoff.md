@@ -6,11 +6,39 @@
 - Standards: Antigravity Titan Standards, Ponytail Philosophy, TDD, Verification-Before-Completion.
 
 ## Last Updated
-- Timestamp: 2026-10-14 13:35:00
-- Version: v2.0.3
-- Exit Code: 0 (Ran 79 unit tests, 100% OK; node -c electron/main.js OK)
+- Timestamp: 2026-10-20 12:05:00
+- Version: v2.0.3 (Ambient Instrument UI & Infinite Logo Edition)
+- Backup Branch: `backup/v2.0.3-pre-ambient-ui`
+- Exit Code: 0 (Python unit test suite passed; node -c JS checks passed)
 
-## Summary of Accomplishments (Sprint v62 - Hotfix v2.0.3: Non-blocking Async FFmpeg Startup & Persistent Spooling)
+## Summary of Accomplishments (Sprint v63 - Ambient Instrument UI & Infinite Lemniscate Logo Redesign)
+1. **Thiết kế Logo Vô Cực ($\infty$ Lemniscate) Độc Bản**:
+   - **Tham chiếu kiến trúc**: Chuẩn hóa từ 2 dự án `MashLoop` (`D:\JOB\DEV\MashLoop`) và `titan-remote` (`D:\JOB\DEV\titan-remote`).
+   - **Khắc phục lỗi đè viền**: Loại bỏ hoàn toàn đa lớp underglow, concentric circles và stroke chồng lấn; sử dụng chính xác 1 đường cong Bernoulli Lemniscate duy nhất với nét stroke `#00E5FF` (Electric Cyan) dày `44.8`, kèm 1 hạt satellite photon quang học `#FFFFFF` tại `(371.2, 198.4)` trên nền phòng tối `#080C14` bo góc mềm `rx="112"`.
+   - **Đồng bộ hóa toàn bộ tài nguyên thương hiệu**:
+     + `static/logo.svg` và `static/favicon.svg`
+     + `static/logo.png` và `static/favicon.png` (sử dụng Electron headless renderer)
+     + `electron/resources/icon.png` và `electron/resources/icon.ico` (đa kích thước 16x16 đến 256x256 qua Pillow)
+     + `electron/splash.html` (giao diện khởi động phòng tối với typography Unbounded + JetBrains Mono)
+
+2. **Tái cấu trúc Hệ Thống Design Tokens (CSS OKLCH Dynamic Lighting)**:
+   - Khai báo CSS `@property` cho phép trình duyệt nội suy mượt mà ánh sáng: `--pulse`, `--acc-l`, `--acc-c`, `--acc-h`, `--acc2-l`, `--acc2-c`, `--acc2-h`, `--gh`, `--gc`.
+   - Thiết lập bảng màu buồng tối: `--ink-0` (0.15 lightness), `--ink-1`, `--ink-2`, `--ink-3`, hairline border `--line` (0.7 opacity) và `--line-soft` (0.35 opacity).
+   - Ánh sáng Emissive Phosphor: `--accent: oklch(var(--acc))` với tông Electric Cyan chủ đạo (`hue: 215`) kết hợp Electric Indigo (`hue: 285`).
+
+3. **Chuẩn hóa Giao diện Ambient Instrument**:
+   - **Hệ thống Typography 3 Tầng**:
+     + Display / Brand: `Unbounded` (500, 600) — hình học lặp vô tận.
+     + UI / Body: `Be Vietnam Pro` (400, 500, 600) — an toàn 100% cho dấu thanh tiếng Việt.
+     + Telemetry / Data: `JetBrains Mono` (400, 500) — `tabular-nums` cho kích thước, thời lượng, timecode, tốc độ tải.
+   - **Header Bar**: Logo vô cực + `EVERYTHING ∞ DOWNLOADER` + corner telemetry readout (`SYS // READY`).
+   - **Navigation Tabs**: Chuyển đổi sang tactile segmented pill deck dạng trượt (`main-tabs`, `main-tab-btn`).
+   - **Floating Downloads Manager**: Bo góc mềm, viền hairline, badge số lượng tabular monospace.
+
+4. **Kiểm chứng Toàn diện**:
+   - Sao lưu toàn bộ phiên bản trước vào nhánh an toàn `backup/v2.0.3-pre-ambient-ui` trên GitHub.
+   - Kiểm tra cú pháp JS (`static/js/main.js`, `electron/main.js`, `electron/preload.js`): Exit Code 0.
+   - Chạy toàn bộ test suite `python -m unittest discover tests`: Exit Code 0.
 1. **Khắc phục Triệt để Lỗi Server Không Phản Hồi Trong 60s (`Server did not respond within 60s`)**:
    - **Nguyên nhân gốc rễ (nhờ chẩn đoán chi tiết)**:
      + Trong `app.py`, hàm `static_ffmpeg.add_paths()` được gọi đồng bộ (synchronous) ngay tại luồng chính trước khi khởi động Flask server.
