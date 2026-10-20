@@ -153,7 +153,7 @@ def sanitize_version(version: str | None) -> str:
 class BuildConfig:
     def __init__(self):
         self.app_name:    str  = 'EveryThingDownloader'
-        self._version:    str  = '2.0.3'
+        self._version:    str  = '2.0.4'
         self.company:     str  = 'EveryThingDownloader'
         self.description: str  = 'EveryThingDownloader'
         self.copyright:   str  = f'© 2026 EveryThingDownloader'

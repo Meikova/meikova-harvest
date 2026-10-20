@@ -1,11 +1,11 @@
 {
-    "version": "2.0.3",
-    "url": "https://github.com/m3iK18dp/EveryThingDownloader-Tool/releases/download/v2.0.3/EveryThingDownloader-Setup-2.0.3.exe",
+    "version": "2.0.4",
+    "url": "https://github.com/m3iK18dp/EveryThingDownloader-Tool/releases/download/v2.0.4/EveryThingDownloader-Setup-2.0.4.exe",
     "platforms": {
-        "win32": "https://github.com/m3iK18dp/EveryThingDownloader-Tool/releases/download/v2.0.3/EveryThingDownloader-Setup-2.0.3.exe",
-        "darwin_arm64": "https://github.com/m3iK18dp/EveryThingDownloader-Tool/releases/download/v2.0.3/EveryThingDownloader-2.0.3-arm64.dmg",
-        "darwin_x64": "https://github.com/m3iK18dp/EveryThingDownloader-Tool/releases/download/v2.0.3/EveryThingDownloader-2.0.3-x64.dmg",
-        "linux_x64": "https://github.com/m3iK18dp/EveryThingDownloader-Tool/releases/download/v2.0.3/EveryThingDownloader-2.0.3-x64.AppImage"
+        "win32": "https://github.com/m3iK18dp/EveryThingDownloader-Tool/releases/download/v2.0.4/EveryThingDownloader-Setup-2.0.4.exe",
+        "darwin_arm64": "https://github.com/m3iK18dp/EveryThingDownloader-Tool/releases/download/v2.0.4/EveryThingDownloader-2.0.4-arm64.dmg",
+        "darwin_x64": "https://github.com/m3iK18dp/EveryThingDownloader-Tool/releases/download/v2.0.4/EveryThingDownloader-2.0.4-x64.dmg",
+        "linux_x64": "https://github.com/m3iK18dp/EveryThingDownloader-Tool/releases/download/v2.0.4/EveryThingDownloader-2.0.4-x64.AppImage"
     },
-    "changelog": "EVERYTHING DOWNLOADER HOTFIX RELEASE V2.0.3:\n- Instant Server Startup (<200ms): Chuyển quá trình giải quyết và đồng bộ FFmpeg sang luồng nền (background daemon thread), triệt tiêu hoàn toàn lỗi tắc nghẽn server và lỗi timeout 60s.\n- Persistent Binary Cache: Lưu trữ vĩnh viễn tệp thực thi FFmpeg vào User Data Directory (USER_DATA_DIR/bin), chấm dứt việc tải lại khi mở app.\n- Weak Discovery Mode: Tận dụng ngay FFmpeg/FFprobe có sẵn của hệ điều hành, không tải lại nếu đã tồn tại.\n- Fix PyInstaller CI Packaging: Loại bỏ phụ thuộc thư mục downloads/ tĩnh trong cấu hình spec datas, tránh lỗi build trên môi trường Linux/macOS GitHub Actions sạch.\n- Expanded Hidden Imports: Bổ sung toàn diện tất cả các submodules (routes.*, tasks.*, extractors.*, utils.*) vào cấu hình đóng gói PyInstaller để tránh ModuleNotFoundError."
+    "changelog": "EVERYTHING DOWNLOADER RELEASE V2.0.4:\n- Ambient Instrument Auth Modal: Thiết kế lại toàn diện modal đăng nhập theo phong cách MashLoop Ambient Dark Instrument. Loại bỏ nút trùng lặp, tối ưu capsule Google OAuth duy nhất.\n- Multi-Platform Support: Hỗ trợ liền mạch Desktop Electron, Web Desktop, Standalone PWA trên điện thoại và máy tính, sẵn sàng tích hợp Native Mobile App.\n- Decoupled Desktop OAuth Loopback: Tự động đồng bộ phiên đăng nhập giữa trình duyệt hệ thống và Desktop Electron mà không bị lỗi Google disallowed_useragent.\n- Vibrant Radiant Submit Button: Chuẩn hóa màu neon cyan phát quang cho nút hành động chính, xóa bỏ triệt để màu xám xỉn mặc định.\n- PWA Web App Manifest: Bổ sung web app manifest và meta tag cho trải nghiệm app độc lập trên mobile và PC."
 }

@@ -16717,7 +16717,7 @@ document.addEventListener("DOMContentLoaded", () => {
             if (authInputEmail) authInputEmail.setAttribute("required", "required");
         } else {
             if (authFieldEmail) authFieldEmail.classList.add("hidden");
-            if (authSubmitBtnText) authSubmitBtnText.textContent = "TIẾP TỤC VÀO HỆ THỐNG";
+            if (authSubmitBtnText) authSubmitBtnText.textContent = "ĐĂNG NHẬP";
             if (authInputEmail) authInputEmail.removeAttribute("required");
         }
     }
@@ -16798,25 +16798,16 @@ document.addEventListener("DOMContentLoaded", () => {
 
     function initGoogleSignIn() {
         if (!window.google || !window.google.accounts || !window.google.accounts.id) {
-            setTimeout(initGoogleSignIn, 500);
+            setTimeout(initGoogleSignIn, 1000);
             return;
         }
         try {
             window.google.accounts.id.initialize({
                 client_id: GOOGLE_CLIENT_ID,
-                callback: handleGoogleAuthResponse
+                callback: handleGoogleAuthResponse,
+                auto_select: false
             });
-            const googleContainer = document.getElementById("google-signin-btn-container");
-            if (googleContainer) {
-                googleContainer.innerHTML = "";
-                window.google.accounts.id.renderButton(googleContainer, {
-                    theme: "outline",
-                    size: "large",
-                    text: "continue_with",
-                    shape: "pill",
-                    width: 280
-                });
-            }
+            // Ambient design: single unified button (#btn-ambient-google)
         } catch (err) {
             console.warn("Google Sign-In initialization skipped:", err);
         }
@@ -17025,15 +17016,61 @@ document.addEventListener("DOMContentLoaded", () => {
         }
     });
 
-    // Browser OAuth Button for Native Desktop & Cross-Browser Flow
-    const btnBrowserGoogleAuth = document.getElementById("btn-browser-google-auth");
-    if (btnBrowserGoogleAuth) {
-        btnBrowserGoogleAuth.addEventListener("click", () => {
+    // Multi-Platform Decoupled Auth Polling (Electron, Standalone PWA, External Browser)
+    let desktopAuthPollTimer = null;
+    function startDesktopAuthPolling() {
+        if (desktopAuthPollTimer) clearInterval(desktopAuthPollTimer);
+        let attempts = 0;
+        const maxAttempts = 50; // ~60 seconds (50 * 1200ms)
+        desktopAuthPollTimer = setInterval(async () => {
+            attempts++;
+            if (attempts > maxAttempts || currentUserState) {
+                clearInterval(desktopAuthPollTimer);
+                desktopAuthPollTimer = null;
+                return;
+            }
+            try {
+                const res = await fetch("/api/auth/poll-desktop-session");
+                const data = await res.json();
+                if (data.status === "success" && data.user) {
+                    clearInterval(desktopAuthPollTimer);
+                    desktopAuthPollTimer = null;
+                    updateAuthUI(data.user);
+                    if (authModal) authModal.classList.add("hidden");
+                    if (typeof loadDownloadHistory === "function") loadDownloadHistory();
+                    triggerCloudSync(false);
+                    if (typeof showStatusNotification === "function") {
+                        showStatusNotification(`Đăng nhập Google thành công: ${data.user.display_name || data.user.email}`);
+                    }
+                }
+            } catch (_) {}
+        }, 1200);
+    }
+
+    // 1 Single Google OAuth Button (Multi-platform: Desktop Electron, Desktop PWA, Mobile PWA, Web)
+    const btnGoogle = document.getElementById("btn-ambient-google") || document.getElementById("btn-browser-google-auth");
+    if (btnGoogle) {
+        btnGoogle.addEventListener("click", () => {
             const loginUrl = window.location.origin + "/api/auth/google/login";
-            if (window.electronAPI && typeof window.electronAPI.openExternal === "function") {
+            const isElectron = window.electronAPI && typeof window.electronAPI.openExternal === "function";
+            const isStandalonePWA = window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone === true;
+            const isMobile = /Android|iPhone|iPad|iPod|webOS|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) || (window.innerWidth < 768 && 'ontouchstart' in window);
+
+            if (isElectron) {
+                // Desktop Electron: open default system browser & poll session loopback
                 window.electronAPI.openExternal(loginUrl);
+                startDesktopAuthPolling();
+            } else if (isStandalonePWA || (isMobile && !window.opener)) {
+                // Mobile or Standalone PWA: full window redirection for seamless mobile UX
+                window.location.href = loginUrl;
             } else {
-                window.open(loginUrl, "_blank", "width=520,height=640");
+                // Desktop Web / Popup supported
+                const popup = window.open(loginUrl, "GoogleAuth", "width=520,height=640,menubar=no,toolbar=no,location=no,status=no");
+                startDesktopAuthPolling();
+                if (!popup || popup.closed || typeof popup.closed === "undefined") {
+                    // Popup blocked fallback
+                    window.location.href = loginUrl;
+                }
             }
         });
     }
@@ -17042,6 +17079,17 @@ document.addEventListener("DOMContentLoaded", () => {
     window.addEventListener("focus", () => {
         if (!currentUserState) {
             checkCurrentAuth();
+            fetch("/api/auth/poll-desktop-session")
+                .then(r => r.json())
+                .then(data => {
+                    if (data.status === "success" && data.user) {
+                        updateAuthUI(data.user);
+                        if (authModal) authModal.classList.add("hidden");
+                        if (typeof loadDownloadHistory === "function") loadDownloadHistory();
+                        triggerCloudSync(false);
+                    }
+                })
+                .catch(() => {});
         }
     });
 

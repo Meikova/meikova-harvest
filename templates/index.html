@@ -46,6 +46,14 @@
       content="{{ url_for('static', filename='logo.png') }}"
     />
 
+    <!-- PWA & Mobile Web App Meta -->
+    <meta name="theme-color" content="#080c14" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="apple-mobile-web-app-title" content="EveryThingDownloader" />
+    <link rel="manifest" href="{{ url_for('static', filename='manifest.json') }}" />
+
     <!-- Favicon -->
     <link
       rel="icon"
@@ -3510,6 +3518,33 @@
           </button>
         </div>
         <div class="modal-body auth-modal-body">
+          <!-- Telemetry & Subtitle (MashLoop Ambient style) -->
+          <div class="auth-telemetry">
+            <span class="auth-telemetry-dot" aria-hidden="true"></span>
+            <span>CLOUD SYNC // ĐA THIẾT BỊ</span>
+          </div>
+          <p class="auth-subtitle">Đồng bộ lịch sử tải về, liên kết và tiến trình trên mọi thiết bị.</p>
+
+          <!-- 1 Single Google OAuth Button (MashLoop Ambient Capsule) -->
+          <div class="auth-google-box">
+            <button type="button" class="btn-ambient-google" id="btn-ambient-google" title="Tiếp tục bằng tài khoản Google">
+              <svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true">
+                <path fill="#EA4335" d="M12 5c1.6 0 3 .6 4.1 1.6l3.1-3.1C17.3 1.7 14.8 1 12 1 7.7 1 4 3.5 2.2 7.1l3.7 2.8C6.8 6.9 9.2 5 12 5z"/>
+                <path fill="#4285F4" d="M23.5 12.3c0-.8-.1-1.6-.2-2.3H12v4.6h6.5c-.3 1.5-1.1 2.8-2.4 3.7l3.7 2.9c2.2-2 3.7-5 3.7-8.9z"/>
+                <path fill="#FBBC05" d="M5.9 14.1c-.2-.7-.4-1.4-.4-2.1s.2-1.4.4-2.1L2.2 7.1C1.4 8.6 1 10.2 1 12s.4 3.4 1.2 4.9l3.7-2.8z"/>
+                <path fill="#34A853" d="M12 23c3.2 0 6-1.1 8-3l-3.7-2.9c-1.1.7-2.5 1.2-4.3 1.2-2.8 0-5.2-1.9-6.1-4.6L2.2 16.5C4 20.2 7.7 23 12 23z"/>
+              </svg>
+              <span>Tiếp tục với Google</span>
+            </button>
+          </div>
+
+          <!-- Divider -->
+          <div class="auth-divider">
+            <span class="auth-divider-line"></span>
+            <span class="auth-divider-text">hoặc tài khoản nội bộ</span>
+            <span class="auth-divider-line"></span>
+          </div>
+
           <!-- Segmented Sliding Tabs -->
           <div class="auth-tab-segment" role="tablist">
             <button type="button" class="auth-tab-btn active" data-tab="login" role="tab" aria-selected="true">ĐĂNG NHẬP</button>
@@ -3561,30 +3596,9 @@
             </div>
 
             <button type="submit" id="auth-submit-btn" class="btn-cta auth-submit-btn">
-              <span id="auth-submit-btn-text">TIẾP TỤC VÀO HỆ THỐNG</span>
+              <span id="auth-submit-btn-text">ĐĂNG NHẬP</span>
             </button>
           </form>
-
-          <!-- Divider -->
-          <div class="auth-divider">
-            <span class="auth-divider-line"></span>
-            <span class="auth-divider-text">hoặc tiếp tục với</span>
-            <span class="auth-divider-line"></span>
-          </div>
-
-          <!-- Google Sign-In Container (GIS & Desktop Fallback) -->
-          <div class="auth-google-wrapper">
-            <div id="google-signin-btn-container" class="google-btn-container"></div>
-            <button type="button" id="btn-browser-google-auth" class="btn-browser-auth" title="Đăng nhập Google an toàn qua trình duyệt hệ thống">
-              <svg viewBox="0 0 24 24" width="16" height="16">
-                <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
-                <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
-                <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z"/>
-                <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z"/>
-              </svg>
-              <span>Mở đăng nhập qua Trình duyệt</span>
-            </button>
-          </div>
 
           <div class="auth-offline-notice">
             <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">

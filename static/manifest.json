@@ -1,0 +1,23 @@
+{
+  "name": "EveryThingDownloader",
+  "short_name": "EveryThingDownloader",
+  "description": "High-Performance Media Downloader & Transcoder for all platforms",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#080c14",
+  "theme_color": "#080c14",
+  "orientation": "any",
+  "icons": [
+    {
+      "src": "/static/favicon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml"
+    },
+    {
+      "src": "/static/logo.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}

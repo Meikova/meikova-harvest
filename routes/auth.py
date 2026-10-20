@@ -1,12 +1,15 @@
 import os
 import json
 import base64
+import time
 import urllib.parse
 import urllib.request
 from flask import Blueprint, request, jsonify, make_response, redirect
 from config import auth_manager
 
 auth_bp = Blueprint("auth", __name__)
+
+_pending_desktop_token = None
 
 # =========================================================================
 # 3-Tier Fallback Google OAuth Credentials (Safe against GitHub bot detection)
@@ -194,7 +197,7 @@ def google_oauth_callback():
             data=token_req_data,
             headers={
                 "Content-Type": "application/x-www-form-urlencoded",
-                "User-Agent": "EveryThingDownloader/2.0.3"
+                "User-Agent": "EveryThingDownloader/2.0.4"
             }
         )
         with urllib.request.urlopen(req, timeout=10.0) as resp:
@@ -225,6 +228,14 @@ def google_oauth_callback():
 
         auth_res = auth_manager.google_auth(email, display_name=display_name, avatar_url=avatar_url)
         session_token = auth_res["token"]
+
+        # Cache for decoupled desktop/mobile clients polling after external browser callback
+        global _pending_desktop_token
+        _pending_desktop_token = {
+            "token": session_token,
+            "user": auth_res["user"],
+            "timestamp": time.time()
+        }
 
         html = f"""<!DOCTYPE html>
 <html>
@@ -282,6 +293,19 @@ def google_oauth_callback():
         return resp
     except Exception as ex:
         return make_response(f"<html><body style='background:#080C14;color:#f87171;font-family:sans-serif;padding:40px;text-align:center;'><h3>Lỗi hoàn tất xác thực Google: {str(ex)}</h3><script>setTimeout(() => window.close(), 4000);</script></body></html>", 500)
+
+@auth_bp.route("/api/auth/poll-desktop-session", methods=["GET"])
+def poll_desktop_session():
+    """Polled by Electron Desktop or decoupled client after opening external browser OAuth."""
+    global _pending_desktop_token
+    now = time.time()
+    if _pending_desktop_token and (now - _pending_desktop_token.get("timestamp", 0) < 60):
+        data = _pending_desktop_token
+        _pending_desktop_token = None
+        resp = jsonify({"status": "success", "token": data["token"], "user": data["user"]})
+        resp.set_cookie("session_token", data["token"], max_age=auth_manager.SESSION_DURATION, httponly=False, samesite="Lax")
+        return resp
+    return jsonify({"status": "waiting"}), 200
 
 @auth_bp.route("/api/auth/me", methods=["GET"])
 def me_api():

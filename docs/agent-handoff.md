@@ -6,10 +6,34 @@
 - Standards: Antigravity Titan Standards, Ponytail Philosophy, TDD, Verification-Before-Completion.
 
 ## Last Updated
-- Timestamp: 2026-10-20 17:31:00
-- Version: v2.0.4 (Authentication & Local-First Cloud History Sync)
-- Git Commit: `f844176` (Clean working tree)
-- Exit Code: 0 (Node check OK, Python test suite 83/83 PASSED, Server binary built and app.asar deployed)
+- Timestamp: 2026-10-20 18:22:00
+- Version: v2.0.4 (Ambient Instrument Single Google Auth & Multi-Platform PWA/Desktop Release)
+- Git Commit: Pending release commit & tag `v2.0.4`
+- Exit Code: 0 (Node syntax check OK, Python test suite 83/83 PASSED, PyInstaller web binary built)
+
+## Summary of Accomplishments (Sprint v73 - MashLoop Ambient Single Google Auth & Multi-Platform Support)
+1. **Tinh chỉnh Modal Đăng nhập Chuẩn MashLoop Ambient Dark Instrument (`templates/index.html`, `static/css/styles.css`)**:
+   - Khắc phục lỗi nút submit bị nền xám lì (`#auth-submit-btn`): Định nghĩa trực tiếp `.auth-submit-btn` với dải màu gradient cyan phát quang `linear-gradient(135deg, rgba(var(--cyan-rgb), 0.25), rgba(var(--purple-rgb), 0.3))`, viền 1.5px cyan neon và `box-shadow: 0 0 16px rgba(var(--cyan-rgb), 0.35)`. Trạng thái hover sáng bừng `color: #050811`, `box-shadow: 0 0 25px rgba(var(--cyan-rgb), 0.65)`.
+   - Giữ lại DUY NHẤT 1 nút Google: Loại bỏ hoàn toàn container `#google-signin-btn-container` iframe trắng mặc định gây lệch tông và lỗi `403 disallowed_useragent` trong Electron WebView.
+   - Bổ sung nút capsule Google `.btn-ambient-google` chuẩn MashLoop: Đặt ở trên cùng trước divider "HOẶC TÀI KHOẢN NỘI BỘ", hiệu ứng hover glow viền cyan sắc nét.
+   - Bổ sung Telemetry Badge: `CLOUD SYNC // ĐA THIẾT BỊ` cùng dòng mô tả ngắn gọn.
+
+2. **Kiến trúc Xác thực Đa Nền tảng (Multi-Platform Decoupled OAuth & PWA)**:
+   - **Desktop App (Electron)**: Mở trình duyệt mặc định ngoài hệ thống qua `window.electronAPI.openExternal(loginUrl)`. Backend Flask lưu `_pending_desktop_token` khi nhận callback và cung cấp endpoint `/api/auth/poll-desktop-session` để Electron tự động đăng nhập khi người dùng quay lại app.
+   - **Web Desktop**: Mở popup xác thực `window.open(...)`, đồng bộ qua `postMessage`, `storage` và polling tự động.
+   - **Standalone PWA & Mobile Web**: Tự động phát hiện màn hình cảm ứng / chế độ standalone PWA và điều hướng `window.location.href = loginUrl` để không bị chặn popup bởi trình duyệt di động.
+   - **Mobile App Native**: Sẵn sàng nhận Google ID Token từ native SDK qua endpoint `POST /api/auth/google`.
+   - **PWA Web App Manifest (`static/manifest.json`, `templates/index.html`)**: Khai báo đầy đủ manifest và meta tag standalone app cho cả máy tính lẫn điện thoại.
+
+3. **Nâng cấp Phiên bản Toàn hệ thống lên v2.0.4**:
+   - Đồng bộ version `2.0.4` vào `build_tool/packager.py`, `electron/package.json`, `electron/package-lock.json`, `electron/config.json`, `electron/splash.html`, `build_tool/builder_cli.py`, `build_tool/builder_gui.html`, `update.json`, `tests/test_builder_version.py`.
+   - Chạy PyInstaller đóng gói `EveryThingDownloader-Web-2.0.4.exe` và deploy vào `electron/resources/server.exe`.
+
+4. **Kiểm thử Toàn diện**:
+   - `test_builder_version.py`: 7/7 bài kiểm thử nhất quán version PASSED.
+   - `test_auth.py`: 4/4 bài kiểm thử xác thực PASSED.
+   - Toàn bộ test suite: 83/83 bài kiểm thử PASSED (Exit Code 0).
+   - Kiểm tra cú pháp JavaScript: `node --check static/js/main.js` (Exit Code 0).
 
 ## Summary of Accomplishments (Sprint v72 - Authentication & Local-First Cloud History Sync)
 1. **Kiến trúc Xác thực An toàn & Lưu trữ Cục bộ (`utils/auth.py` & `config.py`)**:
