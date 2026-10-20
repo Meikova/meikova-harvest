@@ -6,9 +6,38 @@
 - Standards: Antigravity Titan Standards, Ponytail Philosophy, TDD, Verification-Before-Completion.
 
 ## Last Updated
-- Timestamp: 2026-10-20 12:42:00
-- Version: v2.0.3 (Instant Startup & Installed App Fix)
-- Exit Code: 0 (Server started in <200ms, HTTP 200 OK, Desktop App running)
+- Timestamp: 2026-10-20 13:10:00
+- Version: v2.0.3 (Zero-Icon & Ambient Instrument UI Standardized)
+- Exit Code: 0 (Python 79 tests passed, Node syntax checks OK, app.asar packed)
+
+## Summary of Accomplishments (Sprint v65 - Zero-Icon Mandate & Ambient Instrument UI Alignment)
+1. **Thi hành Triệt để Zero-Icon Mandate (100% Inline Vector SVG)**:
+   - Quét toàn diện codebase, xóa bỏ 100% thẻ icon font FontAwesome `<i class="fas ...">` và ký tự unicode đóng `×`:
+     * `templates/index.html` dòng 978: Thay `×` trong `#btn-close-cookies` bằng inline vector SVG `stroke="currentColor"`.
+     * `templates/index.html` dòng 2255: Thay `×` trong `#btn-loop-clear` bằng inline vector SVG `stroke="currentColor"`.
+     * `templates/index.html` dòng 2347: Thay `<i class="fas fa-palette">` bằng inline vector SVG Palette.
+     * `templates/index.html` dòng 2362: Thay `<i class="fas fa-fill-drip">` bằng inline vector SVG Paint/Drop.
+     * `templates/index.html` dòng 2390: Thay `<i class="fas fa-border-style">` bằng inline vector SVG Outline/Stroke.
+   - Thêm `aria-label` và thuộc tính vector chuẩn (`viewBox="0 0 24 24"`, `fill="none"`, `stroke="currentColor"`, `stroke-width="2"`).
+
+2. **Chuẩn hóa Optical Center Alignment & Typography Baseline trong `static/css/styles.css`**:
+   - Thêm khối quy tắc căn tâm quang học chống lệch baseline theo chuẩn `/ambient-instrument-ui`:
+     * Áp dụng `display: inline-flex; align-items: center; justify-content: center; vertical-align: middle;` cho toàn bộ các nút bấm (`.btn-pill`, `.chip`, `.tab-item`, `.btn-menu-action`, `.settings-close-btn`, `.header-action-btn`, `.btn-primary`, `.btn-get`, `.btn-control`, `.btn-task-action`, v.v.).
+     * Triệt tiêu khoảng trống baseline ẩn: `button svg, ... svg { display: block; flex-shrink: 0; }`.
+     * Khóa dòng quang học text: `display: inline-block; line-height: 1; transform: translateY(-0.5px);` cho dấu tiếng Việt.
+     * Căn chuẩn dòng text chạy inline: `p svg, li svg, dd svg, .text-inline svg { display: inline-block; vertical-align: -0.125em; flex-shrink: 0; margin-right: 4px; }`.
+   - Cập nhật styling cho `.settings-close-btn svg`, `.btn-menu-action.btn-menu-clear svg`, `.color-picker-wrapper svg`.
+
+3. **Tối ưu Hóa Màn hình Khởi động Desktop (`electron/splash.html`)**:
+   - Dọn dẹp đoạn code trùng lặp thừa ở cuối file.
+   - Cập nhật thông điệp telemetry khởi động theo chuẩn Ambient Instrument: `SYS // STARTING SERVER`, `SYS // LOADING ENGINES`, `SYS // INITIALIZING INGESTION`, `SYS // CONNECTING DAEMON`, `SYS // PREPARING STAGE`.
+   - Đóng gói lại file `app.asar` và cập nhật trực tiếp vào thư mục cài đặt `C:\Users\kiemp\AppData\Local\Programs\EveryThingDownloader\resources\app.asar`.
+
+4. **Kiểm chứng Toàn diện**:
+   - Cú pháp JavaScript `node -c electron/main.js`: Exit Code 0.
+   - Cú pháp JavaScript `node -c static/js/main.js`: Exit Code 0.
+   - Toàn bộ 79 bài kiểm thử đơn vị Python `python -m unittest discover tests`: Exit Code 0 (79/79 passed in 57.59s).
+   - Kiểm tra rà soát zero-icon: 0 thẻ `<i>`, 0 ký tự `×`, 0 font icon ngoài.
 
 ## Summary of Accomplishments (Sprint v64 - Desktop Startup Timeout Fix & Live Program Hot-Swap)
 1. **Chẩn đoán Nguyên nhân Gốc rễ từ Ảnh Chụp Màn hình của Người dùng**:

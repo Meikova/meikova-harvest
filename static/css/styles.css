@@ -177,6 +177,70 @@ body.modal-open {
   overflow: hidden;
 }
 
+/* === AMBIENT INSTRUMENT UI: OPTICAL CENTER ALIGNMENT & ZERO-ICON BASELINE === */
+/* Flex alignment for action triggers, pills, chips, and controls */
+.btn-pill,
+.chip,
+.tab-item,
+.btn-menu-action,
+.settings-close-btn,
+.header-action-btn,
+.btn-primary,
+.btn-get,
+.btn-control,
+.btn-task-action,
+.btn-playlist-action,
+.btn-convert-action,
+.btn-preview {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  vertical-align: middle;
+}
+
+/* Ensure inline SVGs never create ghost baseline or line-height offset */
+button svg,
+.btn-pill svg,
+.chip svg,
+.header-action-btn svg,
+.settings-close-btn svg,
+.btn-menu-action svg,
+.btn-primary svg,
+.btn-get svg,
+.btn-control svg,
+.btn-task-action svg,
+.btn-playlist-action svg,
+.btn-convert-action svg,
+.btn-preview svg {
+  display: block;
+  flex-shrink: 0;
+}
+
+/* Optical micro-adjustment for Vietnamese diacritics baseline */
+.btn-pill span,
+.chip span,
+.btn-primary span,
+.btn-get span,
+.btn-control span,
+.btn-task-action span,
+.btn-playlist-action span,
+.btn-convert-action span {
+  display: inline-block;
+  line-height: 1;
+  transform: translateY(-0.5px);
+}
+
+/* Inline text flow SVG alignment */
+p svg,
+li svg,
+dd svg,
+.text-inline svg {
+  display: inline-block;
+  vertical-align: -0.125em; /* Locks precisely to font optical baseline */
+  flex-shrink: 0;
+  margin-right: 4px;
+}
+
 /* === BACKGROUND GLOWS === */
 .bg-glow {
   position: fixed;
@@ -7627,6 +7691,14 @@ details[open] .error-summary::before {
   transform: rotate(90deg);
 }
 
+.settings-close-btn svg {
+  width: 14px;
+  height: 14px;
+  display: block;
+  flex-shrink: 0;
+  stroke: currentColor;
+}
+
 .settings-menu-content {
   padding: 16px 18px;
   display: flex;
@@ -8068,8 +8140,18 @@ details[open] .error-summary::before {
 
 .btn-menu-action.btn-menu-clear {
   color: var(--cyan);
-  font-size: 1.1rem;
-  font-weight: bold;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 4px;
+}
+
+.btn-menu-action.btn-menu-clear svg {
+  width: 12px;
+  height: 12px;
+  display: block;
+  flex-shrink: 0;
+  stroke: currentColor;
 }
 
 /* Web Fullscreen (Theater Mode) CSS & Native Fullscreen Video overrides */
@@ -8603,12 +8685,18 @@ body.theater-active #preview-modal .preview-footer-toolbar,
   border: none;
 }
 
+.color-picker-wrapper svg,
 .color-picker-wrapper i {
+  width: 12px;
+  height: 12px;
   font-size: 10px;
   color: #ffffff;
-  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.8);
+  stroke: #ffffff;
+  filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.8));
   pointer-events: none;
   z-index: 1;
+  display: block;
+  flex-shrink: 0;
 }
 
 /* Modern Range Slider for Subtitle Customizer */

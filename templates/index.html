@@ -975,7 +975,12 @@
               </svg>
               <h4>Authentication Required (Cookies Upload)</h4>
             </div>
-            <button class="settings-close-btn" id="btn-close-cookies" title="Close Cookies Panel">×</button>
+            <button class="settings-close-btn" id="btn-close-cookies" title="Close Cookies Panel" aria-label="Close Cookies Panel">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="14" height="14">
+                <line x1="18" y1="6" x2="6" y2="18"></line>
+                <line x1="6" y1="6" x2="18" y2="18"></line>
+              </svg>
+            </button>
           </div>
           <div class="cookies-instructions">
             <p>
@@ -2252,7 +2257,12 @@
                               <input type="text" id="loop-point-b" class="loop-time-input-menu" placeholder="B (End)" title="Loop End (Hotkey: ])">
                               <button id="btn-loop-a-set" class="btn-menu-action" title="Set Start (Hotkey: [)">Set A</button>
                               <button id="btn-loop-b-set" class="btn-menu-action" title="Set End (Hotkey: ])">Set B</button>
-                              <button id="btn-loop-clear" class="btn-menu-action btn-menu-clear" title="Clear Loop">×</button>
+                              <button id="btn-loop-clear" class="btn-menu-action btn-menu-clear" title="Clear Loop" aria-label="Clear Loop">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="14" height="14">
+                                  <line x1="18" y1="6" x2="6" y2="18"></line>
+                                  <line x1="6" y1="6" x2="18" y2="18"></line>
+                                </svg>
+                              </button>
                             </div>
                           </div>
                           
@@ -2344,7 +2354,13 @@
                               <button class="color-swatch" data-color="#ff00ff" style="background-color: #ff00ff;" title="Magenta"></button>
                               <div class="color-picker-wrapper" title="Choose Custom Color">
                                 <input type="color" id="preview-sub-color" value="#ffffff">
-                                <i class="fas fa-palette"></i>
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="12" height="12">
+                                  <circle cx="13.5" cy="6.5" r=".5" fill="currentColor"></circle>
+                                  <circle cx="17.5" cy="10.5" r=".5" fill="currentColor"></circle>
+                                  <circle cx="8.5" cy="7.5" r=".5" fill="currentColor"></circle>
+                                  <circle cx="6.5" cy="12.5" r=".5" fill="currentColor"></circle>
+                                  <path d="M12 2C6.5 2 2 6.5 2 12s4.5 10 10 10c.926 0 1.648-.746 1.648-1.688 0-.437-.18-.835-.437-1.125-.29-.289-.438-.652-.438-1.125a1.64 1.64 0 0 1 1.668-1.668h1.996c3.051 0 5.555-2.503 5.555-5.554C21.965 6.012 17.461 2 12 2z"></path>
+                                </svg>
                               </div>
                             </div>
                           </div>
@@ -2359,7 +2375,12 @@
                               <button class="bg-swatch" data-bg="transparent" style="background-color: transparent; border: 1px dashed rgba(255,255,255,0.3);" title="None"></button>
                               <div class="color-picker-wrapper" title="Choose Custom Background">
                                 <input type="color" id="preview-sub-bg-color" value="#000000">
-                                <i class="fas fa-fill-drip"></i>
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="12" height="12">
+                                  <path d="M19 11l-8-8-8.6 8.6a2 2 0 0 0 0 2.8l5.2 5.2c.8.8 2 .8 2.8 0L19 11Z"></path>
+                                  <path d="m5 2 5 5"></path>
+                                  <path d="M2 13h15"></path>
+                                  <path d="M22 20a2 2 0 1 1-4 0c0-1.6 1.7-2.6 2-4 .3 1.4 2 2.4 2 4Z"></path>
+                                </svg>
                               </div>
                             </div>
                             <!-- Opacity Slider -->
@@ -2387,7 +2408,11 @@
                               <button class="outline-swatch" data-outline="#ffff00" style="background-color: #ffff00;" title="Yellow"></button>
                               <div class="color-picker-wrapper" title="Choose Custom Outline Color">
                                 <input type="color" id="preview-sub-outline-color" value="#000000">
-                                <i class="fas fa-border-style"></i>
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="12" height="12">
+                                  <rect x="3" y="3" width="18" height="18" rx="2" stroke-dasharray="4 2"></rect>
+                                  <path d="M3 9h18"></path>
+                                  <path d="M9 21V9"></path>
+                                </svg>
                               </div>
                             </div>
                           </div>
