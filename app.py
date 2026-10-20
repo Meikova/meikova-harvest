@@ -43,15 +43,35 @@ def _init_ffmpeg_async():
         import shutil
         from config import USER_DATA_DIR
 
-        # 1. Prepend persistent user data bin directory to PATH
+        # 1. Prepend persistent user data bin directory & known local paths to PATH
         user_bin = os.path.join(USER_DATA_DIR, "bin")
         os.makedirs(user_bin, exist_ok=True)
-        if user_bin not in os.environ.get("PATH", ""):
-            os.environ["PATH"] = user_bin + os.pathsep + os.environ.get("PATH", "")
+
+        base_dir = os.path.dirname(os.path.abspath(sys.executable if getattr(sys, 'frozen', False) else __file__))
+        candidate_dirs = [
+            user_bin,
+            base_dir,
+            os.path.join(base_dir, "resources"),
+            os.path.join(base_dir, "bin"),
+            r"C:\enviroment_dev\PYTHON\ffmpeg\bin",
+        ]
+        for c in candidate_dirs:
+            if os.path.isdir(c) and c not in os.environ.get("PATH", ""):
+                os.environ["PATH"] = c + os.pathsep + os.environ.get("PATH", "")
 
         # 2. Check if ffmpeg/ffprobe is already available on PATH (system or cached)
         if shutil.which("ffmpeg") and shutil.which("ffprobe"):
             logger.info("FFmpeg/FFprobe binaries already available on PATH.")
+            # Cache to user_bin if not yet cached
+            for bname in ["ffmpeg.exe", "ffprobe.exe", "ffmpeg", "ffprobe"]:
+                src = shutil.which(bname)
+                if src and os.path.isfile(src):
+                    dest = os.path.join(user_bin, os.path.basename(src))
+                    if not os.path.exists(dest):
+                        try:
+                            shutil.copy2(src, dest)
+                        except Exception:
+                            pass
             return
 
         # 3. Otherwise, fetch via static-ffmpeg in background thread
