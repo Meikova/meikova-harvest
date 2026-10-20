@@ -539,6 +539,9 @@ function createMainWindow() {
 
   mainWindow.once('ready-to-show', () => {
     log.info('mainWindow ready-to-show triggered');
+    try {
+      mainWindow.setIcon(getAppIcon());
+    } catch (e) {}
     showMainWindow();
   });
 
@@ -737,6 +740,9 @@ function showMainWindow() {
     splashWindow = null;
   }
   if (mainWindow && !mainWindow.isDestroyed()) {
+    try {
+      mainWindow.setIcon(getAppIcon());
+    } catch (e) {}
     if (mainWindow.isMinimized()) mainWindow.restore();
     mainWindow.show();
     mainWindow.setAlwaysOnTop(true);
@@ -1509,7 +1515,11 @@ ipcMain.on('reset-clipboard-cache', () => {
 
 app.whenReady().then(async () => {
   if (process.platform === 'win32') {
-    app.setAppUserModelId('com.everythingdownloader.app');
+    if (!isDev) {
+      app.setAppUserModelId('com.everythingdownloader.app');
+    } else {
+      app.setAppUserModelId('com.everythingdownloader.dev');
+    }
   }
 
   // Prevent multiple instances

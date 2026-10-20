@@ -136,11 +136,12 @@
       <!-- Header -->
       <header class="header">
         <div class="logo">
-          <img
-            src="{{ url_for('static', filename='logo.svg') }}"
-            alt="Logo"
-            class="logo-img"
-          />
+          <svg class="header-logo-svg" viewBox="0 0 512 512" width="40" height="40" aria-label="EveryThingDownloader Logo">
+            <rect width="512" height="512" rx="112" fill="var(--ink-0, #080C14)" stroke="rgba(var(--cyan-rgb, 0, 229, 255), 0.25)" stroke-width="12"/>
+            <path class="logo-lemniscate" d="M256 256 C 312 168, 432 168, 432 256 C 432 344, 312 344, 256 256 C 200 168, 80 168, 80 256 C 80 344, 200 344, 256 256 Z"
+                  fill="none" stroke="currentColor" stroke-width="44.8" stroke-linecap="round" stroke-linejoin="round"/>
+            <circle cx="371.2" cy="198.4" r="33.6" fill="#FFFFFF"/>
+          </svg>
           <h1>EVERYTHING <span class="brand-accent">∞</span> DOWNLOADER</h1>
         </div>
         <div class="header-telemetry-pill" title="System Engine Online">

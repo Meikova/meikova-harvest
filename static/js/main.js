@@ -269,6 +269,7 @@ document.addEventListener("DOMContentLoaded", () => {
         if (!rgb) return;
         document.documentElement.style.setProperty('--cyan', hexColor);
         document.documentElement.style.setProperty('--cyan-rgb', `${rgb.r}, ${rgb.g}, ${rgb.b}`);
+        document.documentElement.style.setProperty('--accent', hexColor);
         localStorage.setItem("customizer-custom-color", hexColor);
 
         const picker = document.getElementById("customizer-accent-picker-1");
@@ -314,6 +315,7 @@ document.addEventListener("DOMContentLoaded", () => {
             document.documentElement.style.removeProperty('--cyan-rgb');
             document.documentElement.style.removeProperty('--purple');
             document.documentElement.style.removeProperty('--purple-rgb');
+            document.documentElement.style.removeProperty('--accent');
             if (window.updateCanvasColors) window.updateCanvasColors();
         }
 
