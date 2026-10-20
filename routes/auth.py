@@ -10,6 +10,20 @@ auth_bp = Blueprint("auth", __name__)
 GOOGLE_CLIENT_ID = "515668723869-3c356v1f72b5t5siovacfp8961a2l0uq.apps.googleusercontent.com"
 GOOGLE_CLIENT_SECRET = os.environ.get("GOOGLE_CLIENT_SECRET", "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")
 
+# Auto-load client secrets from client_secret.json if present in project root
+_secret_path = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "client_secret.json")
+if os.path.exists(_secret_path):
+    try:
+        with open(_secret_path, "r", encoding="utf-8") as _f:
+            _sdata = json.load(_f)
+            _wcfg = _sdata.get("web") or _sdata.get("installed") or {}
+            if _wcfg.get("client_id"):
+                GOOGLE_CLIENT_ID = _wcfg["client_id"]
+            if _wcfg.get("client_secret"):
+                GOOGLE_CLIENT_SECRET = _wcfg["client_secret"]
+    except Exception:
+        pass
+
 def get_authenticated_user():
     token = None
     auth_header = request.headers.get("Authorization", "")

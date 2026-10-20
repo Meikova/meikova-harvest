@@ -202,3 +202,8 @@ _pyarmor_out/
 .agents/
 .tempmediaStorage/
 scratch/
+
+# Google OAuth Secrets & Credentials
+client_secret*.json
+credentials*.json
+*.client_secret.json
