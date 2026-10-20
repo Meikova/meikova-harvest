@@ -105,7 +105,7 @@ def make_update():
     d.line([(24, 84), (24, 104), (104, 104), (104, 84)], fill=CYAN, width=10)
     save_icon(img, "update")
 
-# 7. autostart.png (Windows startup)
+# 7. autostart.png (Windows startup - off/neutral)
 def make_autostart():
     img = Image.new("RGBA", (SIZE, SIZE), (0, 0, 0, 0))
     d = ImageDraw.Draw(img)
@@ -115,6 +115,18 @@ def make_autostart():
     d.rounded_rectangle([22, 70, 58, 106], radius=6, outline=CYAN, width=8)
     d.rounded_rectangle([70, 70, 106, 106], radius=6, outline=CYAN, width=8)
     save_icon(img, "autostart")
+
+# 7b. autostart_on.png (Windows startup - on/active)
+def make_autostart_on():
+    img = Image.new("RGBA", (SIZE, SIZE), (0, 0, 0, 0))
+    d = ImageDraw.Draw(img)
+    d.rounded_rectangle([22, 22, 58, 58], radius=6, fill=(0, 240, 255, 60), outline=CYAN, width=8)
+    d.rounded_rectangle([70, 22, 106, 58], radius=6, fill=(0, 240, 255, 60), outline=CYAN, width=8)
+    d.rounded_rectangle([22, 70, 58, 106], radius=6, fill=(0, 240, 255, 60), outline=CYAN, width=8)
+    d.rounded_rectangle([70, 70, 106, 106], radius=6, fill=(0, 240, 255, 60), outline=CYAN, width=8)
+    d.line([(52, 90), (68, 106)], fill=GREEN, width=12)
+    d.line([(68, 106), (104, 58)], fill=GREEN, width=12)
+    save_icon(img, "autostart_on")
 
 # 8. quit.png (Power / Exit)
 def make_quit():
@@ -132,6 +144,7 @@ if __name__ == "__main__":
     make_browser()
     make_folder()
     make_autostart()
+    make_autostart_on()
     make_refresh()
     make_update()
     make_quit()

@@ -6085,6 +6085,11 @@ document.addEventListener("DOMContentLoaded", () => {
         showAlert("Notification", msg);
     };
 
+    // Expose alert and confirm helpers to global scope
+    window.showAlert = showAlert;
+    window.showConfirm = showConfirm;
+    window.hideConfirm = hideConfirm;
+
     function hideConfirm() {
         if (!confirmModal) return;
         confirmModal.classList.add("hidden");
@@ -16467,19 +16472,46 @@ document.addEventListener("DOMContentLoaded", () => {
         });
     }
 
+    const triggerAppAlert = (title, message, cb, type) => {
+        if (typeof window.showAlert === "function") {
+            window.showAlert(title, message, cb, type);
+        } else {
+            alert((title ? title + "\n\n" : "") + (message || ""));
+            if (cb) cb();
+        }
+    };
+
+    const triggerAppConfirm = (opts) => {
+        if (typeof window.showConfirm === "function") {
+            window.showConfirm(opts);
+        } else {
+            const ok = confirm((opts && opts.title ? opts.title + "\n\n" : "") + ((opts && opts.message) || ""));
+            if (ok && opts && opts.onYes) opts.onYes();
+            else if (!ok && opts && opts.onNo) opts.onNo();
+        }
+    };
+
     if (btnCheckAppUpdate) {
         btnCheckAppUpdate.addEventListener("click", () => {
+            const sDropdown = document.getElementById("settings-dropdown");
+            const sToggle = document.getElementById("settings-toggle");
+            if (sDropdown) sDropdown.classList.add("hidden");
+            if (sToggle) sToggle.classList.remove("active");
+
             if (window.electronAPI && window.electronAPI.checkForUpdates) {
                 window.electronAPI.checkForUpdates();
                 showUpdateToast("SYS // KIỂM TRA BẢN MỚI");
                 if (updateStatusText) updateStatusText.textContent = "Đang kết nối máy chủ GitHub...";
-                if (updateProgressBarFill) updateProgressBarFill.style.width = "40%";
+                if (updateProgressBarFill) {
+                    updateProgressBarFill.style.width = "40%";
+                    updateProgressBarFill.style.backgroundColor = "";
+                }
                 if (updatePercentText) updatePercentText.textContent = "";
                 if (updateBytesText) updateBytesText.textContent = "";
                 if (updateSpeedText) updateSpeedText.textContent = "";
                 if (updateActionsContainer) updateActionsContainer.classList.add("hidden");
             } else {
-                showAlert("Thông báo", "Tính năng tự động cập nhật chỉ khả dụng trên ứng dụng Desktop.", null, "info");
+                triggerAppAlert("Thông báo", "Tính năng tự động cập nhật chỉ khả dụng trên ứng dụng Desktop.", null, "info");
             }
         });
     }
@@ -16487,7 +16519,7 @@ document.addEventListener("DOMContentLoaded", () => {
     if (window.electronAPI && window.electronAPI.onUpdateAvailable) {
         window.electronAPI.onUpdateAvailable((info) => {
             hideUpdateToast();
-            showConfirm({
+            triggerAppConfirm({
                 title: "Bản cập nhật mới sẵn sàng",
                 message: 'Đã có phiên bản v' + (info.version || '') + ' (hiện tại v' + (info.currentVersion || '') + ').\n\n' + (info.changelog ? info.changelog.trim() : 'Bạn có muốn tải và cài đặt bản cập nhật tự động không?'),
                 yesText: "Cập nhật tự động",
@@ -16507,8 +16539,19 @@ document.addEventListener("DOMContentLoaded", () => {
 
     if (window.electronAPI && window.electronAPI.onAppAlert) {
         window.electronAPI.onAppAlert(({ title, message, type = "info" }) => {
-            hideUpdateToast();
-            showAlert(title, message, null, type);
+            if (updateProgressToast && !updateProgressToast.classList.contains("hidden")) {
+                if (updateStatusText) updateStatusText.textContent = (message || "").split("\n")[0];
+                if (updateProgressBarFill) {
+                    updateProgressBarFill.style.width = "100%";
+                    if (type === "error" || type === "danger") {
+                        updateProgressBarFill.style.backgroundColor = "#ef4444";
+                    }
+                }
+                setTimeout(hideUpdateToast, 600);
+            } else {
+                hideUpdateToast();
+            }
+            triggerAppAlert(title, message, null, type);
         });
     }
 
@@ -16526,9 +16569,7 @@ document.addEventListener("DOMContentLoaded", () => {
             if (window.electronAPI && window.electronAPI.installUpdateOnQuit) {
                 window.electronAPI.installUpdateOnQuit();
                 hideUpdateToast();
-                if (typeof showAlert === "function") {
-                    showAlert("Đã lưu thiết lập", "Bản cập nhật mới sẽ được tự động cài đặt khi bạn đóng ứng dụng.");
-                }
+                triggerAppAlert("Đã lưu thiết lập", "Bản cập nhật mới sẽ được tự động cài đặt khi bạn đóng ứng dụng.", null, "success");
             }
         });
     }

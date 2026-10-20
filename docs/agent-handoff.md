@@ -6,9 +6,30 @@
 - Standards: Antigravity Titan Standards, Ponytail Philosophy, TDD, Verification-Before-Completion.
 
 ## Last Updated
-- Timestamp: 2026-10-20 14:38:00
-- Version: v2.0.3 (Engine Exit Handling & User-Agent Update Check Fixed)
-- Exit Code: 0 (Node syntax checks OK, PyInstaller server build OK, app.asar packed)
+- Timestamp: 2026-10-20 15:04:00
+- Version: v2.0.3 (Tray Autostart Vector Icon & Dynamic State Indication)
+- Exit Code: 0 (Node syntax check OK, asar packed, live app verified)
+
+## Summary of Accomplishments (Sprint v71 - Tray Autostart Dynamic Vector Icon)
+1. **Bổ sung Vector Icon và Đồng bộ Căn lề Cho Mục "Khởi động cùng Windows"**:
+   - **Nguyên nhân gốc rễ**: Win32 native menu API trên Windows tự động ẩn icon bitmap khi mục menu có `type: 'checkbox'` (dành riêng cột icon cho dấu tick checkmark mặc định, để lại khoảng trống trắng thụt lề khi tắt).
+   - **Khắc phục**:
+     * Chuyển mục menu sang `type: 'normal'` có icon vector phát quang neon cố định ở đầu hàng.
+     * Tạo 2 trạng thái icon:
+       - `autostart.png`: 4 ô gạch Windows viền neon cyan (trạng thái tắt).
+       - `autostart_on.png`: 4 ô gạch Windows phát quang nền cyan kèm dấu tích ngọc lục bảo (trạng thái bật).
+     * Cập nhật nhãn động: `Khởi động cùng Windows: Bật` / `Khởi động cùng Windows: Tắt`.
+     * Đóng gói lại `app.asar` và khởi động lại ứng dụng cài đặt.
+
+## Summary of Accomplishments (Sprint v70 - In-App Alert Scope & Update UX Fix)
+1. **Sửa Triệt để Lỗi Modal Không Hiện Khi Kiểm Tra Cập Nhật**:
+   - **Nguyên nhân gốc rễ**: File `static/js/main.js` chứa 2 khối `DOMContentLoaded`. Hàm `showAlert` và `showConfirm` được khai báo trong khối đầu (dòng 6059), trong khi bộ lắng nghe IPC `window.electronAPI.onAppAlert` và nút bấm cập nhật nằm ở khối thứ hai (dòng 16508). Khi nhận được kết quả kiểm tra cập nhật, JavaScript văng lỗi `ReferenceError: showAlert is not defined`, làm tiến trình nạp modal bị ngắt giữa chừng và toast góc dưới biến mất đột ngột.
+   - **Khắc phục**:
+     * Gán trực tiếp `window.showAlert`, `window.showConfirm`, `window.hideConfirm` ra phạm vi toàn cục `window`.
+     * Tạo wrapper an toàn `triggerAppAlert` và `triggerAppConfirm` có cơ chế fallback.
+     * Cập nhật UX: Khi kiểm tra cập nhật, tự động ẩn dropdown menu Cài đặt, tiến trình ở thanh toast hiển thị trạng thái hoàn tất 100% trước khi mờ dần, và modal buồng tối `SYS // PHIÊN BẢN MỚI NHẤT` lập tức bật lên chính giữa màn hình.
+     * Tăng chuỗi query cache `?v=28.1` trong `templates/index.html`.
+     * Toàn bộ 79 bài test kiểm thử tự động xanh (Exit Code 0).
 
 ## Summary of Accomplishments (Sprint v69 - Server Exit Guard & Update Check Header)
 1. **Khắc phục Triệt để Hộp thoại "The internal server stopped unexpectedly"**:

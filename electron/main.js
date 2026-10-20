@@ -1217,9 +1217,8 @@ function buildTrayMenu() {
     },
     { type: 'separator' },
     {
-      label: 'Khởi động cùng Windows',
-      type: 'checkbox',
-      checked: autoStart,
+      label: `Khởi động cùng Windows: ${autoStart ? 'Bật' : 'Tắt'}`,
+      icon: getTrayIcon(autoStart ? 'autostart_on' : 'autostart'),
       click: () => {
         const currentSettings = app.getLoginItemSettings();
         const nextState = !currentSettings.openAtLogin;
