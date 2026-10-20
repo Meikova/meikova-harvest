@@ -155,9 +155,26 @@ class PersistentDownloadStatus(dict):
                 CREATE TABLE IF NOT EXISTS downloads (
                     download_id TEXT PRIMARY KEY,
                     data TEXT,
-                    timestamp REAL
+                    timestamp REAL,
+                    user_id TEXT,
+                    sync_status TEXT DEFAULT 'synced',
+                    sync_time REAL DEFAULT 0
                 )
             ''')
+            try:
+                cursor.execute("ALTER TABLE downloads ADD COLUMN user_id TEXT")
+            except Exception:
+                pass
+            try:
+                cursor.execute("ALTER TABLE downloads ADD COLUMN sync_status TEXT DEFAULT 'synced'")
+            except Exception:
+                pass
+            try:
+                cursor.execute("ALTER TABLE downloads ADD COLUMN sync_time REAL DEFAULT 0")
+            except Exception:
+                pass
+            cursor.execute("CREATE INDEX IF NOT EXISTS idx_downloads_user_id ON downloads(user_id)")
+            cursor.execute("CREATE INDEX IF NOT EXISTS idx_downloads_sync_status ON downloads(sync_status)")
             cursor.execute('''
                 CREATE TABLE IF NOT EXISTS bypass_domains (
                     domain TEXT PRIMARY KEY,
@@ -248,10 +265,13 @@ class PersistentDownloadStatus(dict):
                 conn = sqlite3.connect(self.db_path, timeout=10.0)
                 conn.execute("PRAGMA journal_mode=WAL")
                 cursor = conn.cursor()
+                user_id = task_data.get("user_id")
+                sync_status = task_data.get("sync_status", "pending_sync")
                 cursor.execute(
-                    "INSERT INTO downloads (download_id, data, timestamp) VALUES (?, ?, ?) "
-                    "ON CONFLICT(download_id) DO UPDATE SET data = ?, timestamp = ?",
-                    (download_id, json.dumps(task_data), task_data.get("timestamp", time.time()), json.dumps(task_data), task_data.get("timestamp", time.time()))
+                    "INSERT INTO downloads (download_id, data, timestamp, user_id, sync_status) VALUES (?, ?, ?, ?, ?) "
+                    "ON CONFLICT(download_id) DO UPDATE SET data = ?, timestamp = ?, user_id = COALESCE(?, user_id), sync_status = ?",
+                    (download_id, json.dumps(task_data), task_data.get("timestamp", time.time()), user_id, sync_status,
+                     json.dumps(task_data), task_data.get("timestamp", time.time()), user_id, sync_status)
                 )
                 conn.commit()
                 conn.close()
@@ -297,7 +317,7 @@ class PersistentDownloadStatus(dict):
         # but we DO NOT delete it from SQLite to keep it in the history.
         return super().pop(download_id, default)
 
-    def get_history(self, limit=50):
+    def get_history(self, limit=50, user_id=None):
         history_list = []
         rows = []
         with self.lock:
@@ -305,7 +325,13 @@ class PersistentDownloadStatus(dict):
                 conn = sqlite3.connect(self.db_path, timeout=5.0)
                 conn.execute("PRAGMA journal_mode=WAL")
                 cursor = conn.cursor()
-                cursor.execute("SELECT download_id, data FROM downloads ORDER BY timestamp DESC LIMIT ?", (limit,))
+                if user_id:
+                    cursor.execute(
+                        "SELECT download_id, data FROM downloads WHERE user_id = ? ORDER BY timestamp DESC LIMIT ?",
+                        (user_id, limit)
+                    )
+                else:
+                    cursor.execute("SELECT download_id, data FROM downloads ORDER BY timestamp DESC LIMIT ?", (limit,))
                 rows = cursor.fetchall()
                 conn.close()
             except Exception as e:
@@ -350,21 +376,70 @@ class PersistentDownloadStatus(dict):
                 print(f"Error deleting task {download_id}: {e}")
                 return False
 
-    def clear_history(self):
+    def clear_history(self, user_id=None):
         with self.lock:
             try:
                 conn = sqlite3.connect(self.db_path, timeout=5.0)
                 conn.execute("PRAGMA journal_mode=WAL")
                 cursor = conn.cursor()
-                cursor.execute("DELETE FROM downloads")
+                if user_id:
+                    cursor.execute("DELETE FROM downloads WHERE user_id = ?", (user_id,))
+                else:
+                    cursor.execute("DELETE FROM downloads")
                 conn.commit()
                 conn.close()
-                self.clear()
+                if not user_id:
+                    self.clear()
                 return True
             except Exception as e:
                 print(f"Error clearing history: {e}")
                 return False
 
+    def get_pending_sync(self, user_id=None):
+        with self.lock:
+            try:
+                conn = sqlite3.connect(self.db_path, timeout=5.0)
+                conn.execute("PRAGMA journal_mode=WAL")
+                cursor = conn.cursor()
+                if user_id:
+                    cursor.execute("SELECT download_id, data FROM downloads WHERE user_id = ? AND sync_status = 'pending_sync'", (user_id,))
+                else:
+                    cursor.execute("SELECT download_id, data FROM downloads WHERE sync_status = 'pending_sync'")
+                rows = cursor.fetchall()
+                conn.close()
+                items = []
+                for d_id, data_str in rows:
+                    try:
+                        d = json.loads(data_str)
+                        d["download_id"] = d_id
+                        items.append(d)
+                    except Exception:
+                        pass
+                return items
+            except Exception as e:
+                print(f"Error fetching pending sync items: {e}")
+                return []
+
+    def mark_synced(self, download_ids):
+        if not download_ids:
+            return
+        with self.lock:
+            try:
+                conn = sqlite3.connect(self.db_path, timeout=5.0)
+                conn.execute("PRAGMA journal_mode=WAL")
+                cursor = conn.cursor()
+                now = time.time()
+                for d_id in download_ids:
+                    cursor.execute("UPDATE downloads SET sync_status = 'synced', sync_time = ? WHERE download_id = ?", (now, d_id))
+                conn.commit()
+                conn.close()
+            except Exception as e:
+                print(f"Error marking synced: {e}")
+
 # Global persistent dictionary for tracking download tasks and lock for thread safety
 downloads_status = PersistentDownloadStatus(DB_PATH)
 downloads_status_lock = threading.Lock()
+
+# Global AuthManager for user identity & session management
+from utils.auth import AuthManager
+auth_manager = AuthManager(DB_PATH)

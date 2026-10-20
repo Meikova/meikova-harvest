@@ -16652,11 +16652,422 @@ document.addEventListener("DOMContentLoaded", () => {
         }
     }
 
+    // =========================================================================
+    // AUTHENTICATION & CLOUD SYNC SYSTEM (Local-First & Ambient Instrument UI)
+    // =========================================================================
+    const GOOGLE_CLIENT_ID = "515668723869-3c356v1f72b5t5siovacfp8961a2l0uq.apps.googleusercontent.com";
+    let currentUserState = null;
+    let authActiveTab = "login";
+
+    const authUserBtn = document.getElementById("auth-user-btn");
+    const userDropdown = document.getElementById("user-dropdown");
+    const authModal = document.getElementById("auth-modal");
+    const authCloseBtn = document.getElementById("auth-close-btn");
+    const authForm = document.getElementById("auth-form");
+    const authErrorMsg = document.getElementById("auth-error-msg");
+    const authInputUsername = document.getElementById("auth-input-username");
+    const authInputEmail = document.getElementById("auth-input-email");
+    const authInputPassword = document.getElementById("auth-input-password");
+    const authFieldEmail = document.getElementById("auth-field-email");
+    const authSubmitBtnText = document.getElementById("auth-submit-btn-text");
+    const authTogglePwdBtn = document.getElementById("auth-toggle-pwd-btn");
+    const authTabBtns = document.querySelectorAll(".auth-tab-btn");
+    const headerSyncPill = document.getElementById("header-sync-pill");
+    const syncPillText = document.getElementById("sync-pill-text");
+    const btnLogout = document.getElementById("btn-logout");
+    const btnSyncNow = document.getElementById("btn-sync-now");
+    const btnClaimHistory = document.getElementById("btn-claim-history");
+
+    function setAuthError(message, isSuccess = false) {
+        if (!authErrorMsg) return;
+        if (!message) {
+            authErrorMsg.classList.add("hidden");
+            authErrorMsg.textContent = "";
+            authErrorMsg.classList.remove("success");
+            return;
+        }
+        authErrorMsg.textContent = message;
+        if (isSuccess) {
+            authErrorMsg.classList.add("success");
+        } else {
+            authErrorMsg.classList.remove("success");
+        }
+        authErrorMsg.classList.remove("hidden");
+    }
+
+    function switchAuthTab(tab) {
+        authActiveTab = tab;
+        setAuthError(null);
+        authTabBtns.forEach(b => {
+            const isActive = b.getAttribute("data-tab") === tab;
+            b.classList.toggle("active", isActive);
+            b.setAttribute("aria-selected", isActive ? "true" : "false");
+        });
+        if (tab === "register") {
+            if (authFieldEmail) authFieldEmail.classList.remove("hidden");
+            if (authSubmitBtnText) authSubmitBtnText.textContent = "TẠO TÀI KHOẢN MỚI";
+            if (authInputEmail) authInputEmail.setAttribute("required", "required");
+        } else {
+            if (authFieldEmail) authFieldEmail.classList.add("hidden");
+            if (authSubmitBtnText) authSubmitBtnText.textContent = "TIẾP TỤC VÀO HỆ THỐNG";
+            if (authInputEmail) authInputEmail.removeAttribute("required");
+        }
+    }
+
+    function updateAuthUI(user) {
+        currentUserState = user;
+        const guestContent = document.getElementById("auth-btn-guest");
+        const userContent = document.getElementById("auth-btn-user");
+        const authUserName = document.getElementById("auth-user-name");
+        const authUserAvatar = document.getElementById("auth-user-avatar");
+        const authUserSvgFallback = document.getElementById("auth-user-svg-fallback");
+
+        const dropdownUserName = document.getElementById("dropdown-user-name");
+        const dropdownUserEmail = document.getElementById("dropdown-user-email");
+        const dropdownUserAvatar = document.getElementById("dropdown-user-avatar");
+        const dropdownUserSvgFallback = document.getElementById("dropdown-user-svg-fallback");
+        const dropdownSyncDesc = document.getElementById("dropdown-sync-desc");
+
+        if (user && user.id) {
+            // Logged in
+            if (guestContent) guestContent.classList.add("hidden");
+            if (userContent) userContent.classList.remove("hidden");
+
+            const displayName = user.username || user.email || "User";
+            if (authUserName) authUserName.textContent = displayName;
+            if (dropdownUserName) dropdownUserName.textContent = displayName;
+            if (dropdownUserEmail) dropdownUserEmail.textContent = user.email || "Tài khoản cá nhân";
+
+            if (user.avatar_url) {
+                if (authUserAvatar) {
+                    authUserAvatar.src = user.avatar_url;
+                    authUserAvatar.classList.remove("hidden");
+                }
+                if (authUserSvgFallback) authUserSvgFallback.classList.add("hidden");
+                if (dropdownUserAvatar) {
+                    dropdownUserAvatar.src = user.avatar_url;
+                    dropdownUserAvatar.classList.remove("hidden");
+                }
+                if (dropdownUserSvgFallback) dropdownUserSvgFallback.classList.add("hidden");
+            } else {
+                if (authUserAvatar) authUserAvatar.classList.add("hidden");
+                if (authUserSvgFallback) authUserSvgFallback.classList.remove("hidden");
+                if (dropdownUserAvatar) dropdownUserAvatar.classList.add("hidden");
+                if (dropdownUserSvgFallback) dropdownUserSvgFallback.classList.remove("hidden");
+            }
+
+            if (headerSyncPill) {
+                headerSyncPill.classList.add("is-synced");
+                headerSyncPill.classList.remove("is-pending", "is-syncing");
+            }
+            if (syncPillText) syncPillText.textContent = "CLOUD // SYNCED";
+            if (dropdownSyncDesc) dropdownSyncDesc.textContent = "Đồng bộ: Đã kết nối Cloud";
+        } else {
+            // Guest mode
+            if (guestContent) guestContent.classList.remove("hidden");
+            if (userContent) userContent.classList.add("hidden");
+            if (headerSyncPill) {
+                headerSyncPill.classList.remove("is-synced", "is-pending", "is-syncing");
+            }
+            if (syncPillText) syncPillText.textContent = "LOCAL // GUEST";
+            if (dropdownSyncDesc) dropdownSyncDesc.textContent = "Đồng bộ: Chế độ cục bộ";
+        }
+    }
+
+    async function checkCurrentAuth() {
+        try {
+            const res = await fetch("/api/auth/me");
+            const data = await res.json();
+            if (data.status === "success" && data.user) {
+                updateAuthUI(data.user);
+            } else {
+                updateAuthUI(null);
+            }
+        } catch (e) {
+            updateAuthUI(null);
+        }
+    }
+
+    function initGoogleSignIn() {
+        if (!window.google || !window.google.accounts || !window.google.accounts.id) {
+            setTimeout(initGoogleSignIn, 500);
+            return;
+        }
+        try {
+            window.google.accounts.id.initialize({
+                client_id: GOOGLE_CLIENT_ID,
+                callback: handleGoogleAuthResponse
+            });
+            const googleContainer = document.getElementById("google-signin-btn-container");
+            if (googleContainer) {
+                googleContainer.innerHTML = "";
+                window.google.accounts.id.renderButton(googleContainer, {
+                    theme: "outline",
+                    size: "large",
+                    text: "continue_with",
+                    shape: "pill",
+                    width: 280
+                });
+            }
+        } catch (err) {
+            console.warn("Google Sign-In initialization skipped:", err);
+        }
+    }
+
+    async function handleGoogleAuthResponse(response) {
+        if (!response || !response.credential) return;
+        setAuthError(null);
+        try {
+            const res = await fetch("/api/auth/google", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ credential: response.credential })
+            });
+            const data = await res.json();
+            if (data.status === "success" && data.user) {
+                updateAuthUI(data.user);
+                if (authModal) authModal.classList.add("hidden");
+                if (typeof loadDownloadHistory === "function") loadDownloadHistory();
+                triggerCloudSync(false);
+            } else {
+                setAuthError(data.message || "Đăng nhập Google thất bại");
+            }
+        } catch (err) {
+            setAuthError("Không thể kết nối đến máy chủ");
+        }
+    }
+
+    async function triggerCloudSync(manual = false) {
+        if (!navigator.onLine) {
+            if (syncPillText) syncPillText.textContent = "OFFLINE // LOCAL";
+            if (headerSyncPill) {
+                headerSyncPill.classList.remove("is-syncing", "is-synced");
+                headerSyncPill.classList.add("is-pending");
+            }
+            return;
+        }
+
+        if (headerSyncPill) {
+            headerSyncPill.classList.remove("is-synced", "is-pending");
+            headerSyncPill.classList.add("is-syncing");
+        }
+        if (syncPillText) syncPillText.textContent = "SYNCING...";
+
+        try {
+            const pendingRes = await fetch("/api/sync/pending");
+            const pendingData = await pendingRes.json();
+            if (pendingData.status === "success" && pendingData.tasks && pendingData.tasks.length > 0) {
+                const pushRes = await fetch("/api/sync/push", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ tasks: pendingData.tasks })
+                });
+                const pushData = await pushRes.json();
+                if (pushData.status === "success") {
+                    if (headerSyncPill) {
+                        headerSyncPill.classList.remove("is-syncing", "is-pending");
+                        headerSyncPill.classList.add("is-synced");
+                    }
+                    if (syncPillText) syncPillText.textContent = currentUserState ? "CLOUD // SYNCED" : "LOCAL // GUEST";
+                    if (manual && typeof loadDownloadHistory === "function") loadDownloadHistory();
+                }
+            } else {
+                if (headerSyncPill) {
+                    headerSyncPill.classList.remove("is-syncing", "is-pending");
+                    headerSyncPill.classList.add("is-synced");
+                }
+                if (syncPillText) syncPillText.textContent = currentUserState ? "CLOUD // SYNCED" : "LOCAL // GUEST";
+            }
+        } catch (e) {
+            if (headerSyncPill) {
+                headerSyncPill.classList.remove("is-syncing", "is-synced");
+                headerSyncPill.classList.add("is-pending");
+            }
+            if (syncPillText) syncPillText.textContent = "SYNC // RETRY";
+        }
+    }
+
+    // Event Listeners for Auth
+    if (authUserBtn) {
+        authUserBtn.addEventListener("click", (e) => {
+            e.stopPropagation();
+            if (currentUserState) {
+                if (userDropdown) userDropdown.classList.toggle("hidden");
+            } else {
+                setAuthError(null);
+                if (authModal) authModal.classList.remove("hidden");
+            }
+        });
+    }
+
+    if (headerSyncPill) {
+        headerSyncPill.addEventListener("click", () => {
+            triggerCloudSync(true);
+        });
+    }
+
+    if (authCloseBtn && authModal) {
+        authCloseBtn.addEventListener("click", () => {
+            authModal.classList.add("hidden");
+        });
+    }
+
+    authTabBtns.forEach(btn => {
+        btn.addEventListener("click", () => {
+            const tab = btn.getAttribute("data-tab");
+            if (tab) switchAuthTab(tab);
+        });
+    });
+
+    if (authTogglePwdBtn && authInputPassword) {
+        authTogglePwdBtn.addEventListener("click", () => {
+            const isPassword = authInputPassword.getAttribute("type") === "password";
+            authInputPassword.setAttribute("type", isPassword ? "text" : "password");
+            authTogglePwdBtn.style.color = isPassword ? "var(--cyan)" : "var(--text-dim)";
+        });
+    }
+
+    if (authForm) {
+        authForm.addEventListener("submit", async (e) => {
+            e.preventDefault();
+            const username = authInputUsername ? authInputUsername.value.trim() : "";
+            const password = authInputPassword ? authInputPassword.value : "";
+            const email = authInputEmail ? authInputEmail.value.trim() : "";
+
+            if (!username || !password) {
+                setAuthError("Vui lòng điền đầy đủ thông tin");
+                return;
+            }
+
+            setAuthError(null);
+            if (authSubmitBtnText) authSubmitBtnText.textContent = "ĐANG XỬ LÝ...";
+
+            try {
+                const endpoint = authActiveTab === "register" ? "/api/auth/register" : "/api/auth/login";
+                const payload = authActiveTab === "register"
+                    ? { username, email, password }
+                    : { username_or_email: username, password };
+
+                const res = await fetch(endpoint, {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify(payload)
+                });
+                const data = await res.json();
+                if (data.status === "success" && data.user) {
+                    updateAuthUI(data.user);
+                    if (authModal) authModal.classList.add("hidden");
+                    if (authForm) authForm.reset();
+                    if (typeof loadDownloadHistory === "function") loadDownloadHistory();
+                    triggerCloudSync(false);
+                } else {
+                    setAuthError(data.message || "Thao tác thất bại");
+                }
+            } catch (err) {
+                setAuthError("Lỗi kết nối máy chủ");
+            } finally {
+                if (authSubmitBtnText) {
+                    authSubmitBtnText.textContent = authActiveTab === "register" ? "TẠO TÀI KHOẢN MỚI" : "TIẾP TỤC VÀO HỆ THỐNG";
+                }
+            }
+        });
+    }
+
+    if (btnLogout) {
+        btnLogout.addEventListener("click", async () => {
+            try {
+                await fetch("/api/auth/logout", { method: "POST" });
+            } catch (e) {}
+            if (userDropdown) userDropdown.classList.add("hidden");
+            updateAuthUI(null);
+            if (typeof loadDownloadHistory === "function") loadDownloadHistory();
+        });
+    }
+
+    if (btnSyncNow) {
+        btnSyncNow.addEventListener("click", () => {
+            triggerCloudSync(true);
+        });
+    }
+
+    if (btnClaimHistory) {
+        btnClaimHistory.addEventListener("click", async () => {
+            try {
+                const res = await fetch("/api/auth/sync-guest-history", { method: "POST" });
+                const data = await res.json();
+                if (data.status === "success") {
+                    if (typeof loadDownloadHistory === "function") loadDownloadHistory();
+                    if (userDropdown) userDropdown.classList.add("hidden");
+                    triggerCloudSync(true);
+                }
+            } catch (e) {}
+        });
+    }
+
+    document.addEventListener("click", (e) => {
+        if (userDropdown && !userDropdown.classList.contains("hidden")) {
+            if (!userDropdown.contains(e.target) && !authUserBtn.contains(e.target)) {
+                userDropdown.classList.add("hidden");
+            }
+        }
+        if (authModal && !authModal.classList.contains("hidden")) {
+            if (e.target === authModal) {
+                authModal.classList.add("hidden");
+            }
+        }
+    });
+
+    // Browser OAuth Button for Native Desktop & Cross-Browser Flow
+    const btnBrowserGoogleAuth = document.getElementById("btn-browser-google-auth");
+    if (btnBrowserGoogleAuth) {
+        btnBrowserGoogleAuth.addEventListener("click", () => {
+            const loginUrl = window.location.origin + "/api/auth/google/login";
+            if (window.electronAPI && typeof window.electronAPI.openExternal === "function") {
+                window.electronAPI.openExternal(loginUrl);
+            } else {
+                window.open(loginUrl, "_blank", "width=520,height=640");
+            }
+        });
+    }
+
+    // Auto-detect auth completion when window regains focus, receives storage or postMessage broadcast
+    window.addEventListener("focus", () => {
+        if (!currentUserState) {
+            checkCurrentAuth();
+        }
+    });
+
+    window.addEventListener("storage", (e) => {
+        if (e.key === "auth_broadcast") {
+            checkCurrentAuth();
+            if (typeof loadDownloadHistory === "function") loadDownloadHistory();
+            if (authModal) authModal.classList.add("hidden");
+        }
+    });
+
+    window.addEventListener("message", (e) => {
+        if (e.data && e.data.type === "AUTH_SUCCESS") {
+            checkCurrentAuth();
+            if (typeof loadDownloadHistory === "function") loadDownloadHistory();
+            if (authModal) authModal.classList.add("hidden");
+        }
+    });
+
+    // Check user & init Google GIS on load
+    checkCurrentAuth();
+    initGoogleSignIn();
+
     window.addEventListener("offline", () => {
         showNetworkToast(false);
+        if (syncPillText) syncPillText.textContent = "OFFLINE // LOCAL";
+        if (headerSyncPill) {
+            headerSyncPill.classList.remove("is-syncing", "is-synced");
+            headerSyncPill.classList.add("is-pending");
+        }
     });
 
     window.addEventListener("online", () => {
         showNetworkToast(true);
+        triggerCloudSync(false);
     });
 });

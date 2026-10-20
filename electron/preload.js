@@ -10,6 +10,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
   // App info
   getAppVersion: () => ipcRenderer.invoke('get-app-version'),
   getServerPort: () => ipcRenderer.invoke('get-server-port'),
+  openExternal: (url) => ipcRenderer.send('open-external', url),
 
   // Window controls
   minimizeWindow: () => ipcRenderer.send('window-minimize'),

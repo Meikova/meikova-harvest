@@ -27,7 +27,7 @@ from flask_cors import CORS
 import static_ffmpeg
 
 from config import TEMP_DOWNLOAD_DIR
-from routes import pages_bp, cookies_bp, info_bp, download_bp, build_bp, extension_bp, convert_bp
+from routes import pages_bp, cookies_bp, info_bp, download_bp, build_bp, extension_bp, convert_bp, auth_bp
 
 # Setup logging
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
@@ -156,6 +156,7 @@ app.register_blueprint(download_bp)
 app.register_blueprint(build_bp)
 app.register_blueprint(extension_bp)
 app.register_blueprint(convert_bp)
+app.register_blueprint(auth_bp)
 
 # Catch-all 404 handler: proxy unmatched requests from AVS player iframe to CDN
 @app.errorhandler(404)

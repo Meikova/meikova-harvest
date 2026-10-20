@@ -1314,6 +1314,12 @@ ipcMain.on('open-downloads-folder', () => {
   shell.openPath(downloadsDir);
 });
 
+ipcMain.on('open-external', (_, url) => {
+  if (url && (typeof url === 'string') && (url.startsWith('http://') || url.startsWith('https://'))) {
+    shell.openExternal(url);
+  }
+});
+
 ipcMain.handle('select-file', async () => {
   if (!mainWindow) return null;
   const result = await dialog.showOpenDialog(mainWindow, {

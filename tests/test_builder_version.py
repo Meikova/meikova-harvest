@@ -38,10 +38,10 @@ class TestBuilderVersion(unittest.TestCase):
         from build_tool.packager import PYINSTALLER_SPEC
         required_submodules = [
             'routes.pages', 'routes.cookies', 'routes.info', 'routes.download',
-            'routes.build', 'routes.extension', 'routes.convert',
+            'routes.build', 'routes.extension', 'routes.convert', 'routes.auth',
             'tasks.download', 'tasks.convert',
             'extractors.generic', 'extractors.torrent',
-            'utils.security', 'utils.dns_bypass', 'utils.ffmpeg', 'utils.helpers', 'utils.ytdl',
+            'utils.security', 'utils.dns_bypass', 'utils.ffmpeg', 'utils.helpers', 'utils.ytdl', 'utils.auth',
             'requests', 'mutagen', 'edge_tts', 'quickjs', 'curl_cffi',
         ]
         for mod in required_submodules:

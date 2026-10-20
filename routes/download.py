@@ -15,6 +15,7 @@ from urllib.parse import quote
 from flask import Blueprint, request, jsonify, send_file, Response
 
 from config import TEMP_DOWNLOAD_DIR, downloads_status, downloads_status_lock
+from routes.auth import get_authenticated_user
 from utils.helpers import get_referer_by_url
 from utils.cookies import get_cookie_file_path
 from tasks import bg_download_task
@@ -111,6 +112,8 @@ def start_download():
         return jsonify({"status": "error", "message": "URL and format_id are required."}), 400
 
     download_id = str(uuid.uuid4())
+    current_user = get_authenticated_user()
+    user_id = current_user["id"] if current_user else None
 
     with downloads_status_lock:
         downloads_status[download_id] = {
@@ -127,6 +130,7 @@ def start_download():
             "quality": quality,
             "title": title,
             "thumbnail": thumbnail,
+            "user_id": user_id,
             "voiceover_active": voiceover_active,
             "voiceover_voice": voiceover_voice,
             "voiceover_rate": voiceover_rate,
@@ -211,13 +215,22 @@ def start_download():
 
 @download_bp.route("/api/download/history", methods=["GET"])
 def get_download_history_api():
-    history = downloads_status.get_history(limit=50)
-    return jsonify({"status": "success", "history": history})
+    current_user = get_authenticated_user()
+    user_id = current_user["id"] if current_user else None
+    history = downloads_status.get_history(limit=50, user_id=user_id)
+    return jsonify({
+        "status": "success",
+        "history": history,
+        "is_authenticated": bool(current_user),
+        "user": current_user
+    })
 
 
 @download_bp.route("/api/download/history/clear", methods=["POST"])
 def clear_download_history_api():
-    success = downloads_status.clear_history()
+    current_user = get_authenticated_user()
+    user_id = current_user["id"] if current_user else None
+    success = downloads_status.clear_history(user_id=user_id)
     if success:
         return jsonify({"status": "success", "message": "Download history cleared."})
     else:

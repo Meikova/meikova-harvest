@@ -6,9 +6,38 @@
 - Standards: Antigravity Titan Standards, Ponytail Philosophy, TDD, Verification-Before-Completion.
 
 ## Last Updated
-- Timestamp: 2026-10-20 15:04:00
-- Version: v2.0.3 (Tray Autostart Vector Icon & Dynamic State Indication)
-- Exit Code: 0 (Node syntax check OK, asar packed, live app verified)
+- Timestamp: 2026-10-20 17:10:00
+- Version: v2.0.4 (Authentication & Local-First Cloud History Sync)
+- Exit Code: 0 (Node check OK, Python test suite 83/83 PASSED)
+
+## Summary of Accomplishments (Sprint v72 - Authentication & Local-First Cloud History Sync)
+1. **Kiến trúc Xác thực An toàn & Lưu trữ Cục bộ (`utils/auth.py` & `config.py`)**:
+   - Xây dựng `AuthManager`: Quản lý bảng `users` và `sessions` trên SQLite.
+   - Băm mật khẩu chuẩn bảo mật PBKDF2-HMAC-SHA256 với muối ngẫu nhiên 16 bytes và 100,000 vòng lặp.
+   - Quản lý phiên làm việc bằng Session Token an toàn (30 ngày), cookie `HttpOnly` / `SameSite=Lax`.
+   - Xác thực Google Sign-In qua Google tokeninfo API và bộ giải mã local fallback bảo mật.
+   - Bổ sung các cột `user_id`, `sync_status` (`synced`/`pending_sync`), `sync_time` vào bảng `downloads` trong `config.py`.
+   - Cơ chế cách ly dữ liệu: Người dùng chỉ thấy lịch sử tải về của chính mình; khách vãng lai lưu cục bộ không bắt buộc đăng nhập.
+
+2. **REST API Endpoints (`routes/auth.py`)**:
+   - `POST /api/auth/register`: Đăng ký tài khoản mới và cấp phát phiên tự động.
+   - `POST /api/auth/login`: Đăng nhập bằng username/email và mật khẩu.
+   - `POST /api/auth/google`: Đăng nhập/Đăng ký một chạm với Google ID Token.
+   - `GET /api/auth/me`: Kiểm tra trạng thái phiên và thông tin người dùng hiện tại.
+   - `POST /api/auth/logout`: Hủy phiên và xóa cookie xác thực.
+   - `POST /api/auth/sync-guest-history`: Chuyển quyền sở hữu toàn bộ lịch sử tải về khách trước đó vào tài khoản.
+   - `GET /api/sync/status`, `GET /api/sync/pending`, `POST /api/sync/push`: Quản lý hàng đợi đồng bộ siêu nhẹ (chỉ gửi JSON metadata < 1 KB, không gửi file video vật lý).
+
+3. **Giao diện Ambient Dark Instrument & Google GIS (`templates/index.html`, `static/css/styles.css`, `static/js/main.js`)**:
+   - Header Telemetry Pill: Trạng thái đồng bộ đám mây động (`LOCAL // GUEST`, `CLOUD // SYNCED`, `OFFLINE // LOCAL`, `SYNCING...`).
+   - Nút người dùng & Dropdown cá nhân: Hiển thị avatar/tên, tình trạng đồng bộ, nút đồng bộ ngay, nút gán lịch sử cũ và nút đăng xuất.
+   - Modal buồng tối `#auth-modal`: Tab trượt tactile Đăng nhập / Đăng ký, trường mật khẩu có nút ẩn/hiện, Google Sign-In button container.
+   - Local-First & Offline Resilience: Tự động bắt sự kiện `window.addEventListener('online')` để đẩy các mục `pending_sync` lên cloud khi mạng phục hồi.
+
+4. **Kiểm thử Toàn diện (TDD & Verification-Before-Completion)**:
+   - `tests/test_auth.py`: 4/4 bài kiểm thử bảo mật chuyên sâu PASSED.
+   - Toàn bộ test suite: 83/83 bài kiểm thử PASSED (Exit Code 0).
+   - Kiểm tra cú pháp JavaScript: `node --check static/js/main.js` (Exit Code 0).
 
 ## Summary of Accomplishments (Sprint v71 - Tray Autostart Dynamic Vector Icon)
 1. **Bổ sung Vector Icon và Đồng bộ Căn lề Cho Mục "Khởi động cùng Windows"**:
