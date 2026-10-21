@@ -11,6 +11,20 @@
 - Git Commit: `2d28d1b` (Clean working tree)
 - Exit Code: 0 (Python unit tests 91/91 PASSED, JS syntax check OK)
 
+### Recent Updates (Version 2.0.5 - Cross-Platform Modal Harmonization & PWA Specs)
+- **Đồng Bộ Hóa Modal "Cài đặt & Thiết bị" (Cross-Platform // Clients & Controls):**
+  - Đồng bộ toàn diện cấu trúc Modal theo thiết kế chuẩn của `meikova-loop`:
+    * Header với SVG icon badge, title `Cài đặt & Thiết bị`, subtitle `CROSS-PLATFORM // CLIENTS & CONTROLS`.
+    * Dải Telemetry Server URL: LED pulse nhấp nháy 2s, tag phân loại máy chủ (`Máy chủ`, `Tailscale Mesh`, `Local Host`), dynamic URL `window.location.origin` và nút `[Sao chép]` kèm feedback `Đã chép ✓`.
+    * Lưới 6 thẻ tải Native Builds (`.EXE` Setup, `PORTABLE` Win, `.DMG` macOS Apple Silicon & Intel, `.APPIMAGE` Linux, `EXTENSION` Trình duyệt Chrome/Edge V3, `PWA` Web App).
+    * Khối QR Code kết nối nhanh: Frame trắng tương phản cao `112x112px`, auto-generated QR qua `/api/qr` kèm fallback `api.qrserver.com`, link chip `... ↗`.
+    * Segmented Platform Tabs: `[💻 Máy tính (Desktop)]`, `[🍎 iOS (iPhone / iPad)]`, `[🤖 Android]` với Step 01 & Step 02 micro-steps và platform note.
+    * Tự động nhận diện thiết bị người dùng (`navigator.userAgent`) để active sẵn tab phù hợp (iOS, Android, Desktop).
+  - Tích hợp bộ icon PWA độ phân giải cao (`icon-any-192`, `icon-maskable-192`, `icon-any-512`, `icon-maskable-512`, `apple-touch-icon`).
+  - Kiểm thử: 100% tests pass (Exit Code 0).
+
+---
+
 ## Summary of Accomplishments (Sprint v77 - Purge Native Dialogs, Zero-Double-Border & Defensive Endpoints)
 1. **Triệt tiêu 100% Native Dialogs (`static/js/main.js`)**:
    - Quét và thay thế toàn bộ các lệnh `alert(...)` và `confirm(...)` bằng modal/toast ambient dark `showAlert(...)` / `showConfirm(...)`.
