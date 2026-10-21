@@ -620,7 +620,21 @@ def sync_guest_history_api():
     if not user:
         return jsonify({"status": "error", "message": "Yêu cầu đăng nhập trước khi đồng bộ lịch sử."}), 401
 
-    claimed_count = auth_manager.claim_guest_history(user["id"])
+    data = request.get_json(silent=True) or {}
+    download_ids = data.get("download_ids")
+    if download_ids and not isinstance(download_ids, list):
+        download_ids = None
+
+    from config import downloads_status
+    claimed_count = auth_manager.claim_guest_history(user["id"], download_ids=download_ids)
+    
+    with downloads_status.lock:
+        for d_id, item in list(downloads_status.items()):
+            if not item.get("user_id"):
+                if not download_ids or d_id in download_ids:
+                    item["user_id"] = user["id"]
+                    item["sync_status"] = "synced"
+
     return jsonify({
         "status": "success",
         "message": f"Đã đồng bộ {claimed_count} mục lịch sử cục bộ vào tài khoản.",
@@ -647,6 +661,7 @@ def sync_pending_api():
     return jsonify({
         "status": "success",
         "pending_items": pending,
+        "tasks": pending,
         "count": len(pending)
     })
 
@@ -655,8 +670,8 @@ def sync_push_api():
     from config import downloads_status
     user = get_authenticated_user()
     user_id = user["id"] if user else None
-    data = request.get_json() or {}
-    items = data.get("items", [])
+    data = request.get_json(silent=True) or {}
+    items = data.get("items") or data.get("tasks") or []
 
     synced_ids = []
     for item in items:

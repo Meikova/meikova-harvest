@@ -274,14 +274,36 @@ class AuthManager:
             conn.commit()
             return cursor.rowcount > 0
 
-    def claim_guest_history(self, user_id: str) -> int:
+    def claim_guest_history(self, user_id: str, download_ids: list = None) -> int:
         if not user_id:
             return 0
         with self._get_connection() as conn:
             cursor = conn.cursor()
             try:
-                cursor.execute("UPDATE downloads SET user_id = ? WHERE user_id IS NULL", (user_id,))
+                if download_ids:
+                    placeholders = ",".join("?" for _ in download_ids)
+                    cursor.execute(f"SELECT download_id, data FROM downloads WHERE user_id IS NULL AND download_id IN ({placeholders})", download_ids)
+                else:
+                    cursor.execute("SELECT download_id, data FROM downloads WHERE user_id IS NULL")
+                rows = cursor.fetchall()
+                claimed_count = 0
+                for d_id, data_str in rows:
+                    try:
+                        d = json.loads(data_str) if data_str else {}
+                        d["user_id"] = user_id
+                        d["sync_status"] = "synced"
+                        cursor.execute(
+                            "UPDATE downloads SET user_id = ?, data = ?, sync_status = 'synced' WHERE download_id = ?",
+                            (user_id, json.dumps(d), d_id)
+                        )
+                        claimed_count += 1
+                    except Exception:
+                        cursor.execute(
+                            "UPDATE downloads SET user_id = ?, sync_status = 'synced' WHERE download_id = ?",
+                            (user_id, d_id)
+                        )
+                        claimed_count += 1
                 conn.commit()
-                return cursor.rowcount
+                return claimed_count
             except Exception:
                 return 0

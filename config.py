@@ -331,7 +331,10 @@ class PersistentDownloadStatus(dict):
                         (user_id, limit)
                     )
                 else:
-                    cursor.execute("SELECT download_id, data FROM downloads ORDER BY timestamp DESC LIMIT ?", (limit,))
+                    cursor.execute(
+                        "SELECT download_id, data FROM downloads WHERE user_id IS NULL ORDER BY timestamp DESC LIMIT ?",
+                        (limit,)
+                    )
                 rows = cursor.fetchall()
                 conn.close()
             except Exception as e:
@@ -385,11 +388,12 @@ class PersistentDownloadStatus(dict):
                 if user_id:
                     cursor.execute("DELETE FROM downloads WHERE user_id = ?", (user_id,))
                 else:
-                    cursor.execute("DELETE FROM downloads")
+                    cursor.execute("DELETE FROM downloads WHERE user_id IS NULL")
                 conn.commit()
                 conn.close()
-                if not user_id:
-                    self.clear()
+                to_del = [k for k, v in self.items() if (v.get("user_id") == user_id if user_id else not v.get("user_id"))]
+                for k in to_del:
+                    super().pop(k, None)
                 return True
             except Exception as e:
                 print(f"Error clearing history: {e}")
@@ -404,7 +408,7 @@ class PersistentDownloadStatus(dict):
                 if user_id:
                     cursor.execute("SELECT download_id, data FROM downloads WHERE user_id = ? AND sync_status = 'pending_sync'", (user_id,))
                 else:
-                    cursor.execute("SELECT download_id, data FROM downloads WHERE sync_status = 'pending_sync'")
+                    cursor.execute("SELECT download_id, data FROM downloads WHERE user_id IS NULL AND sync_status = 'pending_sync'")
                 rows = cursor.fetchall()
                 conn.close()
                 items = []

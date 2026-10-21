@@ -19,6 +19,16 @@ window.canvasSettings = {
 };
 
 document.addEventListener("DOMContentLoaded", () => {
+    function getAuthHeaders(customHeaders = {}) {
+        const headers = { ...customHeaders };
+        const token = localStorage.getItem("session_token");
+        if (token && !headers["Authorization"]) {
+            headers["Authorization"] = `Bearer ${token}`;
+        }
+        return headers;
+    }
+    window.getAuthHeaders = getAuthHeaders;
+
     let autoFillSettingsAfterAnalysis = null;
 
     function formatHistoryDateTime(timestampMs) {
@@ -9888,7 +9898,7 @@ document.addEventListener("DOMContentLoaded", () => {
         try {
             const response = await fetch("/api/download", {
                 method: "POST",
-                headers: { "Content-Type": "application/json" },
+                headers: getAuthHeaders({ "Content-Type": "application/json" }),
                 body: JSON.stringify(payload)
             });
             const data = await response.json();
@@ -10641,9 +10651,9 @@ document.addEventListener("DOMContentLoaded", () => {
 
             const response = await fetch("/api/download", {
                 method: "POST",
-                headers: {
+                headers: getAuthHeaders({
                     "Content-Type": "application/json"
-                },
+                }),
                 body: JSON.stringify(requestBody)
             });
 
@@ -11514,9 +11524,9 @@ document.addEventListener("DOMContentLoaded", () => {
 
                 const response = await fetch("/api/download", {
                     method: "POST",
-                    headers: {
+                    headers: getAuthHeaders({
                         "Content-Type": "application/json"
-                    },
+                    }),
                     body: JSON.stringify(payload)
                 });
 
@@ -12086,7 +12096,7 @@ document.addEventListener("DOMContentLoaded", () => {
         try {
             const controller = new AbortController();
             const timeoutId = setTimeout(() => controller.abort(), 6000);
-            const response = await fetch("/api/download/history", { signal: controller.signal });
+            const response = await fetch("/api/download/history", { headers: getAuthHeaders(), signal: controller.signal });
             clearTimeout(timeoutId);
             const data = await response.json();
             if (data.status === "success") {
@@ -12477,16 +12487,16 @@ document.addEventListener("DOMContentLoaded", () => {
                 noText: "Cancel",
                 onYes: async () => {
                     try {
-                        const response = await fetch("/api/download/history/clear", { method: "POST" });
+                        const response = await fetch("/api/download/history/clear", { method: "POST", headers: getAuthHeaders() });
                         const data = await response.json();
                         if (data.status === "success") {
                             loadDownloadHistory();
                         } else {
-                            alert("Failed to clear download history: " + data.message);
+                            if (typeof showAlert === "function") showAlert("Lỗi", "Không thể xóa lịch sử tải về: " + (data.message || "Lỗi không xác định"), null, "error");
                         }
                     } catch (e) {
                         console.error("Error clearing downloads history:", e);
-                        alert("Error clearing history");
+                        if (typeof showAlert === "function") showAlert("Lỗi", "Lỗi mạng khi xóa lịch sử tải về.", null, "error");
                     }
                 }
             });
@@ -16874,13 +16884,14 @@ document.addEventListener("DOMContentLoaded", () => {
         if (syncPillText) syncPillText.textContent = "SYNCING...";
 
         try {
-            const pendingRes = await fetch("/api/sync/pending");
+            const pendingRes = await fetch("/api/sync/pending", { headers: getAuthHeaders() });
             const pendingData = await pendingRes.json();
-            if (pendingData.status === "success" && pendingData.tasks && pendingData.tasks.length > 0) {
+            const pendingItems = pendingData.tasks || pendingData.pending_items || pendingData.items || [];
+            if (pendingData.status === "success" && pendingItems.length > 0) {
                 const pushRes = await fetch("/api/sync/push", {
                     method: "POST",
-                    headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify({ tasks: pendingData.tasks })
+                    headers: getAuthHeaders({ "Content-Type": "application/json" }),
+                    body: JSON.stringify({ items: pendingItems, tasks: pendingItems })
                 });
                 const pushData = await pushRes.json();
                 if (pushData.status === "success") {
@@ -16993,14 +17004,14 @@ document.addEventListener("DOMContentLoaded", () => {
     if (btnLogout) {
         btnLogout.addEventListener("click", async () => {
             try {
-                const token = localStorage.getItem("session_token");
-                const headers = token ? { "Authorization": `Bearer ${token}` } : {};
-                await fetch("/api/auth/logout", { method: "POST", headers });
+                await fetch("/api/auth/logout", { method: "POST", headers: getAuthHeaders() });
             } catch (e) {}
             localStorage.removeItem("session_token");
             document.cookie = "session_token=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT";
             if (userDropdown) userDropdown.classList.add("hidden");
             updateAuthUI(null);
+            const activeCardsList = document.getElementById("downloads-tasks-list");
+            if (activeCardsList) activeCardsList.innerHTML = "";
             if (typeof loadDownloadHistory === "function") loadDownloadHistory();
         });
     }
@@ -17014,7 +17025,10 @@ document.addEventListener("DOMContentLoaded", () => {
     if (btnClaimHistory) {
         btnClaimHistory.addEventListener("click", async () => {
             try {
-                const res = await fetch("/api/auth/sync-guest-history", { method: "POST" });
+                const res = await fetch("/api/auth/sync-guest-history", {
+                    method: "POST",
+                    headers: getAuthHeaders({ "Content-Type": "application/json" })
+                });
                 const data = await res.json();
                 if (data.status === "success") {
                     if (typeof loadDownloadHistory === "function") loadDownloadHistory();

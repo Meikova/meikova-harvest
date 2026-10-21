@@ -5,6 +5,7 @@ import time
 from flask import Blueprint, request, jsonify, send_file
 from config import TEMP_DOWNLOAD_DIR, downloads_status, downloads_status_lock
 from tasks.convert import start_conversion_task, probe_media_file
+from routes.auth import get_authenticated_user
 
 convert_bp = Blueprint("convert", __name__)
 logger = logging.getLogger(__name__)
@@ -147,6 +148,9 @@ def trigger_conversion():
     clean_base = filename.rsplit(".", 1)[0] if "." in filename else filename
     target_filename = f"{clean_base}.{target_format}"
     
+    current_user = get_authenticated_user()
+    user_id = current_user["id"] if current_user else None
+
     with downloads_status_lock:
         downloads_status[task_id] = {
             "status": "pending",
@@ -155,7 +159,8 @@ def trigger_conversion():
             "title": f"Convert: {filename}",
             "filename": target_filename,
             "filepath": "",
-            "timestamp": time.time()
+            "timestamp": time.time(),
+            "user_id": user_id
         }
         
     start_conversion_task(task_id, file_path, filename, target_format, options)

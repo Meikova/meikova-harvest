@@ -234,5 +234,119 @@ class TestAuthModule(unittest.TestCase):
         self.assertEqual(res3.status_code, 200)
         self.assertIn('http%3A%2F%2Flocalhost%3A5000%2Fapi%2Fauth%2Fgoogle%2Fcallback', res3.get_json()['auth_url'])
 
+    def test_guest_history_isolation_and_clear(self):
+        from config import PersistentDownloadStatus
+        from utils.auth import AuthManager
+
+        auth_mgr = AuthManager(self.db_path)
+        u1 = auth_mgr.register_user("u_isolated_1", "pass123456")
+        status_mgr = PersistentDownloadStatus(self.db_path)
+
+        # 1. Seed tasks
+        status_mgr._save_task("task_user_secret", {
+            "title": "Private User Video",
+            "status": "complete",
+            "user_id": u1["id"],
+            "timestamp": time.time()
+        })
+        status_mgr._save_task("task_guest_public", {
+            "title": "Guest Video",
+            "status": "complete",
+            "user_id": None,
+            "timestamp": time.time()
+        })
+
+        # 2. Guest query (user_id=None) MUST NOT return registered user's private video!
+        guest_h = status_mgr.get_history(limit=10, user_id=None)
+        guest_ids = [item.get("download_id") for item in guest_h]
+        self.assertIn("task_guest_public", guest_ids)
+        self.assertNotIn("task_user_secret", guest_ids)
+
+        # 3. Clear guest history MUST NOT delete user's private video!
+        status_mgr.clear_history(user_id=None)
+        
+        user_h = status_mgr.get_history(limit=10, user_id=u1["id"])
+        user_ids = [item.get("download_id") for item in user_h]
+        self.assertIn("task_user_secret", user_ids, "Private user video was accidentally deleted when guest cleared history!")
+
+    def test_claim_guest_history_deep_sync(self):
+        from config import PersistentDownloadStatus
+        from utils.auth import AuthManager
+
+        auth_mgr = AuthManager(self.db_path)
+        u1 = auth_mgr.register_user("u_claim_target", "pass123456")
+        status_mgr = PersistentDownloadStatus(self.db_path)
+
+        # Seed guest tasks
+        status_mgr._save_task("guest_item_1", {
+            "title": "Guest 1",
+            "status": "complete",
+            "user_id": None,
+            "timestamp": time.time()
+        })
+        status_mgr._save_task("guest_item_2", {
+            "title": "Guest 2",
+            "status": "complete",
+            "user_id": None,
+            "timestamp": time.time()
+        })
+
+        # Claim specific item
+        claimed = auth_mgr.claim_guest_history(u1["id"], download_ids=["guest_item_1"])
+        self.assertEqual(claimed, 1)
+
+        # Verify guest_item_1 belongs to u1, but guest_item_2 is still guest
+        u1_history = status_mgr.get_history(limit=10, user_id=u1["id"])
+        u1_ids = [x["download_id"] for x in u1_history]
+        self.assertIn("guest_item_1", u1_ids)
+        self.assertNotIn("guest_item_2", u1_ids)
+
+        # Verify JSON data inside task was also updated with user_id
+        task_1 = status_mgr.get("guest_item_1")
+        self.assertEqual(task_1.get("user_id"), u1["id"])
+
+    def test_download_ownership_access_control(self):
+        from flask import Flask
+        from routes.download import download_bp, check_task_ownership
+        from routes.auth import auth_bp
+        from utils.auth import AuthManager
+        from config import downloads_status, downloads_status_lock
+
+        app = Flask(__name__)
+        app.register_blueprint(auth_bp)
+        app.register_blueprint(download_bp)
+        client = app.test_client()
+
+        auth_mgr = AuthManager(self.db_path)
+        u_alice = auth_mgr.register_user("alice", "pass123456")
+        u_bob = auth_mgr.register_user("bob", "pass123456")
+
+        alice_token = auth_mgr.authenticate_user("alice", "pass123456")["token"]
+        bob_token = auth_mgr.authenticate_user("bob", "pass123456")["token"]
+
+        with downloads_status_lock:
+            downloads_status["task_alice_owned"] = {
+                "status": "downloading",
+                "progress": 42,
+                "user_id": u_alice["id"],
+                "filepath": "/nonexistent/test.mp4",
+                "filename": "test.mp4",
+                "title": "Alice Private Video"
+            }
+
+        with patch("routes.auth.auth_manager", auth_mgr):
+            # 1. Bob tries to cancel Alice's task -> 403 Forbidden
+            res = client.post("/api/download/cancel/task_alice_owned", headers={"Authorization": f"Bearer {bob_token}"})
+            self.assertEqual(res.status_code, 403)
+
+            # 2. Guest tries to delete Alice's task -> 403 Forbidden
+            res2 = client.post("/api/download/history/delete/task_alice_owned")
+            self.assertEqual(res2.status_code, 403)
+
+            # 3. Alice cancels her own task -> 200 OK
+            res3 = client.post("/api/download/cancel/task_alice_owned", headers={"Authorization": f"Bearer {alice_token}"})
+            self.assertEqual(res3.status_code, 200)
+            self.assertEqual(downloads_status["task_alice_owned"]["status"], "cancelled")
+
 if __name__ == "__main__":
     unittest.main()

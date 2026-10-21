@@ -38,9 +38,23 @@ FALLBACK_IMAGE_PLACEHOLDER_SVG = (
 )
 
 
+def check_task_ownership(task_info):
+    """Verifies that the current request has permission to access or mutate this task."""
+    if not task_info:
+        return True, None
+    task_user_id = task_info.get("user_id")
+    if not task_user_id:
+        return True, None
+    current_user = get_authenticated_user()
+    user_id = current_user["id"] if current_user else None
+    if task_user_id != user_id:
+        return False, (jsonify({"status": "error", "message": "Access denied: You do not own this download task."}), 403)
+    return True, None
+
+
 @download_bp.route("/api/download", methods=["POST"])
 def start_download():
-    data = request.get_json() or {}
+    data = request.get_json(silent=True) or {}
     url = (data.get("url") or "").strip()
     if "tiktok.com" in url.lower() and "/photo/" in url.lower():
         url = re.sub(r'/photo/', '/video/', url, flags=re.IGNORECASE)
@@ -243,6 +257,9 @@ def get_download_status(download_id):
         status_info = downloads_status.get(download_id)
     if not status_info:
         return jsonify({"status": "error", "message": "Download task not found."}), 404
+    allowed, err_resp = check_task_ownership(status_info)
+    if not allowed:
+        return err_resp
     # Return a safe copy without internal paths
     return jsonify({
         "status": status_info["status"],
@@ -258,6 +275,13 @@ def get_download_status(download_id):
 
 @download_bp.route("/api/download/progress/<download_id>", methods=["GET"])
 def get_download_progress_sse(download_id):
+    with downloads_status_lock:
+        status_info = downloads_status.get(download_id)
+        if status_info:
+            allowed, err_resp = check_task_ownership(status_info)
+            if not allowed:
+                return err_resp
+
     def event_generator():
         last_progress = -1
         last_status = None
@@ -320,6 +344,9 @@ def cancel_download(download_id):
         status_info = downloads_status.get(download_id)
         if not status_info:
             return jsonify({"status": "error", "message": "Download task not found."}), 404
+        allowed, err_resp = check_task_ownership(status_info)
+        if not allowed:
+            return err_resp
         
         # Protect finished tasks
         if status_info.get("status") in ["complete", "error"]:
@@ -335,7 +362,7 @@ def cancel_download(download_id):
 
 @download_bp.route("/api/download/save-to-disk", methods=["POST"])
 def save_download_to_disk():
-    data = request.get_json() or {}
+    data = request.get_json(silent=True) or {}
     download_id = data.get("download_id")
     target_path = data.get("target_path")
     if not download_id or not target_path:
@@ -346,6 +373,10 @@ def save_download_to_disk():
 
     if not status_info or status_info.get("status") != "complete":
         return jsonify({"status": "error", "message": "File is not ready yet."}), 400
+
+    allowed, err_resp = check_task_ownership(status_info)
+    if not allowed:
+        return err_resp
 
     src_path = status_info.get("filepath")
     if not src_path or not os.path.exists(src_path):
@@ -382,7 +413,7 @@ def open_downloads_folder_endpoint():
 @download_bp.route("/api/download/open-file", methods=["POST"])
 def open_download_file_endpoint():
     """Opens a downloaded or converted file using the system default player/app."""
-    data = request.get_json() or {}
+    data = request.get_json(silent=True) or {}
     download_id = data.get("download_id")
     file_path = data.get("file_path")
     target = None
@@ -771,7 +802,7 @@ def proxy_image():
 
 @download_bp.route("/api/download/images/zip", methods=["POST"])
 def download_images_zip():
-    data = request.get_json() or {}
+    data = request.get_json(silent=True) or {}
     urls = data.get("urls", [])
     title = data.get("title", "images")
     client_id = data.get("client_id")
@@ -1009,7 +1040,7 @@ def proxy_stream():
 
 @download_bp.route("/api/download/history/delete/<download_id>", methods=["POST"])
 def delete_download_history_item(download_id):
-    data = request.get_json() or {}
+    data = request.get_json(silent=True) or {}
     delete_file = bool(data.get("delete_file", False))
     
     with downloads_status_lock:
@@ -1017,6 +1048,10 @@ def delete_download_history_item(download_id):
         
     if not status_info:
         return jsonify({"status": "error", "message": "Download task not found."}), 404
+
+    allowed, err_resp = check_task_ownership(status_info)
+    if not allowed:
+        return err_resp
         
     if delete_file:
         filepath = status_info.get("filepath")
@@ -1193,6 +1228,10 @@ def play_media(download_id):
     if not task:
         return jsonify({"status": "error", "message": "Media download not found."}), 404
 
+    allowed, err_resp = check_task_ownership(task)
+    if not allowed:
+        return err_resp
+
     filepath = task.get("filepath")
     if not filepath or not os.path.exists(filepath):
         return jsonify({"status": "error", "message": "Offline media file not found on disk."}), 404
@@ -1218,7 +1257,7 @@ def play_media(download_id):
 
 @download_bp.route("/api/media/telegram/<download_id>", methods=["POST"])
 def send_media_to_telegram(download_id):
-    data = request.get_json() or {}
+    data = request.get_json(silent=True) or {}
     bot_token = (data.get("tg_bot_token") or "").strip()
     chat_id = (data.get("tg_chat_id") or "").strip()
 
@@ -1244,6 +1283,10 @@ def send_media_to_telegram(download_id):
 
     if not task:
         return jsonify({"status": "error", "message": "Media download not found."}), 404
+
+    allowed, err_resp = check_task_ownership(task)
+    if not allowed:
+        return err_resp
 
     filepath = task.get("filepath")
     if not filepath or not os.path.exists(filepath):
