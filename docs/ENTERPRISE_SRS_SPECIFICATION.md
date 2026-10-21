@@ -1,6 +1,6 @@
 # SOFTWARE REQUIREMENTS SPECIFICATION (SRS)
 ## Hệ Thống Tải & Xử Lý Đa Phương Tiện Doanh Nghiệp (Meikova Harvest Enterprise)
-**Mã tài liệu:** ETD-SRS-ENT-2026-V1  
+**Mã tài liệu:** HARVEST-SRS-ENT-2026-V1  
 **Tiêu chuẩn áp dụng:** IEEE 830-1998 / ISO/IEC/IEEE 29148:2018  
 **Trạng thái:** Formal Release / Production Architecture  
 **Ngày phát hành:** 10/10/2026  

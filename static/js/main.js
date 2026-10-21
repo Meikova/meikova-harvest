@@ -16980,7 +16980,7 @@ document.addEventListener("DOMContentLoaded", () => {
                 const endpoint = authActiveTab === "register" ? "/api/auth/register" : "/api/auth/login";
                 const payload = authActiveTab === "register"
                     ? { username, email, password }
-                    : { username_or_email: username, password };
+                    : { identifier: username, username, username_or_email: username, password };
 
                 const res = await fetch(endpoint, {
                     method: "POST",

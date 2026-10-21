@@ -152,7 +152,7 @@ class TestAuthModule(unittest.TestCase):
             me_data = res.get_json()
             self.assertEqual(me_data["user"]["username"], "api_user")
 
-            # 3. /api/auth/login endpoint
+            # 3. /api/auth/login endpoint (test username, username_or_email, and email)
             res = client.post("/api/auth/login", json={
                 "username": "api_user",
                 "password": "Password123!"
@@ -160,6 +160,22 @@ class TestAuthModule(unittest.TestCase):
             self.assertEqual(res.status_code, 200)
             login_data = res.get_json()
             self.assertEqual(login_data["status"], "success")
+
+            # 3b. /api/auth/login with username_or_email field
+            res_uoe = client.post("/api/auth/login", json={
+                "username_or_email": "api_user",
+                "password": "Password123!"
+            })
+            self.assertEqual(res_uoe.status_code, 200)
+            self.assertEqual(res_uoe.get_json()["status"], "success")
+
+            # 3c. /api/auth/login with email
+            res_email = client.post("/api/auth/login", json={
+                "username_or_email": "api_user@test.com",
+                "password": "Password123!"
+            })
+            self.assertEqual(res_email.status_code, 200)
+            self.assertEqual(res_email.get_json()["status"], "success")
 
             # 4. /api/auth/logout endpoint
             res = client.post("/api/auth/logout", headers={"Authorization": f"Bearer {token}"})

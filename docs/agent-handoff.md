@@ -274,3 +274,33 @@
 - **Tuân thủ quy chuẩn:**
   - Zero-emoji mandate: 100% không dùng emoji trong code, docs, commit logs.
   - Zero-hallucination & Ponytail Ladder: Sử dụng stdlib, không thêm dependency thừa.
+
+
+---
+
+## 9. Sửa lỗi CSS Thẻ Người Dùng, Trình Duyệt Autofill, Modal Tải App Theme Light và Lỗi Login API
+- **Mục tiêu hoàn thành:**
+  1. **Thẻ người dùng (User Badge `.auth-pill-btn`) & Header Layout:**
+     - Thiết kế lại thẻ người dùng chuẩn Meikova Ambient UI: bo tròn `9999px`, viền hairline cyan, typography Be Vietnam Pro / JetBrains Mono.
+     - Khắc phục lỗi chữ trắng tàng hình trên nền sáng ở Light Theme (`.light-theme .auth-user-name` gán rõ nét `#0f172a`, icon cyan `#2b6cb0`).
+     - Giải quyết triệt để lỗi thẻ người dùng đè lên logo "MEIKOVA HARVEST" khi co nhỏ màn hình: Thêm responsive clearance ẩn nhãn "TẢI APP" ở `< 1220px` và tự động chuyển `.header-actions` xuống dưới logo dạng static flow ở `< 1040px`.
+  2. **Lỗi Đăng Nhập (Login API 400 "Vui lòng nhập đầy đủ tài khoản và mật khẩu"):**
+     - Sửa bất đồng bộ payload giữa frontend và backend: Frontend gửi key `username_or_email`, backend `routes/auth.py` chỉ đọc `identifier` hoặc `username`.
+     - Cập nhật `routes/auth.py` hỗ trợ đầy đủ `identifier`, `username_or_email`, `username`, `email`.
+     - Cập nhật `static/js/main.js` gửi đồng thời cả `identifier`, `username`, `username_or_email`.
+  3. **Lỗi CSS Trình Duyệt Autofill:**
+     - Ghi đè bộ tiền tố `input:-webkit-autofill`, `.auth-input:-webkit-autofill` bằng `-webkit-box-shadow: 0 0 0 1000px ... inset !important`.
+     - Dark theme: nền `#0b111c`, chữ `#f1f5f9`, viền cyan hairline.
+     - Light theme: nền `#ffffff`, chữ `#0f172a`, viền `#2b6cb0`.
+     - Khắc phục chữ lỗi đỏ nhạt mờ ở alert đăng nhập trong Light Theme (`#dc2626`).
+  4. **Lỗi CSS Modal Tải App (`.mobile-modal` / `#apps-download-modal`) ở Light Theme:**
+     - Khắc phục toàn bộ các thẻ con (Server IP bar, 6 thẻ tải gói nền tảng, QR container, tab chuyển OS, box hướng dẫn) bị nền đen chữ đen trong Light Theme.
+     - Đồng bộ token `--ink-0` đến `--ink-3` và `--line` cho `:root.light-theme`.
+     - Khai báo bộ style Light Theme chi tiết cho `.mobile-modal`, `.dl-card`, `.platform-tabs`, `.platform-step`, `.apps-footer-cmd`.
+  5. **Đồng bộ phiên bản:**
+     - Điều chỉnh `electron/package.json` về đồng bộ chuẩn `2.0.5` khớp với `test_builder_version.py` và `update.json`.
+- **Lệnh kiểm tra đã chạy & Exit Code:**
+  - `.\venv\Scripts\python.exe -m unittest tests/test_auth.py`: 9/9 tests PASSED in 9.3s (Exit Code 0).
+  - `.\venv\Scripts\python.exe -m unittest tests/test_builder_version.py`: 7/7 tests PASSED in 0.002s (Exit Code 0).
+- **Cảnh báo kỹ thuật:**
+  - Cần chạy hard refresh (Ctrl + F5) trên trình duyệt để xóa cache stylesheet `styles.css`.

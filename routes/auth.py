@@ -136,7 +136,14 @@ def register_api():
 @auth_bp.route("/api/auth/login", methods=["POST"])
 def login_api():
     data = request.get_json(silent=True) or {}
-    identifier = data.get("identifier") or data.get("username", "").strip()
+    raw_id = (
+        data.get("identifier")
+        or data.get("username_or_email")
+        or data.get("username")
+        or data.get("email")
+        or ""
+    )
+    identifier = str(raw_id).strip() if raw_id else ""
     password = data.get("password", "")
 
     if not identifier or not password:
