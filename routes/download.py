@@ -1302,6 +1302,8 @@ def download_native_app(target):
             with zipfile.ZipFile(mem_buf, 'w', zipfile.ZIP_DEFLATED) as zf:
                 for root, _, files in os.walk(ext_dir):
                     for file in files:
+                        if file.startswith(".") or file.endswith((".tmp", ".bak", ".log", ".env")):
+                            continue
                         full_p = os.path.join(root, file)
                         rel_p = os.path.relpath(full_p, ext_dir)
                         zf.write(full_p, rel_p)
