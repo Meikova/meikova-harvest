@@ -9,6 +9,23 @@ import base64
 import urllib.request
 import urllib.error
 
+# Universal SSO Interop
+try:
+    try:
+        from .universal_sso import verify_universal_token
+    except (ImportError, ValueError):
+        try:
+            from utils.universal_sso import verify_universal_token
+        except (ImportError, ValueError):
+            import sys
+            from pathlib import Path
+            _shared_dir = str(Path(__file__).resolve().parent.parent.parent / 'shared')
+            if _shared_dir not in sys.path:
+                sys.path.insert(0, _shared_dir)
+            from universal_sso import verify_universal_token
+except Exception:
+    verify_universal_token = None
+
 class AuthManager:
     SESSION_DURATION = 30 * 24 * 3600  # 30 days in seconds
 
@@ -242,6 +259,19 @@ class AuthManager:
         if not token:
             return None
 
+        # 1. Fast-path: Check if token is a Universal SSO Ed25519 Token (offline 0.1ms verification)
+        if verify_universal_token and token.count('.') == 2:
+            sso_user = verify_universal_token(token)
+            if sso_user:
+                return {
+                    'id': sso_user.get('sub'),
+                    'username': sso_user.get('username'),
+                    'email': sso_user.get('email'),
+                    'display_name': sso_user.get('display_name') or sso_user.get('username'),
+                    'avatar_url': None,
+                    'created_at': sso_user.get('iat', time.time())
+                }
+
         now = time.time()
         with self._get_connection() as conn:
             cursor = conn.cursor()
@@ -277,33 +307,61 @@ class AuthManager:
     def claim_guest_history(self, user_id: str, download_ids: list = None) -> int:
         if not user_id:
             return 0
-        with self._get_connection() as conn:
-            cursor = conn.cursor()
-            try:
-                if download_ids:
-                    placeholders = ",".join("?" for _ in download_ids)
-                    cursor.execute(f"SELECT download_id, data FROM downloads WHERE user_id IS NULL AND download_id IN ({placeholders})", download_ids)
-                else:
-                    cursor.execute("SELECT download_id, data FROM downloads WHERE user_id IS NULL")
-                rows = cursor.fetchall()
-                claimed_count = 0
-                for d_id, data_str in rows:
-                    try:
-                        d = json.loads(data_str) if data_str else {}
-                        d["user_id"] = user_id
-                        d["sync_status"] = "synced"
-                        cursor.execute(
-                            "UPDATE downloads SET user_id = ?, data = ?, sync_status = 'synced' WHERE download_id = ?",
-                            (user_id, json.dumps(d), d_id)
-                        )
-                        claimed_count += 1
-                    except Exception:
-                        cursor.execute(
-                            "UPDATE downloads SET user_id = ?, sync_status = 'synced' WHERE download_id = ?",
-                            (user_id, d_id)
-                        )
-                        claimed_count += 1
-                conn.commit()
-                return claimed_count
-            except Exception:
-                return 0
+        from utils.db import HarvestDbAdapter
+        db = HarvestDbAdapter(self.db_path)
+        claimed_count = 0
+        try:
+            if download_ids:
+                placeholders = ",".join("?" for _ in download_ids)
+                rows = db.fetchall(f"SELECT download_id, data FROM downloads WHERE user_id IS NULL AND download_id IN ({placeholders})", tuple(download_ids))
+            else:
+                rows = db.fetchall("SELECT download_id, data FROM downloads WHERE user_id IS NULL")
+
+            for row in rows:
+                d_id = row[0]
+                data_str = row[1]
+                try:
+                    d = json.loads(data_str) if data_str else {}
+                    d["user_id"] = user_id
+                    d["sync_status"] = "synced"
+                    db.execute(
+                        "UPDATE downloads SET user_id = ?, data = ?, sync_status = 'synced' WHERE download_id = ?",
+                        (user_id, json.dumps(d), d_id)
+                    )
+                    claimed_count += 1
+                except Exception:
+                    db.execute(
+                        "UPDATE downloads SET user_id = ?, sync_status = 'synced' WHERE download_id = ?",
+                        (user_id, d_id)
+                    )
+                    claimed_count += 1
+
+            if db.is_turso:
+                try:
+                    with self._get_connection() as conn:
+                        cursor = conn.cursor()
+                        if download_ids:
+                            placeholders = ",".join("?" for _ in download_ids)
+                            cursor.execute(f"SELECT download_id, data FROM downloads WHERE user_id IS NULL AND download_id IN ({placeholders})", download_ids)
+                        else:
+                            cursor.execute("SELECT download_id, data FROM downloads WHERE user_id IS NULL")
+                        for d_id, data_str in cursor.fetchall():
+                            try:
+                                d = json.loads(data_str) if data_str else {}
+                                d["user_id"] = user_id
+                                d["sync_status"] = "synced"
+                                cursor.execute(
+                                    "UPDATE downloads SET user_id = ?, data = ?, sync_status = 'synced' WHERE download_id = ?",
+                                    (user_id, json.dumps(d), d_id)
+                                )
+                            except Exception:
+                                cursor.execute(
+                                    "UPDATE downloads SET user_id = ?, sync_status = 'synced' WHERE download_id = ?",
+                                    (user_id, d_id)
+                                )
+                        conn.commit()
+                except Exception:
+                    pass
+            return claimed_count
+        finally:
+            db.close()

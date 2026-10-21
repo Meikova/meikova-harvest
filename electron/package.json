@@ -1,6 +1,6 @@
 {
   "name": "meikova-harvest",
-  "version": "2.0.5",
+  "version": "2.0.6",
   "description": "Meikova Harvest",
   "main": "main.js",
   "author": "Meikova",
@@ -78,7 +78,7 @@
         "zip",
         "pkg"
       ],
-      "icon": "resources/icon.png",
+      "icon": "resources/icon.icns",
       "artifactName": "MeikovaHarvest-${version}-${arch}.${ext}"
     },
     "linux": {

@@ -17083,6 +17083,33 @@ document.addEventListener("DOMContentLoaded", () => {
         }, 1200);
     }
 
+    // Meikova Universal SSO Button & Event Listener
+    const btnSsoGateway = document.getElementById("btn-sso-gateway");
+    if (btnSsoGateway) {
+        btnSsoGateway.addEventListener("click", () => {
+            const authGatewayUrl = window.MEIKOVA_AUTH_URL || (window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1" ? "http://127.0.0.1:8990" : "https://meikova-auth.onrender.com");
+            const origin = window.location.origin;
+            const ssoUrl = `${authGatewayUrl}/login?client_id=harvest&origin=${encodeURIComponent(origin)}`;
+            const w = 460, h = 640;
+            const left = Math.max(0, (window.screen.width - w) / 2);
+            const top = Math.max(0, (window.screen.height - h) / 2);
+            window.open(ssoUrl, "meikova_sso", `width=${w},height=${h},left=${left},top=${top},status=no,toolbar=no,menubar=no`);
+        });
+    }
+
+    // Universal SSO PostMessage listener (Cross-window auth event)
+    window.addEventListener("message", (event) => {
+        if (event.data && event.data.type === "MEIKOVA_SSO_SUCCESS") {
+            const { token, user } = event.data;
+            if (token) {
+                onAuthSuccess({ token, user });
+                if (typeof showStatusNotification === "function") {
+                    showStatusNotification("Đăng nhập Meikova ID thành công!");
+                }
+            }
+        }
+    });
+
     // 1 Single Google OAuth Button (Multi-platform: Desktop Electron, Capacitor Native, Mobile PWA, Web)
     const btnGoogle = document.getElementById("btn-ambient-google") || document.getElementById("btn-browser-google-auth");
     if (btnGoogle) {
@@ -17413,4 +17440,17 @@ document.addEventListener("DOMContentLoaded", () => {
             }
         });
     }
+});
+
+// Copy winget command in Apps download modal
+document.getElementById('btn-copy-winget-harvest')?.addEventListener('click', async () => {
+  try {
+    await navigator.clipboard.writeText('winget install Meikova.Harvest');
+    const el = document.getElementById('btn-copy-winget-harvest');
+    if (el) {
+      const orig = el.innerHTML;
+      el.innerHTML = '<span class="apps-cmd-prompt">$</span><span style="color:var(--cyan,#00E5FF);">Đã sao chép lệnh ✓</span>';
+      setTimeout(() => { el.innerHTML = orig; }, 2000);
+    }
+  } catch {}
 });

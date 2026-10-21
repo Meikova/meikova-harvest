@@ -142,143 +142,196 @@ class PersistentDownloadStatus(dict):
     def __init__(self, db_path):
         super().__init__()
         self.db_path = db_path
-        self.lock = threading.Lock()
+        self.lock = threading.RLock()
+        from utils.db import HarvestDbAdapter
+        self.db = HarvestDbAdapter(self.db_path)
         self._init_db()
         self._load_active_and_cleanup()
 
     def _init_db(self):
         with self.lock:
-            conn = sqlite3.connect(self.db_path)
-            conn.execute("PRAGMA journal_mode=WAL")
-            cursor = conn.cursor()
-            cursor.execute('''
-                CREATE TABLE IF NOT EXISTS downloads (
-                    download_id TEXT PRIMARY KEY,
-                    data TEXT,
-                    timestamp REAL,
-                    user_id TEXT,
-                    sync_status TEXT DEFAULT 'synced',
-                    sync_time REAL DEFAULT 0
-                )
-            ''')
+            # 1. Initialize local SQLite schema for offline fallback
             try:
-                cursor.execute("ALTER TABLE downloads ADD COLUMN user_id TEXT")
+                parent_dir = os.path.dirname(os.path.abspath(self.db_path))
+                if parent_dir:
+                    os.makedirs(parent_dir, exist_ok=True)
+                conn = sqlite3.connect(self.db_path, timeout=10.0)
+                conn.execute("PRAGMA journal_mode=WAL")
+                cursor = conn.cursor()
+                cursor.execute('''
+                    CREATE TABLE IF NOT EXISTS downloads (
+                        download_id TEXT PRIMARY KEY,
+                        data TEXT,
+                        timestamp REAL,
+                        user_id TEXT,
+                        sync_status TEXT DEFAULT 'synced',
+                        sync_time REAL DEFAULT 0
+                    )
+                ''')
+                try:
+                    cursor.execute("ALTER TABLE downloads ADD COLUMN user_id TEXT")
+                except Exception:
+                    pass
+                try:
+                    cursor.execute("ALTER TABLE downloads ADD COLUMN sync_status TEXT DEFAULT 'synced'")
+                except Exception:
+                    pass
+                try:
+                    cursor.execute("ALTER TABLE downloads ADD COLUMN sync_time REAL DEFAULT 0")
+                except Exception:
+                    pass
+                cursor.execute("CREATE INDEX IF NOT EXISTS idx_downloads_user_id ON downloads(user_id)")
+                cursor.execute("CREATE INDEX IF NOT EXISTS idx_downloads_sync_status ON downloads(sync_status)")
+                cursor.execute('''
+                    CREATE TABLE IF NOT EXISTS bypass_domains (
+                        domain TEXT PRIMARY KEY,
+                        bypass_reason TEXT,
+                        timestamp REAL
+                    )
+                ''')
+                # Pre-seed popular custom streaming domains
+                pre_seeded = [
+                    ("motchilltv.lt", "motchill"),
+                    ("motchilltv.pm", "motchill"),
+                    ("motchilltv.to", "motchill"),
+                    ("motchilltv.co", "motchill"),
+                    ("motchill.co", "motchill"),
+                    ("motchill.org", "motchill"),
+                    ("ghienphim.co", "ghienphim"),
+                    ("ghienphim.org", "ghienphim"),
+                    ("ghienphim3.co", "ghienphim"),
+                    ("phimmoi.net", "phimmoi"),
+                    ("phimmoichill.net", "phimmoi"),
+                    ("phimmoichill.org", "phimmoi"),
+                    ("phimmoichill.co", "phimmoi"),
+                    ("phim1080.in", "phim1080"),
+                    ("phim1080.org", "phim1080"),
+                    ("phim1080.net", "phim1080"),
+                    ("bilutv.link", "bilutv"),
+                    ("bilutv.org", "bilutv"),
+                    ("bilutv.co", "bilutv"),
+                    ("dongphim.com", "dongphim"),
+                    ("dongphim.net", "dongphim"),
+                    ("dongphim.co", "dongphim"),
+                    ("ophim.co", "ophim"),
+                    ("ophim.cc", "ophim"),
+                    ("ophim.org", "ophim"),
+                    ("guphim.com", "guphim"),
+                    ("guphim.co", "guphim"),
+                    ("guphim.net", "guphim"),
+                    ("guphim.org", "guphim"),
+                    ("luphim.com", "luphim"),
+                    ("luphim.co", "luphim"),
+                    ("luphim.net", "luphim"),
+                    ("luphim.org", "luphim"),
+                    ("animevietsub.love", "animevietsub"),
+                    ("animevietsub.fan", "animevietsub"),
+                    ("animevietsub.lol", "animevietsub"),
+                    ("animevietsub.in", "animevietsub"),
+                    ("animevietsub.tv", "animevietsub"),
+                    ("animevietsub.site", "animevietsub"),
+                    ("animevietsub.id", "animevietsub"),
+                    ("animevietsub.pl", "animevietsub"),
+                    ("animevietsub.by", "animevietsub"),
+                    ("animevietsub.ru", "animevietsub"),
+                    ("animevietsub.my", "animevietsub")
+                ]
+                for dom, reason in pre_seeded:
+                    cursor.execute(
+                        "INSERT OR IGNORE INTO bypass_domains (domain, bypass_reason, timestamp) VALUES (?, ?, ?)",
+                        (dom, reason, time.time())
+                    )
+                conn.commit()
+                conn.close()
             except Exception:
                 pass
-            try:
-                cursor.execute("ALTER TABLE downloads ADD COLUMN sync_status TEXT DEFAULT 'synced'")
-            except Exception:
-                pass
-            try:
-                cursor.execute("ALTER TABLE downloads ADD COLUMN sync_time REAL DEFAULT 0")
-            except Exception:
-                pass
-            cursor.execute("CREATE INDEX IF NOT EXISTS idx_downloads_user_id ON downloads(user_id)")
-            cursor.execute("CREATE INDEX IF NOT EXISTS idx_downloads_sync_status ON downloads(sync_status)")
-            cursor.execute('''
-                CREATE TABLE IF NOT EXISTS bypass_domains (
-                    domain TEXT PRIMARY KEY,
-                    bypass_reason TEXT,
-                    timestamp REAL
-                )
-            ''')
-            # Pre-seed popular custom streaming domains
-            pre_seeded = [
-                ("motchilltv.lt", "motchill"),
-                ("motchilltv.pm", "motchill"),
-                ("motchilltv.to", "motchill"),
-                ("motchilltv.co", "motchill"),
-                ("motchill.co", "motchill"),
-                ("motchill.org", "motchill"),
-                ("ghienphim.co", "ghienphim"),
-                ("ghienphim.org", "ghienphim"),
-                ("ghienphim3.co", "ghienphim"),
-                ("phimmoi.net", "phimmoi"),
-                ("phimmoichill.net", "phimmoi"),
-                ("phimmoichill.org", "phimmoi"),
-                ("phimmoichill.co", "phimmoi"),
-                ("phim1080.in", "phim1080"),
-                ("phim1080.org", "phim1080"),
-                ("phim1080.net", "phim1080"),
-                ("bilutv.link", "bilutv"),
-                ("bilutv.org", "bilutv"),
-                ("bilutv.co", "bilutv"),
-                ("dongphim.com", "dongphim"),
-                ("dongphim.net", "dongphim"),
-                ("dongphim.co", "dongphim"),
-                ("ophim.co", "ophim"),
-                ("ophim.cc", "ophim"),
-                ("ophim.org", "ophim"),
-                ("guphim.com", "guphim"),
-                ("guphim.co", "guphim"),
-                ("guphim.net", "guphim"),
-                ("guphim.org", "guphim"),
-                ("luphim.com", "luphim"),
-                ("luphim.co", "luphim"),
-                ("luphim.net", "luphim"),
-                ("luphim.org", "luphim"),
-                ("animevietsub.love", "animevietsub"),
-                ("animevietsub.fan", "animevietsub"),
-                ("animevietsub.lol", "animevietsub"),
-                ("animevietsub.in", "animevietsub"),
-                ("animevietsub.tv", "animevietsub"),
-                ("animevietsub.site", "animevietsub"),
-                ("animevietsub.id", "animevietsub"),
-                ("animevietsub.pl", "animevietsub"),
-                ("animevietsub.by", "animevietsub"),
-                ("animevietsub.ru", "animevietsub"),
-                ("animevietsub.my", "animevietsub")
-            ]
-            for dom, reason in pre_seeded:
-                cursor.execute(
-                    "INSERT OR IGNORE INTO bypass_domains (domain, bypass_reason, timestamp) VALUES (?, ?, ?)",
-                    (dom, reason, time.time())
-                )
-            conn.commit()
-            conn.close()
+
+            # 2. If Turso Cloud adapter is active, ensure tables exist on Turso
+            if self.db.is_turso:
+                try:
+                    self.db.execute('''
+                        CREATE TABLE IF NOT EXISTS downloads (
+                            download_id TEXT PRIMARY KEY,
+                            data TEXT,
+                            timestamp REAL,
+                            user_id TEXT,
+                            sync_status TEXT DEFAULT 'synced',
+                            sync_time REAL DEFAULT 0
+                        )
+                    ''')
+                    self.db.execute("CREATE INDEX IF NOT EXISTS idx_downloads_user_id ON downloads(user_id)")
+                    self.db.execute("CREATE INDEX IF NOT EXISTS idx_downloads_sync_status ON downloads(sync_status)")
+                    self.db.execute('''
+                        CREATE TABLE IF NOT EXISTS bypass_domains (
+                            domain TEXT PRIMARY KEY,
+                            bypass_reason TEXT,
+                            timestamp REAL
+                        )
+                    ''')
+                except Exception:
+                    pass
 
     def _load_active_and_cleanup(self):
         with self.lock:
-            conn = sqlite3.connect(self.db_path)
-            conn.execute("PRAGMA journal_mode=WAL")
-            cursor = conn.cursor()
-            cursor.execute("SELECT download_id, data FROM downloads")
-            rows = cursor.fetchall()
-            for download_id, data_str in rows:
-                try:
-                    data = json.loads(data_str)
-                    status = data.get("status")
-                    if status in ["pending", "downloading", "merging", "processing"]:
-                        # Server restarted, mark interrupted downloads as failed
-                        data["status"] = "error"
-                        data["message"] = "Server restarted. Task interrupted."
-                        data["error"] = "Interrupted"
-                        cursor.execute("UPDATE downloads SET data = ? WHERE download_id = ?", (json.dumps(data), download_id))
-                except Exception:
-                    pass
-            conn.commit()
-            conn.close()
+            try:
+                rows = self.db.fetchall("SELECT download_id, data FROM downloads")
+                for row in rows:
+                    try:
+                        download_id = row[0]
+                        data_str = row[1]
+                        data = json.loads(data_str)
+                        status = data.get("status")
+                        if status in ["pending", "downloading", "merging", "processing"]:
+                            # Server restarted, mark interrupted downloads as failed
+                            data["status"] = "error"
+                            data["message"] = "Server restarted. Task interrupted."
+                            data["error"] = "Interrupted"
+                            self.db.execute("UPDATE downloads SET data = ? WHERE download_id = ?", (json.dumps(data), download_id))
+                    except Exception:
+                        pass
+            except Exception:
+                pass
 
     def _save_task(self, download_id, task_data):
         with self.lock:
             try:
-                conn = sqlite3.connect(self.db_path, timeout=10.0)
-                conn.execute("PRAGMA journal_mode=WAL")
-                cursor = conn.cursor()
                 user_id = task_data.get("user_id")
-                sync_status = task_data.get("sync_status", "pending_sync")
-                cursor.execute(
+                sync_status = task_data.get("sync_status") or ("synced" if self.db.is_turso else "pending_sync")
+                task_data["sync_status"] = sync_status
+                if download_id in self:
+                    dict.__setitem__(super().get(download_id), "sync_status", sync_status)
+                ts = task_data.get("timestamp", time.time())
+                data_json = json.dumps(task_data)
+                sql = (
                     "INSERT INTO downloads (download_id, data, timestamp, user_id, sync_status) VALUES (?, ?, ?, ?, ?) "
-                    "ON CONFLICT(download_id) DO UPDATE SET data = ?, timestamp = ?, user_id = COALESCE(?, user_id), sync_status = ?",
-                    (download_id, json.dumps(task_data), task_data.get("timestamp", time.time()), user_id, sync_status,
-                     json.dumps(task_data), task_data.get("timestamp", time.time()), user_id, sync_status)
+                    "ON CONFLICT(download_id) DO UPDATE SET data = ?, timestamp = ?, user_id = ?, sync_status = ?"
                 )
-                conn.commit()
-                conn.close()
+                params = (
+                    download_id, data_json, ts, user_id, sync_status,
+                    data_json, ts, user_id, sync_status
+                )
+                self.db.execute(sql, params)
+
+                # Mirror to local SQLite if Turso Cloud is active for offline resilience
+                if self.db.is_turso:
+                    try:
+                        parent_dir = os.path.dirname(os.path.abspath(self.db_path))
+                        if parent_dir:
+                            os.makedirs(parent_dir, exist_ok=True)
+                        conn = sqlite3.connect(self.db_path, timeout=5.0)
+                        conn.execute("PRAGMA journal_mode=WAL")
+                        cursor = conn.cursor()
+                        cursor.execute(sql, params)
+                        conn.commit()
+                        conn.close()
+                    except Exception:
+                        pass
             except Exception as e:
-                print(f"Error saving to SQLite: {e}")
+                print(f"Error saving task: {e}")
 
     def __setitem__(self, download_id, val):
+        if isinstance(val, dict) and "sync_status" not in val:
+            val["sync_status"] = "synced" if self.db.is_turso else "pending_sync"
         if not isinstance(val, PersistentTaskDict):
             val = PersistentTaskDict(download_id, val, self._save_task)
         super().__setitem__(download_id, val)
@@ -287,6 +340,8 @@ class PersistentDownloadStatus(dict):
     def update(self, *args, **kwargs):
         super().update(*args, **kwargs)
         for k, v in self.items():
+            if isinstance(v, dict) and "sync_status" not in v:
+                v["sync_status"] = "synced" if self.db.is_turso else "pending_sync"
             if not isinstance(v, PersistentTaskDict):
                 self[k] = PersistentTaskDict(k, v, self._save_task)
             self._save_task(k, dict(v))
@@ -297,14 +352,11 @@ class PersistentDownloadStatus(dict):
         
         with self.lock:
             try:
-                conn = sqlite3.connect(self.db_path, timeout=5.0)
-                conn.execute("PRAGMA journal_mode=WAL")
-                cursor = conn.cursor()
-                cursor.execute("SELECT data FROM downloads WHERE download_id = ?", (download_id,))
-                row = cursor.fetchone()
-                conn.close()
+                row = self.db.fetchone("SELECT data, sync_status FROM downloads WHERE download_id = ?", (download_id,))
                 if row:
                     data = json.loads(row[0])
+                    if len(row) > 1 and row[1]:
+                        data["sync_status"] = row[1]
                     wrapped = PersistentTaskDict(download_id, data, self._save_task)
                     super().__setitem__(download_id, wrapped)
                     return wrapped
@@ -314,7 +366,7 @@ class PersistentDownloadStatus(dict):
 
     def pop(self, download_id, default=None):
         # We only delete it from in-memory dict so RAM doesn't grow,
-        # but we DO NOT delete it from SQLite to keep it in the history.
+        # but we DO NOT delete it from database to keep it in the history.
         return super().pop(download_id, default)
 
     def get_history(self, limit=50, user_id=None):
@@ -322,30 +374,29 @@ class PersistentDownloadStatus(dict):
         rows = []
         with self.lock:
             try:
-                conn = sqlite3.connect(self.db_path, timeout=5.0)
-                conn.execute("PRAGMA journal_mode=WAL")
-                cursor = conn.cursor()
                 if user_id:
-                    cursor.execute(
-                        "SELECT download_id, data FROM downloads WHERE user_id = ? ORDER BY timestamp DESC LIMIT ?",
+                    rows = self.db.fetchall(
+                        "SELECT download_id, data, sync_status FROM downloads WHERE user_id = ? ORDER BY timestamp DESC LIMIT ?",
                         (user_id, limit)
                     )
                 else:
-                    cursor.execute(
-                        "SELECT download_id, data FROM downloads WHERE user_id IS NULL ORDER BY timestamp DESC LIMIT ?",
+                    rows = self.db.fetchall(
+                        "SELECT download_id, data, sync_status FROM downloads WHERE user_id IS NULL ORDER BY timestamp DESC LIMIT ?",
                         (limit,)
                     )
-                rows = cursor.fetchall()
-                conn.close()
             except Exception as e:
                 print(f"Error fetching history: {e}")
                 return []
 
         # Process outside of self.lock to avoid holding thread lock during disk I/O
-        for download_id, data_str in rows:
+        for row in rows:
             try:
+                download_id = row[0]
+                data_str = row[1]
                 data = json.loads(data_str)
                 data["download_id"] = download_id
+                if len(row) > 2 and row[2]:
+                    data["sync_status"] = row[2]
                 filepath = data.get("filepath")
                 file_exists = False
                 file_size = 0
@@ -368,12 +419,20 @@ class PersistentDownloadStatus(dict):
             try:
                 if download_id in self:
                     super().pop(download_id, None)
-                conn = sqlite3.connect(self.db_path, timeout=5.0)
-                conn.execute("PRAGMA journal_mode=WAL")
-                cursor = conn.cursor()
-                cursor.execute("DELETE FROM downloads WHERE download_id = ?", (download_id,))
-                conn.commit()
-                conn.close()
+                self.db.execute("DELETE FROM downloads WHERE download_id = ?", (download_id,))
+                if self.db.is_turso:
+                    try:
+                        parent_dir = os.path.dirname(os.path.abspath(self.db_path))
+                        if parent_dir:
+                            os.makedirs(parent_dir, exist_ok=True)
+                        conn = sqlite3.connect(self.db_path, timeout=5.0)
+                        conn.execute("PRAGMA journal_mode=WAL")
+                        cursor = conn.cursor()
+                        cursor.execute("DELETE FROM downloads WHERE download_id = ?", (download_id,))
+                        conn.commit()
+                        conn.close()
+                    except Exception:
+                        pass
                 return True
             except Exception as e:
                 print(f"Error deleting task {download_id}: {e}")
@@ -382,15 +441,26 @@ class PersistentDownloadStatus(dict):
     def clear_history(self, user_id=None):
         with self.lock:
             try:
-                conn = sqlite3.connect(self.db_path, timeout=5.0)
-                conn.execute("PRAGMA journal_mode=WAL")
-                cursor = conn.cursor()
                 if user_id:
-                    cursor.execute("DELETE FROM downloads WHERE user_id = ?", (user_id,))
+                    self.db.execute("DELETE FROM downloads WHERE user_id = ?", (user_id,))
                 else:
-                    cursor.execute("DELETE FROM downloads WHERE user_id IS NULL")
-                conn.commit()
-                conn.close()
+                    self.db.execute("DELETE FROM downloads WHERE user_id IS NULL")
+                if self.db.is_turso:
+                    try:
+                        parent_dir = os.path.dirname(os.path.abspath(self.db_path))
+                        if parent_dir:
+                            os.makedirs(parent_dir, exist_ok=True)
+                        conn = sqlite3.connect(self.db_path, timeout=5.0)
+                        conn.execute("PRAGMA journal_mode=WAL")
+                        cursor = conn.cursor()
+                        if user_id:
+                            cursor.execute("DELETE FROM downloads WHERE user_id = ?", (user_id,))
+                        else:
+                            cursor.execute("DELETE FROM downloads WHERE user_id IS NULL")
+                        conn.commit()
+                        conn.close()
+                    except Exception:
+                        pass
                 to_del = [k for k, v in self.items() if (v.get("user_id") == user_id if user_id else not v.get("user_id"))]
                 for k in to_del:
                     super().pop(k, None)
@@ -402,18 +472,15 @@ class PersistentDownloadStatus(dict):
     def get_pending_sync(self, user_id=None):
         with self.lock:
             try:
-                conn = sqlite3.connect(self.db_path, timeout=5.0)
-                conn.execute("PRAGMA journal_mode=WAL")
-                cursor = conn.cursor()
                 if user_id:
-                    cursor.execute("SELECT download_id, data FROM downloads WHERE user_id = ? AND sync_status = 'pending_sync'", (user_id,))
+                    rows = self.db.fetchall("SELECT download_id, data FROM downloads WHERE user_id = ? AND sync_status = 'pending_sync'", (user_id,))
                 else:
-                    cursor.execute("SELECT download_id, data FROM downloads WHERE user_id IS NULL AND sync_status = 'pending_sync'")
-                rows = cursor.fetchall()
-                conn.close()
+                    rows = self.db.fetchall("SELECT download_id, data FROM downloads WHERE user_id IS NULL AND sync_status = 'pending_sync'")
                 items = []
-                for d_id, data_str in rows:
+                for row in rows:
                     try:
+                        d_id = row[0]
+                        data_str = row[1]
                         d = json.loads(data_str)
                         d["download_id"] = d_id
                         items.append(d)
@@ -429,14 +496,25 @@ class PersistentDownloadStatus(dict):
             return
         with self.lock:
             try:
-                conn = sqlite3.connect(self.db_path, timeout=5.0)
-                conn.execute("PRAGMA journal_mode=WAL")
-                cursor = conn.cursor()
                 now = time.time()
+                params = [(now, d_id) for d_id in download_ids]
+                self.db.executemany("UPDATE downloads SET sync_status = 'synced', sync_time = ? WHERE download_id = ?", params)
                 for d_id in download_ids:
-                    cursor.execute("UPDATE downloads SET sync_status = 'synced', sync_time = ? WHERE download_id = ?", (now, d_id))
-                conn.commit()
-                conn.close()
+                    if d_id in self:
+                        dict.__setitem__(super().get(d_id), "sync_status", "synced")
+                if self.db.is_turso:
+                    try:
+                        parent_dir = os.path.dirname(os.path.abspath(self.db_path))
+                        if parent_dir:
+                            os.makedirs(parent_dir, exist_ok=True)
+                        conn = sqlite3.connect(self.db_path, timeout=5.0)
+                        conn.execute("PRAGMA journal_mode=WAL")
+                        cursor = conn.cursor()
+                        cursor.executemany("UPDATE downloads SET sync_status = 'synced', sync_time = ? WHERE download_id = ?", params)
+                        conn.commit()
+                        conn.close()
+                    except Exception:
+                        pass
             except Exception as e:
                 print(f"Error marking synced: {e}")
 

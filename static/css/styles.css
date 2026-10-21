@@ -12117,6 +12117,44 @@ body.preview-active .app-shell {
   margin: 0 0 12px;
   width: 100%;
 }
+.btn-sso-gateway {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  width: 100%;
+  height: 44px;
+  border-radius: 9999px;
+  border: 1px solid rgba(56, 189, 248, 0.4);
+  background: linear-gradient(135deg, rgba(56, 189, 248, 0.16), rgba(16, 185, 129, 0.08));
+  color: #38bdf8;
+  font-family: var(--font-sans, sans-serif);
+  font-size: 0.8125rem;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+  cursor: pointer;
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.3);
+  margin-bottom: 10px;
+}
+.btn-sso-gateway:hover {
+  background: linear-gradient(135deg, rgba(56, 189, 248, 0.28), rgba(16, 185, 129, 0.16));
+  border-color: #38bdf8;
+  color: #ffffff;
+  box-shadow: 0 0 20px -2px rgba(56, 189, 248, 0.45);
+  transform: translateY(-1px);
+}
+.btn-sso-gateway:active {
+  transform: scale(0.98);
+}
+.btn-sso-gateway svg {
+  flex-shrink: 0;
+  color: #38bdf8;
+}
+.btn-sso-gateway:hover svg {
+  color: #ffffff;
+}
+
 .btn-ambient-google {
   display: inline-flex;
   align-items: center;
@@ -12149,7 +12187,45 @@ body.preview-active .app-shell {
 .btn-ambient-google svg {
   flex-shrink: 0;
 }
-.light-theme .btn-ambient-google {
+.light-theme .btn-sso-gateway {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  width: 100%;
+  height: 44px;
+  border-radius: 9999px;
+  border: 1px solid rgba(56, 189, 248, 0.4);
+  background: linear-gradient(135deg, rgba(56, 189, 248, 0.16), rgba(16, 185, 129, 0.08));
+  color: #38bdf8;
+  font-family: var(--font-sans, sans-serif);
+  font-size: 0.8125rem;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+  cursor: pointer;
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.3);
+  margin-bottom: 10px;
+}
+.btn-sso-gateway:hover {
+  background: linear-gradient(135deg, rgba(56, 189, 248, 0.28), rgba(16, 185, 129, 0.16));
+  border-color: #38bdf8;
+  color: #ffffff;
+  box-shadow: 0 0 20px -2px rgba(56, 189, 248, 0.45);
+  transform: translateY(-1px);
+}
+.btn-sso-gateway:active {
+  transform: scale(0.98);
+}
+.btn-sso-gateway svg {
+  flex-shrink: 0;
+  color: #38bdf8;
+}
+.btn-sso-gateway:hover svg {
+  color: #ffffff;
+}
+
+.btn-ambient-google {
   background: #f8fafc;
   border-color: #cbd5e1;
   color: #1e293b;

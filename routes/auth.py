@@ -597,6 +597,26 @@ def poll_desktop_session():
         return resp
     return jsonify({"status": "waiting"}), 200
 
+@auth_bp.route("/api/auth/sso/callback", methods=["POST"])
+def sso_callback_api():
+    data = request.get_json(silent=True) or {}
+    token = data.get("token")
+    if not token:
+        return jsonify({"status": "error", "message": "Thiếu SSO token"}), 400
+    user = auth_manager.validate_session(token)
+    if not user:
+        return jsonify({"status": "error", "message": "SSO token không hợp lệ hoặc đã hết hạn"}), 401
+
+    claimed = auth_manager.claim_guest_history(user["id"])
+    resp = make_response(jsonify({
+        "status": "success",
+        "token": token,
+        "user": user,
+        "claimed_count": claimed
+    }))
+    resp.set_cookie("session_token", token, max_age=30*86400, httponly=False, samesite="Lax")
+    return resp
+
 @auth_bp.route("/api/auth/me", methods=["GET"])
 def me_api():
     user = get_authenticated_user()
