@@ -43,7 +43,8 @@
           "server",
           "license.txt",
           "icon.png",
-          "icon.ico"
+          "icon.ico",
+          "tray_icons/**/*"
         ]
       }
     ],

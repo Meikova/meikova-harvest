@@ -6,10 +6,38 @@
 - Standards: Antigravity Titan Standards, Ponytail Philosophy, TDD, Verification-Before-Completion.
 
 ## Last Updated
-- Timestamp: 2026-10-21 15:55:00
-- Version: v2.0.4 (Sprint v77: Purge Native Dialogs, Zero-Double-Border, Safe JSON Parsing & Mobile Tab Fallback)
-- Git Commit: `2d28d1b` (Clean working tree)
-- Exit Code: 0 (Python unit tests 91/91 PASSED, JS syntax check OK)
+- Timestamp: 2026-10-21 17:00:00
+- Version: v2.0.5 (Sprint v78: 100% Brand SSOT Logo Synchronization across Taskbar, Tray, Desktop Executables & Web/PWA)
+- Git Commit: Pending commit
+- Exit Code: 0 (Python unit tests 91/91 PASSED, JS check OK, Electron binaries rebuilt)
+
+## Summary of Accomplishments (Sprint v78 - 100% Brand SSOT Logo & Desktop/Tray Packaging)
+1. **Rà soát & Đồng bộ 100% Logo theo SSOT (`D:\JOB\DEV\meikova\assets\logos\products\meikova-harvest`)**:
+   - Đối chiếu SHA-256 toàn bộ 22 tệp asset của Meikova Harvest (Gravity Intake, `#83C4FF`):
+     * `electron/resources/icon.ico`: Multi-res Windows ICO (16x16 -> 256x256), SHA256 `889bd114`.
+     * `electron/resources/icon.png`: 512x512 rounded icon, SHA256 `81dbbf75`.
+     * `electron/resources/tray_icons/logo.png`: 32x32 white silhouette, SHA256 `e271151f`.
+     * `electron/resources/tray_icons/*`: Đồng bộ toàn bộ biến thể tray `white-16` đến `white-48` và `black-16` đến `black-48`.
+     * `static/favicon.*` & `static/logo.*`: Favicon ICO (8,274B), SVG (425B), PNG (1,507B), Logo 512px.
+     * `static/apple-touch-icon.png`, `icon-any-*`, `icon-maskable-*`: Bộ đầy đủ theo chuẩn PWA.
+     * `extension/icon*.png`: 16, 48, 128px cho Browser Extension.
+
+2. **Cập nhật Logic Taskbar & System Tray trong Electron (`electron/main.js`, `electron/package.json`)**:
+   - `getAppIcon()`: Bổ sung đường dẫn tìm kiếm `resources/icon.ico` bên trong `app.asar` và `process.resourcesPath/resources` để icon luôn hiển thị chuẩn trên Windows Taskbar / Alt+Tab / Task Manager.
+   - `getTrayMainIcon()`: Ưu tiên tải icon khay hệ thống vector silhouette trong suốt `tray_icons/logo.png`, tự động resize 16x16/32x32 sắc nét trên Windows Dark Taskbar, fallback sang `app.ico`.
+   - `getTrayIcon()`: Hỗ trợ tìm kiếm icon menu tray đa tầng (cả dev và packaged `extraResources`).
+   - `electron/package.json`: Thêm `"tray_icons/**/*"` vào `extraResources` của electron-builder.
+
+3. **Cập nhật Màn hình Chờ Desktop (`electron/splash.html`)**:
+   - Loại bỏ nhãn cũ `EVERYTHING DOWNLOADER`, cập nhật chuẩn `MEIKOVA HARVEST`.
+   - Cập nhật đường dẫn logo trỏ đến `resources/icon.png` kèm fallback `../static/logo.png`.
+
+4. **Đóng gói lại Toàn bộ Binary Desktop**:
+   - `dist_electron/win-unpacked/Meikova Harvest.exe`: Đã biên dịch lại nhúng trực tiếp icon mới vào PE header.
+   - `dist_electron/MeikovaHarvest-Portable-2.0.4.exe`: Đã đóng gói thành công (149MB).
+   - Xóa bỏ hoàn toàn các file build cũ mang tên `EveryThingDownloader`.
+
+---
 
 ### Recent Updates (Version 2.0.5 - Cross-Platform Modal Harmonization & PWA Specs)
 - **Đồng Bộ Hóa Modal "Cài đặt & Thiết bị" (Cross-Platform // Clients & Controls):**

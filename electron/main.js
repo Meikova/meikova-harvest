@@ -804,6 +804,8 @@ function getAppIcon() {
     ? [
         path.join(process.resourcesPath, '..', 'resources'),
         path.join(process.resourcesPath),
+        path.join(process.resourcesPath, 'resources'),
+        path.join(__dirname, 'resources'),
       ]
     : [
         path.join(__dirname, 'resources'),
@@ -1168,15 +1170,35 @@ function restartBackendServer() {
 
 function getTrayIcon(name) {
   try {
-    const iconPath = path.join(__dirname, 'resources', 'tray_icons', `${name}.png`);
-    if (fs.existsSync(iconPath)) {
-      const img = nativeImage.createFromPath(iconPath);
-      if (!img.isEmpty()) {
-        return img.resize({ width: 16, height: 16 });
+    const candidates = [
+      path.join(__dirname, 'resources', 'tray_icons', `${name}.png`),
+      path.join(process.resourcesPath, 'tray_icons', `${name}.png`),
+      path.join(process.resourcesPath, 'resources', 'tray_icons', `${name}.png`),
+      path.join(process.resourcesPath, '..', 'resources', 'tray_icons', `${name}.png`),
+    ];
+    for (const iconPath of candidates) {
+      if (fs.existsSync(iconPath)) {
+        const img = nativeImage.createFromPath(iconPath);
+        if (!img.isEmpty()) {
+          return img.resize({ width: 16, height: 16 });
+        }
       }
     }
   } catch (_) {}
   return undefined;
+}
+
+function getTrayMainIcon() {
+  const isWin = process.platform === 'win32';
+  const trayIcon = getTrayIcon('logo');
+  if (trayIcon && !trayIcon.isEmpty()) {
+    return trayIcon;
+  }
+  let icon = getAppIcon();
+  if (isWin && !icon.isEmpty()) {
+    icon = icon.resize({ width: 16, height: 16 });
+  }
+  return icon;
 }
 
 function buildTrayMenu() {
@@ -1261,10 +1283,7 @@ function buildTrayMenu() {
 }
 
 function createTray() {
-  let icon = getAppIcon();
-  if (process.platform === 'win32' && !icon.isEmpty()) {
-    icon = icon.resize({ width: 16, height: 16 });
-  }
+  let icon = getTrayMainIcon();
   tray = new Tray(icon.isEmpty() ? nativeImage.createEmpty() : icon);
   tray.setToolTip(`${APP_NAME} v${app.getVersion()}`);
 
