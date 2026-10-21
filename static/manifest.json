@@ -1,8 +1,10 @@
 {
   "name": "Meikova Harvest",
-  "short_name": "Meikova Harvest",
-  "description": "Meikova Harvest — Thu nhận media · tải xuống · chuyển đổi & Transcoder for all platforms",
+  "short_name": "Harvest",
+  "description": "Meikova Harvest — Thu nhận media · tải xuống · chuyển đổi",
+  "id": "/",
   "start_url": "/",
+  "scope": "/",
   "display": "standalone",
   "background_color": "#080c14",
   "theme_color": "#080c14",
@@ -14,10 +16,34 @@
       "type": "image/svg+xml"
     },
     {
+      "src": "/static/icon-any-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/static/icon-maskable-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "maskable"
+    },
+    {
+      "src": "/static/icon-any-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/static/icon-maskable-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    },
+    {
       "src": "/static/logo.png",
       "sizes": "512x512",
       "type": "image/png",
-      "purpose": "any maskable"
+      "purpose": "any"
     }
   ]
 }
