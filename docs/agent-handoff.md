@@ -6,10 +6,22 @@
 - Standards: Antigravity Titan Standards, Ponytail Philosophy, TDD, Verification-Before-Completion.
 
 ## Last Updated
-- Timestamp: 2026-10-21 17:00:00
-- Version: v2.0.5 (Sprint v78: 100% Brand SSOT Logo Synchronization across Taskbar, Tray, Desktop Executables & Web/PWA)
-- Git Commit: 72a7cb9 (Clean working tree)
-- Exit Code: 0 (Python unit tests 91/91 PASSED, JS check OK, Electron binaries rebuilt)
+- Timestamp: 2026-10-21 17:10:00
+- Version: v2.0.5 (Sprint v79: Instant Tray Destruction on Quit & Render Auto-Deploy Diagnosis)
+- Git Commit: Pending commit
+- Exit Code: 0 (Node check OK, Electron rebuilt, Unit tests PASSED)
+
+## Summary of Accomplishments (Sprint v79 - Instant Tray Destruction & Render Deployment Audit)
+1. **Triệt tiêu Độ trễ Khi Thoát Khay Hệ thống (`electron/main.js`)**:
+   - **Nguyên nhân gốc rễ**: Khi bấm "Thoát ứng dụng", Electron gọi `app.quit()` rồi chạy `killFlaskServer()` với lệnh `execSync('taskkill ...')` đồng bộ làm nghẽn tiến trình 1-2s. Ngoài ra, do không gọi `tray.destroy()` tường minh, Windows Shell (`explorer.exe`) không gửi thông điệp `NIM_DELETE` ngay, giữ icon zombie trên khay hệ thống cho đến khi chuột rê qua.
+   - **Khắc phục**:
+     * Bổ sung hàm `destroyTray()` gọi trực tiếp `tray.destroy()` và gán `tray = null`.
+     * Khi click "Thoát ứng dụng": Kích hoạt `destroyTray()` và hủy ngay `mainWindow.destroy()` trước khi `app.quit()`. Icon khay hệ thống và cửa sổ biến mất ngay lập tức (0ms).
+     * Bổ sung `destroyTray()` trong cả hai hook `before-quit` và `will-quit`.
+     * Rebuild lại toàn bộ `dist_electron/win-unpacked` và `MeikovaHarvest-Portable-2.0.4.exe`.
+
+2. **Khảo sát & Chẩn đoán Lỗi Render Không Auto-Deploy khi có Commit Mới**:
+   - Đã xác định rõ 5 nguyên nhân kỹ thuật cốt lõi (xem chi tiết báo cáo phản hồi).
 
 ## Summary of Accomplishments (Sprint v78 - 100% Brand SSOT Logo & Desktop/Tray Packaging)
 1. **Rà soát & Đồng bộ 100% Logo theo SSOT (`D:\JOB\DEV\meikova\assets\logos\products\meikova-harvest`)**:

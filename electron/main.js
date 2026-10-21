@@ -1271,6 +1271,11 @@ function buildTrayMenu() {
       icon: getTrayIcon('quit'),
       click: () => {
         app.isQuitting = true;
+        destroyTray();
+        if (mainWindow) {
+          mainWindow.removeAllListeners('close');
+          mainWindow.destroy();
+        }
         app.quit();
       },
     },
@@ -1652,13 +1657,24 @@ app.on('activate', () => {
   else mainWindow?.show();
 });
 
+function destroyTray() {
+  if (tray) {
+    try {
+      tray.destroy();
+    } catch (_) {}
+    tray = null;
+  }
+}
+
 app.on('before-quit', () => {
   app.isQuitting = true;
+  destroyTray();
   killFlaskServer();
 });
 
 app.on('will-quit', () => {
   globalShortcut.unregisterAll();
+  destroyTray();
   killFlaskServer();
 
   if (installOnQuitPath && fs.existsSync(installOnQuitPath)) {
