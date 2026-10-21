@@ -170,7 +170,7 @@ def _run_build(build_id: str, cfg: dict, log_q: queue.Queue, state: dict):
         python_exe = get_python_executable()
         cmd = [python_exe, str(ROOT_DIR / 'build_tool' / 'builder_cli.py')]
         cmd += ['--target', target]
-        cmd += ['--name',    build.get('app_name', 'EveryThingDownloader')]
+        cmd += ['--name',    build.get('app_name', 'Meikova Harvest')]
         cmd += ['--version', build.get('version', '1.0.0')]
 
         platform_choice = cfg.get('platform', 'auto')
@@ -269,7 +269,7 @@ def _run_build(build_id: str, cfg: dict, log_q: queue.Queue, state: dict):
                     if f.is_dir():
                         continue
                     if d == 'dist':
-                        app_name = cfg.get('build', {}).get('app_name', 'EveryThingDownloader')
+                        app_name = cfg.get('build', {}).get('app_name', 'Meikova Harvest')
                         version = cfg.get('build', {}).get('version', '2.0.0')
                         expected_prefix = f'{app_name}-Web-{version}'
                         if f.name.startswith(expected_prefix):
@@ -960,7 +960,7 @@ def publish_build():
     _builds[build_id] = {'queue': log_q, 'state': state}
 
     version = cfg.get('build', {}).get('version', '1.0.0')
-    app_name = cfg.get('build', {}).get('app_name', 'EveryThingDownloader')
+    app_name = cfg.get('build', {}).get('app_name', 'Meikova Harvest')
 
     pub_cfg = cfg.get('publish', {})
     tag = pub_cfg.get('tag')

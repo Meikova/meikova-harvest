@@ -101,7 +101,7 @@ threading.Thread(target=_init_ffmpeg_async, daemon=True, name="ffmpeg-init").sta
 # Initialize Flask app with dynamic static and template resolution
 def _resolve_app_asset_dir(subpath):
     candidates = [
-        os.path.join(r"D:\JOB\DEV\EveryThingDownloader", subpath),
+        os.path.join(r"D:\JOB\DEV\meikova\meikova-harvest", subpath),
         os.path.join(os.path.dirname(os.path.abspath(__file__)), subpath),
         os.path.join(os.getcwd(), subpath),
     ]

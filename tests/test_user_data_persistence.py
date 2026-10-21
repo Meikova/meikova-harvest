@@ -42,7 +42,7 @@ class TestUserDataPersistence(unittest.TestCase):
 
         import config
         resolved_dir = config.get_user_data_dir()
-        expected = os.path.join(mock_appdata, "EveryThingDownloader")
+        expected = os.path.join(mock_appdata, "MeikovaHarvest")
         self.assertEqual(os.path.abspath(resolved_dir), os.path.abspath(expected))
         self.assertTrue(os.path.isdir(resolved_dir))
 

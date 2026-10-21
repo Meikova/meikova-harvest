@@ -1,4 +1,4 @@
-# EveryThingDownloader Core & Web Server
+# Meikova Harvest Core & Web Server
 flask==3.0.3
 flask-cors==4.0.1
 requests>=2.32.0

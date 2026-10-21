@@ -1,21 +1,21 @@
 # PROJECT SESSION HANDOFF LOG
 
 ## Project Status
-- Path: `D:\JOB\DEV\EveryThingDownloader`
+- Path: `D:\JOB\DEV\meikova\meikova-harvest`
 - Mode: Desktop Electron Application (`electron/`) + Python Flask Backend (`app.py`)
 - Standards: Antigravity Titan Standards, Ponytail Philosophy, TDD, Verification-Before-Completion.
 
 ## Last Updated
 - Timestamp: 2026-10-20 21:37:00
-- Version: v2.0.4 (MashLoop Multi-Platform Auth Architecture: State Polling, Mobile Deep Linking, OnResume Sync & Storage Persistence)
+- Version: v2.0.4 (Meikova Loop Multi-Platform Auth Architecture: State Polling, Mobile Deep Linking, OnResume Sync & Storage Persistence)
 - Git Commit: `09e4fa6` (Working tree modified, clean tests)
 - Exit Code: 0 (Python unit tests 5/5 PASSED, Full discovery test suite 84/84 PASSED, Node check OK, Portable Electron EXE rebuilt)
 
-## Summary of Accomplishments (Sprint v74 - MashLoop Multi-Platform Auth Architecture & Mobile Support)
-1. **Kiến trúc Xác thực Đa Nền tảng Học hỏi từ MashLoop (`routes/auth.py`, `static/js/main.js`)**:
-   - Khảo sát mã nguồn MashLoop (`D:\JOB\DEV\MashLoop\loopbox\auth.py`, `web/js/main.js`, `web/js/api.js`).
+## Summary of Accomplishments (Sprint v74 - Meikova Loop Multi-Platform Auth Architecture & Mobile Support)
+1. **Kiến trúc Xác thực Đa Nền tảng Học hỏi từ Meikova Loop (`routes/auth.py`, `static/js/main.js`)**:
+   - Khảo sát mã nguồn Meikova Loop (`D:\JOB\DEV\Meikova Loop\loopbox\auth.py`, `web/js/main.js`, `web/js/api.js`).
    - Xây dựng hệ thống sinh và theo dõi `state` độc nhất theo phiên, thread-safe: `create_auth_request(mode)`, `fulfill_auth_request(state, result)`, `peek_or_pop_auth_result(state, pop=True)`.
-   - Bổ sung 2 endpoints theo chuẩn MashLoop:
+   - Bổ sung 2 endpoints theo chuẩn Meikova Loop:
      * `GET /api/auth/google/start?mode=mobile|desktop|web`: Trả về `auth_url` kèm `state` được mã hóa an toàn.
      * `GET /api/auth/google/poll?state=<state>`: Polling kiểm tra kết quả xác thực theo từng phiên người dùng độc lập.
    - Giữ lại `/api/auth/poll-desktop-session` để duy trì tương thích ngược 100%.
@@ -24,7 +24,7 @@
    - **Xác thực qua Google Sign-In SDK nguyên bản**: Endpoint `POST /api/auth/google` nhận trực tiếp ID Token từ Google Play Services / iOS SDK.
    - **Xác thực qua Trình duyệt ngoài / Chrome Custom Tabs**:
      * Client gọi `/api/auth/google/start?mode=mobile`, mở trình duyệt hệ thống.
-     * Định tuyến callback trả về Custom URL Scheme `everythingdownloader://auth-success?token={token}&email={email}` và giao diện thẻ ambient dark có nút bấm dự phòng "Mở lại EveryThingDownloader" + tự động đóng tab sau 2.5s.
+     * Định tuyến callback trả về Custom URL Scheme `meikovaharvest://auth-success?token={token}&email={email}` và giao diện thẻ ambient dark có nút bấm dự phòng "Mở lại Meikova Harvest" + tự động đóng tab sau 2.5s.
      * Cơ chế 3 tầng phòng thủ: App Mobile bắt token đồng thời qua (1) Deep link scheme, (2) Bộ polling ngầm 1.5s, và (3) Bộ kiểm tra tức thì khi app mở lại / lấy lại focus (`onResume` / `visibilitychange`).
      * Hỗ trợ lắng nghe sự kiện `appUrlOpen` từ `@capacitor/app`.
 
@@ -34,17 +34,17 @@
    - `btnLogout`: Xóa sạch token khỏi cả `localStorage` và cookie.
 
 4. **Đóng gói & Kiểm thử Toàn diện**:
-   - Đã biên dịch lại Web Server Binary: `dist\EveryThingDownloader-Web-2.0.4.exe` và copy sang `electron\resources\server.exe`.
-   - Đã đóng gói thành công bản Desktop Portable: `dist_electron\EveryThingDownloader-Portable-2.0.4.exe` (149MB).
+   - Đã biên dịch lại Web Server Binary: `dist\MeikovaHarvest-Web-2.0.4.exe` và copy sang `electron\resources\server.exe`.
+   - Đã đóng gói thành công bản Desktop Portable: `dist_electron\MeikovaHarvest-Portable-2.0.4.exe` (149MB).
    - Kiểm thử cú pháp JavaScript: `node --check static/js/main.js` (Exit Code 0).
    - Kiểm thử tự động `tests/test_auth.py`: 5/5 PASSED (Exit Code 0).
    - Kiểm thử toàn bộ bộ test suite: 84/84 PASSED (Exit Code 0).
 
-## Summary of Accomplishments (Sprint v73 - MashLoop Ambient Single Google Auth & Multi-Platform Support)
-1. **Tinh chỉnh Modal Đăng nhập Chuẩn MashLoop Ambient Dark Instrument (`templates/index.html`, `static/css/styles.css`)**:
+## Summary of Accomplishments (Sprint v73 - Meikova Loop Ambient Single Google Auth & Multi-Platform Support)
+1. **Tinh chỉnh Modal Đăng nhập Chuẩn Meikova Loop Ambient Dark Instrument (`templates/index.html`, `static/css/styles.css`)**:
    - Khắc phục lỗi nút submit bị nền xám lì (`#auth-submit-btn`): Định nghĩa trực tiếp `.auth-submit-btn` với dải màu gradient cyan phát quang `linear-gradient(135deg, rgba(var(--cyan-rgb), 0.25), rgba(var(--purple-rgb), 0.3))`, viền 1.5px cyan neon và `box-shadow: 0 0 16px rgba(var(--cyan-rgb), 0.35)`. Trạng thái hover sáng bừng `color: #050811`, `box-shadow: 0 0 25px rgba(var(--cyan-rgb), 0.65)`.
    - Giữ lại DUY NHẤT 1 nút Google: Loại bỏ hoàn toàn container `#google-signin-btn-container` iframe trắng mặc định gây lệch tông và lỗi `403 disallowed_useragent` trong Electron WebView.
-   - Bổ sung nút capsule Google `.btn-ambient-google` chuẩn MashLoop: Đặt ở trên cùng trước divider "HOẶC TÀI KHOẢN NỘI BỘ", hiệu ứng hover glow viền cyan sắc nét.
+   - Bổ sung nút capsule Google `.btn-ambient-google` chuẩn Meikova Loop: Đặt ở trên cùng trước divider "HOẶC TÀI KHOẢN NỘI BỘ", hiệu ứng hover glow viền cyan sắc nét.
    - Bổ sung Telemetry Badge: `CLOUD SYNC // ĐA THIẾT BỊ` cùng dòng mô tả ngắn gọn.
    - Chuẩn hóa placeholder tiếng Việt tự nhiên: Thay thế toàn bộ snake_case `nhap_tai_khoan_hoac_email` sang văn bản tự nhiên có dấu.
 
@@ -121,14 +121,14 @@
    - **Khắc phục**:
      * Bổ sung cờ điều khiển `isRestartingServer`: Không phát cảnh báo khi đang trong tiến trình chủ động nạp lại máy chủ.
      * Chuyển đổi cảnh báo sang IPC `sendAppAlert` in-app chuẩn buồng tối ambient, xóa bỏ hoàn toàn `dialog.showErrorBox` Win32.
-     * Bổ sung `User-Agent: EveryThingDownloader/v2.0.3` khi gọi `https.get` kiểm tra cập nhật để ngăn chặn triệt để hiện tượng bị GitHub CDN chặn kết nối.
+     * Bổ sung `User-Agent: Meikova Harvest/v2.0.3` khi gọi `https.get` kiểm tra cập nhật để ngăn chặn triệt để hiện tượng bị GitHub CDN chặn kết nối.
      * Đóng gói lại `app.asar` vào thư mục ứng dụng cài đặt.
 
 ## Summary of Accomplishments (Sprint v68 - System Tray Vector Icons & Live Asset Resolution Fix)
 1. **Bổ sung Bộ Vector Icons Phát quang Neon Cho System Tray Context Menu (`electron/main.js`)**:
    - Khắc phục hiện tượng menu khay hệ thống bị trống bằng cách bổ sung 7 biểu tượng vector sắc nét (16x16 / 32x32 supersampled) vào từng mục menu:
-     * Header `EveryThingDownloader`: Logo vô cực $\infty$ phát quang neon cyan (`logo.png`).
-     * `Mở EveryThingDownloader`: Cửa sổ ứng dụng desktop (`window.png`).
+     * Header `Meikova Harvest`: Logo vô cực $\infty$ phát quang neon cyan (`logo.png`).
+     * `Mở Meikova Harvest`: Cửa sổ ứng dụng desktop (`window.png`).
      * `Mở trên trình duyệt Web`: Địa cầu kết nối web (`browser.png`).
      * `Mở thư mục tải về`: Thư mục tải về kèm mũi tên (`folder.png`).
      * `Khởi động lại Backend Engine`: Vòng xoay nạp lại động cơ (`refresh.png`).
@@ -139,8 +139,8 @@
 2. **Khắc phục Triệt để Lỗi Bấm "Check App Update" Không Phản Hồi**:
    - **Nguyên nhân gốc rễ**: File `server.exe` cũ đóng gói cố định `static/js/main.js` trong `sys._MEIPASS` không chứa bộ lắng nghe sự kiện `onAppAlert`. Khi `main.js` phát `app-alert` qua IPC, renderer cũ không nhận được nên không mở modal.
    - **Khắc phục**:
-     * Cập nhật `app.py`: Bổ sung cơ chế `_resolve_app_asset_dir` ưu tiên nạp động `static` và `templates` từ thư mục mã nguồn `D:\JOB\DEV\EveryThingDownloader` và thư mục kế bên `server.exe` trước khi fallback về `sys._MEIPASS`. Nhờ đó mọi thay đổi CSS/JS/HTML đều có hiệu lực ngay lập tức.
-     * Build lại `EveryThingDownloader-Web-2.0.3.exe` bằng PyInstaller và cập nhật đồng bộ vào `resources/server.exe`.
+     * Cập nhật `app.py`: Bổ sung cơ chế `_resolve_app_asset_dir` ưu tiên nạp động `static` và `templates` từ thư mục mã nguồn `D:\JOB\DEV\meikova\meikova-harvest` và thư mục kế bên `server.exe` trước khi fallback về `sys._MEIPASS`. Nhờ đó mọi thay đổi CSS/JS/HTML đều có hiệu lực ngay lập tức.
+     * Build lại `MeikovaHarvest-Web-2.0.3.exe` bằng PyInstaller và cập nhật đồng bộ vào `resources/server.exe`.
      * Đóng gói lại `app.asar` chứa đầy đủ mã nguồn Electron mới nhất và bộ icon khay hệ thống.
 
 ## Summary of Accomplishments (Sprint v67 - In-App Ambient Alert Modals & Windows Dark Tray Menu)
@@ -166,13 +166,13 @@
 4. **Kiểm chứng & Đóng gói**:
    - `node -c electron/main.js; node -c static/js/main.js`: Exit Code 0.
    - Python unit tests: 79/79 passed in 50.41s.
-   - Đóng gói đè `app.asar` trực tiếp vào thư mục cài đặt `C:\Users\kiemp\AppData\Local\Programs\EveryThingDownloader\resources\app.asar`.
+   - Đóng gói đè `app.asar` trực tiếp vào thư mục cài đặt `C:\Users\kiemp\AppData\Local\Programs\Meikova Harvest\resources\app.asar`.
 
 ## Summary of Accomplishments (Sprint v66 - System Tray Zero-Emoji, Dynamic Harmonization & Taskbar Icon Fix)
 1. **Loại bỏ Hoàn toàn 8 Emoji Trong System Tray Context Menu (`electron/main.js`)**:
    - Loại bỏ 100% các ký tự emoji: `✨`, `📥`, `🌐`, `📂`, `⚙️`, `🔄`, `🔔`, `🛑`.
    - Chuẩn hóa văn bản menu theo phong cách chuyên nghiệp sạch sẽ, tối giản (Less Text, More Signal):
-     * `EveryThingDownloader (v2.0.3)`
+     * `Meikova Harvest (v2.0.3)`
      * `Open Application`
      * `Open in Default Browser`
      * `Open Downloads Folder`
@@ -182,8 +182,8 @@
      * `Quit`
 
 2. **Khắc phục Triệt để Icon Windows Taskbar & Bộ nhớ Đệm Explorer**:
-   - Trỏ shortcut Start Menu `EveryThingDownloader.lnk` trực tiếp vào tệp đa độ phân giải `icon.ico,0`.
-   - Phân tách AppID môi trường dev `isDev ? 'com.everythingdownloader.dev' : 'com.everythingdownloader.app'` để không bị Windows kéo icon cũ từ shortcut production.
+   - Trỏ shortcut Start Menu `Meikova Harvest.lnk` trực tiếp vào tệp đa độ phân giải `icon.ico,0`.
+   - Phân tách AppID môi trường dev `isDev ? 'com.meikovaharvest.dev' : 'com.meikovaharvest.app'` để không bị Windows kéo icon cũ từ shortcut production.
    - Bổ sung `mainWindow.setIcon(getAppIcon())` trực tiếp khi khởi tạo cửa sổ frameless.
    - Khởi động lại `explorer.exe` làm sạch bộ nhớ đệm Taskbar trong RAM (Taskbar hiện đã hiển thị chuẩn logo vô cực $\infty$).
 
@@ -213,7 +213,7 @@
 3. **Tối ưu Hóa Màn hình Khởi động Desktop (`electron/splash.html`)**:
    - Dọn dẹp đoạn code trùng lặp thừa ở cuối file.
    - Cập nhật thông điệp telemetry khởi động theo chuẩn Ambient Instrument: `SYS // STARTING SERVER`, `SYS // LOADING ENGINES`, `SYS // INITIALIZING INGESTION`, `SYS // CONNECTING DAEMON`, `SYS // PREPARING STAGE`.
-   - Đóng gói lại file `app.asar` và cập nhật trực tiếp vào thư mục cài đặt `C:\Users\kiemp\AppData\Local\Programs\EveryThingDownloader\resources\app.asar`.
+   - Đóng gói lại file `app.asar` và cập nhật trực tiếp vào thư mục cài đặt `C:\Users\kiemp\AppData\Local\Programs\Meikova Harvest\resources\app.asar`.
 
 4. **Kiểm chứng Toàn diện**:
    - Cú pháp JavaScript `node -c electron/main.js`: Exit Code 0.
@@ -231,14 +231,14 @@
    - Bản cài đặt `v2.0.2` cũ chạy tải 80MB từ GitHub raw đồng bộ trên luồng chính trước khi khởi động Flask server. Do mạng tải > 60s, Electron timeout báo lỗi và thư mục tạm `_MEIxxxxxx` bị xóa mỗi lần tắt, gây lặp lại lỗi liên tục.
 
 2. **Khắc phục Triệt để**:
-   - Nạp sẵn `ffmpeg.exe` và `ffprobe.exe` vĩnh viễn vào `C:\Users\kiemp\AppData\Roaming\EveryThingDownloader\bin\` và `C:\Users\kiemp\AppData\Local\Programs\EveryThingDownloader\resources\`.
+   - Nạp sẵn `ffmpeg.exe` và `ffprobe.exe` vĩnh viễn vào `C:\Users\kiemp\AppData\Roaming\Meikova Harvest\bin\` và `C:\Users\kiemp\AppData\Local\Programs\Meikova Harvest\resources\`.
    - Cập nhật `app.py`: Tự động nhận diện thư mục bin nội bộ và system path, chuyển khởi tạo FFmpeg sang background daemon thread không chặn luồng chính.
-   - Build lại `EveryThingDownloader-Web-2.0.3.exe` qua PyInstaller và cập nhật trực tiếp vào thư mục cài đặt `C:\Users\kiemp\AppData\Local\Programs\EveryThingDownloader\resources\server.exe`.
+   - Build lại `MeikovaHarvest-Web-2.0.3.exe` qua PyInstaller và cập nhật trực tiếp vào thư mục cài đặt `C:\Users\kiemp\AppData\Local\Programs\Meikova Harvest\resources\server.exe`.
    - Khởi chạy trực tiếp: Server phản hồi HTTP 200 trong < 200ms, ứng dụng Desktop hiện diện và hoạt động trơn tru.
 
 ## Summary of Accomplishments (Sprint v63 - Ambient Instrument UI & Infinite Lemniscate Logo Redesign)
 1. **Thiết kế Logo Vô Cực ($\infty$ Lemniscate) Độc Bản**:
-   - **Tham chiếu kiến trúc**: Chuẩn hóa từ 2 dự án `MashLoop` (`D:\JOB\DEV\MashLoop`) và `titan-remote` (`D:\JOB\DEV\titan-remote`).
+   - **Tham chiếu kiến trúc**: Chuẩn hóa từ 2 dự án `Meikova Loop` (`D:\JOB\DEV\Meikova Loop`) và `meikova-relay` (`D:\JOB\DEV\meikova-relay`).
    - **Khắc phục lỗi đè viền**: Loại bỏ hoàn toàn đa lớp underglow, concentric circles và stroke chồng lấn; sử dụng chính xác 1 đường cong Bernoulli Lemniscate duy nhất với nét stroke `#00E5FF` (Electric Cyan) dày `44.8`, kèm 1 hạt satellite photon quang học `#FFFFFF` tại `(371.2, 198.4)` trên nền phòng tối `#080C14` bo góc mềm `rx="112"`.
    - **Đồng bộ hóa toàn bộ tài nguyên thương hiệu**:
      + `static/logo.svg` và `static/favicon.svg`
@@ -348,7 +348,7 @@
 ## Summary of Accomplishments (Sprint v58 - Enterprise SRS Specification & Deep Security Hardening)
 1. **Hoàn thiện Tài liệu Đặc tả Yêu cầu Phần mềm Chuẩn Doanh nghiệp (`docs/ENTERPRISE_SRS_SPECIFICATION.md`)**:
    - Biên soạn tài liệu SRS toàn diện theo tiêu chuẩn IEEE 830-1998 và ISO/IEC/IEEE 29148:2018.
-   - Rà soát chuyên sâu toàn bộ **12 luồng dữ liệu** của EveryThingDownloader: Phân định rõ các luồng đã sẵn sàng cho môi trường doanh nghiệp (Production) và các luồng còn mang tính chất thử nghiệm/ủy thác (Demo/Stub/Partial).
+   - Rà soát chuyên sâu toàn bộ **12 luồng dữ liệu** của Meikova Harvest: Phân định rõ các luồng đã sẵn sàng cho môi trường doanh nghiệp (Production) và các luồng còn mang tính chất thử nghiệm/ủy thác (Demo/Stub/Partial).
    - Đánh giá kiến trúc hiện tại, xác định 3 nút thắt cổ chai lớn (Unbounded Concurrency, BitTorrent chỉ parse metadata mà chưa có P2P engine, và Nguy cơ tràn RAM khi thu luồng MSE).
    - Thiết lập mô hình Kiến trúc Mục tiêu (Enterprise Target Architecture) tích hợp Centralized Queue Manager, dual-engine yt-dlp + Aria2c RPC daemon, và Chunked Disk Spooling.
    - Đặc tả chi tiết 7 Module tính năng doanh nghiệp mở rộng: Hàng đợi tải tập trung, P2P BitTorrent Native, Giới hạn băng thông (Bandwidth Throttling), Lập lịch tải ngoài giờ cao điểm, Quản lý tải Playlist hàng loạt, Cổng xuất đám mây (Google Drive/Dropbox/S3), và Bộ phân tích kỹ thuật tệp tin chuyên sâu (Deep Media Inspector).
@@ -379,7 +379,7 @@
      + Hiện tại: Bổ sung nút **Play** với biểu tượng vector SVG Play trực tiếp trên thẻ tác vụ. Khi bấm, tệp tin được khởi chạy ngay lập tức bằng trình phát mặc định của hệ điều hành (VLC, Windows Media Player, MPC-HC, v.v.) qua IPC `open-file` (`shell.openPath`) hoặc backend endpoint `/api/download/open-file`.
      + Bổ sung nút **Folder** với biểu tượng vector SVG Folder để mở và đánh dấu tệp tin trong Explorer/Finder.
    - **Xem trước tức thì trong ứng dụng (`openCompletedTaskPreview()`)**:
-     + Với môi trường trình duyệt web (hoặc trước khi lưu file), thẻ tác vụ cung cấp nút **Play** kích hoạt ngay trình phát preview modal tích hợp sẵn của EveryThingDownloader qua stream `/api/download/file/${downloadId}?preview=true` mà không cần tải lại file.
+     + Với môi trường trình duyệt web (hoặc trước khi lưu file), thẻ tác vụ cung cấp nút **Play** kích hoạt ngay trình phát preview modal tích hợp sẵn của Meikova Harvest qua stream `/api/download/file/${downloadId}?preview=true` mà không cần tải lại file.
    - **Chuẩn hóa 100% SVG Vector icon**:
      + Toàn bộ các nút hành động tác vụ (`btn-task-open`, `btn-task-folder`, `btn-task-preview`, `btn-task-save`, `btn-task-retry`, `btn-task-clear`) đều sử dụng inline SVG vector chuẩn.
 
@@ -419,7 +419,7 @@
 1. **Thống nhất thư mục Downloads chuẩn người dùng & Tiện ích Downloads Manager (`electron/main.js`, `routes/download.py`, `templates/index.html`, `static/css/styles.css`, `static/js/main.js`, `tests/test_proxy_and_preview.py`)**:
    - **Thống nhất thư mục lưu trữ tải về (`getAppDownloadsDir()`)**:
      + Thay thế việc trỏ vào thư mục cài đặt `resourcesPath\downloads` (vốn có nguy cơ thiếu quyền Administrator trong Program Files và bị NSIS dọn khi update).
-     + Trỏ thống nhất toàn bộ các luồng mở thư mục, tải tệp tin của Electron (`will-download`), menu Tray, phím tắt `Ctrl+Shift+D`, và IPC `open-downloads-folder` về thư mục tiêu chuẩn của người dùng: `app.getPath('downloads')/EveryThingDownloader` (hoặc `Downloads` của hệ điều hành).
+     + Trỏ thống nhất toàn bộ các luồng mở thư mục, tải tệp tin của Electron (`will-download`), menu Tray, phím tắt `Ctrl+Shift+D`, và IPC `open-downloads-folder` về thư mục tiêu chuẩn của người dùng: `app.getPath('downloads')/Meikova Harvest` (hoặc `Downloads` của hệ điều hành).
    - **Bổ sung API backend mở thư mục lưu trữ (`routes/download.py`)**:
      + Thêm endpoint `/api/download/open-folder`: Tự động khởi chạy trình quản lý file hệ điều hành (Explorer trên Windows qua `os.startfile`, Finder trên macOS qua `open`, File Manager trên Linux qua `xdg-open`) để mở thư mục lưu trữ khi người dùng truy cập qua trình duyệt ngoài.
      + Viết unit test tự động trong `tests/test_proxy_and_preview.py` xác minh endpoint phản hồi 200 OK.
@@ -449,7 +449,7 @@
      + Trước khi khởi chạy bộ cài hoặc đóng app, Electron gọi shutdown backend và chờ 400ms để nhả hoàn toàn file lock.
      + Loại bỏ cờ điều kiện `isDev` khi dọn cổng 5000: Đảm bảo cả bản đóng gói production cũng tự động quét và giải phóng các tiến trình `server.exe` mồ côi chiếm cổng 5000 trước khi khởi động.
    - **Bảo toàn dữ liệu người dùng qua các lần cập nhật (100% Data Persistence)**:
-     + Chuyển thư mục lưu trữ cơ sở dữ liệu `downloads.db` và cookies từ thư mục cài đặt (`resourcesPath` - vốn bị NSIS xóa sạch mỗi lần cài đè) sang thư mục tiêu chuẩn của hệ điều hành (`%APPDATA%\EveryThingDownloader` trên Windows hoặc `app.getPath('userData')`).
+     + Chuyển thư mục lưu trữ cơ sở dữ liệu `downloads.db` và cookies từ thư mục cài đặt (`resourcesPath` - vốn bị NSIS xóa sạch mỗi lần cài đè) sang thư mục tiêu chuẩn của hệ điều hành (`%APPDATA%\Meikova Harvest` trên Windows hoặc `app.getPath('userData')`).
      + Bổ sung cơ chế tự động di chuyển dữ liệu cũ (`migrate_legacy_user_data()`): Tự động phát hiện và sao chép an toàn `downloads.db` cùng các file cookies từ thư mục cũ sang `USER_DATA_DIR` ngay khi khởi động lần đầu.
      + Viết bộ kiểm thử TDD (`tests/test_user_data_persistence.py`) kiểm chứng đầy đủ 3 kịch bản: nhận diện biến môi trường `EVERYTHING_USER_DATA`, nhận diện APPDATA, và tự động di chuyển database/cookies cũ.
    - **Giao diện & Tiện ích cập nhật**:
@@ -689,7 +689,7 @@
      - **Lớp 4 (Proxy Style Fallback)**: Bổ sung bộ chọn ẩn `#avs-pause-ad` vào `routes/build.py` cho chế độ nhúng iframe.
 
 3. **Hiển thị biểu tượng SVG Pause phần mềm trực quan (`templates/index.html` & `static/js/main.js`)**:
-   - Bổ sung `#preview-webpage-pause-indicator` chứa SVG Pause chính thức của EveryThingDownloader nổi bật giữa khung hình khi video tạm dừng.
+   - Bổ sung `#preview-webpage-pause-indicator` chứa SVG Pause chính thức của Meikova Harvest nổi bật giữa khung hình khi video tạm dừng.
    - Khi video phát (`playing`): Tự động ẩn biểu tượng.
    - Khi video dừng (`paused`): Tự động hiện biểu tượng và cập nhật trạng thái `[PAUSED]` trên thanh thông tin.
    - Cho phép click trực tiếp vào biểu tượng hoặc bấm phím `Space`/`K` để tiếp tục phát video nhanh chóng.
@@ -876,11 +876,11 @@
      `HEAD https://securepubads.g.doubleclick.net/tag/js/gpt.js net::ERR_BLOCKED_BY_CLIENT`
    - Đoạn mã của AnimeVietSub cố tình gửi request tới 2 URL này để kiểm tra xem client có đang chạy trình chặn quảng cáo hay không. Khi Electron `onBeforeRequest` hủy request (`cancel: true`), script bắt được lỗi mạng `ERR_BLOCKED_BY_CLIENT`, lập tức chèn poster Anya và cắt luồng stream video (khiến player tối đen).
 2. **Permanent Solution**:
-   - [`electron/main.js`](file:///d:/JOB/DEV/EveryThingDownloader/electron/main.js):
+   - [`electron/main.js`](file:///d:/JOB/DEV/Meikova Harvest/electron/main.js):
      - Xóa bỏ hoàn toàn `session.defaultSession.webRequest.onBeforeRequest`. Mọi network request chạy tự nhiên 200 OK, website không bao giờ phát hiện AdBlock và cấp đầy đủ video stream.
      - Giữ `contents.setWindowOpenHandler` chặn đứng toàn bộ popup quảng cáo/cờ bạc nếu người dùng click vào vùng player.
      - DevTools mở ở chế độ cửa sổ rời (`mode: 'detach'`), không làm co hẹp cửa sổ chính nên script đo viewport không phát hiện được DevTools.
-   - [`static/js/main.js`](file:///d:/JOB/DEV/EveryThingDownloader/static/js/main.js):
+   - [`static/js/main.js`](file:///d:/JOB/DEV/Meikova Harvest/static/js/main.js):
      - Xử lý quảng cáo trong DOM: Inject CSS ẩn toàn bộ banner BOM88, `.avs-ads`, `#avs-ads`, `.jw-ad-container` và chạy scrubber định kỳ xóa các thẻ cờ bạc/BOM88 khỏi DOM mà không gây bất kỳ lỗi mạng nào.
      - Khóa `outerWidth/Height` bằng `innerWidth/Height` trong `iframeWin` để vô hiệu hóa phép đo DevTools.
 3. **Verification**:
@@ -891,11 +891,11 @@
    - Chromium nghiêm cấm chuyển hướng (redirect) từ `https://` sang `data:` URI (`net::ERR_UNSAFE_REDIRECT`).
    - Service Worker của `storage.googleapiscdn.com` khi gặp `ERR_UNSAFE_REDIRECT` trên `vast.js` và `ads/active` đã ném lỗi `FetchEvent network error: the promise was resolved with an error response object`, làm sập toàn bộ tiến trình khởi động JWPlayer và gây tối đen màn hình.
 2. **Permanent Resolution**:
-   - [`electron/main.js`](file:///d:/JOB/DEV/EveryThingDownloader/electron/main.js):
+   - [`electron/main.js`](file:///d:/JOB/DEV/Meikova Harvest/electron/main.js):
      - Gỡ bỏ hoàn toàn việc can thiệp `data:` URI trên các tài nguyên nội bộ của CDN player (`ads/active`, `vast.js`, `avs-shield.min.js`), để Service Worker và JWPlayer khởi động mượt mà không có bất kỳ lỗi mạng nào.
      - Tiếp tục chặn triệt để các mạng quảng cáo/cờ bạc và tracking bên ngoài (`doubleclick.net`, `googlesyndication.com`, `bom88`, `bet88`, v.v.).
      - Mở DevTools ở chế độ tách rời độc lập (`mode: 'detach'`), loại bỏ 100% nguyên nhân gây lệch kích thước cửa sổ (`outerHeight - innerHeight`), khiến anti-devtools detector hoàn toàn không phát hiện được.
-   - [`static/js/main.js`](file:///d:/JOB/DEV/EveryThingDownloader/static/js/main.js):
+   - [`static/js/main.js`](file:///d:/JOB/DEV/Meikova Harvest/static/js/main.js):
      - Tiệt tiêu quảng cáo BOM88 và các banner động bằng CSS injection (`display: none !important`) kết hợp bộ dọn dẹp định kỳ (periodic scrubber) trong 5 giây đầu.
      - Vô hiệu hóa các cảnh báo bằng cách spoof `outerWidth/Height` trong `iframeWin`.
 3. **Verification**:
@@ -907,10 +907,10 @@
    - **Root Causes**:
      - Script `avs-shield.min.js` liên tục giám sát kích thước cửa sổ (`outerWidth`/`outerHeight` so với `innerWidth`/`innerHeight`). Khi mở DevTools (docked ở bottom trong Electron dev mode), độ lệch kích thước vượt ngưỡng khiến `avs-shield.min.js` redirect iframe sang `devtools-warning`.
    - **Solutions**:
-     - [`electron/main.js`](file:///d:/JOB/DEV/EveryThingDownloader/electron/main.js):
+     - [`electron/main.js`](file:///d:/JOB/DEV/Meikova Harvest/electron/main.js):
        - Chặn và chuyển hướng `*avs-shield*` sang script trung hòa vô hại (`data:application/javascript,.../* avs-shield neutralized */`). Kiểm tra xác nhận `init.min.js` không hề phụ thuộc hay gọi `avs-shield`.
        - Chặn toàn bộ network request và frame navigation tới `*devtools-warning*`.
-     - [`static/js/main.js`](file:///d:/JOB/DEV/EveryThingDownloader/static/js/main.js):
+     - [`static/js/main.js`](file:///d:/JOB/DEV/Meikova Harvest/static/js/main.js):
        - Ghi đè `outerWidth` và `outerHeight` của `iframeWin` trỏ về `innerWidth`/`innerHeight` để vô hiệu hóa phép đo kích thước.
        - Inject CSS ẩn triệt để mọi phần tử chứa class/id `devtools`, `devtools-warning`.
 
@@ -931,9 +931,9 @@
      - `#preview-webpage-iframe` có inline style cứng nhắc `min-height: 550px;`, gây vỡ layout và co bẹp khi kích thước modal card nhỏ hơn.
      - Hàm `fitPreviewToMedia` chỉ kiểm tra `isVideoVisible` và `isImageVisible`, bỏ qua `previewWebpageContainer` (`isWebpageVisible`), khiến nút "Fit to Media Size" vô hiệu với webpage player và mở ra với kích thước ngẫu nhiên/bẹp dúm.
    - **Solutions**:
-     - [`templates/index.html`](file:///d:/JOB/DEV/EveryThingDownloader/templates/index.html): Gỡ bỏ `min-height: 550px` cứng nhắc.
-     - [`static/css/styles.css`](file:///d:/JOB/DEV/EveryThingDownloader/static/css/styles.css): Thêm quy tắc CSS chuyên dụng cho `#preview-webpage-container` và `#preview-webpage-iframe` (width/height 100%, black background, border-radius).
-     - [`static/js/main.js`](file:///d:/JOB/DEV/EveryThingDownloader/static/js/main.js):
+     - [`templates/index.html`](file:///d:/JOB/DEV/Meikova Harvest/templates/index.html): Gỡ bỏ `min-height: 550px` cứng nhắc.
+     - [`static/css/styles.css`](file:///d:/JOB/DEV/Meikova Harvest/static/css/styles.css): Thêm quy tắc CSS chuyên dụng cho `#preview-webpage-container` và `#preview-webpage-iframe` (width/height 100%, black background, border-radius).
+     - [`static/js/main.js`](file:///d:/JOB/DEV/Meikova Harvest/static/js/main.js):
        - Bổ sung nhánh `isWebpageVisible` vào `fitPreviewToMedia()` với tỷ lệ chuẩn 16:9 (`1920x1080`).
        - Expose `window._fitPreviewToMedia` và tự động kích hoạt khi mở `isHtmlPage` để modal tự động căn chuẩn 16:9 theo tỷ lệ màn hình người dùng.
 2. **Block Intrusive Overlay Ads & Popups (BOM88 / VAST / Active Ads)**:
@@ -941,10 +941,10 @@
      - Player nhúng từ CDN load `/admin/api/ads/active` và `/static/jwplayer/vast.js`, kích hoạt popup quảng cáo cờ bạc (BOM88) đè lên giao diện video.
      - Các click vô tình vào player có thể kích hoạt `window.open` nhảy tab ngoài.
    - **Solutions**:
-     - [`electron/main.js`](file:///d:/JOB/DEV/EveryThingDownloader/electron/main.js):
+     - [`electron/main.js`](file:///d:/JOB/DEV/Meikova Harvest/electron/main.js):
        - Thêm `session.defaultSession.webRequest.onBeforeRequest` cancel triệt để toàn bộ request tới `*ads/active*`, `*vast.js*`, `*doubleclick*`, `*adservice*`, `*bom88*`, v.v.
        - Thêm `contents.setWindowOpenHandler` trong `web-contents-created` chặn đứng toàn bộ popup quảng cáo cờ bạc/tracker.
-     - [`static/js/main.js`](file:///d:/JOB/DEV/EveryThingDownloader/static/js/main.js):
+     - [`static/js/main.js`](file:///d:/JOB/DEV/Meikova Harvest/static/js/main.js):
        - Trong `previewWebpageIframe.onload`, inject CSS triệt tiêu toàn bộ element quảng cáo, banner, VAST container còn sót trong DOM của iframe.
 3. **Direct Video Stream Explanation**:
    - Stream AnimeVietSub dùng chuẩn mã hóa bảo vệ bản quyền `SAMPLE-AES-CTR` (`KEYFORMAT="urn:avs:shield:v3"`).
@@ -959,24 +959,24 @@
      3. **Electron Navigation Interception**: In `electron/main.js`, `contents.on('will-navigate')` intercepted all navigations without checking `isMainFrame`, blocking iframe embedded players from loading.
      4. **Stale Running Process**: Electron DEV was running since 10:04 AM without restart, executing old Python code that lacked `X-Envelope` forwarding.
    - **Solutions**:
-     1. In [`electron/main.js`](file:///d:/JOB/DEV/EveryThingDownloader/electron/main.js):
+     1. In [`electron/main.js`](file:///d:/JOB/DEV/Meikova Harvest/electron/main.js):
         - Added `session.defaultSession.webRequest.onBeforeSendHeaders` intercepting `*googleapiscdn.com*` to inject `Referer: https://animevietsub.love/` and `Origin: https://storage.googleapiscdn.com`.
         - Changed `mainWindow.loadURL` to `http://localhost:${serverPort}/` so `document.referrer` matches `localhost` in `window._avsDomains`.
         - Updated `will-navigate` in `web-contents-created` to only intercept top-level main frame navigations (`isMainFrame`), permitting iframe subframe player navigations.
-     2. In [`static/js/main.js`](file:///d:/JOB/DEV/EveryThingDownloader/static/js/main.js):
+     2. In [`static/js/main.js`](file:///d:/JOB/DEV/Meikova Harvest/static/js/main.js):
         - In `triggerPreview`, when `window.electronAPI` is present and `streamUrl.startsWith('http')`, set `previewWebpageIframe.src = streamUrl` directly. This enables `avs-loader.js` to run on its native origin with full WebCrypto access.
      3. Verification:
         - Confirmed via Electron headless runner that JWPlayer loads M3U8, resolves duration (1420s), decrypts segments to `lh3.googleusercontent.com`, and plays fluidly (`currentTime > 0`, `readyState: 4`, exit code 0).
         - Ran test suite: `.\venv\Scripts\python.exe -m unittest discover tests` (Ran 28 tests, all passed, Exit Code 0).
 1. **AnimeVietSub Iframe Player Black Screen & Browser Incompatibility Notice Fix**:
    - **Root Causes**:
-     1. In [`extractors/generic.py`](file:///d:/JOB/DEV/EveryThingDownloader/extractors/generic.py), `clean_iframe = iframe_link.split("?")[0]` stripped query parameter `?isFinal=1`. In Google CDN player HTML, this caused `const isFinal = ""` instead of `"1"`.
-     2. In [`app.py`](file:///d:/JOB/DEV/EveryThingDownloader/app.py), the 404 proxy fallback intercepted `/static/avs-fingerprint.min.js` and returned a dummy `console.log(...)`. Because `avs-fingerprint.min.js` defines essential crypto hashing objects on `window` required by `init.min.js` and `avs-loader.min.js`, the player boot sequence threw an uncaught error.
-     3. In [`routes/build.py`](file:///d:/JOB/DEV/EveryThingDownloader/routes/build.py), `navigator.serviceWorker.register` was mocked to return `Promise.resolve()`. In `init.min.js`, `.then(function(reg) { reg.active... })` threw a TypeError on `undefined`, triggering the `.catch()` block that called `_runCompatBootstrap()`.
+     1. In [`extractors/generic.py`](file:///d:/JOB/DEV/Meikova Harvest/extractors/generic.py), `clean_iframe = iframe_link.split("?")[0]` stripped query parameter `?isFinal=1`. In Google CDN player HTML, this caused `const isFinal = ""` instead of `"1"`.
+     2. In [`app.py`](file:///d:/JOB/DEV/Meikova Harvest/app.py), the 404 proxy fallback intercepted `/static/avs-fingerprint.min.js` and returned a dummy `console.log(...)`. Because `avs-fingerprint.min.js` defines essential crypto hashing objects on `window` required by `init.min.js` and `avs-loader.min.js`, the player boot sequence threw an uncaught error.
+     3. In [`routes/build.py`](file:///d:/JOB/DEV/Meikova Harvest/routes/build.py), `navigator.serviceWorker.register` was mocked to return `Promise.resolve()`. In `init.min.js`, `.then(function(reg) { reg.active... })` threw a TypeError on `undefined`, triggering the `.catch()` block that called `_runCompatBootstrap()`.
      4. `_runCompatBootstrap()` called `_avsShowBrowserUpgradeNotice()`, which rendered the orange card: *"Trình duyệt của bạn hỗ trợ chưa tốt — hãy dùng Chrome, Firefox hoặc Edge để xem mượt hơn."* and bypassed JWPlayer setup, leaving the video container pitch black.
    - **Solutions**:
-     1. In [`extractors/generic.py`](file:///d:/JOB/DEV/EveryThingDownloader/extractors/generic.py): Preserved essential query parameters (especially `?isFinal=1`), stripping only tracking parameters `nextName` and `nextUrl`.
-     2. In [`routes/build.py`](file:///d:/JOB/DEV/EveryThingDownloader/routes/build.py):
+     1. In [`extractors/generic.py`](file:///d:/JOB/DEV/Meikova Harvest/extractors/generic.py): Preserved essential query parameters (especially `?isFinal=1`), stripping only tracking parameters `nextName` and `nextUrl`.
+     2. In [`routes/build.py`](file:///d:/JOB/DEV/Meikova Harvest/routes/build.py):
         - Enforced `isFinal=1` query parameter on Google CDN player URLs if missing.
         - Neutralized `_avsShowBrowserUpgradeNotice` and replaced `_runCompatBootstrap` to invoke `startPlayer()` directly.
         - Spoofed `navigator.userAgent` and `navigator.appVersion` inside the iframe to standard Chrome 128 string, preventing Electron detection.
@@ -984,16 +984,16 @@
         - Enhanced CSS suppression covering all variants of the warning element: `#avs-compat-fallback, .avs-warning, .browser-warning, [id*="compat-fallback"], .quality-notice, [style*="245, 158, 11"], [style*="245,158,11"], [style*="rgb(245, 158, 11)"], [style*="rgb(245,158,11)"], [style*="#f59e0b"]`.
         - Added periodic DOM scrubber (250ms) to immediately remove any banner element containing warning text (`Trình duyệt của bạn`, `Không thể phát video`, `hỗ trợ chưa tốt`).
         - Added auto-play polling trigger for JWPlayer once initialized.
-     3. In [`app.py`](file:///d:/JOB/DEV/EveryThingDownloader/app.py):
+     3. In [`app.py`](file:///d:/JOB/DEV/Meikova Harvest/app.py):
         - Removed `"avs-fingerprint"` from neutralization filter so the hashing library passes through to CDN intact.
         - Patched `init.min.js` on-the-fly to neutralize `_avsShowBrowserUpgradeNotice` and force `startPlayer()`.
      4. Verification:
-        - Created unit test [`tests/test_avs_preview.py`](file:///d:/JOB/DEV/EveryThingDownloader/tests/test_avs_preview.py) verifying query parameter preservation, JS patching, and URL enforcement.
+        - Created unit test [`tests/test_avs_preview.py`](file:///d:/JOB/DEV/Meikova Harvest/tests/test_avs_preview.py) verifying query parameter preservation, JS patching, and URL enforcement.
         - All 26 Python unit tests passing (Exit Code 0).
 
 ## Summary of Accomplishments (Sprint v28 - Streaming Extraction, Universal Preview & UI Audit)
 1. **Downloads Manager Badge & Dark/Light Theme Contrast Fix (Yêu cầu #2)**:
-   - **Nguyên nhân**: `.downloads-count-badge` trong [`static/css/styles.css`](file:///d:/JOB/DEV/EveryThingDownloader/static/css/styles.css) sử dụng biến chưa từng được khai báo `background: var(--cyan-gradient)` kèm `color: #000`. Khiến badge bị trong suốt và chữ đen chìm hoàn toàn vào nền tối của panel. Ngoài ra, panel Downloads Manager thiếu toàn bộ style override cho `.light-theme`.
+   - **Nguyên nhân**: `.downloads-count-badge` trong [`static/css/styles.css`](file:///d:/JOB/DEV/Meikova Harvest/static/css/styles.css) sử dụng biến chưa từng được khai báo `background: var(--cyan-gradient)` kèm `color: #000`. Khiến badge bị trong suốt và chữ đen chìm hoàn toàn vào nền tối của panel. Ngoài ra, panel Downloads Manager thiếu toàn bộ style override cho `.light-theme`.
    - **Giải pháp**:
      - Thay thế bằng `background: var(--cyan); color: #fff;` với font-weight 700 và box-shadow chuẩn theme.
      - Bổ sung toàn diện bộ style `.light-theme .downloads-manager`, `.downloads-manager-header`, `.downloads-count-badge`, `.downloads-manager-spinner`, `.download-task-card`, `.download-task-track`, `.btn-task-clear`.
@@ -1001,39 +1001,39 @@
 2. **LuPhim.com Extraction & Moviking M3U8 Stream Parsing (Yêu cầu #5)**:
    - **Nguyên nhân**: Moviking cập nhật cấu trúc mới, nhúng `iframe` trỏ tới `cdn.codexa.fun/streaming3rd`. Extractor cũ gọi API POST không còn hoạt động, rơi vào fallback `Download Webpage (HTML / Text)`. Khi recursive iframe harvester quét trang, URL iframe bị lỗi `&amp;` (chưa unescape) khiến `web=&lang=` bị rỗng và CDN từ chối cấp stream.
    - **Giải pháp**:
-     - Trong [`extractors/generic.py`](file:///d:/JOB/DEV/EveryThingDownloader/extractors/generic.py): Nâng cấp LuPhim extractor tự động phát hiện `iframe` lồng nhau từ Moviking sang `cdn.codexa.fun`, bóc tách trực tiếp link HLS `.m3u8` (`Server: LuPhim [M3U8 Direct]`), tự động tính toán kích thước tệp video (1.5 GB) thay vì trả về webpage HTML.
+     - Trong [`extractors/generic.py`](file:///d:/JOB/DEV/Meikova Harvest/extractors/generic.py): Nâng cấp LuPhim extractor tự động phát hiện `iframe` lồng nhau từ Moviking sang `cdn.codexa.fun`, bóc tách trực tiếp link HLS `.m3u8` (`Server: LuPhim [M3U8 Direct]`), tự động tính toán kích thước tệp video (1.5 GB) thay vì trả về webpage HTML.
      - Thêm `html_lib.unescape(src)` trong toàn bộ đệ quy iframe harvesting để triệt tiêu lỗi `&amp;` cho mọi trang web lồng iframe.
 
 3. **RoPhim.soy Extraction & Bypass Trailer Detection (Yêu cầu #4)**:
    - **Nguyên nhân**: `rophim.soy` sử dụng Next.js App Router (Streaming Server Components). Trong trang HTML có metadata `video_preview` chứa link trailer từ IMDb (`https://imdb-video.media-imdb.com/...mp4`). yt-dlp nhận diện nhầm đây là video chính và chỉ lấy về trailer 88.5 MB.
    - **Giải pháp**:
-     - Thêm RoPhim Extractor chuyên dụng trong [`extractors/generic.py`](file:///d:/JOB/DEV/EveryThingDownloader/extractors/generic.py): Phân giải `public_id` từ URL phim, gọi API RoPhim (`/api/v1/player/getLink` và `/api/v1/movie/seasons`), trích xuất chính xác trình phát phim đầy đủ (`Server: RoPhim [Player]`) cho từng tập và cả bản full movie.
-     - Trong [`routes/info.py`](file:///d:/JOB/DEV/EveryThingDownloader/routes/info.py): Mở rộng `should_bypass_ytdl` với danh sách heuristics các trang streaming/movie (`rophim`, `luphim`, `guphim`, `animevietsub`, `motphim`, `/xem-phim/`...). Bỏ qua yt-dlp ngay lập tức để tiết kiệm 15-30s timeout và không bao giờ bị bẫy bởi trailer IMDb.
+     - Thêm RoPhim Extractor chuyên dụng trong [`extractors/generic.py`](file:///d:/JOB/DEV/Meikova Harvest/extractors/generic.py): Phân giải `public_id` từ URL phim, gọi API RoPhim (`/api/v1/player/getLink` và `/api/v1/movie/seasons`), trích xuất chính xác trình phát phim đầy đủ (`Server: RoPhim [Player]`) cho từng tập và cả bản full movie.
+     - Trong [`routes/info.py`](file:///d:/JOB/DEV/Meikova Harvest/routes/info.py): Mở rộng `should_bypass_ytdl` với danh sách heuristics các trang streaming/movie (`rophim`, `luphim`, `guphim`, `animevietsub`, `motphim`, `/xem-phim/`...). Bỏ qua yt-dlp ngay lập tức để tiết kiệm 15-30s timeout và không bao giờ bị bẫy bởi trailer IMDb.
 
 4. **AnimeVietSub Iframe Sandbox & Anti-Tamper Bypass (Yêu cầu #3)**:
    - **Nguyên nhân**: Trình phát nhúng của AnimeVietSub chạy trong iframe Electron nhưng thẻ iframe thiếu các quyền `allow="autoplay; encrypted-media; fullscreen; picture-in-picture"` và thuộc tính `sandbox`, kích hoạt cơ chế cảnh báo tương thích trình duyệt (`#avs-compat-fallback`).
    - **Giải pháp**:
-     - Trong [`templates/index.html`](file:///d:/JOB/DEV/EveryThingDownloader/templates/index.html): Cấu hình đầy đủ quyền `allow="autoplay *; encrypted-media *; fullscreen *; picture-in-picture *"` và `sandbox="allow-scripts allow-same-origin allow-forms allow-popups allow-presentation allow-downloads"` cho `#preview-webpage-iframe`.
-     - Trong [`routes/build.py`](file:///d:/JOB/DEV/EveryThingDownloader/routes/build.py): Nâng cấp bộ tiêm mã chống kiểm tra môi trường (`window.createShield`), ẩn toàn bộ các biểu ngữ cảnh báo trình duyệt (`#avs-compat-fallback`, `.quality-notice`...) bằng CSS tiêm cưỡng chế.
+     - Trong [`templates/index.html`](file:///d:/JOB/DEV/Meikova Harvest/templates/index.html): Cấu hình đầy đủ quyền `allow="autoplay *; encrypted-media *; fullscreen *; picture-in-picture *"` và `sandbox="allow-scripts allow-same-origin allow-forms allow-popups allow-presentation allow-downloads"` cho `#preview-webpage-iframe`.
+     - Trong [`routes/build.py`](file:///d:/JOB/DEV/Meikova Harvest/routes/build.py): Nâng cấp bộ tiêm mã chống kiểm tra môi trường (`window.createShield`), ẩn toàn bộ các biểu ngữ cảnh báo trình duyệt (`#avs-compat-fallback`, `.quality-notice`...) bằng CSS tiêm cưỡng chế.
 
 5. **Xem trước tệp nội bộ Torrent & Tệp văn bản cục bộ (Yêu cầu #1)**:
    - **Nguyên nhân**: Khi tệp con torrent đã tải về máy (`opt["is_local"] = True`), nếu người dùng xem trước tệp phụ đề hoặc tệp văn bản (`.nfo`, `.txt`), endpoint `/api/system/proxy-sub` trước đây chỉ xử lý link HTTP hoặc thư mục tạm, dẫn đến lỗi khi đọc đường dẫn tuyệt đối trên ổ đĩa. Ngoài ra, `startServerSidePreview` trên frontend thiếu tiền tố `torrent_content_` trong danh sách whitelist chuyển tiếp `customUrl`.
    - **Giải pháp**:
-     - Trong [`routes/build.py`](file:///d:/JOB/DEV/EveryThingDownloader/routes/build.py): Bổ sung nhánh xử lý trực tiếp tệp ổ đĩa cục bộ `os.path.isabs(url) and os.path.isfile(url)` trong `proxy_subtitle_endpoint`.
-     - Trong [`static/js/main.js`](file:///d:/JOB/DEV/EveryThingDownloader/static/js/main.js): Thêm `formatId.startsWith("torrent_content_")` vào payload whitelist để gửi đúng đường dẫn tệp đĩa / webseed URL lên server-side preview converter. Nâng cấp thông báo giao diện đồ họa đẹp mắt khi tệp torrent chưa tải về máy.
+     - Trong [`routes/build.py`](file:///d:/JOB/DEV/Meikova Harvest/routes/build.py): Bổ sung nhánh xử lý trực tiếp tệp ổ đĩa cục bộ `os.path.isabs(url) and os.path.isfile(url)` trong `proxy_subtitle_endpoint`.
+     - Trong [`static/js/main.js`](file:///d:/JOB/DEV/Meikova Harvest/static/js/main.js): Thêm `formatId.startsWith("torrent_content_")` vào payload whitelist để gửi đúng đường dẫn tệp đĩa / webseed URL lên server-side preview converter. Nâng cấp thông báo giao diện đồ họa đẹp mắt khi tệp torrent chưa tải về máy.
 
 6. **Mở rộng đa định dạng xem trước & Xem PDF trực tiếp (Yêu cầu #6)**:
    - **PDF Viewer**: Tích hợp luồng xem trước PDF qua `previewWebpageIframe`, hỗ trợ cả PDF trực tuyến và PDF lưu cục bộ trên máy.
-   - **Code & Text Formats**: Mở rộng `isRawTextFile` và `textPreviewExts` trong [`static/js/main.js`](file:///d:/JOB/DEV/EveryThingDownloader/static/js/main.js) hỗ trợ đầy đủ các định dạng mã nguồn: `.py`, `.js`, `.ts`, `.tsx`, `.jsx`, `.java`, `.c`, `.cpp`, `.h`, `.hpp`, `.rs`, `.go`, `.rb`, `.php`, `.pl`, `.swift`, `.kt`, `.r`, `.scala`, `.lua`, `.toml`, `.sh`, `.bat`, `.sql`, `.nfo`, `.env`, `.gitignore`, `.dockerfile`.
+   - **Code & Text Formats**: Mở rộng `isRawTextFile` và `textPreviewExts` trong [`static/js/main.js`](file:///d:/JOB/DEV/Meikova Harvest/static/js/main.js) hỗ trợ đầy đủ các định dạng mã nguồn: `.py`, `.js`, `.ts`, `.tsx`, `.jsx`, `.java`, `.c`, `.cpp`, `.h`, `.hpp`, `.rs`, `.go`, `.rb`, `.php`, `.pl`, `.swift`, `.kt`, `.r`, `.scala`, `.lua`, `.toml`, `.sh`, `.bat`, `.sql`, `.nfo`, `.env`, `.gitignore`, `.dockerfile`.
 
 7. **Trí thông minh phân tích trang web lạ (Universal Smart Crawler) (Yêu cầu #7 & #8)**:
-   - Trong [`extractors/generic.py`](file:///d:/JOB/DEV/EveryThingDownloader/extractors/generic.py):
+   - Trong [`extractors/generic.py`](file:///d:/JOB/DEV/Meikova Harvest/extractors/generic.py):
      - Phát hiện thông minh các trang SPA hiện đại dựa trên `__NEXT_DATA__`, `self.__next_f`, `jwplayer`, `videojs`, `plyr`, `artplayer`, `dplayer`.
      - Tìm kiếm luồng phát `.m3u8` và `.mp4` được định nghĩa trong các biến script JS (`var url =`, `file:`, `source:`, `stream:`).
      - Tự động bỏ qua lỗi giải mã ký tự HTML `&amp;` trong các liên kết nhúng iframe đệ quy.
 
 8. **Kiểm thử tự động & Xác minh chất lượng (Yêu cầu #8, #9, #10)**:
-   - Thêm 3 test case tự động mới vào [`tests/test_proxy_and_preview.py`](file:///d:/JOB/DEV/EveryThingDownloader/tests/test_proxy_and_preview.py):
+   - Thêm 3 test case tự động mới vào [`tests/test_proxy_and_preview.py`](file:///d:/JOB/DEV/Meikova Harvest/tests/test_proxy_and_preview.py):
      - `test_proxy_subtitle_local_file`
      - `test_should_bypass_ytdl_streaming_sites`
      - `test_downloads_count_badge_css`
@@ -1043,18 +1043,18 @@
 1. **Xử lý triệt để lỗi 403 Meta/Facebook/Instagram CDN (`/api/proxy/image`)**:
    - **Nguyên nhân**: Link ảnh Facebook/Instagram CDN (`*.fbcdn.net`) chứa tham số chữ ký hết hạn `oe=<hex_timestamp>`. Khi gọi quá thời gian cho phép, CDN trả về `HTTP 403 Forbidden` (`URL signature expired`). Header `Referer` trước đó bị thiếu cấu hình cho `fbcdn.net`, và `routes/download.py` hardcode đường dẫn cookie mà không fallback cookie từ Chrome Extension.
    - **Giải pháp**:
-     - Trong [`utils/helpers.py`](file:///d:/JOB/DEV/EveryThingDownloader/utils/helpers.py): Bổ sung quy tắc phân giải Referer cho `fbcdn.net`, `facebook.com`, `fbsbx.com` (`https://www.facebook.com/` hoặc `https://www.instagram.com/`).
-     - Trong [`utils/cookies.py`](file:///d:/JOB/DEV/EveryThingDownloader/utils/cookies.py): Cho phép `get_cookie_file_path()` tự động fallback sang `cookies_chrome-extension.txt` hoặc tệp cookie mới nhất khi `client_id` không khớp hoặc bị thiếu.
-     - Trong [`routes/download.py`](file:///d:/JOB/DEV/EveryThingDownloader/routes/download.py):
+     - Trong [`utils/helpers.py`](file:///d:/JOB/DEV/Meikova Harvest/utils/helpers.py): Bổ sung quy tắc phân giải Referer cho `fbcdn.net`, `facebook.com`, `fbsbx.com` (`https://www.facebook.com/` hoặc `https://www.instagram.com/`).
+     - Trong [`utils/cookies.py`](file:///d:/JOB/DEV/Meikova Harvest/utils/cookies.py): Cho phép `get_cookie_file_path()` tự động fallback sang `cookies_chrome-extension.txt` hoặc tệp cookie mới nhất khi `client_id` không khớp hoặc bị thiếu.
+     - Trong [`routes/download.py`](file:///d:/JOB/DEV/Meikova Harvest/routes/download.py):
        - Thay thế toàn bộ hardcode `cookies_{client_id}.txt` bằng hàm dùng chung `get_cookie_file_path(client_id)`.
        - Nâng cấp `User-Agent` lên `DEFAULT_MEDIA_USER_AGENT` (`Chrome/147.0.0.0`).
        - Trong `proxy_image`: Khi CDN upstream trả mã `403` (signature expired), `404`, hoặc anti-bot HTML block, chuyển cấp độ log xuống `INFO` và trả về ngay ảnh vector SVG placeholder chuẩn dark-mode (`FALLBACK_IMAGE_PLACEHOLDER_SVG`, `mimetype="image/svg+xml"`). Ngăn chặn hoàn toàn lỗi 403 làm đỏ console trình duyệt và sinh log cảnh báo `[WARN ] [Flask]` trên terminal.
    - **Unit Tests**:
-     - Thêm `test_proxy_image_403_fallback_svg` và `test_proxy_image_success` vào [`tests/test_proxy_and_preview.py`](file:///d:/JOB/DEV/EveryThingDownloader/tests/test_proxy_and_preview.py).
+     - Thêm `test_proxy_image_403_fallback_svg` và `test_proxy_image_success` vào [`tests/test_proxy_and_preview.py`](file:///d:/JOB/DEV/Meikova Harvest/tests/test_proxy_and_preview.py).
      - Mock `os.startfile` trong `test_sys_import_in_download_task` để tránh chặn luồng desktop khi chạy bộ test tự động.
 
 2. **Phân nhóm định dạng tệp đa phương tiện & dữ liệu (File Format Grouping)**:
-   - Trong [`static/js/main.js`](file:///d:/JOB/DEV/EveryThingDownloader/static/js/main.js) (hàm `displayMetadata`), phân tách độc lập các danh mục tệp:
+   - Trong [`static/js/main.js`](file:///d:/JOB/DEV/Meikova Harvest/static/js/main.js) (hàm `displayMetadata`), phân tách độc lập các danh mục tệp:
      - **Torrent / Magnet Package (`torrentPackages`)**: Nhóm gói swarm hiển thị trên đầu, icon package, chỉ cung cấp nút **GET** để tải về máy hoặc mở client BitTorrent/uTorrent, loại bỏ hoàn toàn nút Preview.
      - **Video Options (`videos`)**: Nhóm tệp video thật sự (`.mp4`, `.mkv`...) với nút **PREVIEW** và **GET**, hỗ trợ gom nhóm theo Server nếu có.
      - **Audio Options (`audios`)**: Tự động gom tệp âm thanh từ cả `data.audio_options` và `data.video_options` (`.mp3`, `.m4a`...) với đầy đủ nút Preview & Get.
@@ -1062,50 +1062,50 @@
      - **Document & Text Files (`documents`)**: Tệp văn bản (`.xml`, `.json`, `.txt`, `.md`...) có nút **PREVIEW** (mở xem text) và **GET**; tệp tài liệu nhị phân (`.pdf`, `.doc`) chỉ có nút **GET**.
      - **Subtitle Options (`subFiles`)**: Phụ đề (`.vtt`, `.srt`...) với Preview & Get.
      - **Other / Data Files (`others`)**: Tệp dữ liệu / nhị phân / nén (`.sqlite`, `.db`, `.zip`, `.iso`, `.exe`, `.bin`...) chỉ cung cấp nút **GET**, tuyệt đối không hiển thị nút PREVIEW gây lỗi.
-   - Trong [`extractors/torrent.py`](file:///d:/JOB/DEV/EveryThingDownloader/extractors/torrent.py), hoàn thiện bộ phân loại extension: `VIDEO_EXTS`, `AUDIO_EXTS`, `IMAGE_EXTS`, `SUB_EXTS`, `TEXT_EXTS`, `DOC_EXTS`, `DATA_EXTS`, `ARCHIVE_EXTS`. Gán trường `type` chuẩn xác cho từng tệp.
+   - Trong [`extractors/torrent.py`](file:///d:/JOB/DEV/Meikova Harvest/extractors/torrent.py), hoàn thiện bộ phân loại extension: `VIDEO_EXTS`, `AUDIO_EXTS`, `IMAGE_EXTS`, `SUB_EXTS`, `TEXT_EXTS`, `DOC_EXTS`, `DATA_EXTS`, `ARCHIVE_EXTS`. Gán trường `type` chuẩn xác cho từng tệp.
 
 2. **Khắc phục lỗi xem trước & Tích hợp BEP 19 WebSeeds (Torrent Preview Fix)**:
    - Loại bỏ nút PREVIEW ở các định dạng tệp không thể preview (gói torrent `.torrent`, tệp cơ sở dữ liệu `.sqlite`, tệp nén `.zip`, disk image `.iso`).
    - Tích hợp chuẩn BitTorrent BEP 19 WebSeeds (`url-list`): Đối với các torrent từ Internet Archive (`archive.org`) hoặc có WebSeeds HTTP, backend tự động phân giải URL HTTP trực tiếp vào `opt["url"]`. Nhờ đó người dùng có thể bấm PREVIEW và xem phim trực tiếp trên trình phát HTML5 mà không cần đợi tải toàn bộ torrent.
-   - Trong [`tasks/download.py`](file:///d:/JOB/DEV/EveryThingDownloader/tasks/download.py):
+   - Trong [`tasks/download.py`](file:///d:/JOB/DEV/Meikova Harvest/tasks/download.py):
      - Phân định rõ tác vụ gói torrent (`is_torrent_package_task`) và tác vụ tải tệp con (`torrent_content_`).
      - Tệp con có URL HTTP WebSeed được tải trực tiếp tốc độ cao qua HTTP CDN stream và tự động bỏ qua hậu xử lý FFmpeg nếu là file dữ liệu non-media (`.sqlite`, `.xml`).
      - Tệp con đã có trên đĩa cứng cục bộ được sao chép trực tiếp.
 
 3. **Sửa lỗi hiển thị mã HTML thô trong thông báo Preview**:
-   - Trong [`static/js/main.js`](file:///d:/JOB/DEV/EveryThingDownloader/static/js/main.js#L1357) (`showPreviewLoader`), đổi `previewLoaderText.textContent = text;` thành `previewLoaderText.innerHTML = text;`.
+   - Trong [`static/js/main.js`](file:///d:/JOB/DEV/Meikova Harvest/static/js/main.js#L1357) (`showPreviewLoader`), đổi `previewLoaderText.textContent = text;` thành `previewLoaderText.innerHTML = text;`.
    - Các thông báo chứa thẻ định dạng `<br>` và `<strong>GET</strong>` giờ được hiển thị sạch đẹp, chuyên nghiệp, không còn bị lộ thẻ HTML thô.
 1. **Quoted Path Input Sanitization ("Copy as path" Fix)**:
    - When copying paths on Windows via "Copy as path", surrounding quotes (`"E:\Downloads\xyz.torrent"`) caused regex validation failures and file lookups to fail (`os.path.exists` returning False).
-   - Created `sanitizeInputUrl()` in [`static/js/main.js`](file:///d:/JOB/DEV/EveryThingDownloader/static/js/main.js) and applied it on paste, input, `isValidUrl()`, `normalizeMediaUrl()`, and `performAnalysis()`.
-   - Updated [`routes/info.py`](file:///d:/JOB/DEV/EveryThingDownloader/routes/info.py), [`extractors/torrent.py`](file:///d:/JOB/DEV/EveryThingDownloader/extractors/torrent.py), and [`tasks/download.py`](file:///d:/JOB/DEV/EveryThingDownloader/tasks/download.py) to strip surrounding single/double quotes across all endpoints.
+   - Created `sanitizeInputUrl()` in [`static/js/main.js`](file:///d:/JOB/DEV/Meikova Harvest/static/js/main.js) and applied it on paste, input, `isValidUrl()`, `normalizeMediaUrl()`, and `performAnalysis()`.
+   - Updated [`routes/info.py`](file:///d:/JOB/DEV/Meikova Harvest/routes/info.py), [`extractors/torrent.py`](file:///d:/JOB/DEV/Meikova Harvest/extractors/torrent.py), and [`tasks/download.py`](file:///d:/JOB/DEV/Meikova Harvest/tasks/download.py) to strip surrounding single/double quotes across all endpoints.
 
 2. **Direct File and Folder Browse Buttons in Search Bar**:
-   - Added `#browse-file-btn` (file icon) and `#browse-folder-btn` (folder icon) inside `.search-input-wrap` in [`templates/index.html`](file:///d:/JOB/DEV/EveryThingDownloader/templates/index.html).
-   - Implemented native Electron dialog IPC channels (`select-file`, `select-folder`) in [`electron/main.js`](file:///d:/JOB/DEV/EveryThingDownloader/electron/main.js) and [`electron/preload.js`](file:///d:/JOB/DEV/EveryThingDownloader/electron/preload.js) using `dialog.showOpenDialog`.
+   - Added `#browse-file-btn` (file icon) and `#browse-folder-btn` (folder icon) inside `.search-input-wrap` in [`templates/index.html`](file:///d:/JOB/DEV/Meikova Harvest/templates/index.html).
+   - Implemented native Electron dialog IPC channels (`select-file`, `select-folder`) in [`electron/main.js`](file:///d:/JOB/DEV/Meikova Harvest/electron/main.js) and [`electron/preload.js`](file:///d:/JOB/DEV/Meikova Harvest/electron/preload.js) using `dialog.showOpenDialog`.
    - Added browser fallback via hidden `<input type="file">` and `webkitdirectory` with multipart upload support to `/api/info`.
-   - Updated `updateUrlInputButtons()` in [`static/js/main.js`](file:///d:/JOB/DEV/EveryThingDownloader/static/js/main.js) to smoothly hide paste & browse buttons when input is non-empty and display the clear button.
+   - Updated `updateUrlInputButtons()` in [`static/js/main.js`](file:///d:/JOB/DEV/Meikova Harvest/static/js/main.js) to smoothly hide paste & browse buttons when input is non-empty and display the clear button.
 
 3. **Stale Metadata & Analysis Error Reset**:
    - Fixed bug where previous video metadata and download format cards remained visible below error alerts when analyzing a new invalid or failed link.
-   - Implemented `clearActiveAnalysisUI()` in [`static/js/main.js`](file:///d:/JOB/DEV/EveryThingDownloader/static/js/main.js). Whenever analysis begins or an error occurs in `performAnalysis()` or `showError()`, `activeMetadata` is cleared, `optionsContainer.innerHTML = ""`, video thumbnails are reset, and `resultGrid` is set to `welcome-mode`.
+   - Implemented `clearActiveAnalysisUI()` in [`static/js/main.js`](file:///d:/JOB/DEV/Meikova Harvest/static/js/main.js). Whenever analysis begins or an error occurs in `performAnalysis()` or `showError()`, `activeMetadata` is cleared, `optionsContainer.innerHTML = ""`, video thumbnails are reset, and `resultGrid` is set to `welcome-mode`.
 
 4. **Torrent Preview & Missing `sys` Import Fix**:
-   - Fixed `NameError: name 'sys' is not defined` in [`tasks/download.py`](file:///d:/JOB/DEV/EveryThingDownloader/tasks/download.py) by importing `sys`.
-   - In [`extractors/torrent.py`](file:///d:/JOB/DEV/EveryThingDownloader/extractors/torrent.py), added local sibling file detection for `.torrent` inputs so already-downloaded media files are marked with `opt["is_local"] = True` and streamed directly via `/api/proxy/stream`.
-   - In [`static/js/main.js`](file:///d:/JOB/DEV/EveryThingDownloader/static/js/main.js), added guard for non-downloaded torrent items in `triggerPreview()` to guide users to use the GET button or open in their BitTorrent client.
+   - Fixed `NameError: name 'sys' is not defined` in [`tasks/download.py`](file:///d:/JOB/DEV/Meikova Harvest/tasks/download.py) by importing `sys`.
+   - In [`extractors/torrent.py`](file:///d:/JOB/DEV/Meikova Harvest/extractors/torrent.py), added local sibling file detection for `.torrent` inputs so already-downloaded media files are marked with `opt["is_local"] = True` and streamed directly via `/api/proxy/stream`.
+   - In [`static/js/main.js`](file:///d:/JOB/DEV/Meikova Harvest/static/js/main.js), added guard for non-downloaded torrent items in `triggerPreview()` to guide users to use the GET button or open in their BitTorrent client.
 
 ## Summary of Accomplishments
 1. **Backend Streaming & Byte-Range 206 Passthrough Integrity**:
-   - In [`routes/download.py`](file:///d:/JOB/DEV/EveryThingDownloader/routes/download.py#L841), added `direct_passthrough=True` to the Flask generator `Response` in `/api/proxy/stream`. This prevents Werkzeug from stripping `Content-Length` on 206 Partial Content responses, ensuring browsers accurately compute buffer ranges and video duration.
-   - Added unit test `test_proxy_stream_partial_content_range_headers` in [`tests/test_proxy_and_preview.py`](file:///d:/JOB/DEV/EveryThingDownloader/tests/test_proxy_and_preview.py), verifying status 206, `Content-Range`, `Content-Length`, and `Accept-Ranges`.
+   - In [`routes/download.py`](file:///d:/JOB/DEV/Meikova Harvest/routes/download.py#L841), added `direct_passthrough=True` to the Flask generator `Response` in `/api/proxy/stream`. This prevents Werkzeug from stripping `Content-Length` on 206 Partial Content responses, ensuring browsers accurately compute buffer ranges and video duration.
+   - Added unit test `test_proxy_stream_partial_content_range_headers` in [`tests/test_proxy_and_preview.py`](file:///d:/JOB/DEV/Meikova Harvest/tests/test_proxy_and_preview.py), verifying status 206, `Content-Range`, `Content-Length`, and `Accept-Ranges`.
 
 2. **Web Audio Routing & Equalizer Support for Video**:
-   - In [`static/js/main.js`](file:///d:/JOB/DEV/EveryThingDownloader/static/js/main.js#L2300), routed `videoSourceNode` into `eqBassNode` instead of directly into `analyser`. Video playback audio now benefits from the full 4-band EQ and voice filter chain.
+   - In [`static/js/main.js`](file:///d:/JOB/DEV/Meikova Harvest/static/js/main.js#L2300), routed `videoSourceNode` into `eqBassNode` instead of directly into `analyser`. Video playback audio now benefits from the full 4-band EQ and voice filter chain.
    - Added `previewVideoPlayer.crossOrigin = "anonymous"` before connecting to Web Audio API.
 
 3. **A-B Loop Visualizer & Two-Way Trimmer Synchronization**:
-   - Added `#video-loop-range-bar`, `#video-loop-marker-a`, and `#video-loop-marker-b` to the video timeline seekbar in [`templates/index.html`](file:///d:/JOB/DEV/EveryThingDownloader/templates/index.html#L2190) and [`static/css/styles.css`](file:///d:/JOB/DEV/EveryThingDownloader/static/css/styles.css#L3685).
+   - Added `#video-loop-range-bar`, `#video-loop-marker-a`, and `#video-loop-marker-b` to the video timeline seekbar in [`templates/index.html`](file:///d:/JOB/DEV/Meikova Harvest/templates/index.html#L2190) and [`static/css/styles.css`](file:///d:/JOB/DEV/Meikova Harvest/static/css/styles.css#L3685).
    - Implemented real-time visual positioning with dynamic percentages and translucent cyan accent glow.
    - Implemented two-way sync: When opening preview modal, any active trim range on the main page (`#trim-checkbox`, `#trim-start`, `#trim-end`) is automatically populated into the A-B loop and rendered on the timeline.
 
@@ -1114,9 +1114,9 @@
    - Added an inline delete button (`&times;`) per item in the Recent History list so users can remove individual links.
 
 5. **WCAG 2.1 AA Keyboard Accessibility & Shortcuts**:
-   - Added a global `:focus-visible` system in [`static/css/styles.css`](file:///d:/JOB/DEV/EveryThingDownloader/static/css/styles.css) with high-contrast `var(--cyan)` focus rings for keyboard tabbing without mouse click outlines.
+   - Added a global `:focus-visible` system in [`static/css/styles.css`](file:///d:/JOB/DEV/Meikova Harvest/static/css/styles.css) with high-contrast `var(--cyan)` focus rings for keyboard tabbing without mouse click outlines.
    - Added keyboard shortcuts: `R` (Toggle Repeat), `P` (Picture-in-Picture), `T` (Transcript Sidebar).
-   - Added `aria-label` and hotkey indicators to all video controls in [`templates/index.html`](file:///d:/JOB/DEV/EveryThingDownloader/templates/index.html).
+   - Added `aria-label` and hotkey indicators to all video controls in [`templates/index.html`](file:///d:/JOB/DEV/Meikova Harvest/templates/index.html).
 
 6. **Root Cause Analysis (Frozen at `[0%] Queued. Starting download...` on MP3 & Video)**:
    - **`UnboundLocalError: cannot access local variable 're'` in `tasks/download.py`**:
@@ -1130,24 +1130,24 @@
 
 2. **Resolution of Preview & Progressive Streaming ("Load tới đâu chiếu tới đó")**:
    - **Why Preview was Downloading to 100% instead of Streaming On-the-Fly**:
-     In [`static/js/main.js`](file:///d:/JOB/DEV/EveryThingDownloader/static/js/main.js), `isYouTubeMedia` and `isConvertedAudio` were previously hardcoded to disable direct streaming (`isDirectStream = false`) for all YouTube formats and all MP3 formats. This bypassed the progressive streaming proxies (`/api/proxy/stream` and `/api/proxy/stream_adaptive` - FR-35) and forced every preview into `startServerSidePreview`, which queued a full background download to 100% before playing.
+     In [`static/js/main.js`](file:///d:/JOB/DEV/Meikova Harvest/static/js/main.js), `isYouTubeMedia` and `isConvertedAudio` were previously hardcoded to disable direct streaming (`isDirectStream = false`) for all YouTube formats and all MP3 formats. This bypassed the progressive streaming proxies (`/api/proxy/stream` and `/api/proxy/stream_adaptive` - FR-35) and forced every preview into `startServerSidePreview`, which queued a full background download to 100% before playing.
    - **Audio Preview Instant Streaming**:
      Removed `isConvertedAudio` blocking. When previewing MP3/M4A/Audio, the frontend now extracts the direct audio stream from `activeMetadata.audio_options` and feeds it directly into HTML5 `<audio>` via `/api/proxy/stream`. Playback starts in ~0.5s without any server-side download or conversion.
    - **Adaptive Stream Proxy Header Alignment**:
-     In [`routes/download.py`](file:///d:/JOB/DEV/EveryThingDownloader/routes/download.py), replaced outdated Chrome 120 User-Agent with modern `DEFAULT_MEDIA_USER_AGENT` matching `yt-dlp` (`Chrome/147.0.0.0`) in both `proxy_stream` and `proxy_stream_adaptive` to prevent Google Video CDN 403 Forbidden errors.
+     In [`routes/download.py`](file:///d:/JOB/DEV/Meikova Harvest/routes/download.py), replaced outdated Chrome 120 User-Agent with modern `DEFAULT_MEDIA_USER_AGENT` matching `yt-dlp` (`Chrome/147.0.0.0`) in both `proxy_stream` and `proxy_stream_adaptive` to prevent Google Video CDN 403 Forbidden errors.
    - **Preventing Flask Lockups via Threading**:
-     Added `threaded=True` to `app.run` in [`app.py`](file:///d:/JOB/DEV/EveryThingDownloader/app.py) to guarantee that SSE connections (`/api/download/progress/<id>`) never block subsequent HTTP API requests.
+     Added `threaded=True` to `app.run` in [`app.py`](file:///d:/JOB/DEV/Meikova Harvest/app.py) to guarantee that SSE connections (`/api/download/progress/<id>`) never block subsequent HTTP API requests.
 
 3. **Slim Sleek Scrollbar Styling (Resolved Thick Scrollbar with Arrows)**:
-   - **Root Cause**: In [`static/css/styles.css`](file:///d:/JOB/DEV/EveryThingDownloader/static/css/styles.css), `.card` previously had `scrollbar-width: thin;` and `scrollbar-color: rgba(...) transparent;`. In modern Chromium (Chrome 121+ / Electron 28+), specifying `scrollbar-color` completely disables `::-webkit-scrollbar` pseudo-elements on that container, causing Chromium to fall back to the default Windows OS scrollbar (16px thick bar with `▲`/`▼` arrow buttons).
+   - **Root Cause**: In [`static/css/styles.css`](file:///d:/JOB/DEV/Meikova Harvest/static/css/styles.css), `.card` previously had `scrollbar-width: thin;` and `scrollbar-color: rgba(...) transparent;`. In modern Chromium (Chrome 121+ / Electron 28+), specifying `scrollbar-color` completely disables `::-webkit-scrollbar` pseudo-elements on that container, causing Chromium to fall back to the default Windows OS scrollbar (16px thick bar with `▲`/`▼` arrow buttons).
    - **Fix**: Removed `scrollbar-color` and `scrollbar-width: thin;` from `.card`. Updated `::-webkit-scrollbar` globally and on `.card` / `.format-list` to a 4px ultra-slim floating pill with `::-webkit-scrollbar-button { display: none; width: 0; height: 0; }` to eliminate arrow buttons completely.
 
 4. **Ambient Light Glow Advanced Fine-Tuning System & Collapsible Accordion Fix**:
-   - **Root Cause of Overlap**: `#ambient-glow-wrapper` previously included the shared class `.collapsible-settings-wrapper`. Later in [`static/css/styles.css`](file:///d:/JOB/DEV/EveryThingDownloader/static/css/styles.css#L7485), `.collapsible-settings-wrapper.expanded` clamped `max-height: 250px; overflow: visible;`. Because the ambient drawer content requires ~340px, the bottom 90px overflowed visibly and caused subsequent flex siblings (`A-B Loop (Trim)`) to overlap directly on top of the Performance/FPS select dropdown.
+   - **Root Cause of Overlap**: `#ambient-glow-wrapper` previously included the shared class `.collapsible-settings-wrapper`. Later in [`static/css/styles.css`](file:///d:/JOB/DEV/Meikova Harvest/static/css/styles.css#L7485), `.collapsible-settings-wrapper.expanded` clamped `max-height: 250px; overflow: visible;`. Because the ambient drawer content requires ~340px, the bottom 90px overflowed visibly and caused subsequent flex siblings (`A-B Loop (Trim)`) to overlap directly on top of the Performance/FPS select dropdown.
    - **Fix & Accordion Grouping**:
      - Removed `.collapsible-settings-wrapper` from `#ambient-glow-wrapper`.
      - Set `.ambient-glow-wrapper.expanded { max-height: 600px !important; margin-bottom: 12px; }` to allow full natural height and spacious margin separation.
-     - Added an interactive Accordion trigger in [`templates/index.html`](file:///d:/JOB/DEV/EveryThingDownloader/templates/index.html#L1815-L1825): users can click the Ambient Light Glow header or chevron button `[▼] / [▶]` to fold or unfold the entire tuning drawer at any time.
+     - Added an interactive Accordion trigger in [`templates/index.html`](file:///d:/JOB/DEV/Meikova Harvest/templates/index.html#L1815-L1825): users can click the Ambient Light Glow header or chevron button `[▼] / [▶]` to fold or unfold the entire tuning drawer at any time.
      - Added dynamic preset tag badge (`Standard`, `Vibrant`, `Subtle`, `Dreamy`, `Custom`) next to the title.
      - Persisted drawer open/collapse preference in `localStorage` under `video-ambient-glow-drawer-open`.
    - **Deep Customization Parameters**:
@@ -1162,9 +1162,9 @@
 
 5. **YouTube-style Video Buffering & Timeline Progress Bar Fix**:
    - **Root Cause of Missing Buffer Bar**:
-     - In [`static/js/main.js`](file:///d:/JOB/DEV/EveryThingDownloader/static/js/main.js#L2118), `totalDuration` evaluated to `previewVideoPlayer.duration` whenever `previewIsAdaptive` was false. For HTTP proxy streams without `Content-Length`, `previewVideoPlayer.duration` returned `Infinity` or `NaN`, causing `pct_buffered = (bufferedEnd / Infinity) * 100 = 0`, collapsing the buffer bar width to 0% and producing invalid CSS.
+     - In [`static/js/main.js`](file:///d:/JOB/DEV/Meikova Harvest/static/js/main.js#L2118), `totalDuration` evaluated to `previewVideoPlayer.duration` whenever `previewIsAdaptive` was false. For HTTP proxy streams without `Content-Length`, `previewVideoPlayer.duration` returned `Infinity` or `NaN`, causing `pct_buffered = (bufferedEnd / Infinity) * 100 = 0`, collapsing the buffer bar width to 0% and producing invalid CSS.
      - Buffer range lookup only checked strict `start <= curTime && end >= curTime` without tolerance, failing when PTS time codes had slight offsets.
-     - Media elements (`<video id="preview-video-player">`, `<audio id="preview-audio-player">`) lacked `preload="auto"` in [`templates/index.html`](file:///d:/JOB/DEV/EveryThingDownloader/templates/index.html), allowing browsers to conservatively halt buffering when paused.
+     - Media elements (`<video id="preview-video-player">`, `<audio id="preview-audio-player">`) lacked `preload="auto"` in [`templates/index.html`](file:///d:/JOB/DEV/Meikova Harvest/templates/index.html), allowing browsers to conservatively halt buffering when paused.
      - `bufferedColor` had low opacity (`rgba(255, 255, 255, 0.4)`), rendering invisible beside the glowing 14px seek thumb.
    - **Fixes Applied**:
      - Added `preload="auto"` to both video and audio player elements.
@@ -1196,10 +1196,10 @@
      - When analyzing any link, `navigationIndex` advances to `1+`, immediately enabling the Back button `[ ← ]` with tooltip `Go back to Welcome Screen`.
      - In `navigateHistoryBack()` and `navigateHistoryForward()`, navigating back to index 0 (`""`) cleanly resets to the Welcome screen via newly extracted `resetToWelcomeDashboard()`.
      - Added sequential duplicate deduplication and branch truncation (`splice`) matching web browser history specs.
-     - Added WCAG 2.1 AA keyboard `:focus-visible` styling (`var(--cyan)`) in [`static/css/styles.css`](file:///d:/JOB/DEV/EveryThingDownloader/static/css/styles.css#L9609).
+     - Added WCAG 2.1 AA keyboard `:focus-visible` styling (`var(--cyan)`) in [`static/css/styles.css`](file:///d:/JOB/DEV/Meikova Harvest/static/css/styles.css#L9609).
      - Added support for mouse thumb buttons 3 & 4 (hardware Back/Forward mouse buttons).
-     - Created standalone runnable test suite [`tests/test_navigation_history.js`](file:///d:/JOB/DEV/EveryThingDownloader/tests/test_navigation_history.js) with 7 assertion checks passing 100%.
-     - Bumped cache busters in [`templates/index.html`](file:///d:/JOB/DEV/EveryThingDownloader/templates/index.html) to `?v=25.0`.
+     - Created standalone runnable test suite [`tests/test_navigation_history.js`](file:///d:/JOB/DEV/Meikova Harvest/tests/test_navigation_history.js) with 7 assertion checks passing 100%.
+     - Bumped cache busters in [`templates/index.html`](file:///d:/JOB/DEV/Meikova Harvest/templates/index.html) to `?v=25.0`.
 
 9. **Media URL Normalization & Smart History Deduplication**:
    - **Root Cause**:
@@ -1214,9 +1214,9 @@
        - Multi-tier matching: normalized URL match, media `id` match, or exact title + platform match.
      - Implemented `deduplicateHistory(history)`:
        - Auto-cleans legacy duplicate records from `localStorage` whenever `renderHistory()` runs, immediately merging existing duplicate cards into a single latest entry.
-     - Added `id` and `webpage_url` to `/api/info` response in [`routes/info.py`](file:///d:/JOB/DEV/EveryThingDownloader/routes/info.py#L1885).
-     - Created runnable unit test [`tests/test_url_deduplication.js`](file:///d:/JOB/DEV/EveryThingDownloader/tests/test_url_deduplication.js): 5/5 assertions passed.
-     - Bumped cache busters in [`templates/index.html`](file:///d:/JOB/DEV/EveryThingDownloader/templates/index.html) to `?v=26.0`.
+     - Added `id` and `webpage_url` to `/api/info` response in [`routes/info.py`](file:///d:/JOB/DEV/Meikova Harvest/routes/info.py#L1885).
+     - Created runnable unit test [`tests/test_url_deduplication.js`](file:///d:/JOB/DEV/Meikova Harvest/tests/test_url_deduplication.js): 5/5 assertions passed.
+     - Bumped cache busters in [`templates/index.html`](file:///d:/JOB/DEV/Meikova Harvest/templates/index.html) to `?v=26.0`.
 
 10. **uTorrent & BitTorrent Full Analysis & Handoff Support**:
    - **Feature Scope**:
@@ -1224,19 +1224,19 @@
      - Analyze local and remote `.torrent` files.
      - Accept raw 40-character SHA1 and 32-character base32 torrent info-hashes.
    - **Implementation Details**:
-     - Created [`extractors/torrent.py`](file:///d:/JOB/DEV/EveryThingDownloader/extractors/torrent.py):
+     - Created [`extractors/torrent.py`](file:///d:/JOB/DEV/Meikova Harvest/extractors/torrent.py):
        - Built pure Python zero-dependency Bencode decoder (`bdecode_torrent`) extracting exact `info` dict bytes to compute SHA-1 `info_hash`.
        - Structured file inspection: parses multi-file and single-file torrents, extracting file paths, individual sizes, and categorized options (video, audio, image, general files).
        - Magnet link parser: extracts `xt` (BTIH hash), `dn` (display name), `tr` (trackers), `xl` (file length).
-     - Integrated into [`routes/info.py`](file:///d:/JOB/DEV/EveryThingDownloader/routes/info.py):
+     - Integrated into [`routes/info.py`](file:///d:/JOB/DEV/Meikova Harvest/routes/info.py):
        - Added `is_torrent_input(url)` check to route magnet links and torrent files to `extract_torrent_info()`.
-     - Integrated into [`tasks/download.py`](file:///d:/JOB/DEV/EveryThingDownloader/tasks/download.py):
+     - Integrated into [`tasks/download.py`](file:///d:/JOB/DEV/Meikova Harvest/tasks/download.py):
        - On download request, writes `.magnet` or downloads `.torrent` file to sandbox, and dispatches to Windows default BitTorrent client (uTorrent, qBittorrent, etc.) via `os.startfile()`.
-     - Frontend updates in [`static/js/main.js`](file:///d:/JOB/DEV/EveryThingDownloader/static/js/main.js):
+     - Frontend updates in [`static/js/main.js`](file:///d:/JOB/DEV/Meikova Harvest/static/js/main.js):
        - Updated `isValidUrl()` to accept `magnet:` links and raw 40/32-character torrent hashes.
        - Added `torrent` and `utorrent` theme colors (`#25c276`, `#00e676`).
        - Canonicalized Magnet links in `normalizeMediaUrl()`.
-     - UI additions in [`templates/index.html`](file:///d:/JOB/DEV/EveryThingDownloader/templates/index.html) and [`static/css/styles.css`](file:///d:/JOB/DEV/EveryThingDownloader/static/css/styles.css):
+     - UI additions in [`templates/index.html`](file:///d:/JOB/DEV/Meikova Harvest/templates/index.html) and [`static/css/styles.css`](file:///d:/JOB/DEV/Meikova Harvest/static/css/styles.css):
        - Added `uTorrent / Magnet` platform badge on the Welcome dashboard with 1-click sample magnet link.
        - Added `.platform-badge.tag-torrent` uTorrent green styling.
        - Bumped cache busters to `?v=27.0`.
@@ -1254,7 +1254,7 @@
      cd electron
      npm run dev
      ```
-     Or double click `run_desktop.bat` (or shortcut `EveryThingDownloader Dev.lnk` on Desktop).
+     Or double click `run_desktop.bat` (or shortcut `Meikova Harvest Dev.lnk` on Desktop).
    - Backend runs on `http://127.0.0.1:18650`.
 
 ## Notes & Technical Warnings

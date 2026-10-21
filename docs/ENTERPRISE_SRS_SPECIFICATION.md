@@ -1,5 +1,5 @@
 # SOFTWARE REQUIREMENTS SPECIFICATION (SRS)
-## Hệ Thống Tải & Xử Lý Đa Phương Tiện Doanh Nghiệp (EveryThingDownloader Enterprise)
+## Hệ Thống Tải & Xử Lý Đa Phương Tiện Doanh Nghiệp (Meikova Harvest Enterprise)
 **Mã tài liệu:** ETD-SRS-ENT-2026-V1  
 **Tiêu chuẩn áp dụng:** IEEE 830-1998 / ISO/IEC/IEEE 29148:2018  
 **Trạng thái:** Formal Release / Production Architecture  
@@ -56,12 +56,12 @@
 ## PHẦN 1: GIỚI THIỆU & TỔNG QUAN HỆ THỐNG
 
 ### 1.1 Mục đích tài liệu
-Tài liệu Đặc tả Yêu cầu Phần mềm (SRS) này xác định đầy đủ các yêu cầu kỹ thuật, tiêu chuẩn nghiệp vụ, kiến trúc hệ thống và cơ chế bảo mật cho **EveryThingDownloader Enterprise** – giải pháp máy trạm và máy chủ nội bộ chuyên thu thập, chuyển mã và quản lý dữ liệu đa phương tiện từ internet.
+Tài liệu Đặc tả Yêu cầu Phần mềm (SRS) này xác định đầy đủ các yêu cầu kỹ thuật, tiêu chuẩn nghiệp vụ, kiến trúc hệ thống và cơ chế bảo mật cho **Meikova Harvest Enterprise** – giải pháp máy trạm và máy chủ nội bộ chuyên thu thập, chuyển mã và quản lý dữ liệu đa phương tiện từ internet.
 
 Tài liệu đóng vai trò kim chỉ nam kỹ thuật cho đội ngũ phát triển, kiểm thử chất lượng (QA/QC), quản trị hệ thống và kiểm toán an ninh thông tin.
 
 ### 1.2 Phạm vi sản phẩm (Product Scope)
-EveryThingDownloader Enterprise cung cấp nền tảng xử lý dữ liệu truyền thông toàn diện:
+Meikova Harvest Enterprise cung cấp nền tảng xử lý dữ liệu truyền thông toàn diện:
 - **Trích xuất đa nguồn:** Tải video, âm thanh, luồng phát trực tiếp, phụ đề, ảnh từ hơn 1.000 nền tảng mạng xã hội và trang web trực tuyến.
 - **Xử lý luồng bảo mật:** Giải mã trình phát web phức tạp, thu thập dòng truyền MSE (Media Source Extensions) trong RAM, bypassing DoH / ISP DNS blocks.
 - **Transcoding Studio:** Chuyển mã định dạng container, codec tối ưu hóa phần cứng (NVENC/QSV/AMF/CPU), cắt ghép, lồng ghép phụ đề cứng/mềm, lọc màu sắc.
@@ -97,7 +97,7 @@ Hệ thống hiện tại hoạt động theo mô hình Hybrid Desktop Applicati
    - Module nghiệp vụ: `routes/info.py`, `routes/download.py`, `routes/convert.py`, `routes/cookies.py`, `routes/build.py`.
    - Engine cốt lõi: `yt-dlp` (trích xuất metadata và tải luồng), `static-ffmpeg` / `ffmpeg` (ghép luồng và chuyển mã), `curl_cffi` (bỏ qua anti-bot TLS fingerprint), `bencode.py` (phân tích file torrent).
 3. **Cơ sở dữ liệu & Lưu trữ trạng thái:**
-   - SQLite với chế độ `PRAGMA journal_mode=WAL` đặt tại `%APPDATA%\EveryThingDownloader\downloads.db`.
+   - SQLite với chế độ `PRAGMA journal_mode=WAL` đặt tại `%APPDATA%\Meikova Harvest\downloads.db`.
    - Bộ nhớ tạm `downloads/temp_*` phục vụ ghép nối video phân đoạn.
 
 ### 2.2 Các điểm nghẽn kiến trúc (Architectural Bottlenecks)
@@ -122,7 +122,7 @@ flowchart TD
    - Khi người dùng tải một playlist 50 video, hệ thống kích hoạt đồng thời 50 tiến trình con `ffmpeg` và `yt-dlp`. Điều này làm nghẽn toàn bộ băng thông, tiêu tốn 100% CPU máy trạm và có thể dẫn đến crash hệ điều hành.
 2. **BitTorrent/Magnet P2P Chưa Hoàn Chỉnh (Chỉ Dừng Ở Mức Đọc Metadata):**
    - `extractors/torrent.py` chỉ bóc tách cấu trúc Bencode, lấy danh sách tệp và dung lượng.
-   - Khi tải, nếu không có HTTP Webseed trực tiếp, hệ thống ủy thác mở ứng dụng ngoài (`os.startfile(magnet)`). Người dùng kỳ vọng EveryThingDownloader tự tải tệp P2P hoàn chỉnh mà không cần cài thêm uTorrent hay qBittorrent.
+   - Khi tải, nếu không có HTTP Webseed trực tiếp, hệ thống ủy thác mở ứng dụng ngoài (`os.startfile(magnet)`). Người dùng kỳ vọng Meikova Harvest tự tải tệp P2P hoàn chỉnh mà không cần cài thêm uTorrent hay qBittorrent.
 3. **RAM Memory Bloat Khi Thu Luồng MSE:**
    - Khi ghi hình iframe Web Player mã hóa WebCrypto, toàn bộ phân đoạn video được gom vào mảng JavaScript `window._capturedMediaChunks` trong bộ nhớ RAM trình duyệt. Đối với các phim độ phân giải cao 1080p có dung lượng > 2GB, tab renderer của Electron có thể bị Crash do vượt ngưỡng heap 4GB.
 
@@ -290,7 +290,7 @@ CORS(app, resources={r"/api/*": {
 
 ```mermaid
 gantt
-    title Lộ Trình Phát Triển Doanh Nghiệp EveryThingDownloader
+    title Lộ Trình Phát Triển Doanh Nghiệp Meikova Harvest
     dateFormat  YYYY-MM-DD
     section Giai Đoạn 1: Củng Cố An Ninh & Khắc Phục Lỗ Hổng
     Triển khai SSRF Validator & Path Containment Jail :done, p1_1, 2026-10-10, 1d

@@ -1,4 +1,4 @@
-# Software Requirements Specification (SRS) - EveryThingDownloader
+# Software Requirements Specification (SRS) - Meikova Harvest
 
 ## 1. Technical Stack & Component Boundaries
 

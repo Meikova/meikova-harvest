@@ -1,8 +1,8 @@
 @echo off
-title EveryThingDownloader Dev
+title Meikova Harvest Dev
 taskkill /f /im electron.exe >nul 2>&1
 cd /d "%~dp0\electron"
-echo Starting EveryThingDownloader Desktop App in DEV Mode...
+echo Starting Meikova Harvest Desktop App in DEV Mode...
 call npm run dev
 if %errorlevel% neq 0 (
     echo.

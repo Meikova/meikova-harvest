@@ -1,7 +1,7 @@
-# User Requirements Document (URD) - EveryThingDownloader
+# User Requirements Document (URD) - Meikova Harvest
 
 ## 1. Executive Summary & Scope
-EveryThingDownloader is a self-hosted, universal media download utility designed to extract, convert, and package video, audio, image, and subtitle assets from major online social and media platforms. The application operates in three distinct delivery models:
+Meikova Harvest is a self-hosted, universal media download utility designed to extract, convert, and package video, audio, image, and subtitle assets from major online social and media platforms. The application operates in three distinct delivery models:
 1. **Self-Hosted Web Application**: A lightweight, multi-client web utility accessible from local and network browsers.
 2. **Standalone Desktop Application**: A high-fidelity, packaged desktop shell wrapping the core server on **Windows, macOS, and Linux**, requiring zero external runtime dependencies (Python/Node.js) or command-line execution from the end-user.
 3. **Docker Container**: A containerized deployment option for headless web-server operation and build-tool access without local environment setup.

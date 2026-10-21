@@ -1,6 +1,6 @@
-# Operating and Usage Guide (Operating Guide) - EveryThingDownloader
+# Operating and Usage Guide (Operating Guide) - Meikova Harvest
 
-This guide provides exhaustive operational, development, packaging, and troubleshooting instructions for the EveryThingDownloader system on **Windows, macOS, and Linux** environments.
+This guide provides exhaustive operational, development, packaging, and troubleshooting instructions for the Meikova Harvest system on **Windows, macOS, and Linux** environments.
 
 ---
 
@@ -78,14 +78,14 @@ To run the desktop application window mapping to your active Python code:
 ### 2.3 Packaged Desktop Mode (Production)
 Once you compile the application using the Build Tool, you can launch the standalone app:
 - **Windows**: 
-  - Double-click the installer `EveryThingDownloader-Setup-{version}.exe` to install it, or run `EveryThingDownloader-Portable-{version}.exe` directly.
+  - Double-click the installer `MeikovaHarvest-Setup-{version}.exe` to install it, or run `MeikovaHarvest-Portable-{version}.exe` directly.
   - The app will open a splash screen saying *"Starting server..."* while starting the hidden backend server (`server.exe`) on a dynamically discovered port starting from 18650, then display the main UI.
 - **macOS**: 
-  - Install/run the compiled `EveryThingDownloader-{version}.dmg` or unpack the `.zip` archive.
+  - Install/run the compiled `MeikovaHarvest-{version}.dmg` or unpack the `.zip` archive.
   - The app will spawn the hidden backend server (`server`) dynamically and display the UI.
-  - Note: On first launch, macOS Gatekeeper may block the unsigned app. Right-click → "Open" to bypass, or run `xattr -cr /Applications/EveryThingDownloader.app`.
+  - Note: On first launch, macOS Gatekeeper may block the unsigned app. Right-click → "Open" to bypass, or run `xattr -cr /Applications/Meikova Harvest.app`.
 - **Linux**: 
-  - Run the `EveryThingDownloader-{version}.AppImage` directly (make it executable first: `chmod +x *.AppImage`), or extract the `.tar.gz` archive.
+  - Run the `MeikovaHarvest-{version}.AppImage` directly (make it executable first: `chmod +x *.AppImage`), or extract the `.tar.gz` archive.
   - The app will spawn the hidden backend server (`server`) dynamically and display the UI.
 
 ### 2.4 Docker Deployment
@@ -113,7 +113,7 @@ Some platforms (like Twitter/X, Instagram, or age-restricted YouTube videos) req
 1. Install a browser extension that exports cookies (e.g. **Get cookies.txt LOCALLY**).
 2. Log in to the target platform on your browser.
 3. Open the extension, click export, and save the cookies as a text file (Netscape format).
-4. In the EveryThingDownloader UI, click **Manage Cookies**.
+4. In the Meikova Harvest UI, click **Manage Cookies**.
 5. Upload the cookie text file into the designated box for the platform.
 6. The backend will automatically apply these cookies to all yt-dlp queries for that platform.
 
@@ -124,7 +124,7 @@ Some platforms (like Twitter/X, Instagram, or age-restricted YouTube videos) req
 4. Click **Download**. The server clips the media on the fly and sends the trimmed file to your browser.
 
 ### 3.3 Interactive Webpage Previewing (HTML / Text)
-EveryThingDownloader allows you to preview webpage/HTML files directly inside the application interface before downloading.
+Meikova Harvest allows you to preview webpage/HTML files directly inside the application interface before downloading.
 1. Paste a link (e.g., any website URL that falls back to Webpage Options or provides HTML files) and click **ANALYZE LINK**.
 2. Click **Preview** next to the Webpage (HTML / Text) format.
 3. The system dynamically proxies the website and renders it inside an interactive, scrollable sandbox container (`<iframe>`), showing you the real live layout.
@@ -146,7 +146,7 @@ During file preview (Video, Audio, Image, Subtitle transcript, or Webpage/HTML):
 3. Moving the mouse instantly restores visibility to all controls and the cursor.
 
 ### 3.6 Subtitles Translation, Deduplication & Shift Alignment
-EveryThingDownloader features a highly optimized caption translation engine that runs directly alongside video downloading or previewing.
+Meikova Harvest features a highly optimized caption translation engine that runs directly alongside video downloading or previewing.
 1. **Interactive Subtitle Translation**:
    - In the video preview screen, select a subtitle option from the subtitles dropdown (e.g. English).
    - To translate, select a target language (default: Vietnamese) and trigger translation.
@@ -280,7 +280,7 @@ python build_tool/builder_cli.py
 This renders a color-coded dashboard with numbered menu options for configuring all build parameters.
 
 ### 4.3 Metadata Properties
-- **Application Name**: Name of the final executable file or application bundle (e.g., `EveryThingDownloader`).
+- **Application Name**: Name of the final executable file or application bundle (e.g., `Meikova Harvest`).
 - **Version**: Version string compiled into the file resources (e.g., `1.0.0`). This is also written to `electron/package.json` during the build.
 - **Company Name / Copyright / Description**: On Windows, compiled directly into the PE header (which determines how the process is named and grouped inside the **Windows Task Manager**). On macOS, compiled into the application bundle's Info.plist properties.
 
@@ -303,20 +303,20 @@ This renders a color-coded dashboard with numbered menu options for configuring 
 
 | Platform | Target | Output File |
 | :--- | :--- | :--- |
-| **Windows** | Web Binary | `dist/EveryThingDownloader-Web-{version}.exe` |
-| **Windows** | Desktop Setup | `dist_electron/EveryThingDownloader-Setup-{version}.exe` |
-| **Windows** | Desktop Portable | `dist_electron/EveryThingDownloader-Portable-{version}.exe` |
-| **Windows** | Desktop MSI | `dist_electron/EveryThingDownloader-{version}.msi` |
-| **Windows** | Desktop ZIP | `dist_electron/EveryThingDownloader-{version}-win.zip` |
-| **macOS** | Web Binary | `dist/EveryThingDownloader-Web-{version}` |
-| **macOS** | Desktop DMG | `dist_electron/EveryThingDownloader-{version}.dmg` |
-| **macOS** | Desktop ZIP | `dist_electron/EveryThingDownloader-{version}-mac.zip` |
-| **macOS** | Desktop PKG | `dist_electron/EveryThingDownloader-{version}.pkg` |
-| **Linux** | Web Binary | `dist/EveryThingDownloader-Web-{version}` |
-| **Linux** | Desktop AppImage | `dist_electron/EveryThingDownloader-{version}.AppImage` |
-| **Linux** | Desktop Archive | `dist_electron/EveryThingDownloader-{version}.tar.gz` |
-| **Linux** | Desktop DEB | `dist_electron/EveryThingDownloader-{version}.deb` |
-| **Linux** | Desktop RPM | `dist_electron/EveryThingDownloader-{version}.rpm` |
+| **Windows** | Web Binary | `dist/MeikovaHarvest-Web-{version}.exe` |
+| **Windows** | Desktop Setup | `dist_electron/MeikovaHarvest-Setup-{version}.exe` |
+| **Windows** | Desktop Portable | `dist_electron/MeikovaHarvest-Portable-{version}.exe` |
+| **Windows** | Desktop MSI | `dist_electron/MeikovaHarvest-{version}.msi` |
+| **Windows** | Desktop ZIP | `dist_electron/MeikovaHarvest-{version}-win.zip` |
+| **macOS** | Web Binary | `dist/MeikovaHarvest-Web-{version}` |
+| **macOS** | Desktop DMG | `dist_electron/MeikovaHarvest-{version}.dmg` |
+| **macOS** | Desktop ZIP | `dist_electron/MeikovaHarvest-{version}-mac.zip` |
+| **macOS** | Desktop PKG | `dist_electron/MeikovaHarvest-{version}.pkg` |
+| **Linux** | Web Binary | `dist/MeikovaHarvest-Web-{version}` |
+| **Linux** | Desktop AppImage | `dist_electron/MeikovaHarvest-{version}.AppImage` |
+| **Linux** | Desktop Archive | `dist_electron/MeikovaHarvest-{version}.tar.gz` |
+| **Linux** | Desktop DEB | `dist_electron/MeikovaHarvest-{version}.deb` |
+| **Linux** | Desktop RPM | `dist_electron/MeikovaHarvest-{version}.rpm` |
 
 ### 4.7 Publishing & Auto-Update
 After building, you can publish releases via:
@@ -347,7 +347,7 @@ The Electron desktop app includes built-in **Auto-Update** functionality:
 | `server.exe` or `server` file not found during Electron packaging | Incorrect relative path inside `electron/package.json` or checking for Windows binary on macOS/Linux. | Resolved. Changed the resource mapping to `resources/server.exe` (Windows) and `resources/server` (macOS/Linux). The packaging scripts are platform-aware. |
 | Black CMD windows flashing on desktop during analysis or download | Subprocess commands (like curl or gallery-dl) executed on Windows spawn a console window by default. | Resolved. Injected a global monkey-patch in `app.py` that intercepts all `subprocess.Popen` calls and sets `creationflags=subprocess.CREATE_NO_WINDOW` automatically on Windows. |
 | Permission denied when launching server binary inside packaged App | The embedded `server` binary copied into the Electron resources folder doesn't have executable permissions on macOS/Linux. | Resolved. Electron's `main.js` dynamically executes `chmod +x` on the embedded server binary before spawning it on macOS and Linux. |
-| macOS Gatekeeper: "EveryThingDownloader" cannot be opened because the developer cannot be verified | Packaged macOS app is unsigned. | Right-click (or Control-click) the application, select "Open", and click "Open" in the dialog, or run `xattr -cr /Applications/EveryThingDownloader.app` in the Terminal. |
+| macOS Gatekeeper: "Meikova Harvest" cannot be opened because the developer cannot be verified | Packaged macOS app is unsigned. | Right-click (or Control-click) the application, select "Open", and click "Open" in the dialog, or run `xattr -cr /Applications/Meikova Harvest.app` in the Terminal. |
 | `activate: command not found` on macOS/Linux | Attempting to run Windows activation scripts (`.ps1` or `.bat`) on a Unix shell. | Use `source venv/bin/activate` to activate the python virtual environment. |
 | Linux: `SUID sandbox helper binary was found, but is not configured correctly` | Electron AppImage requires `--no-sandbox` flag or proper sysctl configuration on some Linux distributions. | Run the AppImage with `--no-sandbox` flag, or configure the kernel parameter: `sudo sysctl kernel.unprivileged_userns_clone=1`. |
 | Docker: `yt-dlp` signature extraction fails | Missing JavaScript engine for yt-dlp's signature decryption. | Resolved. Dockerfile includes Deno installation (`COPY --from=denoland/deno:bin /deno /usr/local/bin/deno`) as the JS runtime for yt-dlp. |

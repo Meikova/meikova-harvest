@@ -1,6 +1,6 @@
 # Kế Hoạch Chi Tiết Phát Triển 6 Tính Năng Mới
 
-Tài liệu này vạch ra thiết kế kiến trúc, các API cần thay đổi và lộ trình triển khai chi tiết cho 6 tính năng cao cấp của EveryThingDownloader.
+Tài liệu này vạch ra thiết kế kiến trúc, các API cần thay đổi và lộ trình triển khai chi tiết cho 6 tính năng cao cấp của Meikova Harvest.
 
 ---
 
@@ -13,7 +13,7 @@ Tài liệu này vạch ra thiết kế kiến trúc, các API cần thay đổi
     *   Tự động điền mốc thời gian khi người dùng nhấn phím nóng (Ví dụ: phím `[` chọn Start, phím `]` chọn End).
 *   **Thay đổi API & Lập trình**:
     *   Gửi thêm 2 tham số `start_time` và `end_time` (kiểu float) lên API `/api/download/start`.
-    *   Ở backend ([tasks/download.py](file:///d:/JOB/DEV/EveryThingDownloader/tasks/download.py)), cập nhật lệnh gọi FFmpeg để chèn các cờ cắt nhanh:
+    *   Ở backend ([tasks/download.py](file:///d:/JOB/DEV/Meikova Harvest/tasks/download.py)), cập nhật lệnh gọi FFmpeg để chèn các cờ cắt nhanh:
         *   Sử dụng cờ `-ss <start_time>` và `-to <end_time>` đặt trước file đầu vào (để cắt nhanh không giải mã) hoặc đặt trước file đầu ra (để cắt chính xác khung hình keyframe).
         *   Ví dụ: `ffmpeg -ss 10 -to 45 -i input.mp4 -c copy output.mp4`
 
@@ -25,7 +25,7 @@ Tài liệu này vạch ra thiết kế kiến trúc, các API cần thay đổi
     *   Khi phân tích một link Playlist, giao diện sẽ chuyển từ hiển thị 1 video đơn lẻ sang giao diện danh sách (Grid/List) có các ô checkbox, nút "Chọn tất cả" và nút "Tải các mục đã chọn".
 *   **Thay đổi API & Lập trình**:
     *   Cập nhật API `/api/info` để nhận diện cấu trúc playlist của `yt-dlp`.
-    *   Trong [routes/info.py](file:///d:/JOB/DEV/EveryThingDownloader/routes/info.py), cấu hình `extract_flat: True` cho `yt-dlp` để lấy nhanh tiêu đề, hình thu nhỏ (thumbnail) của toàn bộ danh sách phát mà không cần truy vấn sâu từng video (tránh bị nghẽn mạng).
+    *   Trong [routes/info.py](file:///d:/JOB/DEV/Meikova Harvest/routes/info.py), cấu hình `extract_flat: True` cho `yt-dlp` để lấy nhanh tiêu đề, hình thu nhỏ (thumbnail) của toàn bộ danh sách phát mà không cần truy vấn sâu từng video (tránh bị nghẽn mạng).
     *   Tạo hàng đợi tải xuống (Download Queue) ở Frontend để gửi tuần tự các yêu cầu tải đến backend, giúp quản lý băng thông và tiến độ tải từng file.
 
 ---
@@ -48,7 +48,7 @@ Tài liệu này vạch ra thiết kế kiến trúc, các API cần thay đổi
 *   **Giao diện (UI/UX)**:
     *   Vẽ một khung hình `<canvas>` động thay thế cho màn hình trống của trình nghe nhạc `preview-audio-container`.
 *   **Thay đổi API & Lập trình (100% Frontend)**:
-    *   Sử dụng **Web Audio API** của trình duyệt trong [static/js/main.js](file:///d:/JOB/DEV/EveryThingDownloader/static/js/main.js):
+    *   Sử dụng **Web Audio API** của trình duyệt trong [static/js/main.js](file:///d:/JOB/DEV/Meikova Harvest/static/js/main.js):
         ```javascript
         const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
         const analyser = audioCtx.createAnalyser();
@@ -65,7 +65,7 @@ Tài liệu này vạch ra thiết kế kiến trúc, các API cần thay đổi
 *   **Giao diện (UI/UX)**:
     *   Một góc nhỏ trên màn hình sẽ hiện thông báo dạng Toast dịu mắt: *"Phát hiện link video: [Tên Link]. Click để phân tích"*.
 *   **Thay đổi API & Lập trình**:
-    *   Trong file chạy chính của Electron ([electron/main.js](file:///d:/JOB/DEV/EveryThingDownloader/electron/main.js)), thiết lập bộ kiểm tra Clipboard bằng API `clipboard`:
+    *   Trong file chạy chính của Electron ([electron/main.js](file:///d:/JOB/DEV/Meikova Harvest/electron/main.js)), thiết lập bộ kiểm tra Clipboard bằng API `clipboard`:
         ```javascript
         const { clipboard } = require('electron');
         setInterval(() => {

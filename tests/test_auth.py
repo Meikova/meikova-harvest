@@ -61,21 +61,21 @@ class TestAuthModule(unittest.TestCase):
         # Simulate Google user login
         auth_res = auth_mgr.google_auth(
             email="developer@gmail.com",
-            display_name="Dev Titan",
+            display_name="Dev Meikova",
             avatar_url="https://lh3.googleusercontent.com/photo.jpg"
         )
         self.assertIsNotNone(auth_res)
         self.assertEqual(auth_res["user"]["email"], "developer@gmail.com")
-        self.assertEqual(auth_res["user"]["display_name"], "Dev Titan")
+        self.assertEqual(auth_res["user"]["display_name"], "Dev Meikova")
 
         # Repeat Google login should not create duplicate user, should return same user ID
         auth_res_2 = auth_mgr.google_auth(
             email="developer@gmail.com",
-            display_name="Dev Titan Updated",
+            display_name="Dev Meikova Updated",
             avatar_url="https://lh3.googleusercontent.com/photo_new.jpg"
         )
         self.assertEqual(auth_res_2["user"]["id"], auth_res["user"]["id"])
-        self.assertEqual(auth_res_2["user"]["display_name"], "Dev Titan Updated")
+        self.assertEqual(auth_res_2["user"]["display_name"], "Dev Meikova Updated")
 
     def test_history_isolated_by_user(self):
         from config import PersistentDownloadStatus

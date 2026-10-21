@@ -3,7 +3,7 @@ version: '3.8'
 services:
   app:
     build: .
-    container_name: everythingdownloader
+    container_name: meikova-harvest
     ports:
       - "18650:18650"
     volumes:
@@ -14,7 +14,7 @@ services:
 
   builder:
     build: .
-    container_name: everythingdownloader-builder
+    container_name: meikova-harvest-builder
     ports:
       - "18651:18651"
     volumes:

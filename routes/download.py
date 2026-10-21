@@ -427,7 +427,7 @@ def get_download_file(download_id):
         return """
         <html>
             <head>
-                <title>File Purged | EveryThingDownloader</title>
+                <title>File Purged | Meikova Harvest</title>
                 <style>
                     body { background: #07080f; color: #8b9dc3; font-family: system-ui, sans-serif; display: flex; justify-content: center; align-items: center; height: 100vh; margin: 0; text-align: center; }
                     .card { background: rgba(14, 17, 30, 0.55); border: 1px solid rgba(255, 255, 255, 0.06); padding: 32px; border-radius: 12px; max-width: 450px; box-shadow: 0 20px 50px rgba(0,0,0,0.5); backdrop-filter: blur(20px); }

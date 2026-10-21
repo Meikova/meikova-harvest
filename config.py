@@ -21,12 +21,12 @@ def get_user_data_dir():
             pass
 
     if "VERCEL" in os.environ:
-        p = "/tmp/EveryThingDownloader"
+        p = "/tmp/MeikovaHarvest"
         os.makedirs(p, exist_ok=True)
         return p
 
     if sys.platform.startswith("win") and "APPDATA" in os.environ:
-        p = os.path.join(os.environ["APPDATA"], "EveryThingDownloader")
+        p = os.path.join(os.environ["APPDATA"], "MeikovaHarvest")
         try:
             os.makedirs(p, exist_ok=True)
             return p
@@ -34,7 +34,7 @@ def get_user_data_dir():
             pass
 
     if sys.platform == "darwin":
-        p = os.path.expanduser("~/Library/Application Support/EveryThingDownloader")
+        p = os.path.expanduser("~/Library/Application Support/MeikovaHarvest")
         try:
             os.makedirs(p, exist_ok=True)
             return p
@@ -43,7 +43,7 @@ def get_user_data_dir():
 
     if sys.platform.startswith("linux"):
         xdg = os.environ.get("XDG_CONFIG_HOME", os.path.expanduser("~/.config"))
-        p = os.path.join(xdg, "EveryThingDownloader")
+        p = os.path.join(xdg, "MeikovaHarvest")
         try:
             os.makedirs(p, exist_ok=True)
             return p
@@ -56,7 +56,7 @@ def get_user_data_dir():
         return p
     except Exception:
         import tempfile
-        p = os.path.join(tempfile.gettempdir(), "EveryThingDownloader")
+        p = os.path.join(tempfile.gettempdir(), "MeikovaHarvest")
         os.makedirs(p, exist_ok=True)
         return p
 
@@ -116,7 +116,7 @@ try:
     os.makedirs(TEMP_DOWNLOAD_DIR, exist_ok=True)
 except OSError:
     import tempfile
-    TEMP_DOWNLOAD_DIR = os.path.join(tempfile.gettempdir(), "EveryThingDownloader", "downloads")
+    TEMP_DOWNLOAD_DIR = os.path.join(tempfile.gettempdir(), "MeikovaHarvest", "downloads")
     os.makedirs(TEMP_DOWNLOAD_DIR, exist_ok=True)
 
 try:

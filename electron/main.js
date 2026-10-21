@@ -1,5 +1,5 @@
 /**
- * Electron Main Process — EveryThingDownloader
+ * Electron Main Process — Meikova Harvest
  *
  * Responsibilities:
  *  1. Find a free TCP port
@@ -31,7 +31,7 @@ const fs    = require('fs');
 const { spawn, execSync } = require('child_process');
 
 // ─── Configuration ────────────────────────────────────────────────────────────
-const APP_NAME    = 'EveryThingDownloader';
+const APP_NAME    = 'Meikova Harvest';
 const DEFAULT_PORT = 18650;
 const SPLASH_WAIT  = 600;   // ms before showing splash
 const SERVER_TIMEOUT = 60000; // ms to wait for Flask (60 s)
@@ -997,9 +997,9 @@ function startAutoUpdate(url, version) {
 
   let destName = `MeikovaHarvest-Setup-${version}.exe`;
   if (process.platform === 'darwin') {
-    destName = `EveryThingDownloader-${version}-${process.arch}.dmg`;
+    destName = `MeikovaHarvest-${version}-${process.arch}.dmg`;
   } else if (process.platform === 'linux') {
-    destName = `EveryThingDownloader-${version}-${process.arch}.AppImage`;
+    destName = `MeikovaHarvest-${version}-${process.arch}.AppImage`;
   }
   const destPath = path.join(app.getPath('temp'), destName);
   updateDownloadState.destPath = destPath;

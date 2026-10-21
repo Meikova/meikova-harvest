@@ -1,7 +1,7 @@
 /**
- * EveryThingDownloader Companion — Background Service Worker
+ * Meikova Harvest Companion — Background Service Worker
  * 
- * Automatically syncs browser cookies to the local EveryThingDownloader server
+ * Automatically syncs browser cookies to the local Meikova Harvest server
  * whenever the user completes a page navigation. This ensures the backend always
  * has fresh session cookies for protected sites (Cloudflare, login-gated, etc.).
  */

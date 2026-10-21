@@ -190,7 +190,7 @@ document.addEventListener("DOMContentLoaded", async () => {
       }
     } catch (err) {
       console.warn("Analysis connection failed:", err);
-      showErrorState("Không thể kết nối đến ứng dụng EveryThingDownloader. Vui lòng đảm bảo ứng dụng đang chạy ở máy tính.");
+      showErrorState("Không thể kết nối đến ứng dụng Meikova Harvest. Vui lòng đảm bảo ứng dụng đang chạy ở máy tính.");
     }
   }
 

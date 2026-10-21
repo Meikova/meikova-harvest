@@ -290,7 +290,7 @@ def google_oauth_callback():
             data=token_req_data,
             headers={
                 "Content-Type": "application/x-www-form-urlencoded",
-                "User-Agent": "EveryThingDownloader/2.0.4"
+                "User-Agent": "Meikova Harvest/2.0.4"
             }
         )
         with urllib.request.urlopen(req, timeout=10.0) as resp:
@@ -338,7 +338,7 @@ def google_oauth_callback():
             fulfill_auth_request(state, {"token": session_token, "user": auth_res["user"]})
 
         if is_mobile:
-            app_scheme = "everythingdownloader"
+            app_scheme = "meikovaharvest"
             if ":" in state:
                 app_scheme = state.split(":", 1)[1]
             deep_link_url = f"{app_scheme}://auth-success?token={session_token}&email={urllib.parse.quote(email)}"
@@ -347,7 +347,7 @@ def google_oauth_callback():
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>EveryThingDownloader // Đã xác thực cho Mobile App</title>
+    <title>Meikova Harvest // Đã xác thực cho Mobile App</title>
     <style>
         body {{
             background: #080C14;
@@ -400,9 +400,9 @@ def google_oauth_callback():
 <body>
     <div class="card">
         <h2>ĐĂNG NHẬP THÀNH CÔNG</h2>
-        <p>Chào mừng <strong>{display_name or email}</strong>.<br>Đã gửi phiên đăng nhập vào EveryThingDownloader Mobile.<br>Bấm nút bên dưới để mở lại app nếu tab không tự đóng.</p>
+        <p>Chào mừng <strong>{display_name or email}</strong>.<br>Đã gửi phiên đăng nhập vào Meikova Harvest Mobile.<br>Bấm nút bên dưới để mở lại app nếu tab không tự đóng.</p>
         <div class="actions">
-            <a href="{deep_link_url}" class="btn">Mở lại EveryThingDownloader</a>
+            <a href="{deep_link_url}" class="btn">Mở lại Meikova Harvest</a>
             <button class="btn btn-ghost" onclick="window.close()">Đóng tab</button>
         </div>
     </div>
@@ -423,7 +423,7 @@ def google_oauth_callback():
 <html>
 <head>
     <meta charset="utf-8">
-    <title>Xác thực thành công // EveryThingDownloader Desktop</title>
+    <title>Xác thực thành công // Meikova Harvest Desktop</title>
     <style>
         body {{
             background: #080C14;
@@ -486,7 +486,7 @@ def google_oauth_callback():
     <div class="card">
         <div class="badge">DESKTOP APP // KẾT NỐI THÀNH CÔNG</div>
         <h2>ĐÃ ĐĂNG NHẬP GOOGLE</h2>
-        <p>Tài khoản <strong>{email}</strong> đã kết nối với ứng dụng Desktop.<br>Bạn có thể đóng tab này và quay lại EveryThingDownloader.</p>
+        <p>Tài khoản <strong>{email}</strong> đã kết nối với ứng dụng Desktop.<br>Bạn có thể đóng tab này và quay lại Meikova Harvest.</p>
         <button type="button" id="close-btn" class="btn-close" onclick="attemptClose()">Đóng tab này</button>
         <div id="close-tip" class="tip">
             (Nếu trình duyệt chặn script đóng, hãy bấm <kbd>Ctrl + W</kbd>)
@@ -517,7 +517,7 @@ def google_oauth_callback():
 <html>
 <head>
     <meta charset="utf-8">
-    <title>Xác thực thành công // EveryThingDownloader</title>
+    <title>Xác thực thành công // Meikova Harvest</title>
     <style>
         body {{
             background: #080C14;

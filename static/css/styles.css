@@ -12079,7 +12079,7 @@ body.preview-active .app-shell {
   flex-direction: column;
 }
 
-/* Auth Telemetry & Subtitle (MashLoop Ambient style) */
+/* Auth Telemetry & Subtitle (Meikova Loop Ambient style) */
 .auth-telemetry {
   display: inline-flex;
   align-items: center;
@@ -12109,7 +12109,7 @@ body.preview-active .app-shell {
   margin: 0 0 14px;
 }
 
-/* 1 Single Google OAuth Button (MashLoop Ambient Capsule) */
+/* 1 Single Google OAuth Button (Meikova Loop Ambient Capsule) */
 .auth-google-box {
   display: flex;
   flex-direction: column;

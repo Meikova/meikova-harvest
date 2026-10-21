@@ -1,5 +1,5 @@
 # HƯỚNG DẪN THIẾT LẬP GOOGLE OAUTH CREDENTIALS (2 HƯỚNG)
-**Áp dụng cho EveryThingDownloader (Web & Desktop Đa Nền Tảng)**
+**Áp dụng cho Meikova Harvest (Web & Desktop Đa Nền Tảng)**
 
 ---
 
@@ -12,7 +12,7 @@ http://localhost:5000
 http://127.0.0.1:5000
 http://localhost:18650
 http://127.0.0.1:18650
-https://everythingdownloader-6zct.onrender.com
+https://meikovaharvest-6zct.onrender.com
 ```
 
 ### B. Authorised redirect URIs:
@@ -21,21 +21,21 @@ http://localhost:5000/api/auth/google/callback
 http://127.0.0.1:5000/api/auth/google/callback
 http://localhost:18650/api/auth/google/callback
 http://127.0.0.1:18650/api/auth/google/callback
-https://everythingdownloader-6zct.onrender.com/api/auth/google/callback
+https://meikovaharvest-6zct.onrender.com/api/auth/google/callback
 ```
 
 ---
 
 ## 2. HƯỚNG 1: TẠO TRÊN GOOGLE CLOUD PROJECT CÓ SẴN (NHANH NHẤT)
 > [!TIP]
-> Sử dụng khi bạn đã có sẵn Project trên Google Cloud (như project của `titan-remote`, `MashLoop`...). Cách này bỏ qua bước cấu hình Consent Screen phức tạp.
+> Sử dụng khi bạn đã có sẵn Project trên Google Cloud (như project của `meikova-relay`, `Meikova Loop`...). Cách này bỏ qua bước cấu hình Consent Screen phức tạp.
 
 - **Bước 1**: Truy cập trang quản lý mã xác thực:  
   👉 [https://console.cloud.google.com/apis/credentials](https://console.cloud.google.com/apis/credentials)
-- **Bước 2**: Tại thanh điều hướng trên cùng, chọn Project bạn đang có (ví dụ: `titan-remote-512203`).
+- **Bước 2**: Tại thanh điều hướng trên cùng, chọn Project bạn đang có (ví dụ: `meikova-relay-512203`).
 - **Bước 3**: Nhấn vào nút **`+ CREATE CREDENTIALS`** ở đầu trang -> Chọn **`OAuth client ID`**.
 - **Bước 4**: Tại ô **Application type**, chọn **`Web application`**.
-- **Bước 5**: Đặt tên gợi nhớ tại mục **Name**: `EveryThingDownloader-Client`.
+- **Bước 5**: Đặt tên gợi nhớ tại mục **Name**: `MeikovaHarvest-Client`.
 - **Bước 6**:
   * Tại mục **Authorised JavaScript origins**: Bấm `+ ADD URI` và điền đủ 5 dòng ở mục 1.A.
   * Tại mục **Authorised redirect URIs**: Bấm `+ ADD URI` và điền đủ 5 dòng ở mục 1.B.
@@ -46,12 +46,12 @@ https://everythingdownloader-6zct.onrender.com/api/auth/google/callback
 
 ## 3. HƯỚNG 2: TẠO TRÊN GOOGLE CLOUD PROJECT MỚI HOÀN TOÀN
 > [!NOTE]
-> Sử dụng khi bạn muốn dự án `EveryThingDownloader` độc lập hoàn toàn, không liên quan tới dự án cũ.
+> Sử dụng khi bạn muốn dự án `Meikova Harvest` độc lập hoàn toàn, không liên quan tới dự án cũ.
 
 ### Phần A: Khởi tạo Project mới
 1. Truy cập liên kết tạo dự án:  
    👉 [https://console.cloud.google.com/projectcreate](https://console.cloud.google.com/projectcreate)
-2. Điền **Project name**: `EveryThingDownloader-Cloud`.
+2. Điền **Project name**: `MeikovaHarvest-Cloud`.
 3. Bấm **`CREATE`** và chờ khoảng 10-15 giây để Google tạo xong project.
 4. Chọn project vừa tạo ở thanh chọn project trên cùng.
 
@@ -61,7 +61,7 @@ https://everythingdownloader-6zct.onrender.com/api/auth/google/callback
    👉 [https://console.cloud.google.com/apis/credentials/consent](https://console.cloud.google.com/apis/credentials/consent)
 2. Tại mục **User Type**, chọn **`External`** (Người dùng bên ngoài) -> Bấm **`CREATE`**.
 3. Điền các trường cơ bản:
-   - **App name**: `EveryThingDownloader`
+   - **App name**: `Meikova Harvest`
    - **User support email**: Chọn email Google của bạn.
    - **Developer contact information**: Nhập email của bạn.
    - Bấm **`SAVE AND CONTINUE`**.
@@ -80,7 +80,7 @@ https://everythingdownloader-6zct.onrender.com/api/auth/google/callback
 1. Vào mục **Credentials** (menu bên trái).
 2. Nhấn **`+ CREATE CREDENTIALS`** -> Chọn **`OAuth client ID`**.
 3. **Application type**: Chọn **`Web application`**.
-4. **Name**: `EveryThingDownloader-Web`.
+4. **Name**: `MeikovaHarvest-Web`.
 5. Điền chính xác các URL:
    - **Authorised JavaScript origins**: Điền đủ 5 dòng ở mục 1.A.
    - **Authorised redirect URIs**: Điền đủ 5 dòng ở mục 1.B.
@@ -90,7 +90,7 @@ https://everythingdownloader-6zct.onrender.com/api/auth/google/callback
 
 ## 4. TÍCH HỢP VÀO CODE VỚI CƠ CHẾ 3 TẦNG (SAFE & ZERO-BOT LEAK)
 
-Ứng dụng EveryThingDownloader hỗ trợ cơ chế nạp thông minh 3 tầng (3-Tier Fallback):
+Ứng dụng Meikova Harvest hỗ trợ cơ chế nạp thông minh 3 tầng (3-Tier Fallback):
 
 ### Tầng 1 (Cloud Hosting / Render):
 Khai báo Environment Variables trên Dashboard quản lý (Render / Docker / VPS):
@@ -102,7 +102,7 @@ Khai báo Environment Variables trên Dashboard quản lý (Render / Docker / VP
 ```text
 client_secret.json
 ```
-Đặt trực tiếp vào thư mục gốc của dự án `EveryThingDownloader/`.  
+Đặt trực tiếp vào thư mục gốc của dự án `Meikova Harvest/`.  
 *(File này đã được khai báo trong `.gitignore`, không bao giờ bị commit lên mạng)*.
 
 ### Tầng 3 (Base64 nhúng thẳng trong mã nguồn):

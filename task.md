@@ -9,14 +9,14 @@ Chúng ta sẽ thực hiện tuần tự từng tính năng. Sau khi hoàn thàn
 ### [x] Task 1: Cắt Video/Audio trước khi tải (Video Trimmer)
 - [x] **Giao diện (Frontend)**: Thêm các ô nhập mốc thời gian Start/End và liên kết phím nóng (`[` và `]`) để gán thời gian nhanh trong Preview Modal.
 - [x] **Truyền nhận dữ liệu**: Cập nhật hàm gọi API tải xuống ở Frontend để truyền thêm tham số `start_time` và `end_time`.
-- [x] **Xử lý Backend**: Cập nhật file [tasks/download.py](file:///d:/JOB/DEV/EveryThingDownloader/tasks/download.py) để chèn tham số `-ss` và `-to` vào lệnh chạy FFmpeg trước khi tải/ghép luồng.
+- [x] **Xử lý Backend**: Cập nhật file [tasks/download.py](file:///d:/JOB/DEV/Meikova Harvest/tasks/download.py) để chèn tham số `-ss` và `-to` vào lệnh chạy FFmpeg trước khi tải/ghép luồng.
 - [x] **Đóng gói & Ghép luồng**: Đảm bảo cắt chính xác đối với cả luồng ghép thích ứng (Adaptive DASH) và video thường.
 - [x] **Kiểm thử nội bộ**: Xác nhận file tải về đúng phân đoạn đã chọn.
 - [x] **Phân tách Raw vs Custom**: Nút "GET" ngoài tải file nguyên bản, nút "Download Format" tải file đã tùy biến qua preview.
 - *Trạng thái checkpoint*: ⏸️ **Dừng lại để người dùng kiểm thử Task 1**
 
 ### [x] Task 2: Tự động nhận diện Link trong Clipboard (Clipboard Auto-Detect)
-- [x] **Cơ chế quét (Main process)**: Cài đặt luồng check khay nhớ tạm định kỳ trong [electron/main.js](file:///d:/JOB/DEV/EveryThingDownloader/electron/main.js).
+- [x] **Cơ chế quét (Main process)**: Cài đặt luồng check khay nhớ tạm định kỳ trong [electron/main.js](file:///d:/JOB/DEV/Meikova Harvest/electron/main.js).
 - [x] **Giao tiếp IPC**: Gửi sự kiện truyền link phát hiện được sang Renderer process.
 - [x] **Thông báo (Giao diện)**: Tạo giao diện thông báo dạng Toast nhỏ gọn ở góc màn hình gợi ý phân tích link vừa copy.
 - [x] **Độ nhạy & Lọc trùng**: Đảm bảo bỏ qua các link đã được quét hoặc không phải định dạng được hỗ trợ.

@@ -1,6 +1,6 @@
 # Rà soát Dự án & Đề xuất Phát triển Tính năng Mới
 
-Sau khi rà soát toàn bộ cấu trúc dự án (Backend Python/Flask, Frontend Electron/JS, các Extractor chuyên biệt, và Luồng CI/CD), EveryThingDownloader hiện là một ứng dụng tải phương tiện rất mạnh mẽ và toàn diện.
+Sau khi rà soát toàn bộ cấu trúc dự án (Backend Python/Flask, Frontend Electron/JS, các Extractor chuyên biệt, và Luồng CI/CD), Meikova Harvest hiện là một ứng dụng tải phương tiện rất mạnh mẽ và toàn diện.
 
 Dưới đây là tổng hợp các tính năng hiện tại và các đề xuất tính năng mới có giá trị cao để biến ứng dụng trở nên cao cấp (premium) và chuyên nghiệp hơn nữa.
 
