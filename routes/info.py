@@ -141,7 +141,7 @@ def generic_html_link_harvester(url, client_id, html=None):
 @info_bp.route("/api/info", methods=["POST"])
 def get_info():
     if request.is_json:
-        data = request.get_json() or {}
+        data = request.get_json(silent=True) or {}
         url = data.get("url", "").strip()
         client_id = data.get("client_id")
         html_content = data.get("html")

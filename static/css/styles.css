@@ -10531,8 +10531,8 @@ body.preview-active .app-shell {
 }
 
 .nav-hist-btn:focus-visible {
-  outline: 2px solid var(--cyan, #00f3ff);
-  outline-offset: 2px;
+  outline: none;
+  box-shadow: 0 0 0 1px var(--cyan, #00f3ff), 0 0 12px -2px rgba(var(--cyan-rgb, 0, 243, 255), 0.6);
 }
 
 .nav-hist-btn:disabled {
@@ -11759,12 +11759,12 @@ body.preview-active .app-shell {
   outline: none !important;
 }
 
-/* Global focus-visible indicator */
+/* Global focus-visible indicator (Zero-Double-Border Standard) */
 :focus-visible {
-  outline: 2px solid var(--cyan) !important;
-  outline-offset: 2px !important;
-  box-shadow: 0 0 0 4px rgba(var(--cyan-rgb), 0.25) !important;
-  transition: outline 0.15s ease, box-shadow 0.15s ease !important;
+  outline: none !important;
+  border-color: var(--cyan) !important;
+  box-shadow: 0 0 0 1px var(--cyan), 0 0 14px -2px rgba(var(--cyan-rgb), 0.6) !important;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease !important;
 }
 
 /* Player buttons and action controls specific focus styling */
@@ -11779,17 +11779,16 @@ body.preview-active .app-shell {
 .btn-playlist-action:focus-visible,
 .close-btn:focus-visible,
 .btn-primary:focus-visible {
-  outline: 2px solid var(--cyan) !important;
-  outline-offset: 2px !important;
-  box-shadow: 0 0 10px rgba(var(--cyan-rgb), 0.5) !important;
+  outline: none !important;
+  box-shadow: 0 0 0 1px var(--cyan), 0 0 14px -2px rgba(var(--cyan-rgb), 0.7) !important;
   z-index: 10;
 }
 
 /* Range sliders focus ring */
 .audio-slider:focus-visible,
 .video-slider:focus-visible {
-  outline: 2px solid var(--cyan) !important;
-  outline-offset: 3px !important;
+  outline: none !important;
+  box-shadow: 0 0 0 1px var(--cyan), 0 0 12px -2px rgba(var(--cyan-rgb), 0.6) !important;
   border-radius: 4px;
 }
 
@@ -11798,9 +11797,9 @@ body.preview-active .app-shell {
 .settings-select-menu:focus-visible,
 .custom-select-menu:focus-visible,
 .loop-time-input-menu:focus-visible {
-  outline: 2px solid var(--cyan) !important;
+  outline: none !important;
   border-color: var(--cyan) !important;
-  box-shadow: 0 0 0 3px rgba(var(--cyan-rgb), 0.25) !important;
+  box-shadow: 0 0 0 1px var(--cyan), 0 0 14px -2px rgba(var(--cyan-rgb), 0.6) !important;
 }
 
 /* ==========================================================================

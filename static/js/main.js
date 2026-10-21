@@ -177,13 +177,13 @@ document.addEventListener("DOMContentLoaded", () => {
                         const response = await fetch("/api/clear-temp", { method: "POST" });
                         const data = await response.json();
                         if (data.success) {
-                            alert(data.message || "Successfully cleared temporary cache folder.");
+                            if (typeof showAlert === "function") showAlert("Thông báo", data.message || "Đã dọn sạch bộ nhớ tạm.", null, "success");
                         } else {
-                            alert("Failed to clear temporary cache: " + (data.error || "Unknown error"));
+                            if (typeof showAlert === "function") showAlert("Lỗi", "Không thể dọn bộ nhớ tạm: " + (data.error || "Lỗi không xác định"), null, "error");
                         }
                     } catch (err) {
                         console.error(err);
-                        alert("Failed to clear cache: network error.");
+                        if (typeof showAlert === "function") showAlert("Lỗi", "Không thể kết nối máy chủ khi dọn cache.", null, "error");
                     } finally {
                         clearTempCacheBtn.disabled = false;
                         clearTempCacheBtn.textContent = originalText;
@@ -1967,7 +1967,7 @@ document.addEventListener("DOMContentLoaded", () => {
                             updateEngineBtn.classList.remove("updating");
                             updateEngineBtn.disabled = false;
                             if (btnSpan) btnSpan.textContent = "Update Engine";
-                            alert("Connection error while updating engine: " + err.message);
+                            if (typeof showAlert === "function") showAlert("Lỗi", "Lỗi kết nối khi cập nhật engine: " + err.message, null, "error");
                         });
                 }
             });
@@ -7788,7 +7788,7 @@ document.addEventListener("DOMContentLoaded", () => {
         downloadBtn.addEventListener("click", async () => {
             const selectedChecks = grid.querySelectorAll(".playlist-item-checkbox:checked");
             if (selectedChecks.length === 0) {
-                alert("Please select at least one item to download.");
+                if (typeof showAlert === "function") showAlert("Thông báo", "Vui lòng chọn ít nhất một mục để tải về.", null, "warning");
                 return;
             }
 
@@ -8318,7 +8318,7 @@ document.addEventListener("DOMContentLoaded", () => {
             downloadSelectedBtn.onclick = async () => {
                 const checkedCheckboxes = modalImagesGrid.querySelectorAll(".image-select-check:checked");
                 if (checkedCheckboxes.length === 0) {
-                    alert("Please select at least one image to download.");
+                    if (typeof showAlert === "function") showAlert("Thông báo", "Vui lòng chọn ít nhất một hình ảnh để tải về.", null, "warning");
                     return;
                 }
 
@@ -8393,7 +8393,7 @@ document.addEventListener("DOMContentLoaded", () => {
                         downloadSelectedBtn.disabled = false;
                         downloadSelectedBtn.innerHTML = originalText;
                     } catch (err) {
-                        alert("Failed to download images: " + err.message);
+                        if (typeof showAlert === "function") showAlert("Lỗi", "Không thể tải hình ảnh: " + err.message, null, "error");
                         downloadSelectedBtn.disabled = false;
                         downloadSelectedBtn.innerHTML = `<span>Download Selected</span>`;
                     }
@@ -12056,11 +12056,11 @@ document.addEventListener("DOMContentLoaded", () => {
             if (data.status === "success") {
                 loadDownloadHistory();
             } else {
-                alert("Failed to delete history item: " + data.message);
+                if (typeof showAlert === "function") showAlert("Lỗi", "Không thể xóa mục lịch sử: " + (data.message || "Lỗi không xác định"), null, "error");
             }
         } catch (err) {
             console.error("Error deleting history item:", err);
-            alert("Error deleting history item");
+            if (typeof showAlert === "function") showAlert("Lỗi", "Lỗi khi xóa mục lịch sử.", null, "error");
         }
     }
 
@@ -12076,12 +12076,12 @@ document.addEventListener("DOMContentLoaded", () => {
             const results = await Promise.all(promises);
             const errors = results.filter(r => r.status !== "success");
             if (errors.length > 0) {
-                alert(`Removed items with some failures (${errors.length} failed).`);
+                if (typeof showAlert === "function") showAlert("Thông báo", `Đã xóa các mục (${errors.length} mục lỗi).`, null, "warning");
             }
             loadDownloadHistory();
         } catch (err) {
             console.error("Bulk deletion error:", err);
-            alert("Error performing bulk deletion");
+            if (typeof showAlert === "function") showAlert("Lỗi", "Lỗi khi xóa hàng loạt mục lịch sử.", null, "error");
             loadDownloadHistory();
         }
     }
@@ -12342,7 +12342,7 @@ document.addEventListener("DOMContentLoaded", () => {
                     const tgChatId = (document.getElementById("tg-chat-id")?.value || localStorage.getItem("tg_chat_id") || "").trim();
                     
                     if (!tgToken || !tgChatId) {
-                        alert("Please configure your Telegram Bot Token and Chat ID in Settings first.");
+                        if (typeof showAlert === "function") showAlert("Yêu cầu thiết lập", "Vui lòng cấu hình Telegram Bot Token và Chat ID trong Cài đặt trước.", null, "warning");
                         return;
                     }
 
@@ -12358,13 +12358,13 @@ document.addEventListener("DOMContentLoaded", () => {
                         });
                         const resData = await response.json();
                         if (resData.status === "success") {
-                            alert("Shared successfully to Telegram cloud!");
+                            if (typeof showAlert === "function") showAlert("Thành công", "Đã gửi tệp tin lên Telegram Cloud!", null, "success");
                         } else {
-                            alert(resData.message || "An error occurred while sharing to Telegram.");
+                            if (typeof showAlert === "function") showAlert("Lỗi", resData.message || "Lỗi khi gửi lên Telegram.", null, "error");
                         }
                     } catch (err) {
                         console.error("Telegram sharing error:", err);
-                        alert("Failed to connect to application server.");
+                        if (typeof showAlert === "function") showAlert("Lỗi", "Không thể kết nối đến máy chủ ứng dụng.", null, "error");
                     } finally {
                         btnTg.disabled = false;
                         btnTg.querySelector("span").textContent = originalText;
@@ -13276,7 +13276,7 @@ document.addEventListener("DOMContentLoaded", () => {
                 if (resData.status === "success" && resData.translated_vtt) {
                     loadSubtitle(resData.translated_vtt, true);
                 } else {
-                    alert("Failed to translate subtitle: " + (resData.message || "Unknown error"));
+                    if (typeof showAlert === "function") showAlert("Lỗi", "Không thể dịch phụ đề: " + (resData.message || "Lỗi không xác định"), null, "error");
                     this.value = "none";
                 }
             } catch (e) {
@@ -16485,8 +16485,10 @@ document.addEventListener("DOMContentLoaded", () => {
     const triggerAppAlert = (title, message, cb, type) => {
         if (typeof window.showAlert === "function") {
             window.showAlert(title, message, cb, type);
+        } else if (typeof showAlert === "function") {
+            showAlert(title, message, cb, type);
         } else {
-            alert((title ? title + "\n\n" : "") + (message || ""));
+            console.warn("[AppAlert]", title, message);
             if (cb) cb();
         }
     };
@@ -16494,10 +16496,11 @@ document.addEventListener("DOMContentLoaded", () => {
     const triggerAppConfirm = (opts) => {
         if (typeof window.showConfirm === "function") {
             window.showConfirm(opts);
+        } else if (typeof showConfirm === "function") {
+            showConfirm(opts);
         } else {
-            const ok = confirm((opts && opts.title ? opts.title + "\n\n" : "") + ((opts && opts.message) || ""));
-            if (ok && opts && opts.onYes) opts.onYes();
-            else if (!ok && opts && opts.onNo) opts.onNo();
+            console.warn("[AppConfirm]", opts);
+            if (opts && opts.onYes) opts.onYes();
         }
     };
 

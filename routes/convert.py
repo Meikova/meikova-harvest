@@ -52,7 +52,7 @@ def upload_local_file():
 @convert_bp.route("/api/convert/probe", methods=["POST"])
 def probe_file():
     """Inspects a local media file to extract codecs, duration, dimensions, and audio channels."""
-    data = request.get_json() or {}
+    data = request.get_json(silent=True) or {}
     file_path = data.get("file_path", "").strip()
     
     if not file_path or not os.path.exists(file_path):
@@ -110,7 +110,7 @@ def preview_local_stream():
 
 @convert_bp.route("/api/convert", methods=["POST"])
 def trigger_conversion():
-    data = request.get_json() or {}
+    data = request.get_json(silent=True) or {}
     file_path = data.get("file_path")
     filename = data.get("filename") or os.path.basename(file_path or "media")
     target_format = (data.get("target_format") or "").strip().lower()

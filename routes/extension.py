@@ -47,7 +47,7 @@ extension_hub = ExtensionEventHub()
 
 @extension_bp.route("/api/extension/trigger", methods=["POST"])
 def trigger_extension_url():
-    data = request.get_json() or {}
+    data = request.get_json(silent=True) or {}
     url = data.get("url")
     if not url:
         return jsonify({"status": "error", "message": "No URL provided"}), 400

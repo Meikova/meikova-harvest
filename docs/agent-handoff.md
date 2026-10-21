@@ -6,10 +6,38 @@
 - Standards: Antigravity Titan Standards, Ponytail Philosophy, TDD, Verification-Before-Completion.
 
 ## Last Updated
-- Timestamp: 2026-10-21 15:35:00
-- Version: v2.0.4 (Sprint v76: Multi-User Isolation, IDOR Protection & Offline-First Sync Consistency)
-- Git Commit: `1bedcf5` (Clean working tree)
-- Exit Code: 0 (Python unit tests 9/9 PASSED, Discovery test suite 91/91 PASSED, Node check OK)
+- Timestamp: 2026-10-21 15:55:00
+- Version: v2.0.4 (Sprint v77: Purge Native Dialogs, Zero-Double-Border, Safe JSON Parsing & Mobile Tab Fallback)
+- Git Commit: Pending commit
+- Exit Code: 0 (Python unit tests 91/91 PASSED, JS syntax check OK)
+
+## Summary of Accomplishments (Sprint v77 - Purge Native Dialogs, Zero-Double-Border & Defensive Endpoints)
+1. **Triệt tiêu 100% Native Dialogs (`static/js/main.js`)**:
+   - Quét và thay thế toàn bộ các lệnh `alert(...)` và `confirm(...)` bằng modal/toast ambient dark `showAlert(...)` / `showConfirm(...)`.
+   - Expose `window.showAlert` và `window.showConfirm` ra global scope.
+   - Tuân thủ tuyệt đối quy tắc Zero-Native-Dialogs của hệ thống.
+
+2. **Tuân thủ Chuẩn Zero-Double-Border (`static/css/styles.css`)**:
+   - Loại bỏ triệt để các thuộc tính `outline-offset` trên `:focus-visible`.
+   - Chuẩn hóa focus state thành đơn viền liền khối `border-color: var(--cyan)` + `box-shadow: 0 0 0 1px var(--cyan), 0 0 14px -2px rgba(var(--cyan-rgb), 0.6)`.
+
+3. **Phòng vệ 415 Unsupported Media Type trên Toàn bộ Backend Endpoints (`routes/*.py`)**:
+   - Thay thế toàn bộ `request.get_json()` bằng `request.get_json(silent=True) or {}` trên:
+     * `routes/auth.py`
+     * `routes/convert.py`
+     * `routes/cookies.py`
+     * `routes/extension.py`
+     * `routes/info.py`
+   - Đảm bảo client gửi request thiếu header `Content-Type: application/json` không bị ngắt kết nối với mã lỗi 415.
+
+4. **Khắc phục Nút "Đóng tab" trên Trình duyệt Di động (`routes/auth.py`)**:
+   - Trình duyệt di động chặn lệnh `window.close()` đối với các tab không được mở bằng `window.open()`.
+   - Thêm hàm `closeMobileTab()`: Cố gắng đóng tab, đồng thời tự động kích hoạt fallback điều hướng `window.location.href = deep_link_url` quay lại app di động nếu tab không đóng được.
+   - Thêm nút liên kết quay lại Web App trên Desktop nếu người dùng chọn tiếp tục làm việc trên trình duyệt.
+
+5. **Kiểm chứng Toàn diện**:
+   - `node -c static/js/main.js`: Exit Code 0.
+   - `.\venv\Scripts\python.exe -m unittest discover tests`: 91/91 tests PASSED (Exit Code 0).
 
 ## Summary of Accomplishments (Sprint v76 - Multi-User Isolation, IDOR Protection & Sync Fix)
 1. **Khắc phục Lỗ hổng Rò rỉ Dữ liệu Lịch sử & Xóa nhầm Toàn bộ CSDL (`config.py`)**:

@@ -109,7 +109,7 @@ def get_cookie_status(client_id):
 
 @cookies_bp.route("/api/cookies/paste", methods=["POST"])
 def paste_cookies():
-    data = request.get_json() or {}
+    data = request.get_json(silent=True) or {}
     client_id = data.get("client_id")
     content = data.get("content", "").strip()
     

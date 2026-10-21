@@ -104,7 +104,7 @@ def get_authenticated_user():
 
 @auth_bp.route("/api/auth/register", methods=["POST"])
 def register_api():
-    data = request.get_json() or {}
+    data = request.get_json(silent=True) or {}
     username = data.get("username", "").strip()
     password = data.get("password", "")
     email = data.get("email", "").strip() or None
@@ -135,7 +135,7 @@ def register_api():
 
 @auth_bp.route("/api/auth/login", methods=["POST"])
 def login_api():
-    data = request.get_json() or {}
+    data = request.get_json(silent=True) or {}
     identifier = data.get("identifier") or data.get("username", "").strip()
     password = data.get("password", "")
 
@@ -158,7 +158,7 @@ def login_api():
 
 @auth_bp.route("/api/auth/google", methods=["POST"])
 def google_auth_api():
-    data = request.get_json() or {}
+    data = request.get_json(silent=True) or {}
     credential = data.get("credential", "").strip()
 
     if not credential:
@@ -411,12 +411,17 @@ def google_oauth_callback():
         <p>Chào mừng <strong>{display_name or email}</strong>.<br>Đã gửi phiên đăng nhập vào Meikova Harvest Mobile.<br>Bấm nút bên dưới để mở lại app nếu tab không tự đóng.</p>
         <div class="actions">
             <a href="{deep_link_url}" class="btn">Mở lại Meikova Harvest</a>
-            <button class="btn btn-ghost" onclick="window.close()">Đóng tab</button>
+            <button type="button" class="btn btn-ghost" onclick="closeMobileTab()">Đóng tab</button>
         </div>
     </div>
     <script>
-        setTimeout(() => {{ window.location.href = "{deep_link_url}"; }}, 300);
-        setTimeout(() => {{ try {{ window.close(); }} catch(e) {{}} }}, 2500);
+        function closeMobileTab() {{
+            try {{ window.open('', '_self', ''); window.close(); }} catch(e) {{}}
+            try {{ window.close(); }} catch(e) {{}}
+            setTimeout(() => {{ window.location.href = "{deep_link_url}"; }}, 100);
+        }}
+        setTimeout(() => {{ window.location.href = "{deep_link_url}"; }}, 400);
+        setTimeout(closeMobileTab, 2500);
     </script>
 </body>
 </html>"""
@@ -499,6 +504,7 @@ def google_oauth_callback():
         <div id="close-tip" class="tip">
             (Nếu trình duyệt chặn script đóng, hãy bấm <kbd>Ctrl + W</kbd>)
         </div>
+        <a href="/" style="display:inline-block;margin-top:14px;color:#64748b;font-size:0.75rem;text-decoration:none;transition:color 0.2s ease;" onmouseover="this.style.color='#00E5FF'" onmouseout="this.style.color='#64748b'">Hoặc chuyển hướng về Web App &rarr;</a>
     </div>
     <script>
         function attemptClose() {{
