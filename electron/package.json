@@ -1,11 +1,11 @@
 {
-  "name": "everythingdownloader",
+  "name": "meikova-harvest",
   "version": "2.0.4",
-  "description": "EveryThingDownloader",
+  "description": "Meikova Harvest",
   "main": "main.js",
-  "author": "EveryThingDownloader",
+  "author": "Meikova",
   "license": "MIT",
-  "homepage": "https://github.com/m3iK18dp/EveryThingDownloader-Tool",
+  "homepage": "https://github.com/m3iK18dp/meikova-harvest",
   "scripts": {
     "start": "electron .",
     "dev": "electron . --dev",
@@ -23,8 +23,8 @@
     "electron-builder": "^24.13.3"
   },
   "build": {
-    "appId": "com.everythingdownloader.app",
-    "productName": "EveryThingDownloader",
+    "appId": "com.meikova.harvest",
+    "productName": "Meikova Harvest",
     "compression": "normal",
     "directories": {
       "output": "../dist_electron"
@@ -78,10 +78,10 @@
         "pkg"
       ],
       "icon": "resources/icon.png",
-      "artifactName": "EveryThingDownloader-${version}-${arch}.${ext}"
+      "artifactName": "MeikovaHarvest-${version}-${arch}.${ext}"
     },
     "linux": {
-      "maintainer": "EveryThingDownloader <contact@everythingdownloader.com>",
+      "maintainer": "Meikova <contact@meikova.dev>",
       "target": [
         "AppImage",
         "tar.gz",
@@ -90,25 +90,25 @@
       ],
       "icon": "resources/icon.png",
       "category": "Utility",
-      "artifactName": "EveryThingDownloader-${version}-${arch}.${ext}"
+      "artifactName": "MeikovaHarvest-${version}-${arch}.${ext}"
     },
     "nsis": {
       "oneClick": false,
       "allowToChangeInstallationDirectory": true,
       "createDesktopShortcut": true,
       "createStartMenuShortcut": true,
-      "shortcutName": "EveryThingDownloader",
+      "shortcutName": "Meikova Harvest",
       "installerIcon": "resources/icon.ico",
       "uninstallerIcon": "resources/icon.ico",
       "installerHeader": "resources/icon.ico",
       "license": "resources/license.txt",
-      "artifactName": "EveryThingDownloader-Setup-${version}.exe"
+      "artifactName": "MeikovaHarvest-Setup-${version}.exe"
     },
     "msi": {
-      "artifactName": "EveryThingDownloader-${version}.msi"
+      "artifactName": "MeikovaHarvest-${version}.msi"
     },
     "portable": {
-      "artifactName": "EveryThingDownloader-Portable-${version}.exe"
+      "artifactName": "MeikovaHarvest-Portable-${version}.exe"
     }
   }
 }

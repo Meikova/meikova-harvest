@@ -208,7 +208,7 @@ async function startFlaskServer() {
       flaskProcess = spawn('cmd.exe', [
         '/c',
         'start',
-        'EveryThingDownloader Backend Server',
+        'Meikova Harvest Backend Server',
         '/wait',
         serverExe,
         '--port',
@@ -782,7 +782,7 @@ function getAppDownloadsDir() {
     return customDownloadsDir;
   }
   const userDownloads = app.getPath('downloads');
-  const targetDir = path.join(userDownloads, 'EveryThingDownloader');
+  const targetDir = path.join(userDownloads, 'MeikovaHarvest');
   try {
     if (!fs.existsSync(targetDir)) {
       fs.mkdirSync(targetDir, { recursive: true });
@@ -995,7 +995,7 @@ function startAutoUpdate(url, version) {
   updateDownloadState.percent = 0;
   updateDownloadState.version = version;
 
-  let destName = `EveryThingDownloader-Setup-${version}.exe`;
+  let destName = `MeikovaHarvest-Setup-${version}.exe`;
   if (process.platform === 'darwin') {
     destName = `EveryThingDownloader-${version}-${process.arch}.dmg`;
   } else if (process.platform === 'linux') {
@@ -1075,11 +1075,11 @@ function isNewerVersion(latest, current) {
 
 function checkForUpdates(manual = false) {
   log.info('Checking for updates...');
-  const updateUrl = 'https://raw.githubusercontent.com/m3iK18dp/EveryThingDownloader-Tool/main/update.json'; 
+  const updateUrl = 'https://raw.githubusercontent.com/Meikova/meikova-harvest-tool/main/update.json'; 
 
   const req = https.get(updateUrl, {
     timeout: 10000,
-    headers: { 'User-Agent': `EveryThingDownloader/${app.getVersion()}` }
+    headers: { 'User-Agent': `MeikovaHarvest/${app.getVersion()}` }
   }, (res) => {
     let data = '';
     res.on('data', chunk => data += chunk);
@@ -1190,7 +1190,7 @@ function buildTrayMenu() {
     },
     { type: 'separator' },
     {
-      label: 'Mở EveryThingDownloader',
+      label: 'Mở Meikova Harvest',
       icon: getTrayIcon('window'),
       click: () => {
         if (mainWindow) {
@@ -1568,9 +1568,9 @@ ipcMain.on('reset-clipboard-cache', () => {
 app.whenReady().then(async () => {
   if (process.platform === 'win32') {
     if (!isDev) {
-      app.setAppUserModelId('com.everythingdownloader.app');
+      app.setAppUserModelId('com.meikova.harvest');
     } else {
-      app.setAppUserModelId('com.everythingdownloader.dev');
+      app.setAppUserModelId('com.meikova.harvest.dev');
     }
   }
 

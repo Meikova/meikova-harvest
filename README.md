@@ -1,16 +1,16 @@
 <p align="center">
-  <img src="static/logo.png" alt="EveryThingDownloader Logo" width="200px">
+  <img src="static/logo.png" alt="Meikova Harvest Logo" width="200px">
 </p>
 
-<h1 align="center">🚀 EveryThingDownloader</h1>
+<h1 align="center">🚀 Meikova Harvest</h1>
 
 <p align="center">
   <strong>Giải pháp tải đa phương tiện toàn năng, đa nền tảng, bảo mật tối đa và tự động hóa phát hành vượt trội</strong>
 </p>
 
 <p align="center">
-  <a href="https://github.com/m3iK18dp/EveryThingDownloader/releases">
-    <img src="https://img.shields.io/github/v/release/m3iK18dp/EveryThingDownloader?style=for-the-badge&color=00f2fe" alt="Latest Version">
+  <a href="https://github.com/m3iK18dp/Meikova Harvest/releases">
+    <img src="https://img.shields.io/github/v/release/m3iK18dp/Meikova Harvest?style=for-the-badge&color=00f2fe" alt="Latest Version">
   </a>
   <a href="#">
     <img src="https://img.shields.io/badge/Platform-Windows%20%7C%20macOS%20%7C%20Linux-0078d7?style=for-the-badge&logo=windows&logoColor=white" alt="Platform">
@@ -22,7 +22,7 @@
     <img src="https://img.shields.io/badge/Electron-31.x-477280?style=for-the-badge&logo=electron&logoColor=white" alt="Electron Version">
   </a>
   <a href="LICENSE">
-    <img src="https://img.shields.io/github/license/m3iK18dp/EveryThingDownloader?style=for-the-badge&color=f39c12" alt="License">
+    <img src="https://img.shields.io/github/license/m3iK18dp/Meikova Harvest?style=for-the-badge&color=f39c12" alt="License">
   </a>
 </p>
 
@@ -30,7 +30,7 @@
 
 ## 🌟 Giới thiệu tổng quan
 
-**EveryThingDownloader** không chỉ đơn thuần là một công cụ tải video. Đây là một **hệ sinh thái tải đa phương tiện hoàn chỉnh và bảo mật**, kết hợp hoàn hảo giữa hiệu năng xử lý mạnh mẽ của Backend Python (Flask) và trải nghiệm giao diện người dùng Desktop mượt mà, trực quan của Electron.
+**Meikova Harvest** không chỉ đơn thuần là một công cụ tải video. Đây là một **hệ sinh thái tải đa phương tiện hoàn chỉnh và bảo mật**, kết hợp hoàn hảo giữa hiệu năng xử lý mạnh mẽ của Backend Python (Flask) và trải nghiệm giao diện người dùng Desktop mượt mà, trực quan của Electron.
 
 Ứng dụng **hỗ trợ đa nền tảng**: Windows, macOS và Linux — với quy trình CI/CD tự động hóa đóng gói và phát hành cho cả 3 hệ điều hành thông qua GitHub Actions.
 
@@ -193,7 +193,7 @@ docker-compose up
 
 ## 📦 Đóng Gói & Phát Hành (Production Build)
 
-EveryThingDownloader tích hợp bộ công cụ đóng gói thông minh hỗ trợ cả giao diện đồ họa Web GUI trực quan lẫn dòng lệnh CLI mạnh mẽ, và menu tương tác (Interactive CLI Dashboard).
+Meikova Harvest tích hợp bộ công cụ đóng gói thông minh hỗ trợ cả giao diện đồ họa Web GUI trực quan lẫn dòng lệnh CLI mạnh mẽ, và menu tương tác (Interactive CLI Dashboard).
 
 ### Cách 1: Sử dụng Web Build GUI (Khuyên dùng)
 
@@ -214,7 +214,7 @@ EveryThingDownloader tích hợp bộ công cụ đóng gói thông minh hỗ tr
 python build_tool/builder_cli.py --target web --obfuscate
 
 # Build đầy đủ bản Desktop App (Installer + Portable trên Windows, DMG/ZIP trên macOS, AppImage/tar.gz trên Linux)
-python build_tool/builder_cli.py --target desktop --obfuscate --name EveryThingDownloader --version 1.0.0
+python build_tool/builder_cli.py --target desktop --obfuscate --name Meikova Harvest --version 1.0.0
 
 # Build cả Web Binary lẫn Desktop App
 python build_tool/builder_cli.py --target both --obfuscate
@@ -253,7 +253,7 @@ Dự án sử dụng **GitHub Actions** để tự động hóa hoàn toàn quy 
    - Tải mã nguồn, cài đặt Python 3.12 và Node.js 20
    - Biên dịch backend thành binary (`.exe` trên Windows, binary trên macOS/Linux)
    - Đóng gói Electron installer/portable cho từng nền tảng
-   - Đổi tên Web Binary kèm hậu tố nền tảng (ví dụ: `EveryThingDownloader-Web-1.0.0-Windows.exe`, `-macOS`, `-Linux`)
+   - Đổi tên Web Binary kèm hậu tố nền tảng (ví dụ: `Meikova Harvest-Web-1.0.0-Windows.exe`, `-macOS`, `-Linux`)
 3. **Tạo Release tự động**: Tổng hợp toàn bộ artifact từ 3 nền tảng, tính SHA-256 checksum cho từng file, tạo Release Notes chi tiết và đẩy lên cả kho riêng tư (Private) lẫn kho công khai (Public).
 4. **Đẩy cập nhật**: Hệ thống tự động cập nhật file `update.json` trên kho công khai chứa thông tin phiên bản mới nhất cùng đường dẫn tải về. Ứng dụng Electron của người dùng sẽ tự động nhận diện bản cập nhật tiếp theo thông qua tính năng **Auto-Update** tích hợp sẵn.
 
@@ -262,4 +262,4 @@ Dự án sử dụng **GitHub Actions** để tự động hóa hoàn toàn quy 
 ## 📝 Giấy Phép & Bản Quyền
 
 Dự án được phát hành theo giấy phép **MIT License**.
-Bản quyền thuộc về **EveryThingDownloader Team © 2026**.
+Bản quyền thuộc về **Meikova Harvest Team © 2026**.

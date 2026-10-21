@@ -1,8 +1,8 @@
 {
   "manifest_version": 3,
-  "name": "EveryThingDownloader Companion",
+  "name": "Meikova Harvest Companion",
   "version": "1.1.0",
-  "description": "Directly forwards media pages and streaming URLs to your local EveryThingDownloader app with one click.",
+  "description": "Directly forwards media pages and streaming URLs to your local Meikova Harvest app with one click.",
   "permissions": [
     "activeTab",
     "cookies",
@@ -25,7 +25,7 @@
   },
   "action": {
     "default_popup": "popup.html",
-    "default_title": "Send to EveryThingDownloader",
+    "default_title": "Send to Meikova Harvest",
     "default_icon": {
       "16": "icon16.png",
       "48": "icon48.png",

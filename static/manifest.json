@@ -1,7 +1,7 @@
 {
-  "name": "EveryThingDownloader",
-  "short_name": "EveryThingDownloader",
-  "description": "High-Performance Media Downloader & Transcoder for all platforms",
+  "name": "Meikova Harvest",
+  "short_name": "Meikova Harvest",
+  "description": "Meikova Harvest — Thu nhận media · tải xuống · chuyển đổi & Transcoder for all platforms",
   "start_url": "/",
   "display": "standalone",
   "background_color": "#080c14",

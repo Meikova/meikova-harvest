@@ -1,5 +1,5 @@
 """
-builder_cli.py — Command-line interface for EveryThingDownloader Build Tool
+builder_cli.py — Command-line interface for Meikova Harvest Build Tool
 
 Usage:
   python builder_cli.py --target web
@@ -52,13 +52,13 @@ def execute_build(obf_cfg: ObfuscationConfig, build_cfg: BuildConfig, target: st
     if host_sys == 'Windows':
         info('Terminating running app/server instances to release file locks…')
         subprocess.run(['taskkill', '/f', '/im', 'server.exe'], capture_output=True, shell=True)
-        subprocess.run(['taskkill', '/f', '/im', 'EveryThingDownloader.exe'], capture_output=True, shell=True)
+        subprocess.run(['taskkill', '/f', '/im', 'Meikova Harvest.exe'], capture_output=True, shell=True)
     elif host_sys in ('Darwin', 'Linux'):
         info('Terminating running app/server instances to release file locks…')
         # Use -x (exact name match) instead of -f to prevent the build script from
         # matching its own command line arguments and terminating itself (exit code 143)
         subprocess.run(['pkill', '-x', 'server'], capture_output=True)
-        subprocess.run(['pkill', '-x', 'EveryThingDownloader'], capture_output=True)
+        subprocess.run(['pkill', '-x', 'Meikova Harvest'], capture_output=True)
 
     # ── Clean up previous build assets ────────────────────────────────────
     import shutil
@@ -499,7 +499,7 @@ def run_interactive_menu():
 
     while True:
         print("\n" + "=" * 65)
-        print(_color("  EveryThingDownloader — Advanced Packaging Tool (CLI Menu)", "1;35"))
+        print(_color("  Meikova Harvest — Advanced Packaging Tool (CLI Menu)", "1;35"))
         print("=" * 65)
         
         # Display current configs
@@ -615,7 +615,7 @@ def main():
 
     parser = argparse.ArgumentParser(
         prog='builder_cli',
-        description='EveryThingDownloader — Advanced Packaging Tool',
+        description='Meikova Harvest — Advanced Packaging Tool',
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog='''
 Examples:
@@ -679,7 +679,7 @@ Examples:
 
     # Build options
     build = parser.add_argument_group('Build Settings')
-    build.add_argument('--name', default='EveryThingDownloader',
+    build.add_argument('--name', default='Meikova Harvest',
                        help='Output application name')
     build.add_argument('--version', default='2.0.4', help='Application version')
     build.add_argument('--icon', help='Path to icon file (.ico on Windows, .png/.icns on macOS)')

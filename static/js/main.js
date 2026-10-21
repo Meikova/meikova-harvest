@@ -1,4 +1,4 @@
-// --- JavaScript Logic for EveryThingDownloader ---
+// --- JavaScript Logic for Meikova Harvest ---
 
 // Global settings for Star Grid Canvas & UI Customizer
 window.canvasSettings = {
@@ -977,7 +977,7 @@ document.addEventListener("DOMContentLoaded", () => {
             } catch (_) {}
             if (btnSettingsChangeDir) btnSettingsChangeDir.style.display = "inline-flex";
         } else {
-            globalDownloadsDirInput.value = "Downloads / EveryThingDownloader";
+            globalDownloadsDirInput.value = "Downloads / MeikovaHarvest";
         }
     }
     updateDownloadsDirDisplay();

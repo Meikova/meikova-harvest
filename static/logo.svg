@@ -1,6 +1,1 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
-  <rect width="512" height="512" rx="112" fill="#080C14"/>
-  <path d="M256 256 C 312 168, 432 168, 432 256 C 432 344, 312 344, 256 256 C 200 168, 80 168, 80 256 C 80 344, 200 344, 256 256 Z"
-        fill="none" stroke="#00E5FF" stroke-width="44.8" stroke-linecap="round" stroke-linejoin="round"/>
-  <circle cx="371.2" cy="198.4" r="33.6" fill="#FFFFFF"/>
-</svg>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" width="100" height="100" fill="#83C4FF" role="img" aria-label="Meikova Harvest"><title>Meikova Harvest — Gravity intake</title><path fill-rule="evenodd" d="M20 14H35V29L50 44L65 29V14H80V35L65 50L80 65L50 89L20 65L35 50L20 35Z M50 60L41 66L50 73L59 66Z"/></svg>
