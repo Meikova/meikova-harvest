@@ -1,5 +1,5 @@
 """
-obfuscator.py — Code protection module for EveryThingDownloader
+obfuscator.py — Code protection module for Meikova Harvest
 
 Features (all self-implemented, no PyArmor Pro required):
   1. PyArmor free-tier obfuscation (bytecode level)

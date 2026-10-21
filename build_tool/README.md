@@ -1,4 +1,4 @@
-# EveryThingDownloader — Build Tool & Packaging Guide
+# Meikova Harvest — Build Tool & Packaging Guide
 
 ## Overview
 
@@ -43,17 +43,17 @@ python build_tool/builder_cli.py --gui
 ### Build Web Server Binary (Simple)
 ```bash
 # Auto-detects host platform. Output:
-# Windows → dist/EveryThingDownloader-Web-1.0.0.exe
-# macOS   → dist/EveryThingDownloader-Web-1.0.0
-# Linux   → dist/EveryThingDownloader-Web-1.0.0
+# Windows → dist/Meikova Harvest-Web-1.0.0.exe
+# macOS   → dist/Meikova Harvest-Web-1.0.0
+# Linux   → dist/Meikova Harvest-Web-1.0.0
 python build_tool/builder_cli.py --target web
 ```
 
 ### Build Desktop App
 ```bash
-# Windows → dist_electron/EveryThingDownloader-Setup-1.0.0.exe (NSIS), EveryThingDownloader-Portable-1.0.0.exe, EveryThingDownloader-1.0.0.msi, EveryThingDownloader-1.0.0-win.zip
-# macOS   → dist_electron/EveryThingDownloader-1.0.0.dmg, EveryThingDownloader-1.0.0-mac.zip, EveryThingDownloader-1.0.0.pkg
-# Linux   → dist_electron/EveryThingDownloader-1.0.0.AppImage, EveryThingDownloader-1.0.0.tar.gz, EveryThingDownloader-1.0.0.deb, EveryThingDownloader-1.0.0.rpm
+# Windows → dist_electron/Meikova Harvest-Setup-1.0.0.exe (NSIS), Meikova Harvest-Portable-1.0.0.exe, Meikova Harvest-1.0.0.msi, Meikova Harvest-1.0.0-win.zip
+# macOS   → dist_electron/Meikova Harvest-1.0.0.dmg, Meikova Harvest-1.0.0-mac.zip, Meikova Harvest-1.0.0.pkg
+# Linux   → dist_electron/Meikova Harvest-1.0.0.AppImage, Meikova Harvest-1.0.0.tar.gz, Meikova Harvest-1.0.0.deb, Meikova Harvest-1.0.0.rpm
 python build_tool/builder_cli.py --target desktop
 ```
 
@@ -165,9 +165,9 @@ Source code
 Obfuscator (AST transform + PyArmor)
     |
     v
-PyInstaller → dist/EveryThingDownloader-Web-{version}.exe (Windows)
-              dist/EveryThingDownloader-Web-{version} (macOS)
-              dist/EveryThingDownloader-Web-{version} (Linux)
+PyInstaller → dist/Meikova Harvest-Web-{version}.exe (Windows)
+              dist/Meikova Harvest-Web-{version} (macOS)
+              dist/Meikova Harvest-Web-{version} (Linux)
 ```
 
 ## Desktop App Build Flow
@@ -182,12 +182,12 @@ Obfuscator
 PyInstaller → server.exe (Windows) / server (macOS/Linux)
     | copy to electron/resources/
     v
-electron-builder → dist_electron/EveryThingDownloader-Setup-{version}.exe   (Windows NSIS)
-                   dist_electron/EveryThingDownloader-Portable-{version}.exe (Windows Portable)
-                   dist_electron/EveryThingDownloader-{version}.dmg          (macOS DMG)
-                   dist_electron/EveryThingDownloader-{version}.zip          (macOS ZIP)
-                   dist_electron/EveryThingDownloader-{version}.AppImage     (Linux AppImage)
-                   dist_electron/EveryThingDownloader-{version}.tar.gz       (Linux Archive)
+electron-builder → dist_electron/Meikova Harvest-Setup-{version}.exe   (Windows NSIS)
+                   dist_electron/Meikova Harvest-Portable-{version}.exe (Windows Portable)
+                   dist_electron/Meikova Harvest-{version}.dmg          (macOS DMG)
+                   dist_electron/Meikova Harvest-{version}.zip          (macOS ZIP)
+                   dist_electron/Meikova Harvest-{version}.AppImage     (Linux AppImage)
+                   dist_electron/Meikova Harvest-{version}.tar.gz       (Linux Archive)
 ```
 
 ---

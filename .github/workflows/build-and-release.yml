@@ -2,8 +2,11 @@ name: Build and Release
 
 on:
   push:
+    branches:
+      - main
     tags:
       - 'v*'
+  workflow_dispatch:
 
 permissions:
   contents: write
@@ -37,34 +40,39 @@ jobs:
           python -m pip install --upgrade pip
           pip install -r requirements.txt
 
-      - name: Extract version from tag
+      - name: Extract version
         shell: bash
         run: |
-          TAG_NAME=${{ github.ref_name }}
-          VERSION=$(echo "$TAG_NAME" | sed -E 's/^[^0-9]*//')
+          TAG_NAME="${{ github.ref_name }}"
+          if [[ "$TAG_NAME" =~ ^v?[0-9] ]]; then
+            VERSION=$(echo "$TAG_NAME" | sed -E 's/^[^0-9]*//')
+          else
+            VERSION="2.0.4"
+          fi
           echo "VERSION=$VERSION" >> $GITHUB_ENV
 
       - name: Run build tool
         run: |
-          python build_tool/builder_cli.py --target both --name EveryThingDownloader --version ${{ env.VERSION }} --company EveryThingDownloader --description EveryThingDownloader --copyright "© 2026 EveryThingDownloader"
+          python build_tool/builder_cli.py --target both --name MeikovaHarvest --version ${{ env.VERSION }} --company Meikova --description "Meikova Harvest" --copyright "© 2026 Meikova"
 
       - name: Rename Web Binary for platform identification
         shell: bash
         run: |
           if [ "${{ matrix.os }}" = "windows-latest" ]; then
-            mv dist/EveryThingDownloader-Web-${{ env.VERSION }}.exe dist/EveryThingDownloader-Web-${{ env.VERSION }}-Windows.exe || true
+            mv dist/MeikovaHarvest-Web-${{ env.VERSION }}.exe dist/MeikovaHarvest-Web-${{ env.VERSION }}-Windows.exe || true
           elif [ "${{ matrix.os }}" = "macos-latest" ]; then
-            mv dist/EveryThingDownloader-Web-${{ env.VERSION }} dist/EveryThingDownloader-Web-${{ env.VERSION }}-macOS || true
+            mv dist/MeikovaHarvest-Web-${{ env.VERSION }} dist/MeikovaHarvest-Web-${{ env.VERSION }}-macOS || true
           elif [ "${{ matrix.os }}" = "ubuntu-latest" ]; then
-            mv dist/EveryThingDownloader-Web-${{ env.VERSION }} dist/EveryThingDownloader-Web-${{ env.VERSION }}-Linux || true
+            mv dist/MeikovaHarvest-Web-${{ env.VERSION }} dist/MeikovaHarvest-Web-${{ env.VERSION }}-Linux || true
           fi
 
       - name: Upload build assets directly to Private Release
+        if: startsWith(github.ref, 'refs/tags/v') || github.event_name == 'workflow_dispatch'
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: ${{ github.ref_name }}
+          tag_name: ${{ startsWith(github.ref, 'refs/tags/v') && github.ref_name || 'v2.0.4' }}
           files: |
-            dist/EveryThingDownloader*
+            dist/MeikovaHarvest*
             dist_electron/*.exe
             dist_electron/*.msi
             dist_electron/*.dmg
@@ -80,6 +88,7 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
   release:
+    if: startsWith(github.ref, 'refs/tags/v') || github.event_name == 'workflow_dispatch'
     needs: build
     runs-on: ubuntu-latest
 
@@ -89,10 +98,18 @@ jobs:
         with:
           fetch-depth: 0
 
+      - name: Extract version
+        shell: bash
+        run: |
+          TAG_NAME="${{ startsWith(github.ref, 'refs/tags/v') && github.ref_name || 'v2.0.4' }}"
+          VERSION=$(echo "$TAG_NAME" | sed -E 's/^[^0-9]*//')
+          echo "TARGET_TAG=$TAG_NAME" >> $GITHUB_ENV
+          echo "VERSION=$VERSION" >> $GITHUB_ENV
+
       - name: Download all assets from Private Release
         run: |
           mkdir -p all_assets
-          gh release download ${{ github.ref_name }} --dir all_assets
+          gh release download ${{ env.TARGET_TAG }} --dir all_assets
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
@@ -101,69 +118,55 @@ jobs:
           echo "=== Files in all_assets/ ==="
           ls -lah ./all_assets/
 
-      - name: Extract version from tag
-        shell: bash
-        run: |
-          TAG_NAME=${{ github.ref_name }}
-          VERSION=$(echo "$TAG_NAME" | sed -E 's/^[^0-9]*//')
-          echo "VERSION=$VERSION" >> $GITHUB_ENV
-
-      # =========================================================================
-      # TÍNH TOÁN SHA-256 VÀ TỰ ĐỘNG TRÍCH XUẤT CHANGELOG ĐỂ TẠO RELEASE NOTES RIÊNG BIỆT
-      # =========================================================================
       - name: Calculate SHA-256 & Generate Release Notes
         shell: bash
         run: |
-          # 1. Lấy thông tin tin nhắn mô tả của tag (Tag Message) hoặc commit mới nhất
-          TAG_MSG=$(git tag -l -n99 ${{ github.ref_name }} | sed "s/^${{ github.ref_name }} //g" | sed 's/^[ \t]*//')
-          if [ -z "$TAG_MSG" ] || [ "$TAG_MSG" = "Release ${{ github.ref_name }}" ] || [ "$TAG_MSG" = "${{ github.ref_name }}" ]; then
+          TAG_MSG=$(git tag -l -n99 ${{ env.TARGET_TAG }} | sed "s/^${{ env.TARGET_TAG }} //g" | sed 's/^[ \t]*//')
+          if [ -z "$TAG_MSG" ] || [ "$TAG_MSG" = "Release ${{ env.TARGET_TAG }}" ] || [ "$TAG_MSG" = "${{ env.TARGET_TAG }}" ]; then
             TAG_MSG=$(git log -1 --pretty=format:"%B")
           fi
           
-          # 2. Lấy danh sách các commits (Changelog) giữa phiên bản cũ và phiên bản mới này
-          PREV_TAG=$(git describe --tags --abbrev=0 ${{ github.ref_name }}^ 2>/dev/null || true)
+          PREV_TAG=$(git describe --tags --abbrev=0 ${{ env.TARGET_TAG }}^ 2>/dev/null || true)
           if [ -n "$PREV_TAG" ]; then
-            CHANGELOG=$(git log ${PREV_TAG}..${{ github.ref_name }} --pretty=format:"* %s (%h)")
+            CHANGELOG=$(git log ${PREV_TAG}..${{ env.TARGET_TAG }} --pretty=format:"* %s (%h)")
           else
             CHANGELOG=$(git log -n 15 --pretty=format:"* %s (%h)")
           fi
           
-          # 3. Tạo file release_notes.md ban đầu
           cat <<EOF > release_notes.md
-          # 🚀 EveryThingDownloader ${{ github.ref_name }}
+          # Meikova Harvest ${{ env.TARGET_TAG }}
           
-          Giải pháp tải đa phương tiện toàn năng, hỗ trợ đa nền tảng (Windows, macOS, Linux), bảo mật tối đa và tự động phát hành.
+          Giai phap tai da phuong tien toan nang, ho tro da nen tang (Windows, macOS, Linux), bao mat ma nguon va phat hanh tu dong.
           
-          ### 📝 Chi tiết phát hành (Release Message):
+          ### Chi tiet phat hanh (Release Message):
           $TAG_MSG
           
-          ### 🔍 Nhật ký thay đổi (What's Changed):
+          ### Nhat ky thay doi (What's Changed):
           $CHANGELOG
           
-          ### 📦 Thông tin các file cài đặt (Assets Info):
-          #### 🪟 Windows:
-          * **EveryThingDownloader-Setup-${{ env.VERSION }}.exe**: Bản cài đặt đầy đủ (NSIS Setup) hỗ trợ gỡ cài đặt tiện lợi.
-          * **EveryThingDownloader-Portable-${{ env.VERSION }}.exe**: Bản di động (Portable), chạy ngay không cần cài đặt.
-          * **EveryThingDownloader-${{ env.VERSION }}.msi**: Bản cài đặt Windows Installer (MSI) dành cho doanh nghiệp/Group Policy.
-          * **EveryThingDownloader-${{ env.VERSION }}-win.zip**: Bản nén ZIP cho Windows.
-          #### 🍎 macOS:
-          * **EveryThingDownloader-${{ env.VERSION }}.dmg**: Bản cài đặt Disk Image cho macOS.
-          * **EveryThingDownloader-${{ env.VERSION }}-mac.zip**: Bản nén ZIP cho macOS.
-          * **EveryThingDownloader-${{ env.VERSION }}.pkg**: Bản cài đặt Package Installer cho macOS.
-          #### 🐧 Linux:
-          * **EveryThingDownloader-${{ env.VERSION }}.AppImage**: Bản di động cho Linux, chạy trực tiếp.
-          * **EveryThingDownloader-${{ env.VERSION }}.tar.gz**: Bản nén Archive cho Linux.
-          * **EveryThingDownloader-${{ env.VERSION }}.deb**: Bản cài đặt cho Ubuntu/Debian.
-          * **EveryThingDownloader-${{ env.VERSION }}.rpm**: Bản cài đặt cho Fedora/RHEL/CentOS.
-          #### 🌐 Web Binary (Standalone Server):
-          * **EveryThingDownloader-Web-${{ env.VERSION }}-\<Platform\>**: Bản Web Binary độc lập chạy trên các hệ điều hành tương ứng.
+          ### Thong tin cac tap tin phat hanh (Assets Info):
+          #### Windows:
+          * **MeikovaHarvest-Setup-${{ env.VERSION }}.exe**: Ban cai dat NSIS day du ho tro go cai dat.
+          * **MeikovaHarvest-Portable-${{ env.VERSION }}.exe**: Ban di dong (Portable), chay truc tiep khong can cai dat.
+          * **MeikovaHarvest-${{ env.VERSION }}.msi**: Ban cai dat Windows Installer (MSI).
+          * **MeikovaHarvest-${{ env.VERSION }}-win.zip**: Ban nen ZIP cho Windows.
+          #### macOS:
+          * **MeikovaHarvest-${{ env.VERSION }}.dmg**: Ban cai dat Disk Image cho macOS.
+          * **MeikovaHarvest-${{ env.VERSION }}-mac.zip**: Ban nen ZIP cho macOS.
+          * **MeikovaHarvest-${{ env.VERSION }}.pkg**: Ban cai dat Package Installer cho macOS.
+          #### Linux:
+          * **MeikovaHarvest-${{ env.VERSION }}.AppImage**: Ban di dong cho Linux, chay truc tiep.
+          * **MeikovaHarvest-${{ env.VERSION }}.tar.gz**: Ban nen Archive cho Linux.
+          * **MeikovaHarvest-${{ env.VERSION }}.deb**: Ban cai dat cho Ubuntu/Debian.
+          * **MeikovaHarvest-${{ env.VERSION }}.rpm**: Ban cai dat cho Fedora/RHEL/CentOS.
+          #### Web Binary (Standalone Server):
+          * **MeikovaHarvest-Web-${{ env.VERSION }}-<Platform>**: Ban Web Binary doc lap chay tren tung he dieu hanh.
           
-          ### 🛡️ Mã băm bảo mật (SHA-256 Checksums):
+          ### Ma bam bao mat (SHA-256 Checksums):
           | File Asset | SHA-256 Checksum |
           |---|---|
           EOF
 
-          # 4. Tính toán và append SHA-256 của từng file vào bảng
           cd all_assets
           for file in *; do
             if [ -f "$file" ]; then
@@ -176,29 +179,23 @@ jobs:
           cat <<EOF >> release_notes.md
           
           ---
-          > ⚠️ **Lưu ý quan trọng**: Do mã nguồn được bảo vệ bằng các thuật toán xáo trộn code và đóng gói nhị phân (PyArmor), một số phần mềm diệt virus (bao gồm Windows Defender) có thể cảnh báo nhầm (False Positive). Hãy yên tâm bỏ qua hoặc thêm tệp vào danh sách loại trừ để sử dụng ổn định.
+          > **Luu y**: Do ma nguon duoc bao ve bang cac thuat toan xao tron code va dong goi nhi phan (PyArmor), mot so phan mem diet virus co the canh bao nham (False Positive). Vui long bo qua hoac them tep vao danh sach ngoai le de su dung on dinh.
           EOF
 
-      # =========================================================================
-      # ĐẦY FILE EXE ĐÃ BUILD SANG KHO LƯU TRỮ RIÊNG TƯ (PRIVATE REPOSITORY)
-      # =========================================================================
       - name: Update Private Release Notes with SHA-256 Checksums
         run: |
-          gh release edit ${{ github.ref_name }} --notes-file release_notes.md
+          gh release edit ${{ env.TARGET_TAG }} --notes-file release_notes.md
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-      # =========================================================================
-      # ĐẨY FILE EXE ĐÃ BUILD SANG KHO LƯU TRỮ CÔNG KHAI (PUBLIC REPOSITORY)
-      # =========================================================================
       - name: Clean existing assets (Public Repo)
         shell: bash
         run: |
-          echo "Listing assets in public repo for tag ${{ github.ref_name }}..."
-          assets=$(gh release view ${{ github.ref_name }} --repo m3iK18dp/EveryThingDownloader-Tool --json assets --jq '.assets[].name' 2>/dev/null || true)
+          echo "Listing assets in public repo for tag ${{ env.TARGET_TAG }}..."
+          assets=$(gh release view ${{ env.TARGET_TAG }} --repo Meikova/meikova-harvest-tool --json assets --jq '.assets[].name' 2>/dev/null || true)
           for asset in $assets; do
             echo "Deleting asset: $asset"
-            gh release delete-asset ${{ github.ref_name }} "$asset" --repo m3iK18dp/EveryThingDownloader-Tool -y
+            gh release delete-asset ${{ env.TARGET_TAG }} "$asset" --repo Meikova/meikova-harvest-tool -y
           done
         env:
           GH_TOKEN: ${{ secrets.RELEASE_TOKEN }}
@@ -206,42 +203,36 @@ jobs:
       - name: Create GitHub Release and Upload Assets (To Public Repo)
         uses: softprops/action-gh-release@v2
         with:
-          repository: m3iK18dp/EveryThingDownloader-Tool # Kho lưu trữ công khai của bạn
-          token: ${{ secrets.RELEASE_TOKEN }}           # PAT cấu hình trong Secrets của Private Repo
+          repository: Meikova/meikova-harvest-tool
+          token: ${{ secrets.RELEASE_TOKEN }}
           body_path: release_notes.md
           files: |
             all_assets/*
           draft: false
           prerelease: false
 
-      # =========================================================================
-      # CẬP NHẬT FILE update.json TRÊN KHO LƯU TRỮ CÔNG KHAI (PUBLIC REPOSITORY)
-      # =========================================================================
       - name: Update update.json in Public Repo
         shell: bash
         run: |
-          # 1. Clone repo công khai về thư mục tạm bằng PAT
-          git clone https://x-token-auth:${{ secrets.RELEASE_TOKEN }}@github.com/m3iK18dp/EveryThingDownloader-Tool.git public_repo
+          git clone https://x-token-auth:${{ secrets.RELEASE_TOKEN }}@github.com/Meikova/meikova-harvest-tool.git public_repo
           cd public_repo
           
-          # 2. Ghi đè file update.json với thông tin mới nhất
           cat <<EOF > update.json
           {
             "version": "${{ env.VERSION }}",
-            "url": "https://github.com/m3iK18dp/EveryThingDownloader-Tool/releases/download/${{ github.ref_name }}/EveryThingDownloader-Setup-${{ env.VERSION }}.exe",
+            "url": "https://github.com/Meikova/meikova-harvest-tool/releases/download/${{ env.TARGET_TAG }}/MeikovaHarvest-Setup-${{ env.VERSION }}.exe",
             "platforms": {
-              "win32": "https://github.com/m3iK18dp/EveryThingDownloader-Tool/releases/download/${{ github.ref_name }}/EveryThingDownloader-Setup-${{ env.VERSION }}.exe",
-              "darwin_arm64": "https://github.com/m3iK18dp/EveryThingDownloader-Tool/releases/download/${{ github.ref_name }}/EveryThingDownloader-${{ env.VERSION }}-arm64.dmg",
-              "darwin_x64": "https://github.com/m3iK18dp/EveryThingDownloader-Tool/releases/download/${{ github.ref_name }}/EveryThingDownloader-${{ env.VERSION }}-x64.dmg",
-              "linux_x64": "https://github.com/m3iK18dp/EveryThingDownloader-Tool/releases/download/${{ github.ref_name }}/EveryThingDownloader-${{ env.VERSION }}-x64.AppImage"
+              "win32": "https://github.com/Meikova/meikova-harvest-tool/releases/download/${{ env.TARGET_TAG }}/MeikovaHarvest-Setup-${{ env.VERSION }}.exe",
+              "darwin_arm64": "https://github.com/Meikova/meikova-harvest-tool/releases/download/${{ env.TARGET_TAG }}/MeikovaHarvest-${{ env.VERSION }}-arm64.dmg",
+              "darwin_x64": "https://github.com/Meikova/meikova-harvest-tool/releases/download/${{ env.TARGET_TAG }}/MeikovaHarvest-${{ env.VERSION }}-x64.dmg",
+              "linux_x64": "https://github.com/Meikova/meikova-harvest-tool/releases/download/${{ env.TARGET_TAG }}/MeikovaHarvest-${{ env.VERSION }}-x64.AppImage"
             },
-            "changelog": "Phiên bản mới nhất ${{ github.ref_name }} đã được phát hành tự động. Xem chi tiết tại mục Releases trên GitHub."
+            "changelog": "Phien ban moi nhat ${{ env.TARGET_TAG }} da duoc phat hanh tu dong. Chi tiet xem tai muc Releases tren GitHub."
           }
           EOF
           
-          # 3. Cấu hình git agent và push
           git config --global user.name "github-actions[bot]"
           git config --global user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add update.json
-          git commit -m "chore: update update.json to ${{ github.ref_name }} [skip ci]" || echo "No changes to commit"
+          git commit -m "chore: update update.json to ${{ env.TARGET_TAG }} [skip ci]" || echo "No changes to commit"
           git push origin HEAD:main

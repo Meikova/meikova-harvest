@@ -19,7 +19,7 @@ def get_github_repo_path(root_dir: Path) -> str | None:
 def publish_git_release(
     root_dir: Path,
     version: str,
-    app_name: str = 'EveryThingDownloader',
+    app_name: str = 'Meikova Harvest',
     tag: str = None,
     commit_msg: str = None,
     changelog: str = None,
@@ -43,7 +43,7 @@ def publish_git_release(
     if not changelog:
         changelog = f'Phiên bản mới nhất {tag} được phát hành qua Build Tool.'
     if not app_name:
-        app_name = 'EveryThingDownloader'
+        app_name = 'Meikova Harvest'
 
     log(f'Preparing release for repository: {repo} (Tag: {tag})', 'info')
 

@@ -134,7 +134,7 @@ function main() {
 
   if (args.includes('--help')) {
     console.log(`
-EveryThingDownloader — Electron Builder Script
+Meikova Harvest — Electron Builder Script
 
 Usage:
   node electron_builder.js [options]
@@ -150,7 +150,7 @@ Default: builds both Installer and Portable.
   }
 
   console.log('\n' + '═'.repeat(52));
-  console.log('  EveryThingDownloader — Electron Build');
+  console.log('  Meikova Harvest — Electron Build');
   console.log('═'.repeat(52) + '\n');
 
   if (!checkNode() || !checkNpm()) process.exit(1);

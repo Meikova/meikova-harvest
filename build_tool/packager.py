@@ -1,9 +1,9 @@
 """
-packager.py — Build pipeline for EveryThingDownloader
+packager.py — Build pipeline for MeikovaHarvest
 
 Outputs:
-  1. dist/EveryThingDownloader-Web.exe     — Standalone Flask server exe
-  2. dist_electron/EveryThingDownloader-Setup.exe  — Full Electron desktop installer
+  1. dist/MeikovaHarvest-Web.exe     — Standalone Flask server exe
+  2. dist_electron/MeikovaHarvest-Setup.exe  — Full Electron desktop installer
 """
 
 from __future__ import annotations
@@ -152,11 +152,11 @@ def sanitize_version(version: str | None) -> str:
 
 class BuildConfig:
     def __init__(self):
-        self.app_name:    str  = 'EveryThingDownloader'
+        self.app_name:    str  = 'MeikovaHarvest'
         self._version:    str  = '2.0.4'
-        self.company:     str  = 'EveryThingDownloader'
-        self.description: str  = 'EveryThingDownloader'
-        self.copyright:   str  = f'© 2026 EveryThingDownloader'
+        self.company:     str  = 'MeikovaHarvest'
+        self.description: str  = 'MeikovaHarvest'
+        self.copyright:   str  = f'© 2026 MeikovaHarvest'
         self.icon_path:   str  = str(ELECTRON_DIR / 'resources' / 'icon.ico')
         self.use_upx:     bool = False    # UPX compression (reduces size but slower start)
         self.console:     bool = False    # False = no console window in production
@@ -545,10 +545,10 @@ class Packager:
 
 if __name__ == '__main__':
     import argparse
-    parser = argparse.ArgumentParser(description='EveryThingDownloader Packager')
+    parser = argparse.ArgumentParser(description='MeikovaHarvest Packager')
     parser.add_argument('--target', choices=['web', 'desktop', 'both'], default='web')
     parser.add_argument('--version', default='1.0.0')
-    parser.add_argument('--name', default='EveryThingDownloader')
+    parser.add_argument('--name', default='MeikovaHarvest')
     args = parser.parse_args()
 
     cfg = BuildConfig()
