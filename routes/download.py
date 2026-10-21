@@ -12,7 +12,7 @@ import requests
 import json
 import time
 from urllib.parse import quote
-from flask import Blueprint, request, jsonify, send_file, Response
+from flask import Blueprint, request, jsonify, send_file, Response, redirect
 
 from config import TEMP_DOWNLOAD_DIR, downloads_status, downloads_status_lock
 from routes.auth import get_authenticated_user
@@ -1255,3 +1255,61 @@ def send_media_to_telegram(download_id):
         return jsonify({"status": "success", "message": "Uploaded successfully to Telegram cloud!"})
     else:
         return jsonify({"status": "error", "message": msg}), 500
+
+
+@download_bp.route("/api/download/app/<target>", methods=["GET", "HEAD"])
+def download_native_app(target):
+    """Phuc vu file tai ung dung da nen tang Meikova Harvest:
+    Windows (.exe Setup / Portable / .msi), macOS (.dmg / .zip), Linux (.AppImage / .deb / .tar.gz)."""
+    target_lower = target.lower().strip()
+    release_base = "https://github.com/Meikova/meikova-harvest-tool/releases/latest/download"
+    version = "2.0.4"
+    
+    mapping = {
+        "windows": f"MeikovaHarvest-Setup-{version}.exe",
+        "win": f"MeikovaHarvest-Setup-{version}.exe",
+        "win-setup": f"MeikovaHarvest-Setup-{version}.exe",
+        "win-portable": f"MeikovaHarvest-Portable-{version}.exe",
+        "portable": f"MeikovaHarvest-Portable-{version}.exe",
+        "msi": f"MeikovaHarvest-{version}.msi",
+        "macos": f"MeikovaHarvest-{version}-arm64.dmg",
+        "mac": f"MeikovaHarvest-{version}-arm64.dmg",
+        "dmg": f"MeikovaHarvest-{version}-arm64.dmg",
+        "macos-x64": f"MeikovaHarvest-{version}-x64.dmg",
+        "mac-intel": f"MeikovaHarvest-{version}-x64.dmg",
+        "mac-zip": f"MeikovaHarvest-{version}-mac.zip",
+        "linux": f"MeikovaHarvest-{version}-x64.AppImage",
+        "appimage": f"MeikovaHarvest-{version}-x64.AppImage",
+        "deb": f"MeikovaHarvest-{version}.deb",
+        "linux-deb": f"MeikovaHarvest-{version}.deb",
+        "tar": f"MeikovaHarvest-{version}.tar.gz",
+        "linux-tar": f"MeikovaHarvest-{version}.tar.gz",
+        "extension": "MeikovaHarvest-Extension.zip",
+        "chrome": "MeikovaHarvest-Extension.zip"
+    }
+    
+    filename = mapping.get(target_lower)
+    if not filename:
+        return jsonify({"status": "error", "message": f"Khong ho tro goi tai: {target}"}), 404
+        
+    root_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    
+    if target_lower in ["extension", "chrome"]:
+        ext_dir = os.path.join(root_dir, "extension")
+        if os.path.isdir(ext_dir):
+            import io, zipfile
+            mem_buf = io.BytesIO()
+            with zipfile.ZipFile(mem_buf, 'w', zipfile.ZIP_DEFLATED) as zf:
+                for root, _, files in os.walk(ext_dir):
+                    for file in files:
+                        full_p = os.path.join(root, file)
+                        rel_p = os.path.relpath(full_p, ext_dir)
+                        zf.write(full_p, rel_p)
+            mem_buf.seek(0)
+            return send_file(mem_buf, as_attachment=True, download_name="MeikovaHarvest-Extension.zip", mimetype="application/zip")
+    for folder in ["dist_electron", "dist"]:
+        local_f = os.path.join(root_dir, folder, filename)
+        if os.path.isfile(local_f) and os.path.getsize(local_f) > 0:
+            return send_file(local_f, as_attachment=True, download_name=filename)
+            
+    return redirect(f"{release_base}/{filename}", code=307)

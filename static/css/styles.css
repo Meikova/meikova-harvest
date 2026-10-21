@@ -12384,3 +12384,254 @@ body.preview-active .app-shell {
 }
 
 
+
+
+/* ==========================================================================
+   Meikova Harvest: Multiplatform Native Apps Download Modal & Pill Button
+   Ambient Dark Instrument UI Standards
+   ========================================================================== */
+
+.apps-pill-btn {
+  width: auto;
+  min-width: 40px;
+  height: 38px;
+  border-radius: 20px;
+  padding: 0 14px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  cursor: pointer;
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid var(--glass-border);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  color: var(--cyan);
+  font-family: inherit;
+  font-size: 0.75rem;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.apps-pill-btn:hover {
+  background: var(--surface-hover);
+  color: #FFFFFF;
+  border-color: var(--cyan);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 16px rgba(var(--cyan-rgb, 0, 229, 255), 0.25);
+}
+
+.apps-btn-label {
+  white-space: nowrap;
+}
+
+.apps-modal-card {
+  width: min(720px, calc(100vw - 28px)) !important;
+  max-width: min(720px, calc(100vw - 28px)) !important;
+  border-radius: 14px;
+  border: 1px solid rgba(var(--cyan-rgb, 0, 229, 255), 0.2);
+  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.7), 0 0 32px -8px rgba(var(--cyan-rgb, 0, 229, 255), 0.2);
+}
+
+.apps-modal-head-title {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.apps-modal-icon-badge {
+  width: 38px;
+  height: 38px;
+  border-radius: 9px;
+  background: rgba(var(--cyan-rgb, 0, 229, 255), 0.08);
+  border: 1px solid rgba(var(--cyan-rgb, 0, 229, 255), 0.25);
+  color: var(--cyan);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.apps-telemetry-box {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  background: rgba(0, 0, 0, 0.35);
+  border: 1px solid rgba(var(--cyan-rgb, 0, 229, 255), 0.15);
+  border-radius: 8px;
+  padding: 8px 12px;
+  margin-bottom: 16px;
+}
+
+.apps-telemetry-left {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.apps-led-pulse {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--cyan);
+  box-shadow: 0 0 8px var(--cyan);
+  animation: apps-led-pulse 2s infinite ease-in-out;
+  flex-shrink: 0;
+}
+
+@keyframes apps-led-pulse {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: 0.45; transform: scale(0.85); }
+}
+
+.apps-telemetry-tag {
+  font-size: 0.65rem;
+  font-weight: 700;
+  color: var(--cyan);
+  letter-spacing: 0.08em;
+}
+
+.apps-telemetry-desc {
+  font-size: 0.65rem;
+  color: var(--text-dim);
+  letter-spacing: 0.06em;
+}
+
+.apps-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+}
+
+@media (max-width: 640px) {
+  .apps-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .apps-modal-footer-strip {
+    flex-direction: column;
+    align-items: stretch;
+  }
+}
+
+.apps-dl-card {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  padding: 12px 14px;
+  background: rgba(255, 255, 255, 0.025);
+  border: 1px solid var(--glass-border);
+  border-radius: 10px;
+  text-decoration: none;
+  color: var(--text-main);
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+  position: relative;
+  overflow: hidden;
+  min-width: 0;
+}
+
+.apps-dl-card:hover {
+  background: rgba(var(--cyan-rgb, 0, 229, 255), 0.06);
+  border-color: var(--cyan);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4), 0 0 16px rgba(var(--cyan-rgb, 0, 229, 255), 0.18);
+  transform: translateY(-2px);
+  color: #FFFFFF;
+}
+
+.apps-dl-card:active {
+  transform: translateY(0);
+}
+
+.apps-dl-card--btn {
+  width: 100%;
+  font-family: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.apps-dl-card__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  margin-bottom: 8px;
+}
+
+.apps-dl-card__icon {
+  color: var(--cyan);
+  display: flex;
+  align-items: center;
+}
+
+.apps-dl-card__badge {
+  font-size: 0.6rem;
+  font-weight: 700;
+  padding: 2px 6px;
+  border-radius: 4px;
+  background: rgba(var(--cyan-rgb, 0, 229, 255), 0.12);
+  color: var(--cyan);
+  border: 1px solid rgba(var(--cyan-rgb, 0, 229, 255), 0.25);
+  line-height: 1;
+}
+
+.apps-dl-card__name {
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--text-main);
+  margin-bottom: 3px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  width: 100%;
+}
+
+.apps-dl-card__desc {
+  font-size: 0.68rem;
+  color: var(--text-dim);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  width: 100%;
+}
+
+.apps-modal-footer-strip {
+  margin-top: 16px;
+  padding-top: 14px;
+  border-top: 1px solid var(--border-subtle);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.apps-footer-cmd {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 12px;
+  background: rgba(0, 0, 0, 0.4);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  border-radius: 6px;
+  color: #A3E635;
+  font-size: 0.72rem;
+}
+
+.apps-cmd-prompt {
+  color: var(--text-dim);
+}
+
+.apps-footer-link {
+  color: var(--cyan);
+  text-decoration: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.72rem;
+  transition: opacity 0.15s ease;
+}
+
+.apps-footer-link:hover {
+  text-decoration: underline;
+  opacity: 0.9;
+}

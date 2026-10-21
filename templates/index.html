@@ -234,6 +234,21 @@
               </button>
             </div>
           </div>
+          <!-- Download Multiplatform Apps Pill Button -->
+          <button
+            id="btn-open-apps-modal"
+            class="header-action-btn apps-pill-btn"
+            title="Tải ứng dụng Meikova Harvest (Windows, macOS, Linux, Trình duyệt, PWA)"
+            aria-label="Tải ứng dụng đa nền tảng"
+          >
+            <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+              <polyline points="7 10 12 15 17 10" />
+              <line x1="12" y1="15" x2="12" y2="3" />
+            </svg>
+            <span class="apps-btn-label">TẢI APP</span>
+          </button>
+
           <button
             id="settings-toggle"
             class="header-action-btn"
@@ -3628,6 +3643,143 @@
     <!-- Alignment Snapping Guidelines -->
     <div id="preview-align-v" class="preview-align-line hidden"></div>
     <div id="preview-align-h" class="preview-align-line hidden"></div>
+
+    <!-- Native Multiplatform Apps Download Modal -->
+    <div id="apps-download-modal" class="modal-overlay hidden" aria-labelledby="apps-modal-title" role="dialog" aria-modal="true">
+      <div class="modal-card apps-modal-card">
+        <div class="modal-header">
+          <div class="apps-modal-head-title">
+            <div class="apps-modal-icon-badge" aria-hidden="true">
+              <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <rect x="2" y="3" width="12" height="9" rx="1.5"/>
+                <rect x="15" y="8" width="7" height="13" rx="1.5"/>
+                <line x1="6" y1="12" x2="6" y2="15"/>
+                <line x1="4" y1="15" x2="8" y2="15"/>
+                <circle cx="18.5" cy="18" r="0.5" fill="currentColor"/>
+              </svg>
+            </div>
+            <div>
+              <h3 id="apps-modal-title" style="margin: 0; font-size: 1.15rem; font-weight: 700;">Cài đặt & Tải ứng dụng</h3>
+              <span class="apps-modal-sub mono" style="font-size: 0.68rem; color: var(--text-dim); letter-spacing: 0.08em;">CROSS-PLATFORM // CLIENTS & TOOLS</span>
+            </div>
+          </div>
+          <button id="apps-modal-close-btn" class="modal-close-btn" title="Đóng">
+            <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <line x1="18" y1="6" x2="6" y2="18" />
+              <line x1="6" y1="6" x2="18" y2="18" />
+            </svg>
+          </button>
+        </div>
+
+        <div class="apps-modal-body" style="padding: 16px 20px;">
+          <!-- Telemetry Strip -->
+          <div class="apps-telemetry-box">
+            <div class="apps-telemetry-left">
+              <span class="apps-led-pulse" aria-hidden="true"></span>
+              <span class="apps-telemetry-tag mono">NATIVE BUILDS // V2.0.4</span>
+            </div>
+            <span class="apps-telemetry-desc mono">WINDOWS · MACOS · LINUX · EXTENSION · PWA</span>
+          </div>
+
+          <!-- Direct Downloads Grid -->
+          <div class="apps-downloads-section">
+            <div class="apps-grid">
+              <!-- Windows Setup -->
+              <a href="/api/download/app/win-setup" class="apps-dl-card" title="Tải Meikova Harvest Setup cho Windows (.exe)">
+                <div class="apps-dl-card__head">
+                  <span class="apps-dl-card__icon" aria-hidden="true">
+                    <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor"><path d="M0 3.449L9.75 2.1v9.451H0m10.949-9.602L24 0v11.4H10.949M0 12.6h9.75v9.451L0 20.699M10.949 12.6H24V24l-12.901-1.8"/></svg>
+                  </span>
+                  <span class="apps-dl-card__badge mono">.EXE</span>
+                </div>
+                <strong class="apps-dl-card__name">Windows Setup</strong>
+                <span class="apps-dl-card__desc mono">Cài đặt trực tiếp</span>
+              </a>
+
+              <!-- Windows Portable -->
+              <a href="/api/download/app/win-portable" class="apps-dl-card" title="Tải Meikova Harvest Portable cho Windows (Không cần cài đặt)">
+                <div class="apps-dl-card__head">
+                  <span class="apps-dl-card__icon" aria-hidden="true">
+                    <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor"><path d="M0 3.449L9.75 2.1v9.451H0m10.949-9.602L24 0v11.4H10.949M0 12.6h9.75v9.451L0 20.699M10.949 12.6H24V24l-12.901-1.8"/></svg>
+                  </span>
+                  <span class="apps-dl-card__badge mono">PORTABLE</span>
+                </div>
+                <strong class="apps-dl-card__name">Win Portable</strong>
+                <span class="apps-dl-card__desc mono">Chạy ngay không cài</span>
+              </a>
+
+              <!-- macOS Apple Silicon -->
+              <a href="/api/download/app/dmg" class="apps-dl-card" title="Tải Meikova Harvest DMG cho macOS (Apple Silicon M1/M2/M3/M4)">
+                <div class="apps-dl-card__head">
+                  <span class="apps-dl-card__icon" aria-hidden="true">
+                    <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor"><path d="M18.71 19.5c-.83 1.24-1.71 2.45-3.05 2.47-1.34.03-1.77-.79-3.29-.79-1.53 0-2 .77-3.27.82-1.31.05-2.3-1.32-3.14-2.53C4.25 17 2.94 12.45 4.7 9.39c.87-1.52 2.43-2.48 4.12-2.51 1.28-.02 2.5.87 3.29.87.78 0 2.26-1.07 3.81-.91.65.03 2.47.26 3.64 1.98-.09.06-2.17 1.28-2.15 3.81.03 3.02 2.65 4.03 2.68 4.04-.03.07-.42 1.44-1.38 2.83M15.97 6.37c.63-.77 1.06-1.84.94-2.91-1 .04-2.18.67-2.88 1.49-.6.69-1.13 1.79-.99 2.85 1.11.09 2.24-.59 2.93-1.43z"/></svg>
+                  </span>
+                  <span class="apps-dl-card__badge mono">.DMG</span>
+                </div>
+                <strong class="apps-dl-card__name">macOS Silicon</strong>
+                <span class="apps-dl-card__desc mono">Apple M1/M2/M3/M4</span>
+              </a>
+
+              <!-- Linux AppImage -->
+              <a href="/api/download/app/appimage" class="apps-dl-card" title="Tải Meikova Harvest AppImage cho Linux (Ubuntu, Debian, Fedora, Arch)">
+                <div class="apps-dl-card__head">
+                  <span class="apps-dl-card__icon" aria-hidden="true">
+                    <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor"><path d="M12.001 2c-2.42 0-3.999 1.83-3.999 4.08 0 .68.15 1.47.38 2.2-.67.43-1.42 1.1-1.85 1.9-.81 1.5-.7 3.2-.28 4.88-1.05.67-1.75 1.74-1.75 3.02 0 1.94 1.66 3.42 3.84 3.42 1.13 0 2.18-.45 2.97-1.22.88.38 1.83.62 2.82.62 1.05 0 2.05-.26 2.98-.67.79.77 1.83 1.22 2.96 1.22 2.18 0 3.84-1.48 3.84-3.42 0-1.28-.7-2.35-1.75-3.02.42-1.68.53-3.38-.28-4.88-.43-.8-1.18-1.47-1.85-1.9.23-.73.38-1.52.38-2.2 0-2.25-1.58-4.08-3.999-4.08h-.862z"/></svg>
+                  </span>
+                  <span class="apps-dl-card__badge mono">.APPIMAGE</span>
+                </div>
+                <strong class="apps-dl-card__name">Linux AppImage</strong>
+                <span class="apps-dl-card__desc mono">Universal Linux</span>
+              </a>
+
+              <!-- Browser Extension -->
+              <a href="/api/download/app/extension" class="apps-dl-card" title="Tải tiện ích mở rộng Chrome / Edge / Brave (.zip)">
+                <div class="apps-dl-card__head">
+                  <span class="apps-dl-card__icon" aria-hidden="true">
+                    <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                      <polygon points="12 2 2 7 12 12 22 7 12 2"></polygon>
+                      <polyline points="2 17 12 22 22 17"></polyline>
+                      <polyline points="2 12 12 17 22 12"></polyline>
+                    </svg>
+                  </span>
+                  <span class="apps-dl-card__badge mono">EXTENSION</span>
+                </div>
+                <strong class="apps-dl-card__name">Trình duyệt</strong>
+                <span class="apps-dl-card__desc mono">Chrome / Edge V3</span>
+              </a>
+
+              <!-- PWA Web App -->
+              <button type="button" class="apps-dl-card apps-dl-card--btn" id="btn-pwa-install-harvest" title="Cài đặt Meikova Harvest trực tiếp làm ứng dụng Web (PWA)">
+                <div class="apps-dl-card__head">
+                  <span class="apps-dl-card__icon" aria-hidden="true">
+                    <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                      <rect x="2" y="3" width="20" height="14" rx="2" ry="2"></rect>
+                      <line x1="8" y1="21" x2="16" y2="21"></line>
+                      <line x1="12" y1="17" x2="12" y2="21"></line>
+                    </svg>
+                  </span>
+                  <span class="apps-dl-card__badge mono" id="pwa-badge-harvest">PWA</span>
+                </div>
+                <strong class="apps-dl-card__name">Web App (PWA)</strong>
+                <span class="apps-dl-card__desc mono" id="pwa-desc-harvest">Cài trên Browser</span>
+              </button>
+            </div>
+          </div>
+
+          <!-- Footer Release link & Command -->
+          <div class="apps-modal-footer-strip">
+            <div class="apps-footer-cmd mono">
+              <span class="apps-cmd-prompt">$</span>
+              <span>winget install Meikova.Harvest</span>
+            </div>
+            <a href="https://github.com/Meikova/meikova-harvest-tool/releases/latest" target="_blank" rel="noopener noreferrer" class="apps-footer-link mono">
+              <span>GitHub Releases // Xem tất cả các bản dựng</span>
+              <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
+            </a>
+          </div>
+        </div>
+      </div>
+    </div>
 
     <script src="https://cdnjs.cloudflare.com/ajax/libs/noUiSlider/15.7.1/nouislider.min.js"></script>
     <script src="{{ url_for('static', filename='js/main.js') }}?v=28.1"></script>

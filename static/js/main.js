@@ -17252,4 +17252,72 @@ document.addEventListener("DOMContentLoaded", () => {
         showNetworkToast(true);
         triggerCloudSync(false);
     });
+
+    // -------------------------------------------------------------------------
+    // Meikova Harvest: Multiplatform Native Apps Download Modal & PWA Controller
+    // -------------------------------------------------------------------------
+    const btnOpenAppsModal = document.getElementById("btn-open-apps-modal");
+    const appsDownloadModal = document.getElementById("apps-download-modal");
+    const appsModalCloseBtn = document.getElementById("apps-modal-close-btn");
+    const btnPwaInstallHarvest = document.getElementById("btn-pwa-install-harvest");
+    const pwaBadgeHarvest = document.getElementById("pwa-badge-harvest");
+    const pwaDescHarvest = document.getElementById("pwa-desc-harvest");
+
+    let harvestPwaPrompt = null;
+    window.addEventListener("beforeinstallprompt", (e) => {
+        e.preventDefault();
+        harvestPwaPrompt = e;
+        if (pwaBadgeHarvest) pwaBadgeHarvest.textContent = "SẴN SÀNG";
+        if (pwaDescHarvest) pwaDescHarvest.textContent = "Bấm để cài đặt PWA";
+    });
+
+    window.addEventListener("appinstalled", () => {
+        harvestPwaPrompt = null;
+        if (pwaBadgeHarvest) pwaBadgeHarvest.textContent = "ĐÃ CÀI ĐẶT";
+        if (pwaDescHarvest) pwaDescHarvest.textContent = "Đã cài làm App";
+    });
+
+    if (btnOpenAppsModal && appsDownloadModal) {
+        const openAppsModal = () => {
+            appsDownloadModal.classList.remove("hidden");
+            document.body.classList.add("modal-open");
+        };
+
+        const closeAppsModal = () => {
+            appsDownloadModal.classList.add("hidden");
+            document.body.classList.remove("modal-open");
+        };
+
+        btnOpenAppsModal.addEventListener("click", openAppsModal);
+
+        if (appsModalCloseBtn) {
+            appsModalCloseBtn.addEventListener("click", closeAppsModal);
+        }
+
+        appsDownloadModal.addEventListener("click", (e) => {
+            if (e.target === appsDownloadModal) {
+                closeAppsModal();
+            }
+        });
+
+        document.addEventListener("keydown", (e) => {
+            if (e.key === "Escape" && !appsDownloadModal.classList.contains("hidden")) {
+                closeAppsModal();
+            }
+        });
+    }
+
+    if (btnPwaInstallHarvest) {
+        btnPwaInstallHarvest.addEventListener("click", async () => {
+            if (harvestPwaPrompt) {
+                harvestPwaPrompt.prompt();
+                const choice = await harvestPwaPrompt.userChoice;
+                if (choice.outcome === "accepted") {
+                    harvestPwaPrompt = null;
+                }
+            } else {
+                alert("Để cài đặt Meikova Harvest làm Web App (PWA):\n\n• Trên Chrome/Edge (Desktop): Nhấn biểu tượng Cài đặt (+) trên thanh địa chỉ URL.\n• Trên iPhone/Safari: Bấm nút Chia sẻ (Share) -> chọn 'Thêm vào MH chính' (Add to Home Screen).\n• Trên Android: Bấm menu 3 chấm -> chọn 'Cài đặt ứng dụng'.");
+            }
+        });
+    }
 });
