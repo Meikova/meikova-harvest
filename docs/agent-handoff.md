@@ -6,10 +6,42 @@
 - Standards: Antigravity Titan Standards, Ponytail Philosophy, TDD, Verification-Before-Completion.
 
 ## Last Updated
-- Timestamp: 2026-10-21 14:05:00
-- Version: v2.0.4 (Hotfix: Render Reverse Proxy HTTPS OAuth Callback & GitHub Release Tag Fix)
-- Git Commit: `affde42` (Working tree modified)
-- Exit Code: 0 (Python unit tests 6/6 PASSED, Discovery test suite 84/84 PASSED)
+- Timestamp: 2026-10-21 15:35:00
+- Version: v2.0.4 (Sprint v76: Multi-User Isolation, IDOR Protection & Offline-First Sync Consistency)
+- Git Commit: `1bedcf5` (Clean working tree)
+- Exit Code: 0 (Python unit tests 9/9 PASSED, Discovery test suite 91/91 PASSED, Node check OK)
+
+## Summary of Accomplishments (Sprint v76 - Multi-User Isolation, IDOR Protection & Sync Fix)
+1. **Khắc phục Lỗ hổng Rò rỉ Dữ liệu Lịch sử & Xóa nhầm Toàn bộ CSDL (`config.py`)**:
+   - `PersistentDownloadStatus.get_history()`: Trước đây khi `user_id is None` (khách vãng lai), câu lệnh SQL truy vấn toàn bộ lịch sử không phân biệt người dùng. Đã sửa: Ép điều kiện `WHERE user_id IS NULL`, ngăn chặn hoàn toàn việc khách vãng lai nhìn thấy lịch sử tải về riêng tư của các tài khoản đăng nhập.
+   - `PersistentDownloadStatus.clear_history()`: Trước đây khi `user_id is None`, hàm chạy `DELETE FROM downloads` và `self.clear()` xóa sổ toàn bộ dữ liệu của tất cả người dùng trong hệ thống! Đã sửa: Chỉ xóa các bản ghi `WHERE user_id IS NULL` và chỉ pop các tác vụ của khách trong RAM. Khi có `user_id`, chỉ xóa tác vụ của chính user đó.
+   - `PersistentDownloadStatus.get_pending_sync()`: Ép chặt điều kiện `WHERE user_id IS NULL` cho khách vãng lai, không kéo nhầm tác vụ chờ sync của user khác.
+
+2. **Ngăn chặn Lỗ hổng IDOR (Broken Access Control) trên Toàn bộ Endpoints Tác vụ (`routes/download.py`)**:
+   - Bổ sung hàm kiểm tra quyền sở hữu `check_task_ownership(task_info)`: Xác thực xem người dùng hiện tại có sở hữu tác vụ hay không (`task_user_id == current_user.id`).
+   - Áp dụng kiểm tra quyền sở hữu vào 8 endpoints trọng yếu:
+     * `POST /api/download/cancel/<download_id>`: Ngăn chặn User A hoặc Khách hủy tác vụ đang tải của User B (trả về 403 Forbidden).
+     * `POST /api/download/history/delete/<download_id>`: Ngăn chặn User A hoặc Khách xóa bản ghi và file vật lý của User B (trả về 403 Forbidden).
+     * `GET /api/download/file/<download_id>`: Ngăn chặn người lạ tải trực tiếp file tải xong của user khác.
+     * `GET /api/media/play/<download_id>`: Ngăn chặn người lạ stream media riêng tư của user khác.
+     * `POST /api/media/telegram/<download_id>`: Ngăn chặn đẩy media của người khác lên Telegram bot.
+     * `POST /api/download/save-to-disk`: Ngăn chặn copy file của người khác sang thư mục đích.
+     * `GET /api/download/status/<download_id>` & `GET /api/download/progress/<download_id>`: Ngăn chặn snoop trạng thái hoặc SSE stream của người khác.
+
+3. **Hoàn thiện Đồng bộ Lịch sử Cục bộ & Khớp Khóa API Sync (`utils/auth.py`, `routes/auth.py`, `static/js/main.js`)**:
+   - `AuthManager.claim_guest_history()`: Cập nhật đồng bộ cả cột `user_id`, trường `"user_id"` bên trong chuỗi JSON `data`, và trạng thái `sync_status = 'synced'`. Hỗ trợ nhận danh sách `download_ids` chọn lọc từ client.
+   - Cập nhật bộ nhớ đệm `downloads_status` ngay lập tức khi người dùng gán lịch sử khách (`/api/auth/sync-guest-history`).
+   - Khắc phục lỗi lệch khóa Cloud Sync: Frontend gửi `{ tasks: [...] }` trong khi backend kiểm tra `items`. Đã cập nhật cả hai phía hỗ trợ song song cả 2 khóa (`items` và `tasks`), đảm bảo tính năng đồng bộ đám mây hoạt động thông suốt.
+   - Gắn `user_id` khi tạo tác vụ chuyển đổi định dạng media (`routes/convert.py`).
+
+4. **Đồng bộ Token Header và Vệ sinh Giao diện Frontend (`static/js/main.js`)**:
+   - Khai báo hàm dùng chung `getAuthHeaders(customHeaders)`: Tự động trích xuất `session_token` từ `localStorage` và đính kèm `Authorization: Bearer <token>` vào tất cả các yêu cầu tải, truy vấn lịch sử, xóa lịch sử, gán lịch sử và đồng bộ đám mây.
+   - Thay thế toàn bộ hộp thoại native `alert()` bằng modal/toast ambient chuẩn Meikova (`showAlert`).
+   - Khi đăng xuất: Dọn sạch danh sách thẻ tác vụ cũ trên DOM (`#downloads-tasks-list`) để tránh lưu vết giao diện của tài khoản trước.
+
+5. **Bộ Kiểm thử Bổ sung & Kiểm chứng Toàn diện**:
+   - Bổ sung 3 test cases lớn trong `tests/test_auth.py`: `test_guest_history_isolation_and_clear`, `test_claim_guest_history_deep_sync`, `test_download_ownership_access_control`.
+   - Kết quả: Toàn bộ 91/91 tests pass 100% (Exit Code 0).
 
 ## Summary of Accomplishments (Sprint v75 - Reverse Proxy HTTPS OAuth & CI/CD Tag Hotfix)
 1. **Khắc phục lỗi Google OAuth 400 `redirect_uri_mismatch` trên Render (`routes/auth.py`, `app.py`)**:
