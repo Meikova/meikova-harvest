@@ -17279,23 +17279,99 @@ document.addEventListener("DOMContentLoaded", () => {
     const btnPwaInstallHarvest = document.getElementById("btn-pwa-install-harvest");
     const pwaBadgeHarvest = document.getElementById("pwa-badge-harvest");
     const pwaDescHarvest = document.getElementById("pwa-desc-harvest");
+    const btnCopyServerUrl = document.getElementById("btn-copy-server-url");
+
+    function setHarvestPlatformTab(tabName) {
+        document.querySelectorAll("#apps-download-modal .platform-tab").forEach((b) => {
+            const isActive = b.dataset.platformTab === tabName;
+            b.classList.toggle("is-active", isActive);
+            b.setAttribute("aria-selected", isActive ? "true" : "false");
+        });
+        document.querySelectorAll("#apps-download-modal .platform-pane").forEach((p) => {
+            p.classList.toggle("is-active", p.dataset.platformPane === tabName);
+        });
+    }
+
+    // Bind platform tab switching
+    document.querySelectorAll("#apps-download-modal .platform-tab").forEach((tabBtn) => {
+        tabBtn.addEventListener("click", () => {
+            if (tabBtn.dataset.platformTab) {
+                setHarvestPlatformTab(tabBtn.dataset.platformTab);
+            }
+        });
+    });
+
+    function updateHarvestModalData() {
+        const currentOrigin = window.location.origin;
+        const isTailscale = window.location.hostname.startsWith("100.");
+        const isHfSpace = window.location.hostname.includes("hf.space") || window.location.hostname.includes("huggingface.co");
+        const isLocal = window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1";
+
+        const ipSpan = document.getElementById("apps-modal-ip");
+        const tagSpan = document.getElementById("apps-modal-sub-tag");
+        const qrImg = document.getElementById("apps-harvest-qr");
+        const modalLink = document.getElementById("apps-harvest-link");
+        const scanDesc = document.getElementById("apps-harvest-scan-desc");
+
+        if (ipSpan) ipSpan.textContent = currentOrigin;
+        if (tagSpan) {
+            if (isHfSpace) tagSpan.textContent = "Hugging Face Space";
+            else if (isTailscale) tagSpan.textContent = "Tailscale Mesh";
+            else if (isLocal) tagSpan.textContent = "Local Host";
+            else tagSpan.textContent = "Máy chủ Web";
+        }
+        if (modalLink) {
+            modalLink.href = currentOrigin;
+            modalLink.textContent = `${currentOrigin} ↗`;
+        }
+        if (scanDesc) {
+            scanDesc.textContent = isHfSpace ? " để mở trực tiếp qua Hugging Face Space." : " để mở ứng dụng tức thì trên điện thoại.";
+        }
+        if (qrImg) {
+            qrImg.src = `https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${encodeURIComponent(currentOrigin)}`;
+        }
+
+        // Auto-detect client platform
+        const ua = navigator.userAgent || "";
+        let targetTab = "desktop";
+        if (/iPad|iPhone|iPod/.test(ua) || (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1)) {
+            targetTab = "ios";
+        } else if (/Android/.test(ua)) {
+            targetTab = "android";
+        }
+        setHarvestPlatformTab(targetTab);
+    }
+
+    if (btnCopyServerUrl) {
+        btnCopyServerUrl.addEventListener("click", async () => {
+            try {
+                await navigator.clipboard.writeText(window.location.origin);
+                const orig = btnCopyServerUrl.innerHTML;
+                btnCopyServerUrl.innerHTML = `<svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="20 6 9 17 4 12"/></svg><span>Đã chép ✓</span>`;
+                setTimeout(() => { btnCopyServerUrl.innerHTML = orig; }, 2000);
+            } catch {
+                // Clipboard fallback
+            }
+        });
+    }
 
     let harvestPwaPrompt = null;
     window.addEventListener("beforeinstallprompt", (e) => {
         e.preventDefault();
         harvestPwaPrompt = e;
-        if (pwaBadgeHarvest) pwaBadgeHarvest.textContent = "SẴN SÀNG";
-        if (pwaDescHarvest) pwaDescHarvest.textContent = "Bấm để cài đặt PWA";
+        if (pwaBadgeHarvest) pwaBadgeHarvest.textContent = "1-CLICK";
+        if (pwaDescHarvest) pwaDescHarvest.textContent = "Cài đặt ngay";
     });
 
     window.addEventListener("appinstalled", () => {
         harvestPwaPrompt = null;
-        if (pwaBadgeHarvest) pwaBadgeHarvest.textContent = "ĐÃ CÀI ĐẶT";
-        if (pwaDescHarvest) pwaDescHarvest.textContent = "Đã cài làm App";
+        if (pwaBadgeHarvest) pwaBadgeHarvest.textContent = "INSTALLED";
+        if (pwaDescHarvest) pwaDescHarvest.textContent = "Đã cài đặt ✓";
     });
 
     if (btnOpenAppsModal && appsDownloadModal) {
         const openAppsModal = () => {
+            updateHarvestModalData();
             appsDownloadModal.classList.remove("hidden");
             document.body.classList.add("modal-open");
         };
