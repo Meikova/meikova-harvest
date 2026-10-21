@@ -17316,7 +17316,7 @@ document.addEventListener("DOMContentLoaded", () => {
                     harvestPwaPrompt = null;
                 }
             } else {
-                alert("Để cài đặt Meikova Harvest làm Web App (PWA):\n\n• Trên Chrome/Edge (Desktop): Nhấn biểu tượng Cài đặt (+) trên thanh địa chỉ URL.\n• Trên iPhone/Safari: Bấm nút Chia sẻ (Share) -> chọn 'Thêm vào MH chính' (Add to Home Screen).\n• Trên Android: Bấm menu 3 chấm -> chọn 'Cài đặt ứng dụng'.");
+                showAlert("Cài đặt Web App (PWA)", "Để cài đặt Meikova Harvest làm Web App (PWA):\n\n• Trên Chrome/Edge (Desktop): Nhấn biểu tượng Cài đặt (+) trên thanh địa chỉ URL.\n• Trên iPhone/Safari: Bấm nút Chia sẻ (Share) -> chọn 'Thêm vào MH chính' (Add to Home Screen).\n• Trên Android: Bấm menu 3 chấm -> chọn 'Cài đặt ứng dụng'.", null, "info");
             }
         });
     }
