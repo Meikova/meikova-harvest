@@ -12,7 +12,7 @@ http://localhost:5000
 http://127.0.0.1:5000
 http://localhost:18650
 http://127.0.0.1:18650
-https://meikovaharvest-6zct.onrender.com
+https://meikova-harvest.onrender.com
 ```
 
 ### B. Authorised redirect URIs:
@@ -21,7 +21,7 @@ http://localhost:5000/api/auth/google/callback
 http://127.0.0.1:5000/api/auth/google/callback
 http://localhost:18650/api/auth/google/callback
 http://127.0.0.1:18650/api/auth/google/callback
-https://meikovaharvest-6zct.onrender.com/api/auth/google/callback
+https://meikova-harvest.onrender.com/api/auth/google/callback
 ```
 
 ---
