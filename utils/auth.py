@@ -190,7 +190,7 @@ class AuthManager:
         # 1. Try remote verification via Google's tokeninfo endpoint for cryptographic validity
         try:
             req_url = f"https://oauth2.googleapis.com/tokeninfo?id_token={credential}"
-            req = urllib.request.Request(req_url, headers={"User-Agent": "Meikova Harvest/2.0.4"})
+            req = urllib.request.Request(req_url, headers={"User-Agent": "Meikova Harvest/2.0.5"})
             with urllib.request.urlopen(req, timeout=5.0) as resp:
                 if resp.status == 200:
                     data = json.loads(resp.read().decode("utf-8"))

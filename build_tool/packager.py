@@ -153,7 +153,7 @@ def sanitize_version(version: str | None) -> str:
 class BuildConfig:
     def __init__(self):
         self.app_name:    str  = 'MeikovaHarvest'
-        self._version:    str  = '2.0.4'
+        self._version:    str  = '2.0.5'
         self.company:     str  = 'MeikovaHarvest'
         self.description: str  = 'MeikovaHarvest'
         self.copyright:   str  = f'© 2026 MeikovaHarvest'

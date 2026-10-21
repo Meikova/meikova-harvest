@@ -6,10 +6,10 @@
 - Standards: Antigravity Titan Standards, Ponytail Philosophy, TDD, Verification-Before-Completion.
 
 ## Last Updated
-- Timestamp: 2026-10-21 17:10:00
-- Version: v2.0.5 (Sprint v79: Instant Tray Destruction on Quit & Render Auto-Deploy Diagnosis)
+- Timestamp: 2026-10-21 17:15:00
+- Version: v2.0.5 (Release v2.0.5: Full Brand SSOT Alignment, Instant Tray Exit & CI/CD Pipeline Release)
 - Git Commit: Pending commit
-- Exit Code: 0 (Node check OK, Electron rebuilt, Unit tests PASSED)
+- Exit Code: 0 (Node check OK, 7/7 version tests PASSED, 91/91 full tests PASSED, Tag v2.0.5)
 
 ## Summary of Accomplishments (Sprint v79 - Instant Tray Destruction & Render Deployment Audit)
 1. **Triệt tiêu Độ trễ Khi Thoát Khay Hệ thống (`electron/main.js`)**:

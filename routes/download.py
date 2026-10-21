@@ -1306,7 +1306,7 @@ def download_native_app(target):
     Windows (.exe Setup / Portable / .msi), macOS (.dmg / .zip), Linux (.AppImage / .deb / .tar.gz)."""
     target_lower = target.lower().strip()
     release_base = "https://github.com/Meikova/meikova-harvest-tool/releases/latest/download"
-    version = "2.0.4"
+    version = "2.0.5"
     
     mapping = {
         "windows": f"MeikovaHarvest-Setup-{version}.exe",

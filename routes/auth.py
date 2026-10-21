@@ -298,7 +298,7 @@ def google_oauth_callback():
             data=token_req_data,
             headers={
                 "Content-Type": "application/x-www-form-urlencoded",
-                "User-Agent": "Meikova Harvest/2.0.4"
+                "User-Agent": "Meikova Harvest/2.0.5"
             }
         )
         with urllib.request.urlopen(req, timeout=10.0) as resp:
