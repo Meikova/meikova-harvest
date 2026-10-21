@@ -120,11 +120,18 @@ def _resolve_app_asset_dir(subpath):
 STATIC_DIR = _resolve_app_asset_dir("static")
 TEMPLATES_DIR = _resolve_app_asset_dir("templates")
 app = Flask(__name__, static_folder=STATIC_DIR, template_folder=TEMPLATES_DIR)
+try:
+    from werkzeug.middleware.proxy_fix import ProxyFix
+    app.wsgi_app = ProxyFix(app.wsgi_app, x_for=1, x_proto=1, x_host=1, x_prefix=1)
+except Exception as _p_err:
+    pass
 # Lockdown CORS to local origins and Electron webviews
 CORS(
     app,
     resources={r"/api/*": {"origins": [
         r"^https?://(localhost|127\.0\.0\.1)(:\d+)?$",
+        r"^https?://.*\.onrender\.com$",
+        r"^https?://.*\.hf\.space$",
         r"^file://.*",
         r"^vscode-webview://.*",
         r"^app://.*"

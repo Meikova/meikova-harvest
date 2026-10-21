@@ -204,6 +204,7 @@ jobs:
         uses: softprops/action-gh-release@v2
         with:
           repository: Meikova/meikova-harvest-tool
+          tag_name: ${{ env.TARGET_TAG }}
           token: ${{ secrets.RELEASE_TOKEN }}
           body_path: release_notes.md
           files: |

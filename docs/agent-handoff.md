@@ -6,6 +6,27 @@
 - Standards: Antigravity Titan Standards, Ponytail Philosophy, TDD, Verification-Before-Completion.
 
 ## Last Updated
+- Timestamp: 2026-10-21 14:05:00
+- Version: v2.0.4 (Hotfix: Render Reverse Proxy HTTPS OAuth Callback & GitHub Release Tag Fix)
+- Git Commit: `affde42` (Working tree modified)
+- Exit Code: 0 (Python unit tests 6/6 PASSED, Discovery test suite 84/84 PASSED)
+
+## Summary of Accomplishments (Sprint v75 - Reverse Proxy HTTPS OAuth & CI/CD Tag Hotfix)
+1. **Khắc phục lỗi Google OAuth 400 `redirect_uri_mismatch` trên Render (`routes/auth.py`, `app.py`)**:
+   - **Nguyên nhân gốc rễ**: Render sử dụng SSL terminating load balancer; kết nối giữa load balancer và container Flask là plain HTTP. Flask nhận `request.is_secure == False` nên tự động sinh redirect_uri dạng `http://meikova-harvest.onrender.com/...`. Trong khi Google Cloud Console chỉ cho phép `https://meikova-harvest.onrender.com/...` dẫn đến lỗi 400 mismatch.
+   - **Khắc phục**:
+     * Bổ sung helper `get_google_redirect_uri()`: Tự động phát hiện header `X-Forwarded-Proto`, `X-Forwarded-Host` và tự ép `https://` khi chạy trên Render (`onrender.com`), Hugging Face Space hoặc các cloud proxy khác.
+     * Áp dụng middleware `ProxyFix(app.wsgi_app, x_for=1, x_proto=1, x_host=1, x_prefix=1)` trong `app.py`.
+     * Mở rộng CORS cho phép `https://*.onrender.com` và `https://*.hf.space`.
+     * Bổ sung bài kiểm thử `test_google_redirect_uri_reverse_proxy` vào `tests/test_auth.py` (6/6 tests passed).
+
+2. **Khắc phục lỗi CI/CD GitHub Actions: `GitHub Releases requires a tag` (`.github/workflows/build-and-release.yml`)**:
+   - **Nguyên nhân gốc rễ**: Action `softprops/action-gh-release@v2` ở bước `Create GitHub Release and Upload Assets (To Public Repo)` không được gán tham số `tag_name`. Khi workflow kích hoạt bằng sự kiện push lên nhánh `main`, `github.ref` là branch chứ không phải tag, khiến action báo lỗi và dừng toàn bộ job release.
+   - **Khắc phục**:
+     * Bổ sung tham số `tag_name: ${{ env.TARGET_TAG }}` vào step phát hành sang repo công khai `Meikova/meikova-harvest-tool`.
+
+## Previous Handoff (Sprint v74)
+
 - Timestamp: 2026-10-20 21:37:00
 - Version: v2.0.4 (Meikova Loop Multi-Platform Auth Architecture: State Polling, Mobile Deep Linking, OnResume Sync & Storage Persistence)
 - Git Commit: `09e4fa6` (Working tree modified, clean tests)
@@ -668,6 +689,27 @@
    - Trong `run_desktop.bat`: Tự động dọn dẹp các tiến trình `electron.exe` mồ côi (`taskkill /f /im electron.exe`) trước khi khởi chạy dev server.
 
 ## Last Updated
+- Timestamp: 2026-10-21 14:05:00
+- Version: v2.0.4 (Hotfix: Render Reverse Proxy HTTPS OAuth Callback & GitHub Release Tag Fix)
+- Git Commit: `affde42` (Working tree modified)
+- Exit Code: 0 (Python unit tests 6/6 PASSED, Discovery test suite 84/84 PASSED)
+
+## Summary of Accomplishments (Sprint v75 - Reverse Proxy HTTPS OAuth & CI/CD Tag Hotfix)
+1. **Khắc phục lỗi Google OAuth 400 `redirect_uri_mismatch` trên Render (`routes/auth.py`, `app.py`)**:
+   - **Nguyên nhân gốc rễ**: Render sử dụng SSL terminating load balancer; kết nối giữa load balancer và container Flask là plain HTTP. Flask nhận `request.is_secure == False` nên tự động sinh redirect_uri dạng `http://meikova-harvest.onrender.com/...`. Trong khi Google Cloud Console chỉ cho phép `https://meikova-harvest.onrender.com/...` dẫn đến lỗi 400 mismatch.
+   - **Khắc phục**:
+     * Bổ sung helper `get_google_redirect_uri()`: Tự động phát hiện header `X-Forwarded-Proto`, `X-Forwarded-Host` và tự ép `https://` khi chạy trên Render (`onrender.com`), Hugging Face Space hoặc các cloud proxy khác.
+     * Áp dụng middleware `ProxyFix(app.wsgi_app, x_for=1, x_proto=1, x_host=1, x_prefix=1)` trong `app.py`.
+     * Mở rộng CORS cho phép `https://*.onrender.com` và `https://*.hf.space`.
+     * Bổ sung bài kiểm thử `test_google_redirect_uri_reverse_proxy` vào `tests/test_auth.py` (6/6 tests passed).
+
+2. **Khắc phục lỗi CI/CD GitHub Actions: `GitHub Releases requires a tag` (`.github/workflows/build-and-release.yml`)**:
+   - **Nguyên nhân gốc rễ**: Action `softprops/action-gh-release@v2` ở bước `Create GitHub Release and Upload Assets (To Public Repo)` không được gán tham số `tag_name`. Khi workflow kích hoạt bằng sự kiện push lên nhánh `main`, `github.ref` là branch chứ không phải tag, khiến action báo lỗi và dừng toàn bộ job release.
+   - **Khắc phục**:
+     * Bổ sung tham số `tag_name: ${{ env.TARGET_TAG }}` vào step phát hành sang repo công khai `Meikova/meikova-harvest-tool`.
+
+## Previous Handoff (Sprint v74)
+
 - Timestamp: 2026-10-04 18:46:00
 - Exit Code: 0 (Python unit tests running/passing, Node syntax checks passed, Electron Webview tests passed 100%)
 

@@ -211,5 +211,28 @@ class TestAuthModule(unittest.TestCase):
         self.assertEqual(poll_res3.get_json()["status"], "pending")
 
 
+    def test_google_redirect_uri_reverse_proxy(self):
+        from flask import Flask
+        from routes.auth import auth_bp
+
+        app = Flask(__name__)
+        app.register_blueprint(auth_bp)
+        client = app.test_client()
+
+        # 1. Cloud domain -> HTTPS
+        res = client.get('/api/auth/google/start?mode=web', headers={'Host': 'meikova-harvest.onrender.com'})
+        self.assertEqual(res.status_code, 200)
+        self.assertIn('https%3A%2F%2Fmeikova-harvest.onrender.com%2Fapi%2Fauth%2Fgoogle%2Fcallback', res.get_json()['auth_url'])
+
+        # 2. X-Forwarded-Proto -> HTTPS
+        res2 = client.get('/api/auth/google/start?mode=web', headers={'Host': 'custom-domain.com', 'X-Forwarded-Proto': 'https'})
+        self.assertEqual(res2.status_code, 200)
+        self.assertIn('https%3A%2F%2Fcustom-domain.com%2Fapi%2Fauth%2Fgoogle%2Fcallback', res2.get_json()['auth_url'])
+
+        # 3. Localhost -> HTTP
+        res3 = client.get('/api/auth/google/start?mode=web', headers={'Host': 'localhost:5000'})
+        self.assertEqual(res3.status_code, 200)
+        self.assertIn('http%3A%2F%2Flocalhost%3A5000%2Fapi%2Fauth%2Fgoogle%2Fcallback', res3.get_json()['auth_url'])
+
 if __name__ == "__main__":
     unittest.main()

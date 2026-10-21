@@ -185,11 +185,22 @@ def google_auth_api():
     except Exception as err:
         return jsonify({"status": "error", "message": f"Lỗi xác thực Google: {str(err)}"}), 500
 
+def get_google_redirect_uri():
+    """Builds canonical Google OAuth redirect_uri supporting reverse proxies (Render, Cloudflare, etc.)."""
+    forwarded_proto = request.headers.get("X-Forwarded-Proto", "").strip().lower()
+    forwarded_host = request.headers.get("X-Forwarded-Host", "").strip()
+    host = forwarded_host or request.host
+
+    is_cloud = any(cloud in host.lower() for cloud in ["onrender.com", "hf.space", "herokuapp.com", "fly.dev", "railway.app", "vercel.app"])
+    if forwarded_proto == "https" or request.is_secure or is_cloud:
+        scheme = "https"
+    else:
+        scheme = "http"
+    return f"{scheme}://{host}/api/auth/google/callback"
+
 @auth_bp.route("/api/auth/google/start", methods=["GET"])
 def google_auth_start():
-    scheme = "https" if request.is_secure else "http"
-    host = request.host
-    redirect_uri = f"{scheme}://{host}/api/auth/google/callback"
+    redirect_uri = get_google_redirect_uri()
     mode = request.args.get("mode", "web")
     state = ""
     if mode in ("mobile", "desktop"):
@@ -229,9 +240,7 @@ def google_auth_poll():
 
 @auth_bp.route("/api/auth/google/login", methods=["GET"])
 def google_oauth_login():
-    scheme = "https" if request.is_secure else "http"
-    host = request.host
-    redirect_uri = f"{scheme}://{host}/api/auth/google/callback"
+    redirect_uri = get_google_redirect_uri()
     source = request.args.get("source", "desktop")
 
     state = ""
@@ -273,8 +282,7 @@ def google_oauth_callback():
             400
         )
 
-    scheme = "https" if request.is_secure else "http"
-    redirect_uri = f"{scheme}://{request.host}/api/auth/google/callback"
+    redirect_uri = get_google_redirect_uri()
 
     try:
         token_req_data = urllib.parse.urlencode({
