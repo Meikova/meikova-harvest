@@ -4,6 +4,7 @@ flask-cors==4.0.1
 requests>=2.32.0
 curl-cffi>=0.15.0
 brotli>=1.1.0
+libsql-client>=0.3.0
 
 # Media Extraction Engines & Runtimes
 yt-dlp>=2026.8.19

@@ -120,6 +120,8 @@ class HarvestDbAdapter:
                 return res.rows
             except Exception as e:
                 # Turso network/query error -> fallback to local SQLite
+                with self._lock:
+                    self._turso_client = None
                 print(f"[Turso Harvest Error] {e}, falling back to local SQLite")
 
         return self._execute_local(sql, tuple(args))
@@ -150,6 +152,8 @@ class HarvestDbAdapter:
                 res = client.batch(stmts)
                 return [r.rows for r in res]
             except Exception as e:
+                with self._lock:
+                    self._turso_client = None
                 print(f"[Turso Harvest Error] {e}, falling back to local SQLite")
 
         parent_dir = os.path.dirname(os.path.abspath(self.local_path))
