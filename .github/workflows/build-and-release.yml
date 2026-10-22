@@ -67,10 +67,14 @@ jobs:
           TAG_NAME="${{ github.ref_name }}"
           if [[ "$TAG_NAME" =~ ^v?[0-9] ]]; then
             VERSION=$(echo "$TAG_NAME" | sed -E 's/^[^0-9]*//')
+            TARGET_TAG="$TAG_NAME"
           else
-            VERSION="2.0.5"
+            LATEST_TAG=$(git describe --tags --abbrev=0 2>/dev/null || echo "v2.0.7")
+            VERSION=$(echo "$LATEST_TAG" | sed -E 's/^[^0-9]*//')
+            TARGET_TAG="$LATEST_TAG"
           fi
           echo "VERSION=$VERSION" >> $GITHUB_ENV
+          echo "TARGET_TAG=$TARGET_TAG" >> $GITHUB_ENV
 
       - name: Run build tool
         run: |
@@ -87,11 +91,27 @@ jobs:
             mv dist/MeikovaHarvest-Web-${{ env.VERSION }} dist/MeikovaHarvest-Web-${{ env.VERSION }}-Linux || true
           fi
 
+      - name: Create unversioned aliases for Zero-404 downloads
+        shell: bash
+        run: |
+          if [ "${{ matrix.os }}" = "windows-latest" ]; then
+            cp dist_electron/MeikovaHarvest-Setup-${{ env.VERSION }}.exe dist_electron/MeikovaHarvest-Setup.exe || true
+            cp dist_electron/MeikovaHarvest-Portable-${{ env.VERSION }}.exe dist_electron/MeikovaHarvest-Portable.exe || true
+            cp dist_electron/MeikovaHarvest-${{ env.VERSION }}.msi dist_electron/MeikovaHarvest.msi || true
+          elif [ "${{ matrix.os }}" = "macos-latest" ]; then
+            cp dist_electron/MeikovaHarvest-${{ env.VERSION }}-arm64.dmg dist_electron/MeikovaHarvest.dmg || true
+            cp dist_electron/MeikovaHarvest-${{ env.VERSION }}-arm64.pkg dist_electron/MeikovaHarvest.pkg || true
+          elif [ "${{ matrix.os }}" = "ubuntu-latest" ]; then
+            cp dist_electron/MeikovaHarvest-${{ env.VERSION }}-x86_64.AppImage dist_electron/MeikovaHarvest.AppImage || true
+            cp dist_electron/MeikovaHarvest-${{ env.VERSION }}-amd64.deb dist_electron/MeikovaHarvest.deb || true
+            cp dist_electron/MeikovaHarvest-${{ env.VERSION }}-x64.tar.gz dist_electron/MeikovaHarvest.tar.gz || true
+          fi
+
       - name: Upload build assets directly to Private Release
         if: startsWith(github.ref, 'refs/tags/v') || github.ref == 'refs/heads/main' || github.event_name == 'workflow_dispatch'
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: ${{ startsWith(github.ref, 'refs/tags/v') && github.ref_name || 'v2.0.5' }}
+          tag_name: ${{ env.TARGET_TAG }}
           files: |
             dist/MeikovaHarvest*
             dist_electron/*.exe
@@ -122,9 +142,16 @@ jobs:
       - name: Extract version
         shell: bash
         run: |
-          TAG_NAME="${{ startsWith(github.ref, 'refs/tags/v') && github.ref_name || 'v2.0.5' }}"
-          VERSION=$(echo "$TAG_NAME" | sed -E 's/^[^0-9]*//')
-          echo "TARGET_TAG=$TAG_NAME" >> $GITHUB_ENV
+          TAG_NAME="${{ github.ref_name }}"
+          if [[ "$TAG_NAME" =~ ^v?[0-9] ]]; then
+            VERSION=$(echo "$TAG_NAME" | sed -E 's/^[^0-9]*//')
+            TARGET_TAG="$TAG_NAME"
+          else
+            LATEST_TAG=$(git describe --tags --abbrev=0 2>/dev/null || echo "v2.0.7")
+            VERSION=$(echo "$LATEST_TAG" | sed -E 's/^[^0-9]*//')
+            TARGET_TAG="$LATEST_TAG"
+          fi
+          echo "TARGET_TAG=$TARGET_TAG" >> $GITHUB_ENV
           echo "VERSION=$VERSION" >> $GITHUB_ENV
 
       - name: Download all assets from Private Release
@@ -246,7 +273,7 @@ jobs:
               "win32": "https://github.com/Meikova/meikova-harvest-tool/releases/download/${{ env.TARGET_TAG }}/MeikovaHarvest-Setup-${{ env.VERSION }}.exe",
               "darwin_arm64": "https://github.com/Meikova/meikova-harvest-tool/releases/download/${{ env.TARGET_TAG }}/MeikovaHarvest-${{ env.VERSION }}-arm64.dmg",
               "darwin_x64": "https://github.com/Meikova/meikova-harvest-tool/releases/download/${{ env.TARGET_TAG }}/MeikovaHarvest-${{ env.VERSION }}-x64.dmg",
-              "linux_x64": "https://github.com/Meikova/meikova-harvest-tool/releases/download/${{ env.TARGET_TAG }}/MeikovaHarvest-${{ env.VERSION }}-x64.AppImage"
+              "linux_x64": "https://github.com/Meikova/meikova-harvest-tool/releases/download/${{ env.TARGET_TAG }}/MeikovaHarvest-${{ env.VERSION }}-x86_64.AppImage"
             },
             "changelog": "Phien ban moi nhat ${{ env.TARGET_TAG }} da duoc phat hanh tu dong. Chi tiet xem tai muc Releases tren GitHub."
           }

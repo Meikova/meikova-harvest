@@ -1322,44 +1322,152 @@ def send_media_to_telegram(download_id):
         return jsonify({"status": "error", "message": msg}), 500
 
 
+# Cached release metadata with 10-minute TTL to prevent GitHub rate-limiting
+_release_cache = {
+    "timestamp": 0,
+    "tag_name": "v2.0.7",
+    "assets": []
+}
+
+VALID_APP_TARGETS = {
+    "windows", "win", "win-setup", "exe",
+    "win-portable", "portable",
+    "msi",
+    "macos", "mac", "dmg", "macos-arm64", "macos-x64", "mac-intel", "mac-zip", "darwin-zip",
+    "linux", "appimage", "linux-appimage",
+    "deb", "linux-deb",
+    "tar", "linux-tar", "tar.gz",
+    "extension", "chrome", "edge", "brave"
+}
+
+def get_latest_github_release_assets():
+    """Lay danh sach tep dinh kem (assets) tu ban phat hanh GitHub moi nhat (TTL: 10 phut)."""
+    global _release_cache
+    now = time.time()
+    if now - _release_cache["timestamp"] < 600 and _release_cache["assets"]:
+        return _release_cache
+    
+    url = "https://api.github.com/repos/Meikova/meikova-harvest-tool/releases/latest"
+    try:
+        import urllib.request
+        req = urllib.request.Request(url, headers={"User-Agent": "Meikova-Harvest-Server"})
+        with urllib.request.urlopen(req, timeout=4) as resp:
+            if resp.status == 200:
+                data = json.loads(resp.read().decode("utf-8"))
+                tag_name = data.get("tag_name", "v2.0.7")
+                assets = [
+                    {"name": a.get("name", ""), "url": a.get("browser_download_url", "")}
+                    for a in data.get("assets", [])
+                ]
+                if assets:
+                    _release_cache = {
+                        "timestamp": now,
+                        "tag_name": tag_name,
+                        "assets": assets
+                    }
+    except Exception as e:
+        logger.warning(f"Failed to query GitHub release metadata: {e}")
+    return _release_cache
+
+
+def resolve_target_download_url(target_lower):
+    """Phan giai muc tieu tai (target) thanh URL tai file chinh xac tu GitHub Release, triet tieu loi 404."""
+    if target_lower not in VALID_APP_TARGETS:
+        return None
+
+    rel = get_latest_github_release_assets()
+    assets = rel.get("assets", [])
+    tag_name = rel.get("tag_name", "v2.0.7")
+    
+    # 1. Tim asset truc tiep tu GitHub Release thuc te
+    for a in assets:
+        name = a["name"].lower()
+        url = a["url"]
+        
+        if target_lower in ("windows", "win", "win-setup", "exe"):
+            if "setup" in name and name.endswith(".exe"):
+                return url
+        elif target_lower in ("win-portable", "portable"):
+            if "portable" in name and name.endswith(".exe"):
+                return url
+        elif target_lower in ("msi",):
+            if name.endswith(".msi"):
+                return url
+        elif target_lower in ("macos-x64", "mac-intel"):
+            if "x64" in name and name.endswith(".dmg"):
+                return url
+        elif target_lower in ("macos", "mac", "dmg", "macos-arm64"):
+            if "arm64" in name and name.endswith(".dmg"):
+                return url
+        elif target_lower in ("mac-zip", "darwin-zip"):
+            if "zip" in name and ("mac" in name or "darwin" in name or "arm64" in name):
+                return url
+        elif target_lower in ("linux", "appimage", "linux-appimage"):
+            if name.endswith(".appimage"):
+                return url
+        elif target_lower in ("deb", "linux-deb"):
+            if name.endswith(".deb"):
+                return url
+        elif target_lower in ("tar", "linux-tar", "tar.gz"):
+            if name.endswith(".tar.gz"):
+                return url
+
+    # Fallback chon .dmg bat ky neu macOS arm64 khong khop
+    if target_lower in ("macos", "mac", "dmg", "macos-arm64"):
+        for a in assets:
+            if a["name"].lower().endswith(".dmg"):
+                return a["url"]
+
+    # 2. Fallback neu chua ket noi duoc GitHub API: Dung version dong tu tag_name
+    clean_version = tag_name.lstrip("v")
+    fallback_map = {
+        "windows": f"MeikovaHarvest-Setup-{clean_version}.exe",
+        "win": f"MeikovaHarvest-Setup-{clean_version}.exe",
+        "win-setup": f"MeikovaHarvest-Setup-{clean_version}.exe",
+        "exe": f"MeikovaHarvest-Setup-{clean_version}.exe",
+        "win-portable": f"MeikovaHarvest-Portable-{clean_version}.exe",
+        "portable": f"MeikovaHarvest-Portable-{clean_version}.exe",
+        "msi": f"MeikovaHarvest-{clean_version}.msi",
+        "macos": f"MeikovaHarvest-{clean_version}-arm64.dmg",
+        "mac": f"MeikovaHarvest-{clean_version}-arm64.dmg",
+        "dmg": f"MeikovaHarvest-{clean_version}-arm64.dmg",
+        "macos-arm64": f"MeikovaHarvest-{clean_version}-arm64.dmg",
+        "macos-x64": f"MeikovaHarvest-{clean_version}-x64.dmg",
+        "mac-intel": f"MeikovaHarvest-{clean_version}-x64.dmg",
+        "mac-zip": f"MeikovaHarvest-{clean_version}-arm64.zip",
+        "darwin-zip": f"MeikovaHarvest-{clean_version}-arm64.zip",
+        "linux": f"MeikovaHarvest-{clean_version}-x86_64.AppImage",
+        "appimage": f"MeikovaHarvest-{clean_version}-x86_64.AppImage",
+        "linux-appimage": f"MeikovaHarvest-{clean_version}-x86_64.AppImage",
+        "deb": f"MeikovaHarvest-{clean_version}-amd64.deb",
+        "linux-deb": f"MeikovaHarvest-{clean_version}-amd64.deb",
+        "tar": f"MeikovaHarvest-{clean_version}-x64.tar.gz",
+        "linux-tar": f"MeikovaHarvest-{clean_version}-x64.tar.gz",
+        "tar.gz": f"MeikovaHarvest-{clean_version}-x64.tar.gz"
+    }
+    
+    fallback_file = fallback_map.get(target_lower)
+    if fallback_file:
+        return f"https://github.com/Meikova/meikova-harvest-tool/releases/download/{tag_name}/{fallback_file}"
+        
+    return f"https://github.com/Meikova/meikova-harvest-tool/releases/tag/{tag_name}"
+
+
 @download_bp.route("/api/download/app/<target>", methods=["GET", "HEAD"])
 def download_native_app(target):
     """Phuc vu file tai ung dung da nen tang Meikova Harvest:
-    Windows (.exe Setup / Portable / .msi), macOS (.dmg / .zip), Linux (.AppImage / .deb / .tar.gz)."""
+    Windows (.exe Setup / Portable / .msi), macOS (.dmg / .zip), Linux (.AppImage / .deb / .tar.gz), Extension."""
     target_lower = target.lower().strip()
-    release_base = "https://github.com/Meikova/meikova-harvest-tool/releases/latest/download"
-    version = "2.0.5"
-    
-    mapping = {
-        "windows": f"MeikovaHarvest-Setup-{version}.exe",
-        "win": f"MeikovaHarvest-Setup-{version}.exe",
-        "win-setup": f"MeikovaHarvest-Setup-{version}.exe",
-        "win-portable": f"MeikovaHarvest-Portable-{version}.exe",
-        "portable": f"MeikovaHarvest-Portable-{version}.exe",
-        "msi": f"MeikovaHarvest-{version}.msi",
-        "macos": f"MeikovaHarvest-{version}-arm64.dmg",
-        "mac": f"MeikovaHarvest-{version}-arm64.dmg",
-        "dmg": f"MeikovaHarvest-{version}-arm64.dmg",
-        "macos-x64": f"MeikovaHarvest-{version}-x64.dmg",
-        "mac-intel": f"MeikovaHarvest-{version}-x64.dmg",
-        "mac-zip": f"MeikovaHarvest-{version}-mac.zip",
-        "linux": f"MeikovaHarvest-{version}-x64.AppImage",
-        "appimage": f"MeikovaHarvest-{version}-x64.AppImage",
-        "deb": f"MeikovaHarvest-{version}.deb",
-        "linux-deb": f"MeikovaHarvest-{version}.deb",
-        "tar": f"MeikovaHarvest-{version}.tar.gz",
-        "linux-tar": f"MeikovaHarvest-{version}.tar.gz",
-        "extension": "MeikovaHarvest-Extension.zip",
-        "chrome": "MeikovaHarvest-Extension.zip"
-    }
-    
-    filename = mapping.get(target_lower)
-    if not filename:
-        return jsonify({"status": "error", "message": f"Khong ho tro goi tai: {target}"}), 404
-        
+    if target_lower not in VALID_APP_TARGETS:
+        return jsonify({
+            "status": "error",
+            "code": "APP_TARGET_NOT_SUPPORTED",
+            "message": f"Khong ho tro goi tai: {target}"
+        }), 404
+
     root_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
     
-    if target_lower in ["extension", "chrome"]:
+    if target_lower in ["extension", "chrome", "edge", "brave"]:
         ext_dir = os.path.join(root_dir, "extension")
         if os.path.isdir(ext_dir):
             import io, zipfile
@@ -1374,9 +1482,41 @@ def download_native_app(target):
                         zf.write(full_p, rel_p)
             mem_buf.seek(0)
             return send_file(mem_buf, as_attachment=True, download_name="MeikovaHarvest-Extension.zip", mimetype="application/zip")
-    for folder in ["dist_electron", "dist"]:
-        local_f = os.path.join(root_dir, folder, filename)
-        if os.path.isfile(local_f) and os.path.getsize(local_f) > 0:
-            return send_file(local_f, as_attachment=True, download_name=filename)
             
-    return redirect(f"{release_base}/{filename}", code=307)
+    # Kiem tra neu file local ton tai san trong thu muc dist_electron hoac dist
+    for folder in ["dist_electron", "dist"]:
+        folder_path = os.path.join(root_dir, folder)
+        if os.path.isdir(folder_path):
+            for f in os.listdir(folder_path):
+                f_lower = f.lower()
+                matched = False
+                if target_lower in ("windows", "win", "win-setup", "exe") and "setup" in f_lower and f_lower.endswith(".exe"):
+                    matched = True
+                elif target_lower in ("win-portable", "portable") and "portable" in f_lower and f_lower.endswith(".exe"):
+                    matched = True
+                elif target_lower in ("msi",) and f_lower.endswith(".msi"):
+                    matched = True
+                elif target_lower in ("macos", "mac", "dmg") and f_lower.endswith(".dmg"):
+                    matched = True
+                elif target_lower in ("linux", "appimage") and f_lower.endswith(".appimage"):
+                    matched = True
+                elif target_lower in ("deb", "linux-deb") and f_lower.endswith(".deb"):
+                    matched = True
+                elif target_lower in ("tar", "linux-tar") and f_lower.endswith(".tar.gz"):
+                    matched = True
+                
+                if matched:
+                    local_f = os.path.join(folder_path, f)
+                    if os.path.isfile(local_f) and os.path.getsize(local_f) > 0:
+                        return send_file(local_f, as_attachment=True, download_name=f)
+
+    # Phan giai link tai thuc te tu GitHub Releases cua Meikova
+    resolved_url = resolve_target_download_url(target_lower)
+    if not resolved_url:
+        return jsonify({
+            "status": "error",
+            "code": "APP_RELEASE_ASSET_NOT_FOUND",
+            "message": f"Khong tim thay ban phat hanh phu hop cho: {target}"
+        }), 404
+
+    return redirect(resolved_url, code=307)

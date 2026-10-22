@@ -1,11 +1,11 @@
 {
-    "version": "2.0.5",
-    "url": "https://github.com/Meikova/meikova-harvest/releases/download/v2.0.5/MeikovaHarvest-Setup-2.0.5.exe",
+    "version": "2.0.7",
+    "url": "https://github.com/Meikova/meikova-harvest-tool/releases/download/v2.0.7/MeikovaHarvest-Setup-2.0.7.exe",
     "platforms": {
-        "win32": "https://github.com/Meikova/meikova-harvest/releases/download/v2.0.5/MeikovaHarvest-Setup-2.0.5.exe",
-        "darwin_arm64": "https://github.com/Meikova/meikova-harvest/releases/download/v2.0.5/MeikovaHarvest-2.0.5-arm64.dmg",
-        "darwin_x64": "https://github.com/Meikova/meikova-harvest/releases/download/v2.0.5/MeikovaHarvest-2.0.5-x64.dmg",
-        "linux_x64": "https://github.com/Meikova/meikova-harvest/releases/download/v2.0.5/MeikovaHarvest-2.0.5-x64.AppImage"
+        "win32": "https://github.com/Meikova/meikova-harvest-tool/releases/download/v2.0.7/MeikovaHarvest-Setup-2.0.7.exe",
+        "darwin_arm64": "https://github.com/Meikova/meikova-harvest-tool/releases/download/v2.0.7/MeikovaHarvest-2.0.7-arm64.dmg",
+        "darwin_x64": "https://github.com/Meikova/meikova-harvest-tool/releases/download/v2.0.7/MeikovaHarvest-2.0.7-x64.dmg",
+        "linux_x64": "https://github.com/Meikova/meikova-harvest-tool/releases/download/v2.0.7/MeikovaHarvest-2.0.7-x86_64.AppImage"
     },
-    "changelog": "EVERYTHING DOWNLOADER RELEASE V2.0.5:\n- Ambient Instrument Auth Modal: Thiết kế lại toàn diện modal đăng nhập theo phong cách Meikova Loop Ambient Dark Instrument. Loại bỏ nút trùng lặp, tối ưu capsule Google OAuth duy nhất.\n- Multi-Platform Support: Hỗ trợ liền mạch Desktop Electron, Web Desktop, Standalone PWA trên điện thoại và máy tính, sẵn sàng tích hợp Native Mobile App.\n- Decoupled Desktop OAuth Loopback: Tự động đồng bộ phiên đăng nhập giữa trình duyệt hệ thống và Desktop Electron mà không bị lỗi Google disallowed_useragent.\n- Vibrant Radiant Submit Button: Chuẩn hóa màu neon cyan phát quang cho nút hành động chính, xóa bỏ triệt để màu xám xỉn mặc định.\n- PWA Web App Manifest: Bổ sung web app manifest và meta tag cho trải nghiệm app độc lập trên mobile và PC."
+    "changelog": "MEIKOVA HARVEST RELEASE V2.0.7:\n- Multi-Platform Support: Ban phat hanh da nen tang Windows, macOS, Linux hoan toan tu dong hoa.\n- Dual-Naming & Zero-404 Distribution: Bo phan giai link tai dong khac phuc triet de loi 404 version mismatch.\n- Centralized Auth Gateway: Dong bo xac thuc SSO voi Meikova Auth Ecosystem Ed25519."
 }

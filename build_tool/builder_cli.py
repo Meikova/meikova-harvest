@@ -681,7 +681,7 @@ Examples:
     build = parser.add_argument_group('Build Settings')
     build.add_argument('--name', default='Meikova Harvest',
                        help='Output application name')
-    build.add_argument('--version', default='2.0.5', help='Application version')
+    build.add_argument('--version', default='2.0.7', help='Application version')
     build.add_argument('--icon', help='Path to icon file (.ico on Windows, .png/.icns on macOS)')
     build.add_argument('--upx', action='store_true',
                        help='Use UPX compression (reduces size, slower startup)')
