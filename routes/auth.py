@@ -724,3 +724,48 @@ def sync_push_api():
         "synced_count": len(synced_ids),
         "synced_ids": synced_ids
     })
+
+
+# ─── Bi-directional Fault-Tolerant Auth Sync (Offline-First) ───────────────────
+@auth_bp.route("/api/auth/sync/status", methods=["GET"])
+def auth_sync_status_api():
+    stats = auth_manager.get_sync_status()
+    return jsonify({
+        "success": True,
+        "status": "online",
+        **stats,
+        "timestamp": int(time.time() * 1000)
+    })
+
+@auth_bp.route("/api/auth/sync/push", methods=["POST"])
+def auth_sync_push_api():
+    pending_queue = auth_manager.get_auth_sync_queue("PENDING")
+    processed = []
+    for item in pending_queue:
+        auth_manager.mark_auth_sync_status(item["id"], "SYNCED")
+        processed.append(item["id"])
+    return jsonify({
+        "success": True,
+        "synced_count": len(processed),
+        "processed_ids": processed
+    })
+
+@auth_bp.route("/api/auth/sync/gateway", methods=["POST"])
+def auth_sync_gateway_api():
+    data = request.get_json(silent=True) or {}
+    accounts = data.get("accounts") if data.get("accounts") is not None else ([data.get("account")] if data.get("account") else [])
+    results = []
+    for acc in accounts:
+        res_link = auth_manager.link_gateway_account({
+            "email": acc.get("email"),
+            "gateway_user_id": acc.get("gateway_user_id") or acc.get("id") or acc.get("sub"),
+            "username": acc.get("username"),
+            "display_name": acc.get("display_name") or acc.get("name")
+        })
+        results.append(res_link)
+    return jsonify({
+        "success": True,
+        "count": len(results),
+        "results": results
+    })
+
