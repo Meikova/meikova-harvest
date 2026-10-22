@@ -304,3 +304,33 @@
   - `.\venv\Scripts\python.exe -m unittest tests/test_builder_version.py`: 7/7 tests PASSED in 0.002s (Exit Code 0).
 - **Cảnh báo kỹ thuật:**
   - Cần chạy hard refresh (Ctrl + F5) trên trình duyệt để xóa cache stylesheet `styles.css`.
+
+
+---
+
+## 10. Khắc Phục Triệt Để Lỗi 404 Tải Ứng Dụng (Version Mismatch), Phân Giải Động và Phát Hành Tên Kép
+
+### 1. Nguyên nhân gốc rễ (Root Cause):
+- Người dùng nhấn nút tải app gọi route `/api/download/app/win-setup`.
+- Tại `routes/download.py`, biến `version = "2.0.5"` bị hardcode tĩnh, dẫn đến chuyển hướng sang `releases/latest/download/MeikovaHarvest-Setup-2.0.5.exe`.
+- Trên GitHub, release mới nhất là `v2.0.7` chỉ chứa tệp `MeikovaHarvest-Setup-2.0.7.exe`, không tồn tại tệp version cũ `2.0.5` dẫn đến HTTP 404.
+- Tương tự, tên tệp AppImage trên release là `MeikovaHarvest-2.0.7-x86_64.AppImage` và DEB là `MeikovaHarvest-2.0.7-amd64.deb`, nhưng mapping cũ gán `-x64.AppImage` và `.deb` cũng gây 404 trên Linux.
+- Trong `.github/workflows/build-and-release.yml`, khi push vào nhánh `main`, bước extract version rơi vào fallback tĩnh `VERSION="2.0.5"` làm các lượt build từ `main` tự ghi đè `update.json` về 2.0.5.
+
+### 2. Các giải pháp đã triển khai:
+1. **Dynamic Asset Resolver with Cache (`routes/download.py`):**
+   - Xóa bỏ hoàn toàn hardcoded version trong `download_native_app`.
+   - Triển khai hàm `get_latest_github_release_assets()` truy vấn danh sách tệp thực tế từ GitHub API (`/releases/latest`) kèm cache trong bộ nhớ TTL 10 phút.
+   - Hàm `resolve_target_download_url(target_lower)` đối soát thông minh theo pattern (`setup.*\.exe`, `portable.*\.exe`, `.*\.dmg`, `.*\.appimage`, `.*\.deb`, `.*\.tar\.gz`, `.*\.msi`) và chuyển hướng trực tiếp (307) tới URL download thực tế đã xác thực tồn tại trên GitHub Release.
+   - Thêm danh sách `VALID_APP_TARGETS`, trả về HTTP 404 kèm mã máy đọc được `code: "APP_TARGET_NOT_SUPPORTED"` nếu target không hợp lệ.
+2. **Dual-Naming & Dynamic Tag Extraction (`.github/workflows/build-and-release.yml`):**
+   - Bổ sung bước tự động bóc tách tag mới nhất qua `git describe --tags --abbrev=0` khi chạy trên nhánh `main`, triệt tiêu fallback tĩnh `2.0.5`.
+   - Bổ sung bước sinh tệp unversioned alias (`MeikovaHarvest-Setup.exe`, `MeikovaHarvest-Portable.exe`, `MeikovaHarvest.dmg`, `MeikovaHarvest.AppImage`, `MeikovaHarvest.deb`) song song với versioned files.
+   - Khắc phục đường dẫn `linux_x64` trong `update.json` thành `-x86_64.AppImage`.
+3. **Đồng bộ toàn diện phiên bản v2.0.7:**
+   - Đồng bộ `meikova-harvest/update.json`, `meikova-harvest-tool/update.json`, `electron/config.json`, `electron/package.json`, `build_tool/builder_cli.py`, `utils/auth.py`.
+4. **Kiểm thử tự động:**
+   - Cập nhật `tests/test_download_native_app.py` kiểm thử toàn bộ 8 nền tảng (Windows Setup, Portable, MSI, macOS DMG, Linux AppImage, DEB, Tarball, Extension). Kết quả: 3/3 tests PASSED (Exit Code 0).
+5. **Thể chế hóa Rule & Skill:**
+   - Cập nhật rule `Release-Asset-Dual-Naming & Zero-404-Download Mandate` vào `AGENTS.md` và `GEMINI.md`.
+   - Cập nhật Mục 14 trong skill `meikova-multiplatform\SKILL.md` và Mục 3 rule 14 trong `meikova\SKILL.md`.
