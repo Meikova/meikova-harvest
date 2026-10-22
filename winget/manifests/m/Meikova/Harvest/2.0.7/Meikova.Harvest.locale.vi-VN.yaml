@@ -1,0 +1,19 @@
+PackageIdentifier: Meikova.Harvest
+PackageVersion: 2.0.7
+PackageLocale: vi-VN
+Publisher: Nền Tảng Meikova
+PublisherUrl: https://meikova.org
+PublisherSupportUrl: https://meikova.org
+PackageName: Meikova Harvest
+PackageUrl: https://meikova.org
+License: MIT
+LicenseUrl: https://raw.githubusercontent.com/Meikova/meikova-harvest-tool/main/LICENSE
+ShortDescription: Công cụ tải và bóc tách đa phương tiện tốc độ cao đa nền tảng.
+Description: Meikova Harvest là công cụ trích xuất phương tiện tốc độ cao hỗ trợ hơn 1000 trang web, tải hàng loạt, tách luồng âm thanh và tự động chuyển đổi định dạng.
+Tags:
+  - tai-video
+  - tai-nhac
+  - da-phuong-tien
+  - meikova
+ManifestType: locale
+ManifestVersion: 1.6.0

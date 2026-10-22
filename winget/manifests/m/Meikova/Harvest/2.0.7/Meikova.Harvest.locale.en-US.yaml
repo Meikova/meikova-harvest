@@ -1,0 +1,20 @@
+PackageIdentifier: Meikova.Harvest
+PackageVersion: 2.0.7
+PackageLocale: en-US
+Publisher: Meikova Platform
+PublisherUrl: https://meikova.org
+PublisherSupportUrl: https://meikova.org
+PackageName: Meikova Harvest
+PackageUrl: https://meikova.org
+License: MIT
+LicenseUrl: https://raw.githubusercontent.com/Meikova/meikova-harvest-tool/main/LICENSE
+ShortDescription: High-performance multi-platform media downloader and format extractor.
+Description: Meikova Harvest is an ultra-fast media extractor and stream archiver supporting 1000+ streaming sites with batch downloads and stem separation.
+Tags:
+  - media
+  - downloader
+  - video
+  - audio
+  - youtube-dl
+ManifestType: defaultLocale
+ManifestVersion: 1.6.0

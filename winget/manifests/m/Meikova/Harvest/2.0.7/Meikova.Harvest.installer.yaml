@@ -1,0 +1,15 @@
+PackageIdentifier: Meikova.Harvest
+PackageVersion: 2.0.7
+MinimumOSVersion: 10.0.0.0
+InstallerType: nullsoft
+InstallModes:
+  - interactive
+  - silent
+  - silentWithProgress
+Installers:
+  - Architecture: x64
+    InstallerUrl: https://github.com/Meikova/meikova-harvest-tool/releases/download/v2.0.7/MeikovaHarvest-Setup.exe
+    InstallerSha256: 0000000000000000000000000000000000000000000000000000000000000000
+    Scope: user
+ManifestType: installer
+ManifestVersion: 1.6.0
