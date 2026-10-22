@@ -86,10 +86,9 @@
       "target": [
         "AppImage",
         "tar.gz",
-        "deb",
-        "rpm"
+        "deb"
       ],
-      "icon": "resources/icon.png",
+      "icon": "resources/icons",
       "category": "Utility",
       "artifactName": "MeikovaHarvest-${version}-${arch}.${ext}"
     },

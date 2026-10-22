@@ -55,6 +55,12 @@ jobs:
           python -m pip install --upgrade pip
           pip install -r requirements.txt
 
+      - name: Install Linux build dependencies
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install --no-install-recommends -y rpm
+
       - name: Extract version
         shell: bash
         run: |
@@ -170,10 +176,9 @@ jobs:
           * **MeikovaHarvest-${{ env.VERSION }}-mac.zip**: Ban nen ZIP cho macOS.
           * **MeikovaHarvest-${{ env.VERSION }}.pkg**: Ban cai dat Package Installer cho macOS.
           #### Linux:
-          * **MeikovaHarvest-${{ env.VERSION }}.AppImage**: Ban di dong cho Linux, chay truc tiep.
+          * **MeikovaHarvest-${{ env.VERSION }}.AppImage**: Ban di dong cho Linux, chay truc tiep (ho tro tat ca cac phan phoi Linux: Ubuntu, Debian, Fedora, Arch...).
           * **MeikovaHarvest-${{ env.VERSION }}.tar.gz**: Ban nen Archive cho Linux.
           * **MeikovaHarvest-${{ env.VERSION }}.deb**: Ban cai dat cho Ubuntu/Debian.
-          * **MeikovaHarvest-${{ env.VERSION }}.rpm**: Ban cai dat cho Fedora/RHEL/CentOS.
           #### Web Binary (Standalone Server):
           * **MeikovaHarvest-Web-${{ env.VERSION }}-<Platform>**: Ban Web Binary doc lap chay tren tung he dieu hanh.
           
