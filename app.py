@@ -98,6 +98,33 @@ def _init_ffmpeg_async():
 import threading
 threading.Thread(target=_init_ffmpeg_async, daemon=True, name="ffmpeg-init").start()
 
+# Ensure Deno JS runtime on Linux/Render and auto-check yt-dlp updates in background
+from utils.ytdl import _ensure_deno, auto_update_ytdlp
+_ensure_deno()
+auto_update_ytdlp(force=False)
+
+# Sync cookies from cloud environment variables (e.g. Render/HuggingFace YOUTUBE_COOKIES)
+def _sync_env_cookies():
+    cookie_content = os.environ.get("YOUTUBE_COOKIES") or os.environ.get("COOKIES_TXT")
+    if cookie_content and cookie_content.strip():
+        try:
+            from utils.cookies import parse_cookies_to_dict, serialize_netscape_cookies
+            from config import COOKIES_DIR
+            parsed = parse_cookies_to_dict(cookie_content.strip())
+            if parsed:
+                serialized = serialize_netscape_cookies(parsed)
+                dest = os.path.join(os.path.dirname(os.path.abspath(__file__)), "cookies.txt")
+                with open(dest, "w", encoding="utf-8") as f:
+                    f.write(serialized)
+                if os.path.isdir(COOKIES_DIR):
+                    with open(os.path.join(COOKIES_DIR, "cookies_chrome-extension.txt"), "w", encoding="utf-8") as f:
+                        f.write(serialized)
+                logger.info(f"Environment YOUTUBE_COOKIES loaded successfully ({len(parsed)} cookies).")
+        except Exception as e:
+            logger.warning(f"Failed to load environment cookies: {e}")
+
+_sync_env_cookies()
+
 # Initialize Flask app with dynamic static and template resolution
 def _resolve_app_asset_dir(subpath):
     candidates = [

@@ -207,3 +207,6 @@ scratch/
 client_secret*.json
 credentials*.json
 *.client_secret.json
+# Sensitive cookie files
+cookies.txt
+*.cookie

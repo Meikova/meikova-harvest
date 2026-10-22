@@ -15,7 +15,7 @@ except ImportError:
 from config import TEMP_DOWNLOAD_DIR, downloads_status, downloads_status_lock
 from utils.helpers import get_referer_by_url
 from utils.ffmpeg import trim_file_if_needed, apply_post_processing
-from utils.ytdl import create_ydl_instance, should_use_impersonate
+from utils.ytdl import create_ydl_instance, should_use_impersonate, _find_js_runtimes
 
 logger = logging.getLogger(__name__)
 
@@ -885,7 +885,8 @@ def bg_download_task(download_id, url, format_id, ext, quality="192", title="med
             "no_warnings": False,
             "noplaylist": True,
             "progress_hooks": [progress_hook],
-            "js_runtimes": {"node": {}, "deno": {}, "bun": {}, "quickjs": {}},
+            "js_runtimes": _find_js_runtimes(),
+            "remote_components": ["ejs:github"],
             "cookiesfrombrowser": None if is_youtube else "auto",
             "ignoreerrors": True,
             "compat_opts": {"prefer-legacy-http-handler"},
@@ -894,7 +895,8 @@ def bg_download_task(download_id, url, format_id, ext, quality="192", title="med
             },
             "extractor_args": {
                 "youtube": {
-                    "player_client": ["web_embedded", "android", "web"],
+                    "player_client": ["android", "mweb", "web_embedded", "web"],
+                    "formats": ["missing_pot"],
                 },
                 "generic": {
                     "impersonate": [""]
@@ -1043,9 +1045,10 @@ def bg_download_task(download_id, url, format_id, ext, quality="192", title="med
                 ydl_opts_no_cookies = ydl_opts.copy()
                 ydl_opts_no_cookies.pop("cookiefile", None)
                 ydl_opts_no_cookies.pop("cookiesfrombrowser", None)
-                # Ensure web_embedded client is preserved in fallback
+                # Ensure robust player clients and formats in fallback
                 if "extractor_args" in ydl_opts_no_cookies and "youtube" in ydl_opts_no_cookies["extractor_args"]:
-                    ydl_opts_no_cookies["extractor_args"]["youtube"]["player_client"] = ["web_embedded", "android", "web"]
+                    ydl_opts_no_cookies["extractor_args"]["youtube"]["player_client"] = ["android", "mweb", "web_embedded", "web"]
+                    ydl_opts_no_cookies["extractor_args"]["youtube"]["formats"] = ["missing_pot"]
                 with yt_dlp.YoutubeDL(ydl_opts_no_cookies) as ydl_nocookies:
                     ret_nocookies = ydl_nocookies.download([url])
                     if ret_nocookies != 0:

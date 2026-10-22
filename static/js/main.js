@@ -978,6 +978,52 @@ document.addEventListener("DOMContentLoaded", () => {
     const btnSettingsChangeDir = document.getElementById("btn-settings-change-dir");
     const btnSettingsOpenDir = document.getElementById("btn-settings-open-dir");
 
+    async function triggerOpenDownloadsFolder() {
+        if (window.electronAPI && typeof window.electronAPI.openDownloadsFolder === "function") {
+            try {
+                window.electronAPI.openDownloadsFolder();
+                return;
+            } catch (_) {}
+        }
+
+        try {
+            const resp = await fetch("/api/download/open-folder", { method: "POST" });
+            const data = await resp.json().catch(() => ({}));
+            if (data && data.status === "success") {
+                if (typeof showToast === "function") {
+                    showToast("Đã mở thư mục Downloads trên máy.", "success");
+                }
+            } else if (data && data.status === "notice") {
+                if (typeof showToast === "function") {
+                    showToast(data.message || "File tải về nằm trong thư mục Downloads của trình duyệt (bấm Ctrl+J để mở).", "info");
+                }
+                const dm = document.getElementById("downloads-manager");
+                if (dm) {
+                    dm.classList.remove("hidden");
+                    dm.classList.remove("collapsed");
+                }
+            } else {
+                if (typeof showToast === "function") {
+                    showToast("File tải về nằm trong thư mục Downloads của trình duyệt (bấm Ctrl+J để xem).", "info");
+                }
+                const dm = document.getElementById("downloads-manager");
+                if (dm) {
+                    dm.classList.remove("hidden");
+                    dm.classList.remove("collapsed");
+                }
+            }
+        } catch (_) {
+            if (typeof showToast === "function") {
+                showToast("File tải về nằm trong thư mục Downloads của trình duyệt (bấm Ctrl+J để xem).", "info");
+            }
+            const dm = document.getElementById("downloads-manager");
+            if (dm) {
+                dm.classList.remove("hidden");
+                dm.classList.remove("collapsed");
+            }
+        }
+    }
+
     async function updateDownloadsDirDisplay() {
         if (!globalDownloadsDirInput) return;
         if (window.electronAPI && typeof window.electronAPI.getDownloadsDir === "function") {
@@ -987,7 +1033,8 @@ document.addEventListener("DOMContentLoaded", () => {
             } catch (_) {}
             if (btnSettingsChangeDir) btnSettingsChangeDir.style.display = "inline-flex";
         } else {
-            globalDownloadsDirInput.value = "Downloads / MeikovaHarvest";
+            globalDownloadsDirInput.value = "Downloads / MeikovaHarvest (Ctrl+J)";
+            globalDownloadsDirInput.title = "Bấm để mở danh sách file tải về (Ctrl+J)";
         }
     }
     updateDownloadsDirDisplay();
@@ -1008,11 +1055,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
     if (btnSettingsOpenDir) {
         btnSettingsOpenDir.addEventListener("click", () => {
-            if (window.electronAPI && typeof window.electronAPI.openDownloadsFolder === "function") {
-                window.electronAPI.openDownloadsFolder();
-            } else {
-                fetch("/api/download/open-folder", { method: "POST" });
-            }
+            triggerOpenDownloadsFolder();
         });
     }
 
@@ -1378,12 +1421,7 @@ document.addEventListener("DOMContentLoaded", () => {
     if (downloadsOpenFolderBtn) {
         downloadsOpenFolderBtn.addEventListener("click", (e) => {
             e.stopPropagation();
-            if (window.electronAPI && typeof window.electronAPI.openDownloadsFolder === "function") {
-                window.electronAPI.openDownloadsFolder();
-            } else {
-                fetch("/api/download/open-folder", { method: "POST" })
-                    .catch(() => window.open("/downloads", "_blank"));
-            }
+            triggerOpenDownloadsFolder();
         });
     }
 
@@ -9712,7 +9750,7 @@ document.addEventListener("DOMContentLoaded", () => {
                                 if (window.electronAPI && window.electronAPI.showItemInFolder) {
                                     window.electronAPI.showItemInFolder(res.filePath);
                                 } else {
-                                    fetch("/api/download/open-folder", { method: "POST" });
+                                    triggerOpenDownloadsFolder();
                                 }
                             };
                         }
@@ -9738,7 +9776,7 @@ document.addEventListener("DOMContentLoaded", () => {
                                 if (window.electronAPI && window.electronAPI.showItemInFolder) {
                                     window.electronAPI.showItemInFolder(res.filePath);
                                 } else {
-                                    fetch("/api/download/open-folder", { method: "POST" });
+                                    triggerOpenDownloadsFolder();
                                 }
                             });
                             actionsDiv.querySelector(".btn-task-clear")?.addEventListener("click", () => {

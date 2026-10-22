@@ -394,8 +394,19 @@ def save_download_to_disk():
 
 @download_bp.route("/api/download/open-folder", methods=["GET", "POST"])
 def open_downloads_folder_endpoint():
-    """Opens the local downloads directory on the host system."""
+    """Opens the local downloads directory on the host system, or returns web instructions if remote/cloud."""
     try:
+        is_cloud = os.path.exists('/.dockerenv') or os.environ.get('RENDER') == 'true'
+        client_ip = request.remote_addr or ""
+        is_remote = client_ip not in ("127.0.0.1", "localhost", "::1", "testclient")
+
+        if is_cloud or is_remote:
+            return jsonify({
+                "status": "notice",
+                "mode": "web",
+                "message": "Trình duyệt web không thể mở trực tiếp Explorer do bảo mật sandbox. File tải về nằm trong thư mục Downloads của máy bạn (bấm Ctrl+J để mở)."
+            })
+
         folder = os.path.abspath(TEMP_DOWNLOAD_DIR)
         os.makedirs(folder, exist_ok=True)
         if sys.platform.startswith("win"):
@@ -403,11 +414,22 @@ def open_downloads_folder_endpoint():
         elif sys.platform == "darwin":
             subprocess.Popen(["open", folder])
         else:
-            subprocess.Popen(["xdg-open", folder])
+            try:
+                subprocess.Popen(["xdg-open", folder])
+            except Exception:
+                return jsonify({
+                    "status": "notice",
+                    "mode": "web",
+                    "message": "Trình duyệt web không thể mở trực tiếp Explorer do bảo mật sandbox. File tải về nằm trong thư mục Downloads của máy bạn (bấm Ctrl+J để mở)."
+                })
         return jsonify({"status": "success", "folder": folder})
     except Exception as e:
-        logger.error(f"Failed to open downloads folder: {e}")
-        return jsonify({"status": "error", "message": str(e)}), 500
+        logger.warning(f"Notice on open downloads folder: {e}")
+        return jsonify({
+            "status": "notice",
+            "mode": "web",
+            "message": "File tải về nằm trong thư mục Downloads của máy bạn (bấm Ctrl+J để mở)."
+        }), 200
 
 
 @download_bp.route("/api/download/open-file", methods=["POST"])

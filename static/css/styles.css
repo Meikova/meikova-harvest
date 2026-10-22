@@ -947,14 +947,25 @@ body[class*="theme-"] .card {
 }
 #url-input {
   flex: 1;
-  background: transparent;
-  border: none;
-  outline: none;
+  background: transparent !important;
+  border: none !important;
+  outline: none !important;
+  box-shadow: none !important;
   color: var(--text);
   font-family: var(--font);
   font-size: 0.92rem;
   padding: 0;
   align-self: stretch;
+}
+#url-input:focus,
+#url-input:focus-visible,
+.search-input-wrap input,
+.search-input-wrap input:focus,
+.search-input-wrap input:focus-visible {
+  border: none !important;
+  outline: none !important;
+  box-shadow: none !important;
+  background: transparent !important;
 }
 #url-input::placeholder {
   color: var(--text-faint);
@@ -11803,7 +11814,6 @@ body.preview-active .app-shell {
 }
 
 /* Form inputs & selects focus-visible */
-.url-input:focus-visible,
 .settings-select-menu:focus-visible,
 .custom-select-menu:focus-visible,
 .loop-time-input-menu:focus-visible {

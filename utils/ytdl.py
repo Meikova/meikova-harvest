@@ -52,6 +52,135 @@ except Exception as patch_err:
     logger.warning(f"Could not monkey-patch CurlCFFIRH: {patch_err}")
 
 
+_last_ytdlp_update = 0
+
+
+def _find_js_runtimes():
+    from pathlib import Path
+    runtimes = {}
+    deno_dir = Path.home() / ".local" / "bin"
+    deno_bin = deno_dir / ("deno.exe" if sys.platform.startswith("win") else "deno")
+    if deno_bin.exists():
+        runtimes["deno"] = {"path": str(deno_bin)}
+    for rt in ("deno", "node", "bun", "quickjs"):
+        if rt not in runtimes:
+            p = shutil.which(rt)
+            runtimes[rt] = {"path": p} if p else {}
+    return runtimes
+
+
+def _ensure_deno():
+    if sys.platform.startswith("win"):
+        return
+    import subprocess, re
+    from pathlib import Path
+    deno_dir = Path.home() / ".local" / "bin"
+    deno_bin = deno_dir / "deno"
+
+    needs_install = True
+    p = shutil.which("deno") or (str(deno_bin) if deno_bin.exists() else None)
+    if p:
+        try:
+            out = subprocess.check_output([p, "--version"], stderr=subprocess.STDOUT, text=True)
+            v_match = re.search(r"deno\s+(\d+)\.(\d+)", out)
+            if v_match:
+                major, minor = int(v_match.group(1)), int(v_match.group(2))
+                if (major, minor) >= (2, 0):
+                    needs_install = False
+                    if str(deno_dir) not in os.environ.get("PATH", ""):
+                        os.environ["PATH"] = f"{deno_dir}:{os.environ.get('PATH', '')}"
+                    logger.info(f"Deno runtime verified: {v_match.group(0)} at {p}")
+        except Exception:
+            pass
+
+    if not needs_install:
+        return
+
+    try:
+        import urllib.request, zipfile, io
+        logger.info("Auto-installing Deno JS engine (v2.9.7 >= 2.0.0 required by yt-dlp)...")
+        deno_dir.mkdir(parents=True, exist_ok=True)
+        url = "https://github.com/denoland/deno/releases/download/v2.9.7/deno-x86_64-unknown-linux-gnu.zip"
+        req = urllib.request.Request(url, headers={"User-Agent": "Mozilla/5.0"})
+        with urllib.request.urlopen(req, timeout=30) as resp:
+            z = zipfile.ZipFile(io.BytesIO(resp.read()))
+            z.extract("deno", str(deno_dir))
+        deno_bin.chmod(0o755)
+        os.environ["PATH"] = f"{deno_dir}:{os.environ.get('PATH', '')}"
+        logger.info(f"Deno v2.9.7 installed successfully at {deno_bin}")
+    except Exception as e:
+        logger.warning(f"Deno auto-install skipped: {e}")
+
+
+def auto_update_ytdlp(force=False):
+    """Auto-updates yt-dlp and yt-dlp-ejs via pip in a background daemon thread."""
+    global _last_ytdlp_update
+    import time
+    import threading
+    import subprocess
+    now = time.time()
+    if not force and (now - _last_ytdlp_update < 21600):
+        return
+    _last_ytdlp_update = now
+
+    def _worker():
+        try:
+            logger.info("Checking for yt-dlp updates via pip...")
+            cmd = [sys.executable, "-m", "pip", "install", "--upgrade", "yt-dlp", "yt-dlp-ejs"]
+            res = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, timeout=90)
+            if res.returncode == 0:
+                summary = res.stdout.strip().splitlines()[-1] if res.stdout else "Up to date"
+                logger.info(f"yt-dlp auto-update check finished: {summary}")
+            else:
+                logger.warning(f"yt-dlp auto-update returned code {res.returncode}: {res.stderr.strip()[:200]}")
+        except Exception as e:
+            logger.warning(f"yt-dlp auto-update skipped: {e}")
+
+    threading.Thread(target=_worker, daemon=True, name="ytdlp-auto-updater").start()
+
+
+def resolve_youtube_oembed(video_id_or_url: str) -> dict | None:
+    """Extracts public YouTube video metadata via Google's official oEmbed API.
+    Bypasses datacenter bot verification / CAPTCHA completely."""
+    import re
+    import json
+    import urllib.request
+    
+    video_id = video_id_or_url
+    if "http" in video_id_or_url or "/" in video_id_or_url:
+        m = re.search(r"(?:v=|youtu\.be/|shorts/|embed/)([A-Za-z0-9_-]{11})", video_id_or_url)
+        if m:
+            video_id = m.group(1)
+        else:
+            return None
+            
+    if not re.match(r"^[A-Za-z0-9_-]{11}$", video_id):
+        return None
+
+    try:
+        req = urllib.request.Request(
+            f"https://www.youtube.com/oembed?url=https://www.youtube.com/watch?v={video_id}&format=json",
+            headers={"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"}
+        )
+        with urllib.request.urlopen(req, timeout=6) as resp:
+            data = json.loads(resp.read().decode("utf-8"))
+            title = data.get("title") or video_id
+            author = data.get("author_name") or ""
+            thumb = data.get("thumbnail_url") or f"https://i.ytimg.com/vi/{video_id}/mqdefault.jpg"
+            return {
+                "id": video_id,
+                "source": "youtube",
+                "title": title,
+                "channel": author,
+                "duration": None,
+                "thumbnail": thumb,
+                "url": f"https://www.youtube.com/watch?v={video_id}",
+            }
+    except Exception as e:
+        logger.debug(f"oEmbed resolution failed for {video_id}: {e}")
+        return None
+
+
 def create_ydl_instance(ydl_opts, url=None, client_id=None):
     """
     Attempts to instantiate YoutubeDL. 
@@ -60,29 +189,28 @@ def create_ydl_instance(ydl_opts, url=None, client_id=None):
     """
     logger.info(f"create_ydl_instance: client_id='{client_id}', url='{url}'")
     
-    # Ensure Node JS runtime is available for solving YouTube signature / n-token challenges
-    node_bin = shutil.which("node")
+    # Ensure JS runtimes are registered (Deno, Node, Bun, QuickJS)
+    runtimes = _find_js_runtimes()
     if "js_runtimes" not in ydl_opts or not ydl_opts["js_runtimes"]:
-        ydl_opts["js_runtimes"] = {
-            "node": {"path": node_bin} if node_bin else {},
-            "deno": {},
-            "bun": {},
-            "quickjs": {}
-        }
-    elif node_bin and "node" in ydl_opts.get("js_runtimes", {}) and not ydl_opts["js_runtimes"]["node"]:
-        ydl_opts["js_runtimes"]["node"] = {"path": node_bin}
+        ydl_opts["js_runtimes"] = runtimes
+    else:
+        for rt, rt_dict in runtimes.items():
+            if not ydl_opts["js_runtimes"].get(rt):
+                ydl_opts["js_runtimes"][rt] = rt_dict
 
-    # Ensure YouTube player_client prioritizes web_embedded to avoid HTTP 403 Forbidden without PO Token
+    # Add remote components for EJS decryptor
+    if "remote_components" not in ydl_opts:
+        ydl_opts["remote_components"] = ["ejs:github"]
+
+    # Ensure YouTube player_client and formats
     if "extractor_args" not in ydl_opts:
         ydl_opts["extractor_args"] = {}
-    if "youtube" not in ydl_opts["extractor_args"]:
-        ydl_opts["extractor_args"]["youtube"] = {
-            "player_client": ["web_embedded", "android", "web"]
-        }
-    elif "player_client" in ydl_opts["extractor_args"]["youtube"]:
-        clients = ydl_opts["extractor_args"]["youtube"]["player_client"]
-        if isinstance(clients, list) and (len(clients) == 0 or clients[0] in ("ios", "mweb")):
-            ydl_opts["extractor_args"]["youtube"]["player_client"] = ["web_embedded", "android", "web"]
+    yt_args = ydl_opts["extractor_args"].setdefault("youtube", {})
+    if "player_client" not in yt_args or not yt_args["player_client"]:
+        yt_args["player_client"] = ["web_embedded", "android", "mweb", "web"]
+    elif isinstance(yt_args["player_client"], list) and (len(yt_args["player_client"]) == 0 or yt_args["player_client"][0] in ("ios", "mweb")):
+        yt_args["player_client"] = ["web_embedded", "android", "mweb", "web"]
+    yt_args.setdefault("formats", ["missing_pot"])
 
     # Force legacy HTTP handler (urllib) to avoid curl-cffi TLS / OpenSSL DLL conflict on Windows
     if "compat_opts" not in ydl_opts:

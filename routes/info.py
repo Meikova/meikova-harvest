@@ -14,7 +14,7 @@ except ImportError:
 
 from config import BASE_DIR, TEMP_DOWNLOAD_DIR
 from utils.helpers import format_duration, format_size, get_referer_by_url, get_url_content_length
-from utils.ytdl import create_ydl_instance, should_use_impersonate
+from utils.ytdl import create_ydl_instance, should_use_impersonate, _find_js_runtimes, resolve_youtube_oembed, auto_update_ytdlp
 
 from extractors import (
     extract_instagram_via_gallery_dl,
@@ -630,13 +630,15 @@ def get_info():
         "nocheckcertificate": True,
         "noplaylist": not is_instagram if not is_playlist else False,
         "extract_flat": True if is_playlist else False,
-        "js_runtimes": {"node": {}, "deno": {}, "bun": {}, "quickjs": {}},
+        "js_runtimes": _find_js_runtimes(),
+        "remote_components": ["ejs:github"],
         "cookiesfrombrowser": "auto",
         "ignoreerrors": False,
         "compat_opts": {"prefer-legacy-http-handler"},
         "extractor_args": {
             "youtube": {
-                "player_client": ["web_embedded", "android", "web"],
+                "player_client": ["android", "mweb", "web_embedded", "web"],
+                "formats": ["missing_pot"],
             },
             "generic": {
                 "impersonate": [""]
@@ -788,6 +790,8 @@ def get_info():
 
                 is_youtube = any(domain in url.lower() for domain in ["youtube.com", "youtu.be", "youtubekids.com", "youtube-nocookie.com"])
                 if is_youtube:
+                    if "player response" in err_str.lower() or "latest version" in err_str.lower() or "bot" in err_str.lower():
+                        auto_update_ytdlp(force=True)
                     youtube_auth_keywords = [
                         "confirm you're not a bot", 
                         "confirm you are not a bot",
@@ -900,6 +904,99 @@ def get_info():
                 ]
                 is_known_platform = any(domain in url.lower() for domain in known_domains)
                 if is_known_platform:
+                    if is_youtube and not is_playlist:
+                        oe = resolve_youtube_oembed(url)
+                        if oe:
+                            yt_id = oe["id"]
+                            return jsonify({
+                                "status": "success",
+                                "id": yt_id,
+                                "webpage_url": oe["url"],
+                                "title": oe["title"],
+                                "uploader": oe["channel"],
+                                "duration": "N/A",
+                                "duration_raw": None,
+                                "thumbnail": oe["thumbnail"],
+                                "is_shorts": "/shorts/" in url,
+                                "platform_label": "YouTube",
+                                "platform_class": "youtube",
+                                "views": None,
+                                "likes": None,
+                                "upload_date": None,
+                                "description": "",
+                                "category": None,
+                                "tags": [],
+                                "video_options": [
+                                    {
+                                        "format_id": "best",
+                                        "ext": "mp4",
+                                        "resolution": "Best Available (HD)",
+                                        "label": "Best Available Quality (MP4)",
+                                        "type": "video",
+                                        "filesize": None,
+                                        "size": "Adaptive Stream",
+                                        "url": oe["url"],
+                                    },
+                                    {
+                                        "format_id": "bestvideo+bestaudio/best",
+                                        "ext": "mp4",
+                                        "resolution": "1080p (Full HD)",
+                                        "label": "1080p (Full HD)",
+                                        "type": "video",
+                                        "filesize": None,
+                                        "size": "Adaptive Stream",
+                                        "url": oe["url"],
+                                    },
+                                    {
+                                        "format_id": "bestvideo[height<=720]+bestaudio/best[height<=720]",
+                                        "ext": "mp4",
+                                        "resolution": "720p (HD)",
+                                        "label": "720p (HD)",
+                                        "type": "video",
+                                        "filesize": None,
+                                        "size": "Adaptive Stream",
+                                        "url": oe["url"],
+                                    },
+                                    {
+                                        "format_id": "bestvideo[height<=480]+bestaudio/best[height<=480]",
+                                        "ext": "mp4",
+                                        "resolution": "480p (SD)",
+                                        "label": "480p (SD)",
+                                        "type": "video",
+                                        "filesize": None,
+                                        "size": "Adaptive Stream",
+                                        "url": oe["url"],
+                                    },
+                                    {
+                                        "format_id": "bestvideo[height<=360]+bestaudio/best[height<=360]",
+                                        "ext": "mp4",
+                                        "resolution": "360p",
+                                        "label": "360p",
+                                        "type": "video",
+                                        "filesize": None,
+                                        "size": "Adaptive Stream",
+                                        "url": oe["url"],
+                                    }
+                                ],
+                                "audio_options": [
+                                    {
+                                        "format_id": "bestaudio",
+                                        "ext": "mp3",
+                                        "resolution": "Audio Only",
+                                        "label": "Audio (MP3 / 320kbps)",
+                                        "type": "audio",
+                                        "filesize": None,
+                                        "size": "Audio Stream",
+                                        "url": oe["url"],
+                                    }
+                                ],
+                                "subtitles": [],
+                                "images": [
+                                    {"label": "Max Resolution Thumbnail (1280x720)", "url": f"https://img.youtube.com/vi/{yt_id}/maxresdefault.jpg", "ext": "jpg"},
+                                    {"label": "High Quality Thumbnail (480x360)", "url": f"https://img.youtube.com/vi/{yt_id}/hqdefault.jpg", "ext": "jpg"},
+                                    {"label": "Medium Quality Thumbnail (320x180)", "url": f"https://img.youtube.com/vi/{yt_id}/mqdefault.jpg", "ext": "jpg"}
+                                ]
+                            })
                     return jsonify({
                         "status": "error",
                         "message": f"Unable to extract media metadata: {strip_ansi_codes(str(nocookie_e))}"
