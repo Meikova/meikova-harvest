@@ -1,3 +1,28 @@
+# Session Handoff: Dynamic QR Code & LAN/Host Auto-Discovery in Download Modal
+
+## 1. Mục tiêu hoàn thành
+- [x] **Xóa bỏ 100% mã QR & URL hardcode:**
+  - Rà soát phát hiện mã QR và các liên kết trong modal download (`templates/index.html`) bị hardcode chuỗi tĩnh `https://meikova-harvest.onrender.com`.
+  - Thay thế toàn bộ bằng biểu thức động Jinja2: `{{ (request.host_url or 'https://meikova-harvest.onrender.com').rstrip('/') }}`.
+- [x] **LAN IP & Domain Dynamic Resolver (`/api/network/host-info`):**
+  - Xây dựng endpoint `GET /api/network/host-info` trong `routes/pages.py` tự động phát hiện địa chỉ IP mạng nội bộ (LAN IP) với timeout 0.5s và fallback hostname.
+  - Phân giải chính xác cổng và giao thức (HTTP/HTTPS, ProxyFix `X-Forwarded-Proto`, `X-Forwarded-Host`).
+- [x] **Smart Client QR Generator (`static/js/main.js`):**
+  - Khi truy cập từ máy chủ đám mây / domain công khai (Render, HF Space, Tailscale Mesh, Custom Domain): Mã QR tự động mã hóa `window.location.origin`.
+  - Khi truy cập từ `localhost` / `127.0.0.1`: Client tự động gọi `/api/network/host-info` để lấy IP LAN thực tế (`http://192.168.x.x:5000`), giúp điện thoại cùng mạng Wi-Fi quét mã QR là kết nối ngay lập tức (không bị lỗi trỏ vào loopback của điện thoại).
+  - Tự động fallback sang QuickChart QR API nếu service QRServer bị chặn.
+  - Cập nhật nút sao chép `btn-copy-server-url` chép chính xác địa chỉ động hiển thị trên giao diện.
+
+## 2. Kết quả kiểm thử cục bộ (Exit Code 0)
+- `tests.test_network_host_info`: **2/2 PASS (Exit Code 0)**.
+- Toàn bộ test suite liên quan (`test_builder_version`, `test_download_native_app`, `test_auth`, `test_pwa_manifest`, `test_security_boundary`, `test_universal_analyzer`, `test_user_data_persistence`, `test_harvest_auth_sync`): **49/49 PASS (Exit Code 0)**.
+
+## 3. Git Operations
+- Commit: `e776dc3` (`feat(qr): make download modal qr code fully dynamic based on host domain and lan ip`).
+- Remote: Pushed to `origin/main` thành công.
+
+---
+
 # Session Handoff: Infinite Marquee Slider for Popular Platforms & Version Synchronization
 
 ## 1. Mục tiêu hoàn thành
