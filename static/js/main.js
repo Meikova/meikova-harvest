@@ -1872,6 +1872,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
     // Initialize welcome dashboard and render history
     showWelcomeDashboard();
+    updateHarvestModalData();
 
     // Wire up platform badge example URL clicks (delegated for all marquee tracks)
     document.addEventListener("click", (e) => {
@@ -17368,8 +17369,8 @@ document.addEventListener("DOMContentLoaded", () => {
         });
     });
 
-    function updateHarvestModalData() {
-        const currentOrigin = window.location.origin;
+    async function updateHarvestModalData() {
+        let currentOrigin = window.location.origin;
         const isTailscale = window.location.hostname.startsWith("100.");
         const isHfSpace = window.location.hostname.includes("hf.space") || window.location.hostname.includes("huggingface.co");
         const isLocal = window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1";
@@ -17380,10 +17381,30 @@ document.addEventListener("DOMContentLoaded", () => {
         const modalLink = document.getElementById("apps-harvest-link");
         const scanDesc = document.getElementById("apps-harvest-scan-desc");
 
+        // If local host (localhost/127.0.0.1), try to fetch real LAN IP from server so phone camera can connect
+        let isLanIp = false;
+        if (isLocal) {
+            try {
+                const res = await fetch("/api/network/host-info");
+                if (res.ok) {
+                    const netData = await res.json();
+                    if (netData.lan_origin && netData.lan_ip !== "127.0.0.1") {
+                        currentOrigin = netData.lan_origin;
+                        isLanIp = true;
+                    }
+                }
+            } catch (err) {
+                // Keep window.location.origin fallback
+            }
+        } else {
+            isLanIp = /^(192\.168\.|10\.|172\.(1[6-9]|2[0-9]|3[0-1])\.)/.test(window.location.hostname);
+        }
+
         if (ipSpan) ipSpan.textContent = currentOrigin;
         if (tagSpan) {
             if (isHfSpace) tagSpan.textContent = "Hugging Face Space";
             else if (isTailscale) tagSpan.textContent = "Tailscale Mesh";
+            else if (isLanIp) tagSpan.textContent = "Mạng Cục Bộ LAN";
             else if (isLocal) tagSpan.textContent = "Local Host";
             else tagSpan.textContent = "Máy chủ Web";
         }
@@ -17392,10 +17413,19 @@ document.addEventListener("DOMContentLoaded", () => {
             modalLink.textContent = `${currentOrigin} ↗`;
         }
         if (scanDesc) {
-            scanDesc.textContent = isHfSpace ? " để mở trực tiếp qua Hugging Face Space." : " để mở ứng dụng tức thì trên điện thoại.";
+            if (isHfSpace) {
+                scanDesc.textContent = " để mở trực tiếp qua Hugging Face Space.";
+            } else if (isLanIp) {
+                scanDesc.textContent = " (cùng mạng Wi-Fi) để mở ứng dụng tức thì trên điện thoại.";
+            } else {
+                scanDesc.textContent = " để mở ứng dụng tức thì trên điện thoại.";
+            }
         }
         if (qrImg) {
             qrImg.src = `https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${encodeURIComponent(currentOrigin)}`;
+            qrImg.onerror = () => {
+                qrImg.src = `https://quickchart.io/qr?size=150&text=${encodeURIComponent(currentOrigin)}`;
+            };
         }
 
         // Auto-detect client platform
@@ -17412,7 +17442,9 @@ document.addEventListener("DOMContentLoaded", () => {
     if (btnCopyServerUrl) {
         btnCopyServerUrl.addEventListener("click", async () => {
             try {
-                await navigator.clipboard.writeText(window.location.origin);
+                const ipSpan = document.getElementById("apps-modal-ip");
+                const textToCopy = (ipSpan && ipSpan.textContent.trim()) || window.location.origin;
+                await navigator.clipboard.writeText(textToCopy);
                 const orig = btnCopyServerUrl.innerHTML;
                 btnCopyServerUrl.innerHTML = `<svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="20 6 9 17 4 12"/></svg><span>Đã chép ✓</span>`;
                 setTimeout(() => { btnCopyServerUrl.innerHTML = orig; }, 2000);
