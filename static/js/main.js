@@ -1873,17 +1873,19 @@ document.addEventListener("DOMContentLoaded", () => {
     // Initialize welcome dashboard and render history
     showWelcomeDashboard();
 
-    // Wire up platform badge example URL clicks
-    const platformBadges = document.querySelectorAll(".platform-badge");
-    platformBadges.forEach(badge => {
-        badge.addEventListener("click", () => {
+    // Wire up platform badge example URL clicks (delegated for all marquee tracks)
+    document.addEventListener("click", (e) => {
+        const badge = e.target.closest(".platform-badge");
+        if (badge) {
             const hintUrl = badge.getAttribute("data-url-hint");
-            if (hintUrl) {
+            if (hintUrl && urlInput) {
                 urlInput.value = hintUrl;
                 urlInput.focus();
-                triggerGlowEffect();
+                if (typeof triggerGlowEffect === "function") {
+                    triggerGlowEffect();
+                }
             }
-        });
+        }
     });
 
     async function checkCookieStatus() {

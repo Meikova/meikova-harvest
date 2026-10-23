@@ -5440,18 +5440,55 @@ body.theme-vimeo {
   margin: 0 0 12px 0;
   opacity: 0.85;
 }
-.platform-badges-grid {
-  display: flex;
-  flex-wrap: nowrap;
-  overflow-x: auto;
-  gap: 6px;
-  margin-top: 4px;
-  scrollbar-width: none;
-  padding-top: 6px;
-  padding-bottom: 2px;
+.welcome-platforms {
+  width: 100%;
+  min-width: 0;
+  position: relative;
+  overflow: hidden;
 }
-.platform-badges-grid::-webkit-scrollbar {
-  display: none; /* Chrome/Safari/Electron */
+.platform-marquee-container {
+  display: flex;
+  position: relative;
+  width: 100%;
+  overflow: hidden;
+  user-select: none;
+  padding: 6px 0 4px 0;
+  -webkit-mask-image: linear-gradient(to right, transparent 0%, black 5%, black 95%, transparent 100%);
+  mask-image: linear-gradient(to right, transparent 0%, black 5%, black 95%, transparent 100%);
+}
+.platform-badges-grid,
+.platform-marquee-track {
+  display: flex;
+  align-items: center;
+  flex-shrink: 0;
+  gap: 8px;
+  padding-right: 8px;
+  animation: platformMarqueeScroll 28s linear infinite;
+  will-change: transform;
+}
+.platform-marquee-container:hover .platform-marquee-track,
+.platform-marquee-container:focus-within .platform-marquee-track {
+  animation-play-state: paused;
+}
+@keyframes platformMarqueeScroll {
+  from {
+    transform: translate3d(0, 0, 0);
+  }
+  to {
+    transform: translate3d(-100%, 0, 0);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .platform-marquee-track {
+    animation: none;
+  }
+  .platform-marquee-container {
+    overflow-x: auto;
+    scrollbar-width: none;
+  }
+  .platform-marquee-container::-webkit-scrollbar {
+    display: none;
+  }
 }
 .platform-badge {
   display: inline-flex;
