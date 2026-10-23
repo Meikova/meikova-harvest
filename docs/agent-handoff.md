@@ -1,3 +1,23 @@
+# Session Handoff: Full Harmonization with Meikova Loop Architecture
+
+## 1. Mục tiêu hoàn thành
+- [x] **So sánh và Chuẩn hóa 1:1 với Meikova Loop (SSOT):**
+  - Đồng bộ endpoint thành `GET /api/host-info` (đồng thời giữ alias `/api/network/host-info` tương thích ngược).
+  - Tích hợp cơ chế tự động dò tìm IP mạng Tailscale Mesh (`100.x.x.x` qua `socket.gethostbyname_ex`).
+  - Chuẩn hóa cấu trúc dữ liệu trả về khớp hoàn toàn với Meikova Loop: `{ "lan_ip", "lan_url", "tailscale_ip", "tailscale_url", "host", "active_url" }`.
+  - Bổ sung endpoint backend `GET /api/qr?data=...` trả về SVG (hỗ trợ thư viện `qrcode` khi cài đặt hoặc redirect 307 graceful fallback).
+  - Chuẩn hóa thứ tự ưu tiên kết nối client-side:
+    1. `tailscale_url` (kết nối an toàn từ mọi nơi qua mạng Tailscale)
+    2. `lan_url` (kết nối nội mạng Wi-Fi cục bộ khi ở nhà/văn phòng)
+    3. `currentOrigin` (kết nối qua domain máy chủ đám mây / public host).
+
+## 2. Kết quả kiểm thử cục bộ (Exit Code 0)
+- `tests.test_network_host_info`: **3/3 PASS (Exit Code 0)**.
+- Commit: `69a0f00` (`feat(network): harmonize host-info and qr endpoint contracts with meikova-loop`).
+- Remote: Pushed to `origin/main` thành công.
+
+---
+
 # Session Handoff: Dynamic QR Code & LAN/Host Auto-Discovery in Download Modal
 
 ## 1. Mục tiêu hoàn thành
