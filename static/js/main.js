@@ -17370,10 +17370,28 @@ document.addEventListener("DOMContentLoaded", () => {
     });
 
     async function updateHarvestModalData() {
-        let currentOrigin = window.location.origin;
-        const isTailscale = window.location.hostname.startsWith("100.");
-        const isHfSpace = window.location.hostname.includes("hf.space") || window.location.hostname.includes("huggingface.co");
-        const isLocal = window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1";
+        const currentOrigin = window.location.origin;
+        const hostname = window.location.hostname;
+        const isTailscale = hostname.startsWith("100.");
+        const isHfSpace = hostname.includes("hf.space") || hostname.includes("huggingface.co");
+        const isLocal = hostname === "localhost" || hostname === "127.0.0.1";
+
+        let displayUrl = currentOrigin;
+
+        // On local host (Desktop or dev server), resolve reachable Tailscale/LAN IP from server (matching Loop)
+        if (isLocal) {
+            try {
+                const res = await fetch("/api/host-info");
+                if (res.ok) {
+                    const info = await res.json();
+                    if (info && info.tailscale_url) {
+                        displayUrl = info.tailscale_url;
+                    } else if (info && info.lan_url && info.lan_ip !== "127.0.0.1") {
+                        displayUrl = info.lan_url;
+                    }
+                }
+            } catch (_) {}
+        }
 
         const ipSpan = document.getElementById("apps-modal-ip");
         const tagSpan = document.getElementById("apps-modal-sub-tag");
@@ -17381,50 +17399,33 @@ document.addEventListener("DOMContentLoaded", () => {
         const modalLink = document.getElementById("apps-harvest-link");
         const scanDesc = document.getElementById("apps-harvest-scan-desc");
 
-        // If local host (localhost/127.0.0.1), try to fetch real LAN IP from server so phone camera can connect
-        let isLanIp = false;
-        if (isLocal) {
-            try {
-                const res = await fetch("/api/network/host-info");
-                if (res.ok) {
-                    const netData = await res.json();
-                    if (netData.lan_origin && netData.lan_ip !== "127.0.0.1") {
-                        currentOrigin = netData.lan_origin;
-                        isLanIp = true;
-                    }
-                }
-            } catch (err) {
-                // Keep window.location.origin fallback
-            }
-        } else {
-            isLanIp = /^(192\.168\.|10\.|172\.(1[6-9]|2[0-9]|3[0-1])\.)/.test(window.location.hostname);
-        }
-
-        if (ipSpan) ipSpan.textContent = currentOrigin;
+        if (ipSpan) ipSpan.textContent = displayUrl;
         if (tagSpan) {
             if (isHfSpace) tagSpan.textContent = "Hugging Face Space";
-            else if (isTailscale) tagSpan.textContent = "Tailscale Mesh";
-            else if (isLanIp) tagSpan.textContent = "Mạng Cục Bộ LAN";
+            else if (displayUrl.includes("100.") || isTailscale) tagSpan.textContent = "Tailscale Mesh";
+            else if (displayUrl.includes("192.168.") || displayUrl.includes("10.") || displayUrl.includes("172.")) tagSpan.textContent = "Mạng Wi-Fi (LAN)";
             else if (isLocal) tagSpan.textContent = "Local Host";
             else tagSpan.textContent = "Máy chủ Web";
         }
         if (modalLink) {
-            modalLink.href = currentOrigin;
-            modalLink.textContent = `${currentOrigin} ↗`;
+            modalLink.href = displayUrl;
+            modalLink.textContent = `${displayUrl} ↗`;
         }
         if (scanDesc) {
             if (isHfSpace) {
                 scanDesc.textContent = " để mở trực tiếp qua Hugging Face Space.";
-            } else if (isLanIp) {
+            } else if (displayUrl.includes("100.") || isTailscale) {
+                scanDesc.textContent = " (qua Tailscale) để mở ứng dụng từ bất kỳ đâu trên điện thoại.";
+            } else if (displayUrl.includes("192.168.") || displayUrl.includes("10.") || displayUrl.includes("172.")) {
                 scanDesc.textContent = " (cùng mạng Wi-Fi) để mở ứng dụng tức thì trên điện thoại.";
             } else {
                 scanDesc.textContent = " để mở ứng dụng tức thì trên điện thoại.";
             }
         }
         if (qrImg) {
-            qrImg.src = `https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${encodeURIComponent(currentOrigin)}`;
+            qrImg.src = `/api/qr?data=${encodeURIComponent(displayUrl)}`;
             qrImg.onerror = () => {
-                qrImg.src = `https://quickchart.io/qr?size=150&text=${encodeURIComponent(currentOrigin)}`;
+                qrImg.src = `https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${encodeURIComponent(displayUrl)}`;
             };
         }
 
