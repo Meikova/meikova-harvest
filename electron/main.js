@@ -514,7 +514,7 @@ function createMainWindow() {
       contextIsolation: true,
       nodeIntegration:  false,
       webviewTag:       true,
-      webSecurity:      false,
+      webSecurity:      true,
     },
     icon:  getAppIcon(),
     title: APP_NAME,

@@ -13645,3 +13645,16 @@ button.dl-card {
 .light-theme .apps-modal-footer-strip {
   border-top-color: rgba(0, 0, 0, 0.08);
 }
+
+
+/* ==========================================================================
+   Accessibility: Universal Prefers-Reduced-Motion Compliance (H3.5)
+   ========================================================================== */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}

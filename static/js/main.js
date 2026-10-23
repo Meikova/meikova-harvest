@@ -17466,7 +17466,7 @@ document.addEventListener("DOMContentLoaded", () => {
     window.addEventListener("appinstalled", () => {
         harvestPwaPrompt = null;
         if (pwaBadgeHarvest) pwaBadgeHarvest.textContent = "INSTALLED";
-        if (pwaDescHarvest) pwaDescHarvest.textContent = "Đã cài đặt ✓";
+        if (pwaDescHarvest) pwaDescHarvest.textContent = "Đã cài đặt";
     });
 
     if (btnOpenAppsModal && appsDownloadModal) {

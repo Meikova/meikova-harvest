@@ -228,7 +228,7 @@ def handle_avs_proxy_fallback(e):
         try:
             resp = req_lib.request(
                 flask_request.method, target_url,
-                headers=headers, verify=False, timeout=10,
+                headers=headers, verify=True, timeout=10,
                 data=flask_request.get_data() if flask_request.method == "POST" else None
             )
             content = resp.content
