@@ -7,9 +7,10 @@
   - Chuẩn hóa cấu trúc dữ liệu trả về khớp hoàn toàn với Meikova Loop: `{ "lan_ip", "lan_url", "tailscale_ip", "tailscale_url", "host", "active_url" }`.
   - Bổ sung endpoint backend `GET /api/qr?data=...` trả về SVG (hỗ trợ thư viện `qrcode` khi cài đặt hoặc redirect 307 graceful fallback).
   - Chuẩn hóa thứ tự ưu tiên kết nối client-side:
-    1. `tailscale_url` (kết nối an toàn từ mọi nơi qua mạng Tailscale)
-    2. `lan_url` (kết nối nội mạng Wi-Fi cục bộ khi ở nhà/văn phòng)
-    3. `currentOrigin` (kết nối qua domain máy chủ đám mây / public host).
+    1. `active_url` / Domain công khai (ƯU TIÊN CAO NHẤT: mở được từ bất kỳ đâu 4G/5G/Wi-Fi).
+    2. `tailscale_url` (CHỈ KHI truy cập localhost: kết nối an toàn từ xa qua mạng Tailscale).
+    3. `lan_url` (CHỈ KHI truy cập localhost, không có Tailscale: cùng mạng Wi-Fi cục bộ).
+    4. `localhost` / `127.0.0.1` (Fallback cùng đường).
 
 ## 2. Kết quả kiểm thử cục bộ (Exit Code 0)
 - `tests.test_network_host_info`: **3/3 PASS (Exit Code 0)**.
