@@ -1,3 +1,30 @@
+# Session Handoff: Infinite Marquee Slider for Popular Platforms & Version Synchronization
+
+## 1. Mục tiêu hoàn thành
+- [x] **Infinite Auto-Scrolling Marquee Slider:**
+  - Chuyển đổi hàng badge nền tảng hỗ trợ (`.welcome-platforms`) bị tràn biên ngang thành slider vô tận tự động xoay vòng.
+  - Sử dụng cấu trúc 2 track nhân bản (`.platform-marquee-container`, `.platform-marquee-track`) kết hợp CSS `@keyframes platformMarqueeScroll` (-100% loop) 60fps GPU-accelerated.
+  - Tự động tạm dừng khi di chuột hoặc focus (`:hover`, `:focus-within { animation-play-state: paused; }`) giúp người dùng thoải mái quan sát và click.
+  - Hiệu ứng chuyển mờ biên hai đầu (`mask-image` & `-webkit-mask-image: linear-gradient(to right, transparent, black 5%, black 95%, transparent)`).
+  - Hỗ trợ `prefers-reduced-motion: reduce` fallback sang cuộn ngang tự nhiên.
+- [x] **Delegated Event Handling:**
+  - Chuyển bộ lắng nghe click `.platform-badge` trong `static/js/main.js` sang cơ chế Event Delegation trên `document`.
+  - Đảm bảo 100% badge ở cả Track 1 và Track 2 đều nhận tương tác click, điền `data-url-hint` vào ô nhập URL và kích hoạt hiệu ứng glow.
+- [x] **Version Consistency Sync (v2.0.7):**
+  - Đồng bộ `BuildConfig._version` trong `build_tool/packager.py` từ 2.0.5 lên 2.0.7 khớp với `update.json` và `electron/package.json`.
+  - Cập nhật test case kiểm tra tính nhất quán phiên bản trong `tests/test_builder_version.py`.
+
+## 2. Kết quả kiểm thử cục bộ (Exit Code 0)
+- `tests.test_builder_version`: **7/7 PASS (Exit Code 0)**.
+- `tests.test_download_native_app`: **3/3 PASS (Exit Code 0)**.
+- Core suites (`test_auth`, `test_pwa_manifest`, `test_security_boundary`, `test_universal_analyzer`, `test_user_data_persistence`, `test_harvest_auth_sync`): **37/37 PASS (Exit Code 0)**.
+
+## 3. Git Operations
+- Commit: `d8731cd` (`feat(ui): convert popular platforms row into infinite marquee slider`).
+- Remote: Pushed to `origin/main` thành công.
+
+---
+
 # Session Handoff: Universal SSO, Fault-Tolerant Auth Sync & Conflict Resolution Ecosystem-Wide
 
 ## 1. Mục tiêu hoàn thành
