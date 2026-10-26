@@ -169,7 +169,39 @@ python build_tool/builder_cli.py
 
 ---
 
-## 7. Tự động hóa phát hành (CI/CD)
+## 7. Triển khai Docker (Container-Native)
+
+Dự án hỗ trợ vận hành độc lập 100% thông qua Docker và Docker Compose, cài đặt sẵn toàn bộ runtime Python, FFmpeg và công cụ đường hầm cloudflared:
+
+`ash
+# Khởi chạy dịch vụ ở chế độ nền
+docker compose up -d
+
+# Xem logs trực tiếp
+docker compose logs -f
+
+# Tự động kích hoạt Cloudflare Quick Tunnel xuyên NAT/Firewall
+AUTO_TUNNEL=1 docker compose up -d
+`
+
+Dịch vụ mặc định lắng nghe tại cổng 18650 (truy cập http://localhost:18650).
+
+---
+
+## 8. Đường hầm Cloudflare Quick Tunnel (Universal Tunnel Bridge)
+
+Tích hợp sẵn Cloudflare Quick Tunnel (	rycloudflare.com) cho phép truy cập từ Internet xuyên qua mọi tường lửa và mạng NAT mà không cần mở port router hay IP tĩnh:
+
+- **Khởi động kèm Tunnel:** python app.py --tunnel (hoặc AUTO_TUNNEL=1 trong Docker)
+- **Quản trị API:**
+  - GET /api/tunnel/status - Trạng thái hoạt động và URL công khai (https://*.trycloudflare.com)
+  - POST /api/tunnel/start - Bật đường hầm
+  - POST /api/tunnel/stop - Tắt đường hầm
+  - POST /api/tunnel/restart - Khởi động lại đường hầm
+
+---
+
+## 9. Tự động hóa phát hành (CI/CD)
 
 Dự án sử dụng GitHub Actions tự động hóa hoàn toàn quy trình đóng gói cho cả 3 nền tảng:
 
@@ -182,14 +214,14 @@ GitHub Actions matrix sẽ kích hoạt đồng thời 3 môi trường ảo (`w
 
 ---
 
-## 8. Giấy phép bản quyền (License)
+## 10. Giấy phép bản quyền (License)
 
 Dự án được phát hành theo giấy phép **MIT License**.
 Bản quyền thuộc về **Meikova Harvest Team © 2026**.
 
 ---
 
-## 9. Hệ sinh thái Meikova
+## 11. Hệ sinh thái Meikova
 
 - [Meikova Harvest](https://github.com/Meikova/meikova-harvest) - Hệ sinh thái trích xuất và tải đa phương tiện đa nền tảng.
 - [Meikova Loop](https://github.com/Meikova/meikova-loop) - DJ mashup và infinite soundscape engine chạy trên web, desktop và mobile.
