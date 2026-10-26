@@ -1,5 +1,7 @@
+import os
 import socket
 from flask import Blueprint, render_template, Response, jsonify, request, redirect
+from utils.tunnel_manager import tunnel_manager
 
 pages_bp = Blueprint("pages", __name__)
 
@@ -58,6 +60,10 @@ def host_info():
     tailscale_url = f"{scheme}://{tailscale_ip}:{port}" if tailscale_ip else None
     active_url = request.host_url.rstrip("/")
 
+    tunnel_st = tunnel_manager.get_status()
+    if tunnel_st.get("running") and tunnel_st.get("url"):
+        active_url = tunnel_st["url"]
+
     return jsonify({
         "lan_ip": lan_ip,
         "lan_url": lan_url,
@@ -67,8 +73,45 @@ def host_info():
         "host": host_header,
         "active_url": active_url,
         "public_origin": active_url,  # backward compatibility alias
-        "is_local": request.host.startswith("localhost") or request.host.startswith("127.0.0.1")
+        "is_local": request.host.startswith("localhost") or request.host.startswith("127.0.0.1"),
+        "tunnel": tunnel_st,
     })
+
+
+@pages_bp.route("/api/tunnel/status", methods=["GET"])
+def get_tunnel_status():
+    return jsonify(tunnel_manager.get_status())
+
+
+@pages_bp.route("/api/tunnel/start", methods=["POST"])
+def start_tunnel():
+    port = int(os.environ.get("FLASK_PORT", 18650))
+    try:
+        st = tunnel_manager.start(port)
+        return jsonify({"ok": True, **st})
+    except Exception as e:
+        st = tunnel_manager.get_status()
+        return jsonify({"ok": False, "error": str(e), **st}), 500
+
+
+@pages_bp.route("/api/tunnel/stop", methods=["POST"])
+def stop_tunnel():
+    st = tunnel_manager.stop()
+    return jsonify({"ok": True, **st})
+
+
+@pages_bp.route("/api/tunnel/toggle", methods=["POST"])
+def toggle_tunnel():
+    port = int(os.environ.get("FLASK_PORT", 18650))
+    try:
+        if tunnel_manager.status == "running":
+            st = tunnel_manager.stop()
+        else:
+            st = tunnel_manager.start(port)
+        return jsonify({"ok": True, **st})
+    except Exception as e:
+        st = tunnel_manager.get_status()
+        return jsonify({"ok": False, "error": str(e), **st}), 500
 
 
 @pages_bp.route("/api/qr")

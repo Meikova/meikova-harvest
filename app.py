@@ -311,7 +311,21 @@ if __name__ == "__main__":
     import argparse
     parser = argparse.ArgumentParser(description="Start Flask Server")
     parser.add_argument("--port", type=int, default=int(os.environ.get("FLASK_PORT", 18650)))
+    parser.add_argument("--tunnel", action="store_true", help="Auto-start Cloudflare Quick Tunnel")
     args = parser.parse_known_args()[0]
+
+    if args.tunnel or os.environ.get("AUTO_TUNNEL") in ("1", "true", "True") or "--tunnel" in sys.argv:
+        from utils.tunnel_manager import tunnel_manager
+        def _auto_start_tunnel():
+            import time
+            time.sleep(1.0)
+            try:
+                st = tunnel_manager.start(args.port)
+                logger.info(f"[Tunnel] Cloudflare Tunnel active: {st.get('url')}")
+            except Exception as e:
+                logger.warning(f"[Tunnel] Cloudflare Tunnel auto-start failed: {e}")
+        import threading
+        threading.Thread(target=_auto_start_tunnel, daemon=True).start()
 
     # Disable reloader so file changes in downloads/ or db do not restart the server mid-download
     is_prod = os.environ.get("FLASK_ENV") == "production" or getattr(sys, "frozen", False)
