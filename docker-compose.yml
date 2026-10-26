@@ -5,12 +5,19 @@ services:
     build: .
     container_name: meikova-harvest
     ports:
-      - "18650:18650"
+      - "${PORT:-18650}:18650"
     volumes:
       - ./downloads:/app/downloads
     restart: unless-stopped
     environment:
       - PYTHONUNBUFFERED=1
+      - FLASK_PORT=18650
+      - AUTO_TUNNEL=${AUTO_TUNNEL:-0}
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:18650/api/host-info"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
 
   builder:
     build: .
@@ -24,4 +31,3 @@ services:
       - PYTHONUNBUFFERED=1
       - DOCKER_CONTAINER=1
     command: ["python", "build_tool/builder_cli.py", "--gui"]
-
