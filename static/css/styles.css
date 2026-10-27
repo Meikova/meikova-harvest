@@ -13658,3 +13658,168 @@ button.dl-card {
     scroll-behavior: auto !important;
   }
 }
+
+/* === CLOUDFLARE QUICK TUNNEL UI === */
+.btn-tunnel-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+.btn-tunnel-pill.is-active {
+  border-color: rgba(34, 197, 94, 0.6) !important;
+  color: var(--accent, #22c55e) !important;
+  box-shadow: 0 0 14px -2px rgba(34, 197, 94, 0.4);
+}
+.status-dot.tunnel-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  display: inline-block;
+  background: #64748b;
+  transition: background 0.25s, box-shadow 0.25s;
+  flex-shrink: 0;
+}
+.tunnel-dot--idle {
+  background: #64748b !important;
+  box-shadow: none !important;
+}
+.tunnel-dot--starting {
+  background: #f59e0b !important;
+  box-shadow: 0 0 8px #f59e0b !important;
+  animation: pulse-tunnel 1.2s infinite;
+}
+.tunnel-dot--running {
+  background: #22c55e !important;
+  box-shadow: 0 0 10px #22c55e !important;
+}
+.tunnel-dot--failed {
+  background: #ef4444 !important;
+  box-shadow: 0 0 8px #ef4444 !important;
+}
+@keyframes pulse-tunnel {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: 0.4; transform: scale(0.85); }
+}
+.tunnel-header-icon {
+  width: 40px;
+  height: 40px;
+  border-radius: 10px;
+  background: rgba(59, 130, 246, 0.12);
+  color: #60a5fa;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  border: 1px solid rgba(59, 130, 246, 0.2);
+}
+.tunnel-switch-card {
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid var(--glass-border, rgba(255, 255, 255, 0.08));
+  border-radius: 12px;
+  padding: 14px 16px;
+  margin-bottom: 14px;
+}
+.btn-tunnel-action {
+  padding: 8px 18px;
+  font-weight: 600;
+  border-radius: 9999px;
+  border: 1px solid var(--accent, #22c55e) !important;
+  color: var(--accent, #22c55e) !important;
+  cursor: pointer;
+  background: transparent;
+  transition: all 0.2s ease;
+}
+.btn-tunnel-action.is-running {
+  border-color: rgba(239, 68, 68, 0.5) !important;
+  color: #f87171 !important;
+}
+.tunnel-active-box {
+  background: rgba(34, 197, 94, 0.04);
+  border: 1px solid rgba(34, 197, 94, 0.25);
+  border-radius: 12px;
+  padding: 16px;
+  margin-bottom: 14px;
+}
+.tunnel-field-label {
+  font-size: 0.72rem;
+  letter-spacing: 0.06em;
+  font-weight: 600;
+  color: var(--accent, #22c55e);
+  margin-bottom: 6px;
+}
+.tunnel-url-row {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+.tunnel-url-input {
+  flex: 1;
+  min-width: 0;
+  background: #090e16;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 8px;
+  padding: 8px 12px;
+  color: #22c55e;
+  font-size: 0.82rem;
+  font-family: inherit;
+  appearance: none;
+  outline: none;
+}
+.tunnel-url-input:focus {
+  border-color: var(--accent, #22c55e);
+  box-shadow: 0 0 0 1px var(--accent, #22c55e), 0 0 12px -2px rgba(34, 197, 94, 0.4);
+}
+.tunnel-missing-box {
+  background: rgba(245, 158, 11, 0.06);
+  border: 1px solid rgba(245, 158, 11, 0.25);
+  border-radius: 12px;
+  padding: 14px 16px;
+}
+#modalTunnel {
+  backdrop-filter: blur(12px) !important;
+  -webkit-backdrop-filter: blur(12px) !important;
+}
+
+/* Ambient Toast Notifications */
+.toast-container {
+  position: fixed;
+  bottom: 24px;
+  right: 24px;
+  z-index: 10005;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  pointer-events: none;
+}
+.toast {
+  pointer-events: auto;
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 18px;
+  border-radius: 9999px;
+  background: rgba(15, 20, 30, 0.94);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  color: #fff;
+  font-size: 0.85rem;
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.7);
+  transition: opacity 0.25s, transform 0.25s;
+}
+.toast svg {
+  flex-shrink: 0;
+}
+.toast.toast--success {
+  border-color: #22c55e;
+  box-shadow: 0 0 16px -4px rgba(34, 197, 94, 0.4);
+}
+.toast.toast--error {
+  border-color: #ef4444;
+  color: #fca5a5;
+}
+.toast.toast--info {
+  border-color: #3b82f6;
+}

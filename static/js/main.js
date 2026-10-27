@@ -17527,3 +17527,211 @@ document.getElementById('btn-copy-winget-harvest')?.addEventListener('click', as
     }
   } catch {}
 });
+
+
+// ==========================================
+// Ambient Toast System
+// ==========================================
+function showToast(message, type = 'info', duration = 3500) {
+  let container = document.getElementById('toastContainer');
+  if (!container) {
+    container = document.createElement('div');
+    container.id = 'toastContainer';
+    container.className = 'toast-container';
+    container.setAttribute('aria-live', 'polite');
+    document.body.appendChild(container);
+  }
+  const toast = document.createElement('div');
+  toast.className = `toast toast--${type}`;
+  let iconSvg = '';
+  if (type === 'success') {
+    iconSvg = '<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>';
+  } else if (type === 'error') {
+    iconSvg = '<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>';
+  } else {
+    iconSvg = '<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>';
+  }
+  const textSpan = document.createElement('span');
+  textSpan.textContent = message;
+  toast.innerHTML = iconSvg;
+  toast.appendChild(textSpan);
+  container.appendChild(toast);
+  setTimeout(() => {
+    toast.style.opacity = '0';
+    toast.style.transform = 'translateY(12px) scale(0.96)';
+    setTimeout(() => toast.remove(), 250);
+  }, duration);
+}
+window.showToast = showToast;
+
+// ==========================================
+// Cloudflare Quick Tunnel Controller
+// ==========================================
+function initTunnelController() {
+  const btnNavTunnel = document.getElementById('btnNavTunnel');
+  const navTunnelDot = document.getElementById('navTunnelDot');
+  const modalTunnel = document.getElementById('modalTunnel');
+  const btnCloseTunnelModal = document.getElementById('btnCloseTunnelModal');
+  const btnToggleTunnel = document.getElementById('btnToggleTunnel');
+  const btnToggleTunnelText = document.getElementById('btnToggleTunnelText');
+  const tunnelStatusText = document.getElementById('tunnelStatusText');
+  const tunnelStatusDetail = document.getElementById('tunnelStatusDetail');
+  const tunnelStatusBadgeDot = document.getElementById('tunnelStatusBadgeDot');
+  const tunnelActiveBox = document.getElementById('tunnelActiveBox');
+  const tunnelUrlInput = document.getElementById('tunnelUrlInput');
+  const btnCopyTunnelUrl = document.getElementById('btnCopyTunnelUrl');
+  const tunnelQrImg = document.getElementById('tunnelQrImg');
+  const tunnelNotInstalledBox = document.getElementById('tunnelNotInstalledBox');
+  const tunnelInstallCmd = document.getElementById('tunnelInstallCmd');
+  const btnCopyTunnelInstallCmd = document.getElementById('btnCopyTunnelInstallCmd');
+
+  if (!btnNavTunnel || !modalTunnel) return;
+
+  let isOperating = false;
+
+  function renderTunnelStatus(st) {
+    if (!st) return;
+    if (st.running && st.url) {
+      btnNavTunnel.classList.add('is-active');
+      if (navTunnelDot) navTunnelDot.className = 'status-dot tunnel-dot tunnel-dot--running';
+      if (tunnelStatusBadgeDot) tunnelStatusBadgeDot.className = 'status-dot tunnel-dot tunnel-dot--running';
+      if (tunnelStatusText) tunnelStatusText.textContent = 'Đang chạy';
+      if (tunnelStatusDetail) tunnelStatusDetail.textContent = '';
+      if (btnToggleTunnelText) btnToggleTunnelText.textContent = 'Tắt';
+      if (btnToggleTunnel) {
+        btnToggleTunnel.classList.add('is-running');
+        btnToggleTunnel.disabled = false;
+      }
+      if (tunnelActiveBox) tunnelActiveBox.classList.remove('hidden');
+      if (tunnelUrlInput) tunnelUrlInput.value = st.url;
+      if (tunnelQrImg) tunnelQrImg.src = '/api/qr?data=' + encodeURIComponent(st.url);
+      if (tunnelNotInstalledBox) tunnelNotInstalledBox.classList.add('hidden');
+    } else if (st.status === 'starting') {
+      if (navTunnelDot) navTunnelDot.className = 'status-dot tunnel-dot tunnel-dot--starting';
+      if (tunnelStatusBadgeDot) tunnelStatusBadgeDot.className = 'status-dot tunnel-dot tunnel-dot--starting';
+      if (tunnelStatusText) tunnelStatusText.textContent = 'Đang kết nối...';
+      if (tunnelStatusDetail) tunnelStatusDetail.textContent = '';
+      if (btnToggleTunnelText) btnToggleTunnelText.textContent = 'Đang bật...';
+      if (btnToggleTunnel) btnToggleTunnel.disabled = true;
+    } else {
+      btnNavTunnel.classList.remove('is-active');
+      if (navTunnelDot) navTunnelDot.className = 'status-dot tunnel-dot tunnel-dot--idle';
+      if (tunnelStatusBadgeDot) {
+        tunnelStatusBadgeDot.className = st.status === 'failed' ? 'status-dot tunnel-dot tunnel-dot--failed' : 'status-dot tunnel-dot tunnel-dot--idle';
+      }
+      if (tunnelStatusText) tunnelStatusText.textContent = st.status === 'failed' ? 'Lỗi' : 'Đang tắt';
+      if (tunnelStatusDetail) tunnelStatusDetail.textContent = st.error || '';
+      if (btnToggleTunnelText) btnToggleTunnelText.textContent = 'Bật';
+      if (btnToggleTunnel) {
+        btnToggleTunnel.classList.remove('is-running');
+        btnToggleTunnel.disabled = false;
+      }
+      if (tunnelActiveBox) tunnelActiveBox.classList.add('hidden');
+
+      if (!st.installed && tunnelNotInstalledBox) {
+        tunnelNotInstalledBox.classList.remove('hidden');
+        if (tunnelInstallCmd && st.installCommand) tunnelInstallCmd.textContent = st.installCommand;
+      } else if (tunnelNotInstalledBox) {
+        tunnelNotInstalledBox.classList.add('hidden');
+      }
+    }
+  }
+
+  async function fetchTunnelStatus() {
+    try {
+      const res = await fetch('/api/tunnel/status');
+      if (res.ok) {
+        const st = await res.json();
+        renderTunnelStatus(st);
+      }
+    } catch (_) {}
+  }
+
+  async function toggleTunnel() {
+    if (isOperating) return;
+    isOperating = true;
+    if (btnToggleTunnel) btnToggleTunnel.disabled = true;
+    if (btnToggleTunnelText) btnToggleTunnelText.textContent = 'Đang xử lý...';
+
+    try {
+      const res = await fetch('/api/tunnel/toggle', { method: 'POST' });
+      const data = await res.json();
+      if (res.ok && data.ok) {
+        renderTunnelStatus(data);
+        if (data.running) {
+          showToast('Cloudflare Tunnel đã bật thành công', 'success');
+        } else {
+          showToast('Cloudflare Tunnel đã tắt', 'info');
+        }
+      } else {
+        showToast(data.error || 'Thao tác Tunnel thất bại', 'error');
+        fetchTunnelStatus();
+      }
+    } catch (err) {
+      showToast('Lỗi mạng khi kết nối Tunnel: ' + (err.message || err), 'error');
+      fetchTunnelStatus();
+    } finally {
+      isOperating = false;
+      if (btnToggleTunnel) btnToggleTunnel.disabled = false;
+    }
+  }
+
+  btnNavTunnel.addEventListener('click', () => {
+    fetchTunnelStatus();
+    modalTunnel.classList.remove('hidden');
+  });
+
+  if (btnCloseTunnelModal) {
+    btnCloseTunnelModal.addEventListener('click', () => {
+      modalTunnel.classList.add('hidden');
+    });
+  }
+
+  modalTunnel.addEventListener('click', (e) => {
+    if (e.target === modalTunnel) {
+      modalTunnel.classList.add('hidden');
+    }
+  });
+
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape' && !modalTunnel.classList.contains('hidden')) {
+      modalTunnel.classList.add('hidden');
+    }
+  });
+
+  if (btnToggleTunnel) {
+    btnToggleTunnel.addEventListener('click', toggleTunnel);
+  }
+
+  if (btnCopyTunnelUrl && tunnelUrlInput) {
+    btnCopyTunnelUrl.addEventListener('click', async () => {
+      if (!tunnelUrlInput.value) return;
+      try {
+        await navigator.clipboard.writeText(tunnelUrlInput.value);
+        showToast('Đã sao chép Public URL vào clipboard', 'success');
+      } catch (_) {
+        tunnelUrlInput.select();
+        document.execCommand('copy');
+        showToast('Đã sao chép Public URL', 'success');
+      }
+    });
+  }
+
+  if (btnCopyTunnelInstallCmd && tunnelInstallCmd) {
+    btnCopyTunnelInstallCmd.addEventListener('click', async () => {
+      try {
+        await navigator.clipboard.writeText(tunnelInstallCmd.textContent.trim());
+        showToast('Đã sao chép lệnh cài đặt cloudflared', 'success');
+      } catch (_) {}
+    });
+  }
+
+  // Auto fetch status on startup
+  fetchTunnelStatus();
+}
+
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', initTunnelController);
+} else {
+  initTunnelController();
+}
