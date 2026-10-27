@@ -13659,7 +13659,7 @@ button.dl-card {
   }
 }
 
-/* === CLOUDFLARE QUICK TUNNEL UI === */
+/* === CLOUDFLARE QUICK TUNNEL UI (EMERALD GREEN #10B981 / #059669) === */
 .btn-tunnel-pill {
   display: inline-flex;
   align-items: center;
@@ -13668,9 +13668,9 @@ button.dl-card {
   transition: all 0.2s ease;
 }
 .btn-tunnel-pill.is-active {
-  border-color: rgba(34, 197, 94, 0.6) !important;
-  color: var(--accent, #22c55e) !important;
-  box-shadow: 0 0 14px -2px rgba(34, 197, 94, 0.4);
+  border-color: rgba(16, 185, 129, 0.6) !important;
+  color: var(--accent, #10B981) !important;
+  box-shadow: 0 0 14px -2px rgba(16, 185, 129, 0.4);
 }
 .status-dot.tunnel-dot {
   width: 7px;
@@ -13691,8 +13691,8 @@ button.dl-card {
   animation: pulse-tunnel 1.2s infinite;
 }
 .tunnel-dot--running {
-  background: #22c55e !important;
-  box-shadow: 0 0 10px #22c55e !important;
+  background: var(--accent, #10B981) !important;
+  box-shadow: 0 0 10px var(--accent, #10B981) !important;
 }
 .tunnel-dot--failed {
   background: #ef4444 !important;
@@ -13706,13 +13706,13 @@ button.dl-card {
   width: 40px;
   height: 40px;
   border-radius: 10px;
-  background: rgba(59, 130, 246, 0.12);
-  color: #60a5fa;
+  background: rgba(16, 185, 129, 0.12);
+  color: var(--accent, #10B981);
   display: flex;
   align-items: center;
   justify-content: center;
   flex-shrink: 0;
-  border: 1px solid rgba(59, 130, 246, 0.2);
+  border: 1px solid rgba(16, 185, 129, 0.25);
 }
 .tunnel-switch-card {
   background: rgba(255, 255, 255, 0.03);
@@ -13725,8 +13725,8 @@ button.dl-card {
   padding: 8px 18px;
   font-weight: 600;
   border-radius: 9999px;
-  border: 1px solid var(--accent, #22c55e) !important;
-  color: var(--accent, #22c55e) !important;
+  border: 1px solid var(--accent, #10B981) !important;
+  color: var(--accent, #10B981) !important;
   cursor: pointer;
   background: transparent;
   transition: all 0.2s ease;
@@ -13736,8 +13736,8 @@ button.dl-card {
   color: #f87171 !important;
 }
 .tunnel-active-box {
-  background: rgba(34, 197, 94, 0.04);
-  border: 1px solid rgba(34, 197, 94, 0.25);
+  background: rgba(16, 185, 129, 0.05);
+  border: 1px solid rgba(16, 185, 129, 0.25);
   border-radius: 12px;
   padding: 16px;
   margin-bottom: 14px;
@@ -13746,7 +13746,7 @@ button.dl-card {
   font-size: 0.72rem;
   letter-spacing: 0.06em;
   font-weight: 600;
-  color: var(--accent, #22c55e);
+  color: var(--accent, #10B981);
   margin-bottom: 6px;
 }
 .tunnel-url-row {
@@ -13761,15 +13761,15 @@ button.dl-card {
   border: 1px solid rgba(255, 255, 255, 0.12);
   border-radius: 8px;
   padding: 8px 12px;
-  color: #22c55e;
+  color: var(--accent, #10B981);
   font-size: 0.82rem;
   font-family: inherit;
   appearance: none;
   outline: none;
 }
 .tunnel-url-input:focus {
-  border-color: var(--accent, #22c55e);
-  box-shadow: 0 0 0 1px var(--accent, #22c55e), 0 0 12px -2px rgba(34, 197, 94, 0.4);
+  border-color: var(--accent, #10B981);
+  box-shadow: 0 0 0 1px var(--accent, #10B981), 0 0 12px -2px rgba(16, 185, 129, 0.4);
 }
 .tunnel-missing-box {
   background: rgba(245, 158, 11, 0.06);
@@ -13813,13 +13813,13 @@ button.dl-card {
   flex-shrink: 0;
 }
 .toast.toast--success {
-  border-color: #22c55e;
-  box-shadow: 0 0 16px -4px rgba(34, 197, 94, 0.4);
+  border-color: var(--accent, #10B981);
+  box-shadow: 0 0 16px -4px rgba(16, 185, 129, 0.4);
 }
 .toast.toast--error {
   border-color: #ef4444;
   color: #fca5a5;
 }
 .toast.toast--info {
-  border-color: #3b82f6;
+  border-color: var(--accent, #10B981);
 }
