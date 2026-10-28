@@ -1872,7 +1872,9 @@ document.addEventListener("DOMContentLoaded", () => {
 
     // Initialize welcome dashboard and render history
     showWelcomeDashboard();
-    updateHarvestModalData();
+    if (typeof window.updateHarvestModalData === 'function') {
+        window.updateHarvestModalData();
+    }
 
     // Wire up platform badge example URL clicks (delegated for all marquee tracks)
     document.addEventListener("click", (e) => {
@@ -17439,6 +17441,8 @@ document.addEventListener("DOMContentLoaded", () => {
         }
         setHarvestPlatformTab(targetTab);
     }
+    window.updateHarvestModalData = updateHarvestModalData;
+    updateHarvestModalData();
 
     if (btnCopyServerUrl) {
         btnCopyServerUrl.addEventListener("click", async () => {
