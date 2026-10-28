@@ -1416,6 +1416,7 @@ body[class*="theme-"] .card {
   flex-direction: column;
   gap: 6px;
   overflow-y: auto;
+  overflow-x: hidden;
   padding-right: 4px;
   scrollbar-width: thin;
   scrollbar-color: rgba(var(--cyan-rgb, 0, 229, 255), 0.28) transparent;
@@ -1523,13 +1524,16 @@ body[class*="theme-"] .card {
   border: 1px solid var(--border);
   border-radius: var(--radius-xs);
   background: rgba(255, 255, 255, 0.015);
-  transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
+  transition: all 0.25s cubic-bezier(0.25, 0.8, 0.25, 1);
+  min-width: 0;
+  box-sizing: border-box;
+  position: relative;
 }
 .format-row:hover {
   border-color: rgba(var(--cyan-rgb), 0.4);
   background: rgba(var(--cyan-rgb), 0.06);
-  box-shadow: 0 4px 15px rgba(var(--cyan-rgb), 0.1);
-  transform: translateX(4px);
+  box-shadow: 0 4px 15px rgba(var(--cyan-rgb), 0.12);
+  transform: translateY(-1px);
 }
 .format-row.is-downloading {
   border-color: var(--cyan);
@@ -1542,6 +1546,8 @@ body[class*="theme-"] .card {
   align-items: center;
   gap: 8px;
   min-width: 0;
+  flex: 1 1 auto;
+  overflow: hidden;
 }
 .format-icon {
   width: 16px;
@@ -1575,6 +1581,8 @@ body[class*="theme-"] .card {
   overflow: hidden;
   text-overflow: ellipsis;
   transition: color 0.2s ease;
+  flex: 0 1 auto;
+  min-width: 0;
 }
 .format-size {
   font-family: var(--font-mono);
@@ -2532,7 +2540,7 @@ body[class*="theme-"] .card {
   display: inline-flex;
   align-items: center;
   gap: 3px;
-  margin-left: 6px;
+  margin-left: 0;
 }
 .stream-player-badge svg {
   width: 10px;
@@ -3370,6 +3378,8 @@ body[class*="theme-"] .card {
   display: flex;
   align-items: center;
   gap: 8px;
+  flex-shrink: 0;
+  margin-left: 8px;
 }
 
 /* ── Alignment Snapping Guidelines ──────────────────────────── */
@@ -13934,4 +13944,32 @@ button.dl-card {
 }
 .toast.toast--info {
   border-color: var(--accent, #10B981);
+}
+
+/* === RESPONSIVE FIXES FOR FORMAT ROWS & RESULT GRID === */
+@media (max-width: 880px) {
+  .result-grid {
+    grid-template-columns: 1fr !important;
+    gap: 16px !important;
+  }
+  .format-panel {
+    min-height: 280px;
+  }
+}
+
+@media (max-width: 580px) {
+  .format-row {
+    flex-wrap: wrap !important;
+    gap: 8px !important;
+    padding: 10px !important;
+  }
+  .format-left {
+    width: 100% !important;
+    flex: 1 1 100% !important;
+  }
+  .format-actions {
+    width: 100% !important;
+    justify-content: flex-end !important;
+    margin-left: 0 !important;
+  }
 }

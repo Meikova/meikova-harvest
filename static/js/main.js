@@ -8945,8 +8945,8 @@ document.addEventListener("DOMContentLoaded", () => {
                     const row = document.createElement("div");
                     row.className = "format-row webpage-row stream-player-row";
 
-                    const displaySize = (option.size && option.size !== "Unknown Size") ? option.size : "Stream Player";
-                    const sizeBadge = `<span class="format-size">${displaySize}</span>`;
+                    const displaySize = (option.size && option.size !== "Unknown Size") ? option.size : "";
+                    const sizeBadge = displaySize ? `<span class="format-size">${displaySize}</span>` : "";
                     const streamBadge = `<span class="stream-player-badge"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="5 3 19 12 5 21 5 3"/></svg>STREAM PLAYER</span>`;
                     let cleanLabel = (option.label || "Stream Player").replace(/webpage/gi, "Stream Player");
 
