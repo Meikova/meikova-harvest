@@ -166,7 +166,7 @@
 
     />
 
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}?v=27.1">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}?v=27.2">
 
     <script src="https://cdn.jsdelivr.net/npm/hls.js@1.5.8/dist/hls.min.js"></script>
 
@@ -302,33 +302,41 @@
 
       <header class="header">
 
-        <div class="logo">
+        <div class="header-brand-group">
 
-          <svg class="header-logo-svg" viewBox="0 0 100 100" width="40" height="40" aria-label="Meikova Harvest Logo" fill="#83C4FF">
+          <div class="logo">
 
-            <rect width="100" height="100" rx="22" fill="var(--ink-0, #080C14)" stroke="rgba(var(--cyan-rgb, 0, 229, 255), 0.25)" stroke-width="2.5"/>
+            <svg class="header-logo-svg" viewBox="0 0 100 100" width="38" height="38" aria-label="Meikova Harvest Logo" fill="#83C4FF">
 
-            <path fill-rule="evenodd" d="M20 14H35V29L50 44L65 29V14H80V35L65 50L80 65L50 89L20 65L35 50L20 35Z M50 60L41 66L50 73L59 66Z"/>
+              <rect width="100" height="100" rx="22" fill="var(--ink-0, #080C14)" stroke="rgba(var(--cyan-rgb, 0, 229, 255), 0.25)" stroke-width="2.5"/>
 
-          </svg>
+              <path fill-rule="evenodd" d="M20 14H35V29L50 44L65 29V14H80V35L65 50L80 65L50 89L20 65L35 50L20 35Z M50 60L41 66L50 73L59 66Z"/>
 
-          <h1>MEIKOVA <span class="brand-accent">∞</span> HARVEST</h1>
+            </svg>
 
-        </div>
+            <h1>MEIKOVA <span class="brand-accent">∞</span> HARVEST</h1>
 
-        <div class="header-telemetry-pill" title="System Engine Online">
+          </div>
 
-          <span class="telemetry-dot"></span>
+          <div class="header-telemetry-group">
 
-          <span class="telemetry-text">SYS // READY</span>
+            <div class="header-telemetry-pill" title="System Engine Online">
 
-        </div>
+              <span class="telemetry-dot"></span>
 
-        <div id="header-sync-pill" class="header-telemetry-pill sync-pill" title="Trạng thái đồng bộ đám mây (Local/Cloud)">
+              <span class="telemetry-text">SYS // READY</span>
 
-          <span id="sync-telemetry-dot" class="telemetry-dot sync-dot"></span>
+            </div>
 
-          <span id="sync-pill-text" class="telemetry-text">LOCAL // GUEST</span>
+            <div id="header-sync-pill" class="header-telemetry-pill sync-pill" title="Trạng thái đồng bộ đám mây (Local/Cloud)">
+
+              <span id="sync-telemetry-dot" class="telemetry-dot sync-dot"></span>
+
+              <span id="sync-pill-text" class="telemetry-text">LOCAL // GUEST</span>
+
+            </div>
+
+          </div>
 
         </div>
 
@@ -7816,7 +7824,7 @@
 
     <script src="https://cdnjs.cloudflare.com/ajax/libs/noUiSlider/15.7.1/nouislider.min.js"></script>
 
-    <script src="{{ url_for('static', filename='js/main.js') }}?v=28.2"></script>
+    <script src="{{ url_for('static', filename='js/main.js') }}?v=28.3"></script>
 
   </body>
 
