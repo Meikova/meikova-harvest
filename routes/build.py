@@ -597,7 +597,7 @@ def proxy_subtitle_endpoint():
                 if referer and ("animevietsub" in referer or referer.startswith("http")):
                     headers["Referer"] = referer if referer.endswith("/") else referer + "/"
                 else:
-                    headers["Referer"] = "https://animevietsub.nl/"
+                    headers["Referer"] = "https://animevietsub.sale/"
                 headers["Origin"] = "https://storage.googleapiscdn.com"
             elif referer:
                 headers["Referer"] = referer
@@ -624,6 +624,8 @@ def proxy_subtitle_endpoint():
 
                 # 3. Disable showFallback banner call
                 text = text.replace("function showFallback", "function showFallback_disabled")
+                text = text.replace("window.self === window.top", "false")
+                text = text.replace("window.self===window.top", "false")
 
                 # 4. Remove ALL references to devtools-warning from the HTML
                 text = text.replace('devtools-warning', 'devtools-blocked-noop')
@@ -1038,7 +1040,7 @@ def proxy_jwplayer_static(filename):
         target_url += f"?{request.query_string.decode('utf-8')}"
     headers = {
         "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
-        "Referer": "https://animevietsub.love/"
+        "Referer": "https://animevietsub.sale/"
     }
     try:
         resp = requests.get(target_url, headers=headers, verify=False, timeout=10)
@@ -1060,7 +1062,7 @@ def proxy_wpplayer_static(filename):
         target_url += f"?{request.query_string.decode('utf-8')}"
     headers = {
         "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
-        "Referer": "https://animevietsub.love/"
+        "Referer": "https://animevietsub.sale/"
     }
     try:
         resp = requests.get(target_url, headers=headers, verify=False, timeout=10)
@@ -1092,7 +1094,7 @@ def proxy_avs_main_static(filename):
             target_url += f"?{request.query_string.decode('utf-8')}"
         headers = {
             "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
-            "Referer": "https://animevietsub.love/"
+            "Referer": "https://animevietsub.sale/"
         }
         try:
             resp = requests.get(target_url, headers=headers, verify=False, timeout=10)
@@ -1133,7 +1135,7 @@ def proxy_playlist(filename):
         target_url += f"?{request.query_string.decode('utf-8')}"
     headers = {
         "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
-        "Referer": "https://animevietsub.love/"
+        "Referer": "https://animevietsub.sale/"
     }
     try:
         resp = requests.get(target_url, headers=headers, verify=False, timeout=10)
@@ -1203,7 +1205,7 @@ def proxy_status_api(filename):
         target_url += f"?{request.query_string.decode('utf-8')}"
     headers = {
         "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
-        "Referer": "https://animevietsub.love/"
+        "Referer": "https://animevietsub.sale/"
     }
     try:
         resp = requests.get(target_url, headers=headers, verify=False, timeout=10)

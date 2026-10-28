@@ -141,7 +141,7 @@ def bg_download_task(download_id, url, format_id, ext, quality="192", title="med
         }
         player_referer = get_referer_by_url(url)
         if is_avs:
-            player_referer = "https://animevietsub.love/"
+            player_referer = "https://animevietsub.sale/"
         if player_referer:
             player_headers["Referer"] = player_referer
 

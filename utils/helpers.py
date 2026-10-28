@@ -73,7 +73,7 @@ def get_referer_by_url(url):
     elif "codexa.fun" in url_lower:
         return "https://moviking.neuronix.sbs/"
     elif "googleapiscdn.com" in url_lower:
-        return "https://animevietsub.love/"
+        return "https://animevietsub.sale/"
         
         
     try:

@@ -2295,7 +2295,7 @@ body[class*="theme-"] .card {
   border-bottom: 1px solid var(--border);
 }
 .modal-header h3 {
-  font-family: var(--font-display);
+  font-family: var(--font-ui, "Be Vietnam Pro", sans-serif);
   font-size: 1.1rem;
   font-weight: 600;
   color: var(--text);

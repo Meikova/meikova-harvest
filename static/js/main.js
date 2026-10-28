@@ -11163,6 +11163,20 @@ document.addEventListener("DOMContentLoaded", () => {
                         // Inject CSS to eliminate ads, banners, pause overlays, and devtools/F12 blocking overlays
                         try {
                             previewWebpageWebview.insertCSS(`
+                                html, body {
+                                    visibility: visible !important;
+                                }
+                                body::before, body::after {
+                                    display: none !important;
+                                    visibility: hidden !important;
+                                    content: none !important;
+                                    opacity: 0 !important;
+                                    pointer-events: none !important;
+                                    width: 0 !important;
+                                    height: 0 !important;
+                                    position: static !important;
+                                    z-index: -999999 !important;
+                                }
                                 #avs-pause-ad, .avs-pause-ad, [id*="pause-ad"], [class*="pause-ad"],
                                 [id*="avs-pause"], [class*="avs-pause"],
                                 .avs-pause-ad-box, .avs-pause-ad-link, .avs-pause-ad-img, .avs-pause-ad-label,
@@ -11193,6 +11207,16 @@ document.addEventListener("DOMContentLoaded", () => {
                                 (function() {
                                     // 1. Specifically scrub pause ad elements without touching #player
                                     const scrub = () => {
+                                        try {
+                                            const styles = document.querySelectorAll('style');
+                                            styles.forEach(s => {
+                                                if (s.textContent && (s.textContent.includes('Video ch') || s.textContent.includes('body::before') || s.textContent.includes('iframe'))) {
+                                                    s.remove();
+                                                }
+                                            });
+                                            if (document.documentElement) document.documentElement.style.visibility = 'visible';
+                                            if (document.body) document.body.style.visibility = 'visible';
+                                        } catch(_) {}
                                         const pad = document.getElementById('avs-pause-ad');
                                         if (pad) pad.remove();
                                         const res = document.getElementById('avs-resume-overlay');
