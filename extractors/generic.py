@@ -77,7 +77,9 @@ DOH_IP_MAP = {
     "cloudflare-dns.com": "1.1.1.1",
     "dns.google": "8.8.8.8",
     "dns.adguard.com": "94.140.14.14",
-    "doh.opendns.com": "208.67.222.222"
+    "doh.opendns.com": "208.67.222.222",
+    "animevietsub.sale": "172.67.72.243",
+    "animevietsub.meme": "172.67.72.243"
 }
 
 def test_ip_connection(ip):
@@ -186,6 +188,10 @@ try:
     
     def custom_setopt(self, opt, value):
         if opt == CurlOpt.URL:
+            try:
+                original_setopt(self, CurlOpt.IPRESOLVE, 1)
+            except Exception:
+                pass
             url_str = value.decode('utf-8') if isinstance(value, bytes) else str(value)
             try:
                 parsed = urlparse(url_str)
@@ -195,6 +201,12 @@ try:
                     
                 if domain:
                     if "animevietsub" in domain.lower():
+                        avs_ip = DOH_IP_MAP.get(domain.lower(), "172.67.72.243")
+                        resolve_list = [
+                            f"{domain}:80:{avs_ip}".encode('utf-8'),
+                            f"{domain}:443:{avs_ip}".encode('utf-8')
+                        ]
+                        original_setopt(self, CurlOpt.RESOLVE, resolve_list)
                         return original_setopt(self, opt, value)
                     if domain in DOH_IP_MAP:
                         # Direct static IP override for DoH providers to prevent infinite recursion and bypass hijacking
@@ -232,7 +244,8 @@ original_getaddrinfo = socket.getaddrinfo
 
 def custom_getaddrinfo(host, port, family=0, type=0, proto=0, flags=0):
     if host and "animevietsub" in host.lower():
-        return original_getaddrinfo(host, port, family, type, proto, flags)
+        ip = DOH_IP_MAP.get(host.lower(), "172.67.72.243")
+        return original_getaddrinfo(ip, port, socket.AF_INET, type, proto, flags)
     if host and host not in ['localhost', '127.0.0.1', '::1'] and not host.replace('.', '').isdigit():
         try:
             real_ips = resolve_doh_helper(host)
@@ -791,20 +804,19 @@ def generic_html_link_harvester(url, client_id, html=None):
             if "animevietsub" in url.lower():
                 try:
                     from curl_cffi import requests as curl_requests
-                    s = curl_requests.Session()
+                    s = curl_requests.Session(curl_options={CurlOpt.IPRESOLVE: 1})
                     if cookies_dict:
                         s.cookies.update(cookies_dict)
-                    base_url = f"{parsed_url.scheme}://{domain}"
                     avs_headers = {
                         "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
                         "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8",
                         "Accept-Language": "vi-VN,vi;q=0.9,en-US;q=0.8,en;q=0.7",
-                        "Referer": base_url + "/",
+                        "Referer": f"{parsed_url.scheme}://{domain}/",
                     }
-                    # Step 1: Initial request to get security challenge cookies
-                    s.get(base_url + "/", headers=avs_headers, impersonate="chrome", verify=False, timeout=15)
-                    # Step 2: Request the actual target page with cookies
-                    avs_resp = s.get(url, headers=avs_headers, impersonate="chrome", verify=False, timeout=15)
+                    # Fast 2-step handshake: request URL directly; if 403, retry with set cookies
+                    avs_resp = s.get(url, headers=avs_headers, impersonate="chrome", verify=False, timeout=10)
+                    if avs_resp.status_code == 403 or "PLAYER_DATA" not in avs_resp.text:
+                        avs_resp = s.get(url, headers=avs_headers, impersonate="chrome", verify=False, timeout=10)
                     resp_text = avs_resp.text
                     is_cloudflare_challenge = "Đang Kiểm Tra" in resp_text or "_cf_chl_opt" in resp_text or "challenge-platform" in resp_text
                     
@@ -814,7 +826,9 @@ def generic_html_link_harvester(url, client_id, html=None):
                         fetch_error_msg = "Cloudflare security challenge detected. Browser cookies need to be synced via the companion extension."
                     elif avs_resp.status_code == 200 or "PLAYER_DATA" in resp_text:
                         html = resp_text
-                        final_url = url
+                        final_url = avs_resp.url or url
+                        if hasattr(s, "cookies") and s.cookies:
+                            cookies_dict.update(dict(s.cookies))
                     else:
                         logger.warning(f"AnimeVietSub initial session fetch returned HTTP {avs_resp.status_code} and missing indicators")
                         html, final_url = fetch_html_with_redirect(url, headers, cookies=cookies_dict)
@@ -1250,7 +1264,7 @@ def generic_html_link_harvester(url, client_id, html=None):
                     # AnimeVietSub requires a curl_cffi session to bypass Cloudflare.
                     # The page_html passed in may have been fetched without session cookies
                     # (resulting in a 403 redirect page). We re-fetch with a proper session.
-                    avs_session = curl_requests.Session()
+                    avs_session = curl_requests.Session(curl_options={CurlOpt.IPRESOLVE: 1})
                     if cookies_dict:
                         avs_session.cookies.update(cookies_dict)
                     avs_headers = {
@@ -1260,18 +1274,17 @@ def generic_html_link_harvester(url, client_id, html=None):
                         "Referer": f"https://{page_domain}/",
                     }
 
-                    # Step 1: Visit homepage to get Cloudflare cookies
                     base_url = f"https://{page_domain}"
-                    avs_session.get(base_url + "/", impersonate="chrome", verify=False, timeout=15, headers=avs_headers)
-
-                    # Step 2: Determine the correct page to fetch
-                    # If this is the overview page (/xem-phim.html), the inline PLAYER_DATA
-                    # is for the default (first) episode. We fetch this page for the episode list.
-                    avs_resp = avs_session.get(page_url, impersonate="chrome", verify=False, timeout=15, headers=avs_headers)
-                    if avs_resp.status_code not in (200, 520, 403) and "PLAYER_DATA" not in avs_resp.text:
-                        logger.warning(f"[AnimeVietSub Extractor] Page fetch failed: HTTP {avs_resp.status_code}")
-                        raise Exception(f"HTTP {avs_resp.status_code}")
-                    avs_html = avs_resp.text
+                    if page_html and "PLAYER_DATA" in page_html:
+                        avs_html = page_html
+                    else:
+                        avs_resp = avs_session.get(page_url, impersonate="chrome", verify=False, timeout=10, headers=avs_headers)
+                        if avs_resp.status_code == 403 or "PLAYER_DATA" not in avs_resp.text:
+                            avs_resp = avs_session.get(page_url, impersonate="chrome", verify=False, timeout=10, headers=avs_headers)
+                        if avs_resp.status_code not in (200, 520, 403) and "PLAYER_DATA" not in avs_resp.text:
+                            logger.warning(f"[AnimeVietSub Extractor] Page fetch failed: HTTP {avs_resp.status_code}")
+                            raise Exception(f"HTTP {avs_resp.status_code}")
+                        avs_html = avs_resp.text
 
                     # Check if Next.js layout (animevietsub.my)
                     is_nextjs = "_next/static" in avs_html or "animevietsub.my" in page_domain.lower()
@@ -1414,11 +1427,13 @@ def generic_html_link_harvester(url, client_id, html=None):
                             if isinstance(link_val, str) and link_val.startswith("http"):
                                 iframe_link = link_val
                         
-                        # If not the current episode, fetch its individual page
-                        if not iframe_link and ep_href:
+                        # If not the current episode, attempt to fetch its stream link
+                        if not iframe_link and ep_href and len(opts) < 12:
                             try:
                                 ep_full_url = ep_href if ep_href.startswith("http") else base_url + ep_href
-                                ep_resp = avs_session.get(ep_full_url, impersonate="chrome", verify=False, timeout=15, headers=avs_headers)
+                                ep_resp = avs_session.get(ep_full_url, impersonate="chrome", verify=False, timeout=3, headers=avs_headers)
+                                if ep_resp.status_code == 403 or "PLAYER_DATA" not in ep_resp.text:
+                                    ep_resp = avs_session.get(ep_full_url, impersonate="chrome", verify=False, timeout=3, headers=avs_headers)
                                 if ep_resp.status_code in (200, 520, 403) or "PLAYER_DATA" in ep_resp.text:
                                     ep_pd_match = re.search(r'window\.PLAYER_DATA\s*=\s*(\{.*?\});', ep_resp.text)
                                     if ep_pd_match:
@@ -1430,10 +1445,9 @@ def generic_html_link_harvester(url, client_id, html=None):
                                         except Exception:
                                             pass
                             except Exception as ep_ex:
-                                logger.warning(f"[AnimeVietSub Extractor] Failed to fetch episode {ep_num}: {ep_ex}")
+                                logger.debug(f"[AnimeVietSub Extractor] Individual fetch skipped for ep {ep_num}: {ep_ex}")
 
                         if iframe_link:
-                            # Preserve essential query params like isFinal=1, strip only tracking nextName/nextUrl
                             from urllib.parse import urlparse as _urlparse, parse_qs as _parse_qs, urlencode as _urlencode, urlunparse as _urlunparse
                             parsed_iframe = _urlparse(iframe_link)
                             if parsed_iframe.query:
@@ -1444,6 +1458,13 @@ def generic_html_link_harvester(url, client_id, html=None):
                                 clean_iframe = _urlunparse(parsed_iframe._replace(query=new_query))
                             else:
                                 clean_iframe = iframe_link
+                        elif ep_href:
+                            # Fallback: link to episode page directly so user can play/preview
+                            clean_iframe = ep_href if ep_href.startswith("http") else base_url + ep_href
+                        else:
+                            clean_iframe = None
+
+                        if clean_iframe:
                             opts.append({
                                 "format_id": f"avs_ep_{ep_data_id}",
                                 "resolution": "Web Stream (MSE)",
@@ -1463,7 +1484,8 @@ def generic_html_link_harvester(url, client_id, html=None):
                         return opts
 
                 except Exception as ex:
-                    logger.warning(f"AnimeVietSub Extractor failed: {ex}")
+                    import traceback
+                    logger.warning(f"AnimeVietSub Extractor failed: {ex}\n{traceback.format_exc()}")
             
             # Determine title for current page
             t_match = re.search(r'<title>(.*?)</title>', page_html, re.IGNORECASE)
