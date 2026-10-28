@@ -167,7 +167,7 @@ def get_info():
     
     # Auto-normalize old/blocked AnimeVietSub domains to the latest working one
     if "animevietsub." in url.lower():
-        url = re.sub(r'animevietsub\.[a-z]+', 'animevietsub.meme', url, flags=re.IGNORECASE)
+        url = re.sub(r'animevietsub\.(?:meme|tv|moe|net|cc|org|info|love|lol|fan|site|nl)', 'animevietsub.sale', url, flags=re.IGNORECASE)
         
     if "tiktok.com" in url.lower() and "/photo/" in url.lower():
         url = re.sub(r'/photo/', '/video/', url, flags=re.IGNORECASE)

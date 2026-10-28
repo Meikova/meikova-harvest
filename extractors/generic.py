@@ -78,8 +78,8 @@ DOH_IP_MAP = {
     "dns.google": "8.8.8.8",
     "dns.adguard.com": "94.140.14.14",
     "doh.opendns.com": "208.67.222.222",
-    "animevietsub.sale": "172.67.72.243",
-    "animevietsub.meme": "172.67.72.243"
+    "animevietsub.sale": "104.26.15.160",
+    "animevietsub.meme": "104.26.15.160"
 }
 
 def test_ip_connection(ip):
@@ -95,6 +95,10 @@ def test_ip_connection(ip):
 def prioritize_ips(ips):
     if len(ips) <= 1:
         return ips
+    # Deprioritize Cloudflare 172.67.x.x range which is frequently throttled/blocked by VN ISPs
+    non_throttled = [ip for ip in ips if not ip.startswith('172.67.')]
+    throttled = [ip for ip in ips if ip.startswith('172.67.')]
+    ips = (non_throttled + throttled) if non_throttled else ips
     working_ips = []
     blocked_ips = []
     # Fast parallel check for working IPs
@@ -201,7 +205,7 @@ try:
                     
                 if domain:
                     if "animevietsub" in domain.lower():
-                        avs_ip = DOH_IP_MAP.get(domain.lower(), "172.67.72.243")
+                        avs_ip = DOH_IP_MAP.get(domain.lower(), "104.26.15.160")
                         resolve_list = [
                             f"{domain}:80:{avs_ip}".encode('utf-8'),
                             f"{domain}:443:{avs_ip}".encode('utf-8')
@@ -244,7 +248,7 @@ original_getaddrinfo = socket.getaddrinfo
 
 def custom_getaddrinfo(host, port, family=0, type=0, proto=0, flags=0):
     if host and "animevietsub" in host.lower():
-        ip = DOH_IP_MAP.get(host.lower(), "172.67.72.243")
+        ip = DOH_IP_MAP.get(host.lower(), "104.26.15.160")
         return original_getaddrinfo(ip, port, socket.AF_INET, type, proto, flags)
     if host and host not in ['localhost', '127.0.0.1', '::1'] and not host.replace('.', '').isdigit():
         try:

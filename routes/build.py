@@ -499,7 +499,7 @@ def proxy_subtitle_endpoint():
     # Auto-normalize old/blocked AnimeVietSub domains to the latest working one
     if url and "animevietsub." in url.lower():
         import re
-        url = re.sub(r'animevietsub\.[a-z]+', 'animevietsub.meme', url, flags=re.IGNORECASE)
+        url = re.sub(r'animevietsub\.(?:meme|tv|moe|net|cc|org|info|love|lol|fan|site|nl)', 'animevietsub.sale', url, flags=re.IGNORECASE)
     # Serve local subtitle/text file directly
     import os
     if os.path.isabs(url) and os.path.isfile(url):
