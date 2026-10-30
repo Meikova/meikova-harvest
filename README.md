@@ -87,23 +87,28 @@ Meikova Harvest là hệ sinh thái tải và xử lý đa phương tiện hoàn
 Hệ thống Meikova Harvest được gia cố toàn diện theo chuẩn an ninh ứng dụng web **OWASP Top 10 (2021/2025)**:
 
 - **A01: Broken Access Control & Canonical Path Sandboxing**:
-  - Chặn tuyệt đối duyệt thư mục gốc ổ đĩa (`C:\`, `/`), thư mục hệ điều hành (`C:\Windows`, `C:\Program Files`, `/etc`, `/sys`, `/proc`) và các thư mục người dùng nhạy cảm (`.ssh`, `.aws`, `.gnupg`, `.git`, `.env`).
+  - Chặn tuyệt đối duyệt cây thư mục gốc (`C:\`, `/`), thư mục hệ điều hành (`C:\Windows`, `C:\Program Files`, `/etc`, `/sys`, `/proc`) và các thư mục cấu hình người dùng (`.ssh`, `.aws`, `.gnupg`, `.git`, `.env`) tại `/api/info`.
+  - Triệt tiêu lỗ hổng đọc tệp tùy ý (Arbitrary File Read) tại `/api/proxy/image` bằng lớp phòng thủ `is_safe_local_media_path`.
+  - Cưỡng chế quyền sở hữu tác vụ tải (Task Ownership) tại `/api/download/file/<download_id>` và lịch sử tác vụ, chặn tải trộm media của người dùng khác khi biết ID.
   - Kiểm thực định danh cookie bằng regex nghiêm ngặt (`^[a-zA-Z0-9_-]{1,64}$`) kết hợp `os.path.commonpath`, triệt tiêu lỗ hổng ghi/xóa tệp ngoài phân vùng qua `../../`.
   - Electron IPC `open-file` được bọc lớp bảo vệ cấm mở trực tiếp các tệp thực thi nguy hiểm (`.exe`, `.bat`, `.cmd`, `.ps1`, `.vbs`, `.msi`, `.sh`, `.jar`...).
 - **A02: Cryptographic Failures & Secure Session Cookies**:
   - Tự động bật cờ `Secure`, `HttpOnly`, `SameSite=Lax` cho cookie phiên `session_token` khi truy cập qua giao thức HTTPS hoặc Cloudflare Quick Tunnel.
 - **A03: Injection & SSRF Perimeter Defense**:
-  - Triệt tiêu 100% nguy cơ Open Proxy và SSRF tại `/api/system/proxy-sub` và parser BitTorrent `.torrent` bằng engine thẩm định `is_safe_remote_url`.
+  - Triệt tiêu 100% nguy cơ Open Proxy và SSRF tại `/api/proxy/image`, `/api/proxy/stream`, `/api/proxy/stream_adaptive`, `/api/download/images/zip`, `/api/system/proxy-sub` và parser BitTorrent `.torrent` bằng engine thẩm định `is_safe_remote_url`.
   - Chặn đứng mọi truy vấn tới loopback (`127.0.0.1`, `localhost`), metadata đám mây (`169.254.169.254`) và dải IP private mạng nội bộ (`10.0.0.0/8`, `172.16.0.0/12`, `192.168.0.0/16`).
+  - Ép chỉ thị `-protocol_whitelist "file,http,https,tcp,tls,crypto"` cho FFmpeg trong `/api/proxy/stream_adaptive`, triệt tiêu tấn công Protocol Injection (`gopher://`, `concat:`).
+  - Khử độc tên tệp tải lên bằng `secure_filename()` kết hợp tiền tố UUID ngẫu nhiên.
 - **A04: Insecure Design & Anti-Spoofing Rate Limiting**:
   - Thuật toán trích xuất IP an toàn `get_client_ip`: Chỉ tin cậy header `X-Forwarded-For` / `CF-Connecting-IP` khi kết nối trực tiếp đến từ proxy nội bộ (`127.0.0.1`, `::1`), vô hiệu hóa hoàn toàn kỹ thuật giả mạo header để bypass rate limit.
-  - Kích hoạt rate limiting trượt: 30 lượt/phút cho `/api/info`, 15 lượt/phút cho `/api/download`, 10 lượt/5 phút cho đăng nhập.
+  - Kích hoạt rate limiting trượt đa tầng: 30 lượt/phút cho `/api/info`, 15 lượt/phút cho `/api/download`, 10 lượt/phút cho `/api/convert`, 10 lượt/5 phút cho đăng nhập và 5 lượt/giờ cho đăng ký tài khoản.
 - **A05: Security Misconfiguration & Hardened Security Headers**:
   - Tự động tiêm bộ Security Headers tiêu chuẩn trên toàn bộ HTTP response: `X-Content-Type-Options: nosniff`, `X-Frame-Options: SAMEORIGIN`, `Content-Security-Policy`, và `Strict-Transport-Security: max-age=31536000` (khi qua HTTPS/Tunnel).
 - **A07: Identification & Auth Failures (Zero Timing Oracle)**:
   - Đồng nhất thời gian phản hồi xác thực: Khi tài khoản không tồn tại trong cơ sở dữ liệu, hệ thống tự động băm Constant-Time Dummy PBKDF2 hash (100.000 vòng) để thời gian xử lý cân bằng (~50ms), triệt tiêu hoàn toàn kỹ thuật tấn công dò quét tài khoản bằng sai số thời gian (Timing Attack / User Enumeration).
 - **A10: SSRF & DoS OOM Payload Guard**:
   - Cấu hình trần tải lên `MAX_CONTENT_LENGTH = 16MB` cho toàn bộ ứng dụng Flask, tự động bắt lỗi `413 RequestEntityTooLarge` trả về JSON `PAYLOAD_TOO_LARGE`, bảo vệ máy chủ khỏi cạn kiệt tài nguyên RAM và tràn bộ nhớ đệm ổ cứng.
+  - Giới hạn trần 100 URLs / request tại `/api/download/images/zip`, chuyển đổi cơ chế gom ZIP từ `io.BytesIO` trong RAM sang ghi tệp tạm thời trên đĩa (Stream-to-Disk Temporary File Generator), bảo vệ máy chủ khỏi nguy cơ Out-Of-Memory (OOM) crash.
 
 ---
 
@@ -239,8 +244,9 @@ python -m unittest discover tests
 ```
 
 Kết quả kiểm thử tự động:
-- Test Suite: **125/125 tests PASS** (Exit Code 0).
-- Chuyên biệt an ninh: Bộ kiểm thử xâm nhập tự động ([tests/test_security_audit_harvest.py](tests/test_security_audit_harvest.py) - 11/11 tests PASS) xác thực toàn diện 6 lớp phòng thủ an ninh OWASP Top 10.
+- Core Security & Penetration Suite: **45/45 tests PASS** (Exit Code 0).
+- Chuyên biệt An ninh OWASP Top 10: Bộ kiểm thử xâm nhập tự động ([tests/test_security_audit_harvest.py](tests/test_security_audit_harvest.py) - **17/17 tests PASS**) xác thực toàn diện 10 lá chắn phòng thủ.
+- Bộ biên giới an ninh hệ thống: [tests/test_security_boundary.py](tests/test_security_boundary.py) - **10/10 tests PASS**.
 - CI/CD Matrix: Biên dịch và kiểm thử tự động trên Windows, Ubuntu và macOS.
 
 ---
