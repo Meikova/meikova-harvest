@@ -154,9 +154,13 @@ def get_info():
         # Check if file was uploaded from file picker
         file = request.files.get("file")
         if file and file.filename:
+            from werkzeug.utils import secure_filename
+            import uuid
+            clean_name = secure_filename(file.filename) or "upload_file"
+            safe_name = f"{uuid.uuid4().hex[:8]}_{clean_name}"
             temp_upload_dir = os.path.join(TEMP_DOWNLOAD_DIR, "uploads")
             os.makedirs(temp_upload_dir, exist_ok=True)
-            upload_path = os.path.join(temp_upload_dir, file.filename)
+            upload_path = os.path.join(temp_upload_dir, safe_name)
             file.save(upload_path)
             url = upload_path
             client_id = request.form.get("client_id")

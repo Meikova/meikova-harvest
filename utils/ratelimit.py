@@ -15,6 +15,7 @@ LIMITS = {
     "register": (5, 3600, "Quá nhiều lần đăng ký từ địa chỉ này. Vui lòng thử lại sau."),
     "info": (30, 60, "Quá nhiều yêu cầu phân tích URL. Vui lòng đợi 1 phút."),
     "download": (15, 60, "Quá nhiều yêu cầu khởi tạo tải. Vui lòng đợi 1 phút."),
+    "convert": (10, 60, "Quá nhiều yêu cầu chuyển mã media. Vui lòng đợi 1 phút."),
 }
 
 PURGE_INTERVAL_S = 300

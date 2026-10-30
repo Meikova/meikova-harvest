@@ -110,6 +110,12 @@ def preview_local_stream():
 
 @convert_bp.route("/api/convert", methods=["POST"])
 def trigger_conversion():
+    from utils.ratelimit import get_client_ip, check_rate_limit
+    client_ip = get_client_ip(request)
+    allowed, limit_msg = check_rate_limit(client_ip, "convert")
+    if not allowed:
+        return jsonify({"status": "error", "message": limit_msg, "code": "RATE_LIMIT_EXCEEDED"}), 429
+
     data = request.get_json(silent=True) or {}
     file_path = data.get("file_path")
     filename = data.get("filename") or os.path.basename(file_path or "media")

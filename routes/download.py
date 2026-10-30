@@ -503,6 +503,32 @@ def get_download_file(download_id):
             </body>
         </html>
         """, 404
+
+    allowed, err_resp = check_task_ownership(status_info)
+    if not allowed:
+        return err_resp
+
+    if status_info["status"] != "complete":
+        return """
+        <html>
+            <head>
+                <title>File Purged | Meikova Harvest</title>
+                <style>
+                    body { background: #07080f; color: #8b9dc3; font-family: system-ui, sans-serif; display: flex; justify-content: center; align-items: center; height: 100vh; margin: 0; text-align: center; }
+                    .card { background: rgba(14, 17, 30, 0.55); border: 1px solid rgba(255, 255, 255, 0.06); padding: 32px; border-radius: 12px; max-width: 450px; box-shadow: 0 20px 50px rgba(0,0,0,0.5); backdrop-filter: blur(20px); }
+                    h2 { color: #63b3ed; margin-top: 0; font-weight: 600; }
+                    p { font-size: 0.9rem; line-height: 1.6; }
+                </style>
+            </head>
+            <body>
+                <div class="card">
+                    <h2>File Purged from Server</h2>
+                    <p>This file has already been downloaded and automatically deleted from the server storage to save disk space.</p>
+                    <p>If you need another copy, please go back to the downloader page and click the <strong>Get</strong> button again to rebuild it.</p>
+                </div>
+            </body>
+        </html>
+        """, 404
     if status_info["status"] != "complete":
         return jsonify({"status": "error", "message": "File is not ready yet."}), 400
 
@@ -760,8 +786,15 @@ def proxy_image():
     client_id = request.args.get("client_id")
     if not url:
         return "Missing url parameter", 400
+
+    from utils.security import is_safe_local_media_path, is_safe_remote_url
+
     # Serve local image file directly
-    if os.path.isabs(url) and os.path.isfile(url):
+    if (os.path.isabs(url) or (len(url) >= 2 and url[1] == ':')) and os.path.exists(url):
+        safe, reason = is_safe_local_media_path(url, allow_user_local_media=True)
+        if not safe:
+            logger.warning(f"Blocked proxy_image local access to '{url}': {reason}")
+            return jsonify({"status": "error", "message": f"Security restriction: {reason}", "code": "ACCESS_DENIED"}), 403
         try:
             ext = url.rsplit('.', 1)[-1].lower() if '.' in url else ''
             
@@ -789,6 +822,13 @@ def proxy_image():
             return send_file(url, mimetype=mimetype, conditional=True)
         except Exception as e:
             return f"Error serving local image: {e}", 500
+
+    # Remote URL SSRF defense
+    safe, reason = is_safe_remote_url(url)
+    if not safe:
+        logger.warning(f"Blocked proxy_image remote SSRF attempt to '{url}': {reason}")
+        return jsonify({"status": "error", "message": f"Security restriction: {reason}", "code": "ACCESS_DENIED"}), 403
+
     try:
         headers = {
             "User-Agent": DEFAULT_MEDIA_USER_AGENT,
@@ -836,6 +876,13 @@ def download_images_zip():
     client_id = data.get("client_id")
     if not urls:
         return jsonify({"status": "error", "message": "No urls provided"}), 400
+    if len(urls) > 100:
+        return jsonify({"status": "error", "message": "Too many URLs in request (max 100)", "code": "LIMIT_EXCEEDED"}), 400
+
+    from utils.security import is_safe_remote_url
+    from flask import after_this_request
+    import tempfile
+
     try:
         cookies_dict = {}
         client_cookies = get_cookie_file_path(client_id)
@@ -854,8 +901,20 @@ def download_images_zip():
                 except Exception as cookie_err:
                     logger.warning(f"Failed to parse cookies file {client_cookies}: {cookie_err}")
         
-        memory_file = io.BytesIO()
-        with zipfile.ZipFile(memory_file, 'w') as zf:
+        tmp_zip = tempfile.NamedTemporaryFile(suffix=".zip", delete=False)
+        tmp_zip_path = tmp_zip.name
+        tmp_zip.close()
+
+        @after_this_request
+        def remove_temp_zip(response):
+            try:
+                if os.path.exists(tmp_zip_path):
+                    os.remove(tmp_zip_path)
+            except Exception:
+                pass
+            return response
+
+        with zipfile.ZipFile(tmp_zip_path, 'w', compression=zipfile.ZIP_DEFLATED) as zf:
             headers = {
                 "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
             }
@@ -864,6 +923,10 @@ def download_images_zip():
                 label = item.get("label", f"image_{idx+1}")
                 ext = item.get("ext", "jpg")
                 if not url:
+                    continue
+                safe, _ = is_safe_remote_url(url)
+                if not safe:
+                    logger.warning(f"Blocked prohibited remote URL in images zip: {url}")
                     continue
                 try:
                     req_headers = headers.copy()
@@ -876,9 +939,8 @@ def download_images_zip():
                 except Exception as e:
                     logger.warning(f"Failed to zip image {url}: {e}")
                     
-        memory_file.seek(0)
         return send_file(
-            memory_file,
+            tmp_zip_path,
             mimetype="application/zip",
             as_attachment=True,
             download_name=f"{title}_images.zip"
@@ -1169,10 +1231,23 @@ def proxy_stream_adaptive():
     except Exception as path_e:
         logger.warning(f"Failed to add static-ffmpeg paths: {path_e}")
 
+    from utils.security import is_safe_remote_url, is_safe_local_media_path
+    safe_v, reason_v = is_safe_remote_url(video_url) if (video_url.startswith("http://") or video_url.startswith("https://")) else is_safe_local_media_path(video_url, allow_user_local_media=True)
+    if not safe_v:
+        logger.warning(f"Blocked proxy_stream_adaptive video_url: {reason_v}")
+        return jsonify({"status": "error", "message": f"Security restriction: {reason_v}", "code": "ACCESS_DENIED"}), 403
+
+    if audio_url:
+        safe_a, reason_a = is_safe_remote_url(audio_url) if (audio_url.startswith("http://") or audio_url.startswith("https://")) else is_safe_local_media_path(audio_url, allow_user_local_media=True)
+        if not safe_a:
+            logger.warning(f"Blocked proxy_stream_adaptive audio_url: {reason_a}")
+            return jsonify({"status": "error", "message": f"Security restriction: {reason_a}", "code": "ACCESS_DENIED"}), 403
+
     # Build FFmpeg command to mux video-only and audio-only URLs on-the-fly
     cmd = [
         "ffmpeg",
         "-y",
+        "-protocol_whitelist", "file,http,https,tcp,tls,crypto",
         "-ss", start_time_str,
         "-headers", headers_arg,
         "-i", video_url,

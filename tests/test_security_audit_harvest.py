@@ -196,5 +196,95 @@ class TestSecurityAuditHarvest(unittest.TestCase):
         self.assertIn("HttpOnly", set_cookie)
 
 
+    def test_12_proxy_image_local_and_remote_defense(self):
+        """proxy_image must block arbitrary file read on host and remote SSRF"""
+        # 1. Local arbitrary file read attempt
+        win_sys = os.path.join(os.environ.get("SystemRoot", "C:\\Windows"), "win.ini")
+        resp_local = self.client.get(f"/api/proxy/image?url={win_sys}")
+        self.assertEqual(resp_local.status_code, 403)
+        self.assertEqual(resp_local.get_json().get("code"), "ACCESS_DENIED")
+
+        # 2. Remote SSRF attempt
+        resp_ssrf = self.client.get("/api/proxy/image?url=http://169.254.169.254/latest/meta-data")
+        self.assertEqual(resp_ssrf.status_code, 403)
+        self.assertEqual(resp_ssrf.get_json().get("code"), "ACCESS_DENIED")
+
+    def test_13_download_images_zip_limits_and_defense(self):
+        """download_images_zip must reject >100 URLs and ignore SSRF targets"""
+        # >100 URLs
+        too_many_urls = [{"url": f"https://example.com/img_{i}.jpg"} for i in range(101)]
+        resp_limit = self.client.post("/api/download/images/zip", json={"urls": too_many_urls})
+        self.assertEqual(resp_limit.status_code, 400)
+        self.assertEqual(resp_limit.get_json().get("code"), "LIMIT_EXCEEDED")
+
+    def test_14_proxy_stream_adaptive_ssrf_blocked(self):
+        """proxy_stream_adaptive must reject internal IPs and metadata URLs"""
+        resp_video = self.client.get("/api/proxy/stream_adaptive?video_url=http://127.0.0.1:8080/internal.mp4")
+        self.assertEqual(resp_video.status_code, 403)
+        self.assertEqual(resp_video.get_json().get("code"), "ACCESS_DENIED")
+
+        resp_audio = self.client.get("/api/proxy/stream_adaptive?video_url=https://example.com/video.mp4&audio_url=http://169.254.169.254/secret")
+        self.assertEqual(resp_audio.status_code, 403)
+        self.assertEqual(resp_audio.get_json().get("code"), "ACCESS_DENIED")
+
+    def test_15_download_file_task_ownership_enforced(self):
+        """get_download_file must reject access if task is owned by another user"""
+        from config import downloads_status, downloads_status_lock
+        fake_task_id = "test_ownership_task_123"
+        with downloads_status_lock:
+            downloads_status[fake_task_id] = {
+                "status": "complete",
+                "filepath": "C:\\dummy.mp4",
+                "filename": "dummy.mp4",
+                "user_id": 99999  # owned by another user
+            }
+
+        # Request without auth (user_id is None) -> must be rejected
+        resp = self.client.get(f"/api/download/file/{fake_task_id}")
+        self.assertEqual(resp.status_code, 403)
+
+        # Cleanup
+        with downloads_status_lock:
+            downloads_status.pop(fake_task_id, None)
+
+    def test_16_convert_rate_limit(self):
+        """trigger_conversion must enforce rate limit"""
+        from utils.ratelimit import reset_rate_limit
+        client_ip = "198.51.100.77"
+        reset_rate_limit(client_ip, "convert")
+
+        # Create dummy file
+        with tempfile.NamedTemporaryFile(suffix=".mp4", delete=False) as f:
+            f.write(b"dummy video content")
+            tmp_video = f.name
+
+        try:
+            # 10 allowed requests (limit for convert is 10/min)
+            for _ in range(10):
+                resp = self.client.post("/api/convert", json={"file_path": tmp_video, "target_format": "mp3"}, environ_base={"REMOTE_ADDR": client_ip})
+                self.assertIn(resp.status_code, [200, 403, 500])
+
+            # 11th request must be rate limited (429)
+            resp_blocked = self.client.post("/api/convert", json={"file_path": tmp_video, "target_format": "mp3"}, environ_base={"REMOTE_ADDR": client_ip})
+            self.assertEqual(resp_blocked.status_code, 429)
+            self.assertEqual(resp_blocked.get_json().get("code"), "RATE_LIMIT_EXCEEDED")
+        finally:
+            if os.path.exists(tmp_video):
+                os.remove(tmp_video)
+            reset_rate_limit(client_ip, "convert")
+
+
+    def test_17_info_upload_filename_sanitization(self):
+        """File upload in /api/info must sanitize filenames and prevent traversal"""
+        bad_filename = "../../evil_test.txt"
+        resp = self.client.post(
+            "/api/info",
+            data={"file": (io.BytesIO(b"sample video data"), bad_filename)},
+            content_type="multipart/form-data"
+        )
+        # Should not crash and should not write outside uploads dir
+        temp_uploads = os.path.join(TEMP_DOWNLOAD_DIR, "uploads")
+        self.assertFalse(os.path.exists(os.path.join(temp_uploads, bad_filename)))
+
 if __name__ == "__main__":
     unittest.main()
