@@ -380,14 +380,19 @@ class AuthManager:
                 raise ValueError("Tên đăng nhập hoặc email đã được sử dụng.")
             raise
 
+    _DUMMY_SALT = "00" * 16
+
     def authenticate_user(self, identifier: str, password: str) -> dict | None:
         user = self.find_user_by_identifier(identifier)
         if not user or not password:
+            # Constant-time dummy hash to eliminate timing oracle user enumeration
+            self.hash_password(password or "dummy_password_timing_defense", self._DUMMY_SALT)
             return None
 
         salt = user.get("salt")
         pwd_hash = user.get("password_hash")
         if not salt or not pwd_hash:
+            self.hash_password(password, self._DUMMY_SALT)
             return None
 
         expected_hash = self.hash_password(password, salt)

@@ -556,6 +556,10 @@ def proxy_subtitle_endpoint():
             else:
                 return "Local file not found", 404
         elif os.path.isabs(url) and os.path.isfile(url):
+            from utils.security import is_safe_local_media_path
+            safe, reason = is_safe_local_media_path(url, allow_user_local_media=True)
+            if not safe:
+                return f"Security restriction: {reason}", 403
             with open(url, "r", encoding="utf-8", errors="ignore") as sf:
                 text = sf.read()
         else:

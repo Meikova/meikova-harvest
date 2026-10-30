@@ -246,12 +246,20 @@ def extract_torrent_info(url_or_path, client_id=None):
     # Case B: .torrent file (Local path or Remote URL)
     raw_data = None
     if os.path.isfile(target):
+        from utils.security import is_safe_local_media_path
+        safe, reason = is_safe_local_media_path(target, allow_user_local_media=True)
+        if not safe:
+            raise ValueError(f"Security restriction: {reason}")
         try:
             with open(target, "rb") as f:
                 raw_data = f.read()
         except Exception as e:
             raise ValueError(f"Failed to read local torrent file: {str(e)}")
     elif target.lower().startswith("http://") or target.lower().startswith("https://"):
+        from utils.security import is_safe_remote_url
+        safe, reason = is_safe_remote_url(target)
+        if not safe:
+            raise ValueError(f"Security restriction: {reason}")
         try:
             import requests
             resp = requests.get(target, timeout=15, headers={"User-Agent": "Mozilla/5.0"})

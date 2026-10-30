@@ -1482,8 +1482,19 @@ ipcMain.on('show-item-in-folder', (event, filePath) => {
   }
 });
 
+const BLOCKED_EXECUTABLE_EXTENSIONS = new Set([
+  '.exe', '.bat', '.cmd', '.ps1', '.vbs', '.js', '.msi',
+  '.reg', '.scr', '.pif', '.com', '.hta', '.sh', '.py',
+  '.dll', '.sys', '.cpl', '.jar', '.vbe', '.wsf', '.wsh'
+]);
+
 ipcMain.on('open-file', (event, filePath) => {
   if (filePath && fs.existsSync(filePath)) {
+    const ext = path.extname(filePath).toLowerCase();
+    if (BLOCKED_EXECUTABLE_EXTENSIONS.has(ext)) {
+      log.warn(`Blocked attempt to open dangerous executable file via IPC: ${filePath}`);
+      return;
+    }
     shell.openPath(filePath);
   }
 });

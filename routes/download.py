@@ -54,6 +54,12 @@ def check_task_ownership(task_info):
 
 @download_bp.route("/api/download", methods=["POST"])
 def start_download():
+    from utils.ratelimit import get_client_ip, check_rate_limit
+    client_ip = get_client_ip(request)
+    allowed, limit_msg = check_rate_limit(client_ip, "download")
+    if not allowed:
+        return jsonify({"status": "error", "message": limit_msg, "code": "RATE_LIMIT_EXCEEDED"}), 429
+
     data = request.get_json(silent=True) or {}
     url = (data.get("url") or "").strip()
     if "tiktok.com" in url.lower() and "/photo/" in url.lower():

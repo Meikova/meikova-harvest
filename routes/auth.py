@@ -8,9 +8,12 @@ import threading
 import secrets
 from flask import Blueprint, request, jsonify, make_response, redirect
 from config import auth_manager
-from utils.ratelimit import check_rate_limit, reset_rate_limit
+from utils.ratelimit import check_rate_limit, reset_rate_limit, get_client_ip
 
 auth_bp = Blueprint("auth", __name__)
+
+def _is_request_secure() -> bool:
+    return request.is_secure or request.headers.get("X-Forwarded-Proto", "").lower() == "https"
 
 _pending_desktop_token = None
 
@@ -105,7 +108,7 @@ def get_authenticated_user():
 
 @auth_bp.route("/api/auth/register", methods=["POST"])
 def register_api():
-    client_ip = request.headers.get("X-Forwarded-For", request.remote_addr or "").split(",")[0].strip()
+    client_ip = get_client_ip(request)
     allowed, limit_msg = check_rate_limit(client_ip, "register")
     if not allowed:
         return jsonify({"status": "error", "message": limit_msg, "code": "AUTH_RATE_LIMITED"}), 429
@@ -132,7 +135,7 @@ def register_api():
             "token": token,
             "user": auth_res["user"]
         }))
-        resp.set_cookie("session_token", token, max_age=auth_manager.SESSION_DURATION, httponly=True, samesite="Lax")
+        resp.set_cookie("session_token", token, max_age=auth_manager.SESSION_DURATION, httponly=True, samesite="Lax", secure=_is_request_secure())
         return resp
     except ValueError as val_err:
         return jsonify({"status": "error", "message": str(val_err)}), 400
@@ -141,7 +144,7 @@ def register_api():
 
 @auth_bp.route("/api/auth/login", methods=["POST"])
 def login_api():
-    client_ip = request.headers.get("X-Forwarded-For", request.remote_addr or "").split(",")[0].strip()
+    client_ip = get_client_ip(request)
     allowed, limit_msg = check_rate_limit(client_ip, "login")
     if not allowed:
         return jsonify({"status": "error", "message": limit_msg, "code": "AUTH_RATE_LIMITED"}), 429
@@ -172,7 +175,7 @@ def login_api():
         "token": token,
         "user": auth_res["user"]
     }))
-    resp.set_cookie("session_token", token, max_age=auth_manager.SESSION_DURATION, httponly=True, samesite="Lax")
+    resp.set_cookie("session_token", token, max_age=auth_manager.SESSION_DURATION, httponly=True, samesite="Lax", secure=_is_request_secure())
     return resp
 
 @auth_bp.route("/api/auth/google", methods=["POST"])
@@ -197,7 +200,7 @@ def google_auth_api():
             "token": token,
             "user": auth_res["user"]
         }))
-        resp.set_cookie("session_token", token, max_age=auth_manager.SESSION_DURATION, httponly=True, samesite="Lax")
+        resp.set_cookie("session_token", token, max_age=auth_manager.SESSION_DURATION, httponly=True, samesite="Lax", secure=_is_request_secure())
         return resp
     except ValueError as val_err:
         return jsonify({"status": "error", "message": str(val_err)}), 400
@@ -445,7 +448,7 @@ def google_oauth_callback():
 </body>
 </html>"""
             resp = make_response(html)
-            resp.set_cookie("session_token", session_token, max_age=auth_manager.SESSION_DURATION, httponly=True, samesite="Lax")
+            resp.set_cookie("session_token", session_token, max_age=auth_manager.SESSION_DURATION, httponly=True, samesite="Lax", secure=_is_request_secure())
             return resp
 
         if is_desktop:
@@ -598,7 +601,7 @@ def google_oauth_callback():
 </body>
 </html>"""
         resp = make_response(html)
-        resp.set_cookie("session_token", session_token, max_age=auth_manager.SESSION_DURATION, httponly=True, samesite="Lax")
+        resp.set_cookie("session_token", session_token, max_age=auth_manager.SESSION_DURATION, httponly=True, samesite="Lax", secure=_is_request_secure())
         return resp
     except Exception as ex:
         return make_response(f"<html><body style='background:#080C14;color:#f87171;font-family:sans-serif;padding:40px;text-align:center;'><h3>Lỗi hoàn tất xác thực Google: {str(ex)}</h3><script>setTimeout(() => window.close(), 4000);</script></body></html>", 500)
@@ -612,7 +615,7 @@ def poll_desktop_session():
         data = _pending_desktop_token
         _pending_desktop_token = None
         resp = jsonify({"status": "success", "token": data["token"], "user": data["user"]})
-        resp.set_cookie("session_token", data["token"], max_age=auth_manager.SESSION_DURATION, httponly=True, samesite="Lax")
+        resp.set_cookie("session_token", data["token"], max_age=auth_manager.SESSION_DURATION, httponly=True, samesite="Lax", secure=_is_request_secure())
         return resp
     return jsonify({"status": "waiting"}), 200
 
@@ -633,7 +636,7 @@ def sso_callback_api():
         "user": user,
         "claimed_count": claimed
     }))
-    resp.set_cookie("session_token", token, max_age=30*86400, httponly=True, samesite="Lax")
+    resp.set_cookie("session_token", token, max_age=30*86400, httponly=True, samesite="Lax", secure=_is_request_secure())
     return resp
 
 @auth_bp.route("/api/auth/me", methods=["GET"])

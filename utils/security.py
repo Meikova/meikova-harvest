@@ -155,9 +155,23 @@ def is_safe_local_media_path(file_path: str, extra_dirs: list = None, allow_user
 
     # Prevent access to system core directories
     norm_lower = norm_path.lower()
+
+    # Prevent root drive or root filesystem browsing
+    drive_part, rest_part = os.path.splitdrive(norm_path)
+    if rest_part in ('\\', '/', '') and (drive_part or norm_path in ('/', '\\')):
+        return False, "Root drive browsing is strictly prohibited."
+
+    # Check for sensitive user directories
+    path_parts = set(norm_lower.replace('\\', '/').split('/'))
+    sensitive_markers = {'.ssh', '.aws', '.gnupg', '.env', '.git'}
+    if path_parts.intersection(sensitive_markers):
+        return False, "Access to sensitive configuration directory is strictly prohibited."
+
     system_roots = [
         os.environ.get("SystemRoot", "C:\\Windows").lower(),
-        "c:\\windows", "/etc", "/bin", "/sbin", "/boot", "/usr/bin"
+        "c:\\windows", "c:\\program files", "c:\\program files (x86)",
+        "c:\\programdata", "c:\\recovery",
+        "/etc", "/bin", "/sbin", "/boot", "/usr", "/var", "/proc", "/sys", "/root"
     ]
     for sys_root in system_roots:
         if norm_lower.startswith(sys_root.lower() + os.sep) or norm_lower == sys_root.lower():

@@ -140,6 +140,11 @@ def generic_html_link_harvester(url, client_id, html=None):
 
 @info_bp.route("/api/info", methods=["POST"])
 def get_info():
+    from utils.ratelimit import get_client_ip, check_rate_limit
+    client_ip = get_client_ip(request)
+    allowed, limit_msg = check_rate_limit(client_ip, "info")
+    if not allowed:
+        return jsonify({"status": "error", "message": limit_msg, "code": "RATE_LIMIT_EXCEEDED"}), 429
     if request.is_json:
         data = request.get_json(silent=True) or {}
         url = data.get("url", "").strip()
@@ -184,6 +189,15 @@ def get_info():
 
     # --- Local file / folder support ---
     if (os.path.isabs(url) or (len(url) >= 2 and url[1] == ':')) and os.path.exists(url):
+        from utils.security import is_safe_local_media_path
+        is_dir = os.path.isdir(url)
+        safe, reason = is_safe_local_media_path(url, allow_user_local_media=not is_dir)
+        if not safe:
+            return jsonify({
+                "status": "error",
+                "message": f"Security restriction: {reason}",
+                "code": "ACCESS_DENIED"
+            }), 403
         VIDEO_EXTS = {'mp4', 'mkv', 'avi', 'mov', 'wmv', 'flv', 'webm', 'ts', 'mpg', 'mpeg', 'm4v', '3gp'}
         AUDIO_EXTS = {'mp3', 'm4a', 'wav', 'flac', 'ogg', 'aac', 'wma', 'opus'}
         IMAGE_EXTS = {'jpg', 'jpeg', 'png', 'webp', 'gif', 'bmp', 'heic', 'heif', 'tiff', 'tif', 'svg', 'ico', 'avif'}

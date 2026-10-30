@@ -147,6 +147,8 @@ def _resolve_app_asset_dir(subpath):
 STATIC_DIR = _resolve_app_asset_dir("static")
 TEMPLATES_DIR = _resolve_app_asset_dir("templates")
 app = Flask(__name__, static_folder=STATIC_DIR, template_folder=TEMPLATES_DIR)
+# Hardened Request Payload Guard (16MB max)
+app.config['MAX_CONTENT_LENGTH'] = 16 * 1024 * 1024
 try:
     from werkzeug.middleware.proxy_fix import ProxyFix
     app.wsgi_app = ProxyFix(app.wsgi_app, x_for=1, x_proto=1, x_host=1, x_prefix=1)
@@ -181,6 +183,34 @@ try:
         logger.info("Leftover temporary downloads cleaned (cookies preserved).")
 except Exception as e:
     logger.warning(f"Failed to clean downloads directory on startup: {e}")
+
+# Error handler for request payload exceeding MAX_CONTENT_LENGTH
+@app.errorhandler(413)
+def request_entity_too_large(error):
+    return jsonify({
+        "status": "error",
+        "code": "PAYLOAD_TOO_LARGE",
+        "message": "Dung lượng dữ liệu gửi lên vượt quá giới hạn 16MB."
+    }), 413
+
+# Inject Security Headers (OWASP Hardening)
+@app.after_request
+def inject_security_headers(response):
+    response.headers["X-Content-Type-Options"] = "nosniff"
+    if "X-Frame-Options" not in response.headers:
+        response.headers["X-Frame-Options"] = "SAMEORIGIN"
+    from flask import request as flask_req
+    is_https = flask_req.is_secure or flask_req.headers.get("X-Forwarded-Proto", "").lower() == "https"
+    if is_https:
+        response.headers["Strict-Transport-Security"] = "max-age=31536000; includeSubDomains"
+    if "Content-Security-Policy" not in response.headers and not flask_req.path.startswith("/api/system/proxy-sub"):
+        response.headers["Content-Security-Policy"] = (
+            "default-src 'self' 'unsafe-inline' 'unsafe-eval' blob: data: https:; "
+            "media-src 'self' blob: data: https: file:; "
+            "img-src 'self' blob: data: https:; "
+            "frame-ancestors 'self' vscode-webview:;"
+        )
+    return response
 
 # Register Blueprints
 app.register_blueprint(pages_bp)

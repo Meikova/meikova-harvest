@@ -13,10 +13,37 @@ import os
 LIMITS = {
     "login": (10, 300, "Quá nhiều lần thử đăng nhập. Vui lòng đợi 5 phút."),
     "register": (5, 3600, "Quá nhiều lần đăng ký từ địa chỉ này. Vui lòng thử lại sau."),
+    "info": (30, 60, "Quá nhiều yêu cầu phân tích URL. Vui lòng đợi 1 phút."),
+    "download": (15, 60, "Quá nhiều yêu cầu khởi tạo tải. Vui lòng đợi 1 phút."),
 }
 
 PURGE_INTERVAL_S = 300
 LOCAL_IPS = {"127.0.0.1", "::1", "localhost"}
+TRUSTED_PROXIES = {"127.0.0.1", "::1", "localhost"}
+
+def get_client_ip(request) -> str:
+    """Safely extracts client IP address.
+    Only trusts X-Forwarded-For or CF-Connecting-IP if the direct connection (remote_addr)
+    is from trusted reverse proxies or loopback.
+    Otherwise falls back to direct remote_addr to prevent IP spoofing.
+    """
+    remote_addr = (getattr(request, "remote_addr", None) or "").strip()
+    headers = getattr(request, "headers", {})
+
+    if remote_addr in TRUSTED_PROXIES:
+        # Check CF-Connecting-IP first (Cloudflare Tunnel)
+        cf_ip = headers.get("CF-Connecting-IP")
+        if cf_ip and isinstance(cf_ip, str) and cf_ip.strip():
+            return cf_ip.strip()
+
+        # Check X-Forwarded-For (Reverse proxy)
+        forwarded = headers.get("X-Forwarded-For")
+        if forwarded and isinstance(forwarded, str) and forwarded.strip():
+            parts = [p.strip() for p in forwarded.split(",") if p.strip()]
+            if parts:
+                return parts[0]
+
+    return remote_addr or "127.0.0.1"
 
 _lock = threading.Lock()
 _hits: dict[tuple[str, str], deque] = {}
