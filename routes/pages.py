@@ -86,8 +86,10 @@ def get_tunnel_status():
 @pages_bp.route("/api/tunnel/start", methods=["POST"])
 def start_tunnel():
     port = int(os.environ.get("FLASK_PORT", 18650))
+    body = request.get_json(silent=True) or {}
+    ip_version = body.get("ipVersion") or request.args.get("ipVersion", "auto")
     try:
-        st = tunnel_manager.start(port)
+        st = tunnel_manager.start(port, ip_version=ip_version)
         return jsonify({"ok": True, **st})
     except Exception as e:
         st = tunnel_manager.get_status()
@@ -103,11 +105,10 @@ def stop_tunnel():
 @pages_bp.route("/api/tunnel/toggle", methods=["POST"])
 def toggle_tunnel():
     port = int(os.environ.get("FLASK_PORT", 18650))
+    body = request.get_json(silent=True) or {}
+    ip_version = body.get("ipVersion") or request.args.get("ipVersion", "auto")
     try:
-        if tunnel_manager.status == "running":
-            st = tunnel_manager.stop()
-        else:
-            st = tunnel_manager.start(port)
+        st = tunnel_manager.toggle(port, ip_version=ip_version)
         return jsonify({"ok": True, **st})
     except Exception as e:
         st = tunnel_manager.get_status()

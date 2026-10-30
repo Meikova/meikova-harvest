@@ -4,6 +4,7 @@ Meikova Harvest - Cloudflared Tunnel Manager Test Suite
 Tests:
 - Tunnel Manager status and discovery
 - Lifecycle state transitions (idle, running, stopped)
+- Edge PoP Colocation detection & latency fields
 - API endpoint integration: /api/tunnel/status, /api/host-info
 """
 
@@ -15,7 +16,7 @@ HARVEST_ROOT = Path(__file__).resolve().parent.parent
 if str(HARVEST_ROOT) not in sys.path:
     sys.path.insert(0, str(HARVEST_ROOT))
 
-from utils.tunnel_manager import CloudflaredTunnelManager, tunnel_manager
+from utils.tunnel_manager import CloudflaredTunnelManager, tunnel_manager, COLO_LOCATIONS
 from app import app
 
 
@@ -38,6 +39,10 @@ class TestHarvestTunnelManager(unittest.TestCase):
         self.assertIn("installCommand", st)
         self.assertIsInstance(st["installCommand"], str)
         self.assertGreater(len(st["installCommand"]), 0)
+        self.assertEqual(st["edgeIpVersion"], "auto")
+        self.assertIsNone(st["edgeColo"])
+        self.assertIsNone(st["edgeLocation"])
+        self.assertIsNone(st["latencyMs"])
 
     def test_find_cloudflared(self):
         bin_path = self.mgr.find_cloudflared()
@@ -49,15 +54,32 @@ class TestHarvestTunnelManager(unittest.TestCase):
         # Simulate running state
         self.mgr.status = "running"
         self.mgr.tunnel_url = "https://mock-harvest-test.trycloudflare.com"
+        self.mgr.edge_colo = "HKG"
+        self.mgr.edge_location = COLO_LOCATIONS.get("HKG")
+        self.mgr.latency_ms = 35
         st = self.mgr.get_status()
         self.assertTrue(st["running"])
         self.assertEqual(st["url"], "https://mock-harvest-test.trycloudflare.com")
+        self.assertEqual(st["edgeColo"], "HKG")
+        self.assertEqual(st["edgeLocation"], "Hong Kong")
+        self.assertEqual(st["latencyMs"], 35)
 
         # Stop
         st2 = self.mgr.stop()
         self.assertFalse(st2["running"])
         self.assertIsNone(st2["url"])
         self.assertEqual(st2["status"], "idle")
+        self.assertIsNone(st2["edgeColo"])
+        self.assertIsNone(st2["edgeLocation"])
+        self.assertIsNone(st2["latencyMs"])
+
+    def test_colo_locations_mapping(self):
+        self.assertIn("HAN", COLO_LOCATIONS)
+        self.assertIn("SGN", COLO_LOCATIONS)
+        self.assertIn("HKG", COLO_LOCATIONS)
+        self.assertIn("SIN", COLO_LOCATIONS)
+        self.assertEqual(COLO_LOCATIONS["HAN"], "Hà Nội (Việt Nam)")
+        self.assertEqual(COLO_LOCATIONS["SGN"], "TP. Hồ Chí Minh (Việt Nam)")
 
     def test_api_tunnel_status_endpoint(self):
         resp = self.client.get("/api/tunnel/status")
@@ -66,6 +88,10 @@ class TestHarvestTunnelManager(unittest.TestCase):
         self.assertIn("running", data)
         self.assertIn("status", data)
         self.assertIn("installCommand", data)
+        self.assertIn("edgeIpVersion", data)
+        self.assertIn("edgeColo", data)
+        self.assertIn("edgeLocation", data)
+        self.assertIn("latencyMs", data)
 
     def test_api_host_info_includes_tunnel(self):
         resp = self.client.get("/api/host-info")
